@@ -124,7 +124,8 @@ export const useAuthStore = create<AuthState>()(
 
       initAuthListener: () => {
         if (!hasKeys) {
-          set({ isLoading: false })
+          // Mock mode: mark auth as resolved so AuthProvider can enforce routing
+          set({ isLoading: false, flatChecked: true })
           return
         }
 

@@ -94,10 +94,11 @@ const MOCK_TASKS: Task[] = [
 ]
 
 export const useFlatStore = create<FlatState>((set, get) => ({
-  flatId: 'FLAT-1234',
-  name: 'Bachelor Pad',
-  members: MOCK_MEMBERS,
-  tasks: MOCK_TASKS,
+  flatId: hasKeys ? null : 'FLAT-1234',
+  name: hasKeys ? null : 'Bachelor Pad',
+  // Real Firebase mode starts empty; mock mode uses fake seed data
+  members: hasKeys ? [] : MOCK_MEMBERS,
+  tasks: hasKeys ? [] : MOCK_TASKS,
   activityLog: [],
   swapRequests: [],
   isSynced: false,

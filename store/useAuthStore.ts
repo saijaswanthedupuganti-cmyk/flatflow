@@ -4,6 +4,8 @@ import { auth, hasKeys } from '@/lib/firebase'
 import {
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -40,6 +42,14 @@ interface AuthState {
   refreshFlatId: () => Promise<void>
 }
 
+/** True when running on a mobile browser — popups are blocked on mobile */
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  )
+}
+
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -54,8 +64,13 @@ export const useAuthStore = create<AuthState>()(
           return
         }
         const provider = new GoogleAuthProvider()
-        await signInWithPopup(auth, provider)
-        // onAuthStateChanged will fire and call refreshFlatId
+        if (isMobileBrowser()) {
+          // Mobile: full-page redirect (popups are blocked on iOS/Android)
+          await signInWithRedirect(auth, provider)
+        } else {
+          // Desktop: popup (better UX)
+          await signInWithPopup(auth, provider)
+        }
       },
 
       loginWithEmail: async (email, pass) => {
@@ -114,7 +129,6 @@ export const useAuthStore = create<AuthState>()(
         const user = get().user
         if (!user) return
         if (!hasKeys) {
-          // Mock mode — always use FLAT-1234
           set({ flatId: 'FLAT-1234', flatChecked: true })
           return
         }
@@ -128,6 +142,18 @@ export const useAuthStore = create<AuthState>()(
           set({ isLoading: false, flatChecked: true })
           return
         }
+
+        // Handle the result when returning from a mobile Google redirect
+        getRedirectResult(auth)
+          .then((result) => {
+            if (result?.user) {
+              // onAuthStateChanged fires automatically after this — no extra work needed
+              console.log('Google redirect sign-in succeeded:', result.user.displayName)
+            }
+          })
+          .catch((err) => {
+            console.error('Google redirect error:', err?.message)
+          })
 
         onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
@@ -150,7 +176,6 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'flatflow-auth',
-      // Only persist what's needed for mock mode state
       partialize: (state) => ({
         user: state.user,
         flatId: state.flatId,

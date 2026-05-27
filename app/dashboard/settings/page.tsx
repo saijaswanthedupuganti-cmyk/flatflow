@@ -4,11 +4,18 @@ import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { Copy, Check, Sun, Moon, Shield, User, Home, Info } from 'lucide-react'
+import { Copy, Check, Sun, Moon, Shield, User, Home, Info, LogOut } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 export default function SettingsPage() {
+  const router = useRouter()
   const { flatId, name, members } = useFlatStore()
-  const { user } = useAuthStore()
+  const { user, logout } = useAuthStore()
+
+  const handleLogout = async () => {
+    await logout()
+    router.push('/')
+  }
 
   const currentMember = members.find(m => m.uid === user?.uid)
   const isAdmin = currentMember?.role === 'admin'
@@ -204,6 +211,20 @@ export default function SettingsPage() {
               </p>
             </div>
           </div>
+        </CardContent>
+      </Card>
+
+      {/* Sign Out — shown on mobile (sidebar logout is desktop-only) */}
+      <Card className="shadow-sm border-destructive/30 md:hidden">
+        <CardContent className="p-4">
+          <Button
+            variant="outline"
+            className="w-full h-12 text-destructive border-destructive/40 hover:bg-destructive/10 hover:border-destructive font-semibold gap-2"
+            onClick={handleLogout}
+          >
+            <LogOut size={18} />
+            Sign Out
+          </Button>
         </CardContent>
       </Card>
     </div>

@@ -128,14 +128,20 @@ This is a **real-user pilot** to validate:
 - [ ] **WhatsApp integration** — send task reminders via WhatsApp API
 - [ ] **Guest member invite** — invite by phone number or link (not just invite code)
 - [ ] **Task photo proof** — member uploads photo when marking task done
-- [ ] **Admin remove member** — handle flatmates who move out
 - [ ] **Flat name editing** — admin can rename the flat
 - [ ] **Member nickname editing** — members can change their own nickname
 - [ ] **Task history archive** — view completed tasks older than 30 days
 - [ ] **Progressive Web App (PWA)** — installable on home screen (Android + iOS)
 
-#### Medium Priority
-- [ ] **Multi-flat switcher** — user can belong to multiple flats (different cities, PG owner managing several flats) and switch between them from their profile — like Gmail account switching. Profile icon → dropdown shows all flats → tap to switch instantly. Also: "Join another flat" and "Create a new flat" options inside dashboard.
+#### Membership Management (3 scenarios — fully planned)
+- [ ] **Member leaves flat** — any member can leave voluntarily from Settings. If they're in multiple flats, app switches to the next flat. If it was their only flat, sent to onboarding.
+- [ ] **Admin kicks out a member** — admin can remove any member from the Members page. Kicked member's tasks are auto-reassigned. Next time they open the app, they're gracefully redirected to onboarding.
+- [ ] **Admin leaves their own flat** — if other members exist: must first transfer admin role to another member, then leave. If last member standing: deletes the entire flat permanently with a warning dialog.
+
+#### Multi-Flat Switcher (fully planned)
+- [ ] **Multiple flats per user** — user can belong to several flats at once (different cities, different PGs, managing as owner). Profile avatar → dropdown shows all flats → tap to switch instantly → tasks and data reload for that flat. "Join another flat" and "Create a new flat" options available from inside the dashboard without logging out.
+
+#### General
 - [ ] **Flat announcements** — admin posts a message to all members
 - [ ] **Expense splitting (basic)** — track shared expenses alongside duties
 - [ ] **Task templates** — common flat task presets (Bathroom, Kitchen, etc.)

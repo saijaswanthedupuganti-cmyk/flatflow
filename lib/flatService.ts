@@ -195,6 +195,12 @@ export async function joinFlat(params: {
   return { success: true }
 }
 
+/** Update the display name of a flat (admin only). The flat ID never changes. */
+export async function updateFlatName(flatId: string, newName: string): Promise<void> {
+  if (!hasKeys || !db) return
+  await updateDoc(doc(db, `flats/${flatId}`), { name: newName })
+}
+
 // ── Membership Management ────────────────────────────────────────────────────
 
 /**

@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import {
   Copy, Check, Sun, Moon, Shield, User, Home, Info,
-  LogOut, AlertTriangle, DoorOpen, Trash2, ShieldCheck, X
+  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import FlatSwitcher from '@/components/FlatSwitcher'
@@ -55,7 +55,7 @@ function ConfirmDialog({ open, onClose, title, description, confirmLabel, confir
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { flatId, name, members, leaveFlat, transferAdmin, deleteFlat } = useFlatStore()
+  const { flatId, name, members, leaveFlat, transferAdmin, deleteFlat, renameFlatAction } = useFlatStore()
   const { user, logout, allFlats } = useAuthStore()
 
   const handleLogout = async () => {
@@ -70,6 +70,12 @@ export default function SettingsPage() {
 
   const [copied, setCopied] = useState(false)
   const [isDark, setIsDark] = useState(false)
+
+  // Flat name editing
+  const [editingName, setEditingName] = useState(false)
+  const [draftName, setDraftName] = useState('')
+  const [nameLoading, setNameLoading] = useState(false)
+  const [nameError, setNameError] = useState('')
 
   // Leave flat dialog states
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
@@ -182,6 +188,27 @@ export default function SettingsPage() {
   const activeMembers = members.filter(m => m.status !== 'inactive')
   const flatDisplayName = name || 'My Flat'
 
+  const handleStartEditName = () => {
+    setDraftName(flatDisplayName)
+    setNameError('')
+    setEditingName(true)
+  }
+
+  const handleSaveName = async () => {
+    const trimmed = draftName.trim()
+    if (!trimmed || trimmed === flatDisplayName) { setEditingName(false); return }
+    setNameLoading(true)
+    setNameError('')
+    try {
+      await renameFlatAction(trimmed)
+      setEditingName(false)
+    } catch (e: unknown) {
+      setNameError(e instanceof Error ? e.message : 'Failed to rename. Try again.')
+    } finally {
+      setNameLoading(false)
+    }
+  }
+
   return (
     <>
       {/* Dialogs */}
@@ -250,9 +277,58 @@ export default function SettingsPage() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-1">
+              {/* Flat Name — admin can edit it inline */}
+              <div className="space-y-1.5">
                 <p className="text-sm font-bold text-muted-foreground">Flat Name</p>
-                <p className="text-lg font-semibold">{flatDisplayName}</p>
+                {editingName ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        maxLength={50}
+                        value={draftName}
+                        onChange={e => setDraftName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false) }}
+                        className="flex-1 bg-background border border-primary rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
+                      />
+                      <button
+                        onClick={handleSaveName}
+                        disabled={nameLoading || !draftName.trim()}
+                        className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
+                        title="Save"
+                      >
+                        <Save size={14} />
+                      </button>
+                      <button
+                        onClick={() => setEditingName(false)}
+                        className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
+                        title="Cancel"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                    {nameError && <p className="text-xs text-destructive">{nameError}</p>}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 group">
+                    <p className="text-lg font-semibold">{flatDisplayName}</p>
+                    {isAdmin && (
+                      <button
+                        onClick={handleStartEditName}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
+                        title="Edit flat name"
+                      >
+                        <Pencil size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+                {isAdmin && !editingName && (
+                  <p className="text-[11px] text-muted-foreground">
+                    ID: <span className="font-mono">{flatId}</span> — never changes
+                  </p>
+                )}
               </div>
               <div className="space-y-1">
                 <p className="text-sm font-bold text-muted-foreground">Total Members</p>

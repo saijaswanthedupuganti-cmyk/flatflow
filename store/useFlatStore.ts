@@ -9,6 +9,7 @@ import {
   kickMemberService,
   transferAdminService,
   deleteEntireFlatService,
+  updateFlatName as updateFlatNameService,
 } from '@/lib/flatService'
 
 export interface Member {
@@ -80,6 +81,9 @@ interface FlatState {
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
+
+  // Flat Settings
+  renameFlatAction: (newName: string) => Promise<void>
 
   // Membership Management
   leaveFlat: (uid: string) => Promise<{ nextFlatId: string | null }>
@@ -383,6 +387,19 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       await updateDoc(doc(db, `flats/${state.flatId}/swapRequests/${requestId}`), { read: true })
     } else {
       set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, read: true } : r) }))
+    }
+  },
+
+  // ── Flat Settings ──────────────────────────────────────────────────────────
+
+  renameFlatAction: async (newName) => {
+    const { flatId } = get()
+    if (!flatId) return
+    if (hasKeys) {
+      await updateFlatNameService(flatId, newName)
+      // The flat doc onSnapshot listener will update `name` in state automatically
+    } else {
+      set({ name: newName })
     }
   },
 

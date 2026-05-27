@@ -32,8 +32,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       // Logged in but not in a flat yet — send to onboarding
       if (!isOnboarding) router.push('/onboarding')
     } else {
-      // Logged in and in a flat
-      if (isAuthPage || isOnboarding) router.push('/dashboard')
+      // Logged in and in a flat — redirect away from login page only.
+      // Do NOT redirect from /onboarding — the user may be adding a second flat.
+      if (isAuthPage) router.push('/dashboard')
     }
   }, [isLoading, user, flatId, flatChecked, pathname, router])
 

@@ -8,7 +8,7 @@ import { useFlatStore } from '@/store/useFlatStore'
 export default function FlatSwitcher() {
   const router = useRouter()
   const { user, flatId, allFlats, switchFlat, logout } = useAuthStore()
-  const { initFirestoreListeners, resetFlatData, isSynced } = useFlatStore()
+  const { initFirestoreListeners, resetFlatData, name: liveFlatName } = useFlatStore()
 
   const [open, setOpen] = useState(false)
   const [switching, setSwitching] = useState(false)
@@ -25,6 +25,9 @@ export default function FlatSwitcher() {
 
   const currentFlat = allFlats.find(f => f.id === flatId)
   const otherFlats = allFlats.filter(f => f.id !== flatId)
+
+  // Prefer the live Firestore name (updates instantly); fall back to cached allFlats name
+  const currentFlatName = liveFlatName || currentFlat?.name || flatId || 'My Flat'
 
   const handleSwitch = async (newFlatId: string) => {
     if (newFlatId === flatId || switching) return
@@ -47,8 +50,6 @@ export default function FlatSwitcher() {
     router.push('/')
   }
 
-  const flatName = currentFlat?.name ?? flatId ?? 'My Flat'
-
   return (
     <div className="relative" ref={ref}>
       {/* Trigger button */}
@@ -61,7 +62,7 @@ export default function FlatSwitcher() {
         <div className="w-6 h-6 rounded-md bg-primary/20 flex items-center justify-center shrink-0">
           <Home size={12} className="text-primary" />
         </div>
-        <span className="flex-1 text-left font-semibold truncate">{switching ? 'Switching…' : flatName}</span>
+        <span className="flex-1 text-left font-semibold truncate">{switching ? 'Switching…' : currentFlatName}</span>
         <ChevronDown
           size={14}
           className={`text-muted-foreground shrink-0 transition-transform duration-150 ${open ? 'rotate-180' : ''}`}
@@ -80,7 +81,7 @@ export default function FlatSwitcher() {
                 <div className="w-6 h-6 rounded-md bg-primary flex items-center justify-center shrink-0">
                   <Home size={11} className="text-white" />
                 </div>
-                <span className="flex-1 text-sm font-semibold truncate">{currentFlat.name}</span>
+                <span className="flex-1 text-sm font-semibold truncate">{currentFlatName}</span>
                 <Check size={13} className="text-primary shrink-0" />
               </div>
             </div>

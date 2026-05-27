@@ -5,7 +5,8 @@
 import { db, hasKeys } from '@/lib/firebase'
 import {
   doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs,
-  collection, serverTimestamp, arrayUnion, arrayRemove, writeBatch
+  collection, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
+  runTransaction, increment,
 } from 'firebase/firestore'
 
 export interface FlatProfile {
@@ -123,11 +124,12 @@ export async function createFlat(params: {
     flatId = generateFlatId()
   }
 
-  // Flat document
+  // Flat document — memberCount starts at 1 (the admin)
   await setDoc(doc(db, `flats/${flatId}`), {
     name: flatName,
     adminUid: uid,
     createdAt: serverTimestamp(),
+    memberCount: 1,
   })
 
   // Admin member document
@@ -153,7 +155,8 @@ export async function createFlat(params: {
 
 /**
  * Join an existing flat with an invite code.
- * Returns true on success, false if flat not found.
+ * Uses a transaction so the member-count check, member creation, and
+ * counter increment are all atomic — prevents race conditions around the 8-member cap.
  */
 export async function joinFlat(params: {
   uid: string
@@ -165,32 +168,61 @@ export async function joinFlat(params: {
 
   if (!hasKeys || !db) return { success: true }
 
+  // Quick existence check before opening a transaction (cheaper read)
   if (!(await flatExists(flatId))) {
     return { success: false, error: 'Flat not found. Check the invite code and try again.' }
   }
 
-  const memberSnap = await getDoc(doc(db, `flats/${flatId}/members/${uid}`))
-  if (memberSnap.exists()) {
-    return { success: false, error: 'You are already a member of this flat.' }
+  const firestoreDb = db // capture for use inside the transaction callback
+
+  try {
+    await runTransaction(firestoreDb, async (transaction) => {
+      const flatRef   = doc(firestoreDb, `flats/${flatId}`)
+      const memberRef = doc(firestoreDb, `flats/${flatId}/members/${uid}`)
+      const userRef   = doc(firestoreDb, `users/${uid}`)
+
+      // All reads must happen before any writes in a Firestore transaction
+      const [flatSnap, memberSnap] = await Promise.all([
+        transaction.get(flatRef),
+        transaction.get(memberRef),
+      ])
+
+      if (!flatSnap.exists()) throw new Error('FLAT_NOT_FOUND')
+
+      // Default to 0 for flats created before memberCount was introduced
+      const memberCount: number = flatSnap.data().memberCount ?? 0
+      if (memberCount >= 8) throw new Error('FLAT_FULL')
+
+      if (memberSnap.exists()) throw new Error('ALREADY_MEMBER')
+
+      // ── Writes ──────────────────────────────────────────────────────────────
+      transaction.set(memberRef, {
+        uid,
+        nickname,
+        email,
+        role: 'member',
+        status: 'available',
+        reliabilityScore: 100,
+        joinedAt: new Date().toISOString(),
+      })
+
+      // Atomically increment the counter on the flat document
+      transaction.update(flatRef, { memberCount: increment(1) })
+
+      // User profile — multi-flat schema
+      transaction.set(userRef, {
+        activeFlatId: flatId,
+        flatIds: arrayUnion(flatId),
+        email,
+      }, { merge: true })
+    })
+  } catch (e) {
+    const msg = (e as Error).message
+    if (msg === 'FLAT_NOT_FOUND') return { success: false, error: 'Flat not found. Check the invite code and try again.' }
+    if (msg === 'FLAT_FULL')      return { success: false, error: 'This flat is full (maximum 8 members).' }
+    if (msg === 'ALREADY_MEMBER') return { success: false, error: 'You are already a member of this flat.' }
+    throw e // unexpected error — let the caller handle it
   }
-
-  // Add member
-  await setDoc(doc(db, `flats/${flatId}/members/${uid}`), {
-    uid,
-    nickname,
-    email,
-    role: 'member',
-    status: 'available',
-    reliabilityScore: 100,
-    joinedAt: new Date().toISOString(),
-  })
-
-  // User profile — new multi-flat schema
-  await setDoc(doc(db, `users/${uid}`), {
-    activeFlatId: flatId,
-    flatIds: arrayUnion(flatId),
-    email,
-  }, { merge: true })
 
   return { success: true }
 }
@@ -268,8 +300,9 @@ export async function leaveFlatService(uid: string, flatId: string): Promise<{ n
     timestamp: new Date().toISOString(),
   })
 
-  // Remove member doc
+  // Remove member doc and decrement the flat's member counter
   await deleteDoc(doc(db, `flats/${flatId}/members/${uid}`))
+  await updateDoc(doc(db, `flats/${flatId}`), { memberCount: increment(-1) })
 
   // Update user profile
   await updateDoc(doc(db, `users/${uid}`), {
@@ -306,8 +339,9 @@ export async function kickMemberService(adminUid: string, targetUid: string, fla
     timestamp: new Date().toISOString(),
   })
 
-  // Remove member doc
+  // Remove member doc and decrement the flat's member counter
   await deleteDoc(doc(db, `flats/${flatId}/members/${targetUid}`))
+  await updateDoc(doc(db, `flats/${flatId}`), { memberCount: increment(-1) })
 
   // Best-effort: update kicked user's profile (may fail due to Firestore auth rules)
   try {

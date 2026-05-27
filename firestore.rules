@@ -31,14 +31,24 @@ service cloud.firestore {
 
       // ── Members ─────────────────────────────────────────────────────────────
       match /members/{memberId} {
-        // Only flat members can read the members list
-        allow read: if isMember(flatId);
-        // Members can write (create/update/delete) their own doc; admin can write any member's doc
-        allow write: if request.auth != null
-          && (
-            request.auth.uid == memberId
-            || isAdmin(flatId)
-          );
+        // Members can read the list.
+        // A non-member can also read their own (potential) doc so that joinFlat
+        // can check "am I already a member?" without a permissions error.
+        allow read: if isMember(flatId)
+          || (request.auth != null && request.auth.uid == memberId);
+
+        // A user may join (create their own member doc) only when:
+        //  - they are authenticated
+        //  - they are creating their own record (not someone else's)
+        //  - the flat has fewer than 8 members (enforced via memberCount field)
+        allow create: if request.auth != null
+          && request.auth.uid == memberId
+          && get(/databases/$(database)/documents/flats/$(flatId)).data.get('memberCount', 0) < 8;
+
+        // Members can update/delete their own doc (status, nickname, etc.).
+        // Admin can update/delete any member doc (kick, role transfer).
+        allow update, delete: if request.auth != null
+          && (request.auth.uid == memberId || isAdmin(flatId));
       }
 
       // ── Tasks ─────────────────────────────────────────────────────────────

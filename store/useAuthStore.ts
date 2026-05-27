@@ -183,7 +183,8 @@ export const useAuthStore = create<AuthState>()(
           return
         }
 
-        // Process any pending Google redirect result (mobile sign-in)
+        // Process any pending Google redirect result.
+        // Errors are surfaced visibly so the user always knows what happened.
         getRedirectResult(auth, browserPopupRedirectResolver)
           .then((result) => {
             if (result?.user) {
@@ -193,12 +194,15 @@ export const useAuthStore = create<AuthState>()(
           .catch((err: unknown) => {
             console.error('Google redirect error:', err)
             const code = (err as { code?: string })?.code ?? ''
+            // Show all errors — fall back to a generic message so nothing is silent
             const msg = googleErrorMessage(code)
+              || (code ? `Sign-in failed (${code}). Please try again.` : '')
             if (msg) set({ redirectError: msg })
           })
 
         onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
+            // ── Step 1: set user and end the spinner immediately ──────────────
             set({
               user: {
                 uid: firebaseUser.uid,
@@ -209,27 +213,33 @@ export const useAuthStore = create<AuthState>()(
               isLoading: false,
             })
 
-            const profile = await getUserFlatProfile(firebaseUser.uid)
-            let activeFlatId = profile?.activeFlatId ?? null
-            let flatIds = profile?.flatIds ?? []
+            // ── Step 2: load profile + verify in background ───────────────────
+            try {
+              const profile = await getUserFlatProfile(firebaseUser.uid)
+              let activeFlatId = profile?.activeFlatId ?? null
+              let flatIds = profile?.flatIds ?? []
 
-            // Membership verification: handle kicked users
-            if (activeFlatId) {
-              const stillMember = await verifyMembership(firebaseUser.uid, activeFlatId)
-              if (!stillMember) {
-                // Kicked from active flat — switch to next available flat
+              // Run membership check and flat-name fetch in parallel (faster)
+              const [stillMember, allFlats] = await Promise.all([
+                activeFlatId
+                  ? verifyMembership(firebaseUser.uid, activeFlatId)
+                  : Promise.resolve(true),
+                getFlatsInfo(flatIds),
+              ])
+
+              // Handle kicked user
+              if (activeFlatId && !stillMember) {
                 flatIds = flatIds.filter(id => id !== activeFlatId)
                 activeFlatId = flatIds.length > 0 ? flatIds[0] : null
-                // Update their profile (they can write their own doc)
-                try {
-                  await setActiveFlatId(firebaseUser.uid, activeFlatId)
-                } catch { /* best effort */ }
+                try { await setActiveFlatId(firebaseUser.uid, activeFlatId) } catch { /* best effort */ }
               }
-            }
 
-            // Fetch flat names for the switcher UI
-            const allFlats = await getFlatsInfo(flatIds)
-            set({ flatId: activeFlatId, allFlatIds: flatIds, allFlats, flatChecked: true })
+              set({ flatId: activeFlatId, allFlatIds: flatIds, allFlats, flatChecked: true })
+            } catch (e) {
+              // Even on Firestore error, end loading so the user isn't stuck
+              console.error('Profile load error:', e)
+              set({ flatChecked: true })
+            }
           } else {
             set({ user: null, flatId: null, allFlatIds: [], allFlats: [], flatChecked: true, isLoading: false })
           }

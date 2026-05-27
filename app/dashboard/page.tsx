@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo } from '@/lib/rotationEngine'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays } from 'lucide-react'
+import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ChevronRight } from 'lucide-react'
 
 export default function DashboardPage() {
   const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
@@ -180,41 +180,63 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        
-        {!isAdmin && incomingRequests.length > 0 && (
-          <div className="col-span-1 md:col-span-3 space-y-4 mb-4">
-            <h2 className="text-xl font-bold flex items-center gap-2">
-              <Inbox size={20} /> Action Required ({incomingRequests.length})
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {incomingRequests.map(req => {
-                const task = tasks.find(t => t.taskId === req.taskId)
-                const fromUser = members.find(m => m.uid === req.fromUserId)
-                if (!task || !fromUser) return null;
+      {/* ── Swap Request Banner — shown to ALL members, top of page ──── */}
+      {incomingRequests.length > 0 && (
+        <div className="space-y-3">
+          {incomingRequests.map(req => {
+            const task     = tasks.find(t => t.taskId === req.taskId)
+            const fromUser = members.find(m => m.uid === req.fromUserId)
+            if (!task || !fromUser) return null
+            return (
+              <div
+                key={req.id}
+                className="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-2xl border-2 border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/40 shadow-sm"
+              >
+                {/* Icon */}
+                <div className="w-10 h-10 rounded-xl bg-violet-100 dark:bg-violet-900/50 flex items-center justify-center shrink-0">
+                  <Bell size={18} className="text-violet-600 dark:text-violet-400 animate-bounce" />
+                </div>
 
-                return (
-                  <Card key={req.id} className="border-purple-200 bg-purple-50 shadow-sm">
-                    <CardContent className="p-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                      <div>
-                        <div className="font-bold text-purple-900">{fromUser.nickname} requested a swap</div>
-                        <p className="text-sm text-purple-700">Can you cover <strong>{task.name}</strong> for them?</p>
-                      </div>
-                      <div className="flex gap-2 w-full md:w-auto">
-                        <Button size="sm" className="bg-purple-600 hover:bg-purple-700 text-white flex-1 md:flex-none" onClick={() => resolveSwapRequest(req.id, 'accepted')}>
-                          <Check size={16} className="mr-1" /> Accept
-                        </Button>
-                        <Button size="sm" variant="outline" className="text-purple-700 border-purple-200 hover:bg-purple-100 flex-1 md:flex-none" onClick={() => resolveSwapRequest(req.id, 'rejected')}>
-                          <X size={16} className="mr-1" /> Decline
-                        </Button>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )
-              })}
-            </div>
-          </div>
-        )}
+                {/* Text */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-bold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-0.5">
+                    Swap Request — Action Required
+                  </p>
+                  <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">
+                    <span className="font-extrabold">{fromUser.nickname}</span> asked you to cover{' '}
+                    <span className="font-extrabold">{task.name}</span>.
+                  </p>
+                  <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
+                    If you accept, this task transfers to you. If you decline, it stays with {fromUser.nickname}.
+                  </p>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 shrink-0">
+                  <Button
+                    size="sm"
+                    className="bg-green-600 hover:bg-green-700 text-white font-bold px-4"
+                    onClick={() => resolveSwapRequest(req.id, 'accepted')}
+                  >
+                    <Check size={14} className="mr-1.5" /> Accept
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="border-violet-300 text-violet-700 dark:text-violet-300 hover:bg-violet-100 dark:hover:bg-violet-900/40 font-bold px-4"
+                    onClick={() => resolveSwapRequest(req.id, 'rejected')}
+                  >
+                    <X size={14} className="mr-1.5" /> Decline
+                  </Button>
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+
 
         {/* SWAP REQUEST ALERTS (Resolved Responses) */}
         {myResolvedRequests.length > 0 && (
@@ -565,35 +587,98 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-        {isAdmin && (
-          <Card className="shadow-sm border-border">
-            <CardHeader>
-              <CardTitle>Up Next in Queue</CardTitle>
-              <CardDescription>Who's doing what next</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                {upNext.map((item, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 bg-secondary/50 rounded-lg">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-700 font-bold">
-                        {item.person.nickname.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="font-semibold flex items-center gap-2">
-                          {item.person.nickname}
-                          {item.priority === 'high' && <AlertCircle size={12} className="text-red-500" />}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{item.taskName}</div>
-                      </div>
-                    </div>
-                    <div className="text-sm font-medium text-muted-foreground">Up Next</div>
+        {/* ── Rotation Order — visible to ALL members ───────────────── */}
+        <Card className="shadow-sm border-border">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Repeat size={16} className="text-primary" /> Rotation Order
+            </CardTitle>
+            <CardDescription className="text-xs">
+              Full cycle for every task — see who's now, who's next, and when your turn comes.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {tasks.length === 0 && (
+              <p className="text-sm text-muted-foreground text-center py-4">No tasks yet.</p>
+            )}
+            {tasks.map(task => {
+              const currentIdx = task.queueOrder.indexOf(task.currentAssignedUserId)
+              // Build the ordered circle starting from the current assignee
+              const orderedQueue = [
+                ...task.queueOrder.slice(currentIdx),
+                ...task.queueOrder.slice(0, currentIdx),
+              ]
+              const isMyTask = task.currentAssignedUserId === currentUser.uid
+
+              return (
+                <div key={task.taskId} className={`rounded-xl border p-3 space-y-2 ${
+                  isMyTask ? 'border-primary/40 bg-primary/5' : 'border-border/60'
+                }`}>
+                  {/* Task name row */}
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-bold text-foreground truncate">{task.name}</p>
+                    {isMyTask && (
+                      <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full shrink-0">
+                        Your turn
+                      </span>
+                    )}
                   </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        )}
+
+                  {/* Rotation strip — horizontally scrollable on mobile */}
+                  <div className="overflow-x-auto -mx-1 px-1 pb-1">
+                    <div className="flex items-center gap-1.5 w-max">
+                      {orderedQueue.map((uid, idx) => {
+                        const m         = members.find(x => x.uid === uid)
+                        const isNow     = idx === 0
+                        const isNext    = idx === 1
+                        const isMe      = uid === currentUser.uid
+                        if (!m) return null
+                        return (
+                          <div key={uid} className="flex items-center gap-1.5">
+                            <div className={`relative flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border transition-all min-w-[52px] ${
+                              isNow  ? 'bg-primary border-primary text-white shadow-sm' :
+                              isNext ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' :
+                              isMe   ? 'bg-secondary border-border/80 text-foreground ring-1 ring-primary/30' :
+                                       'bg-card border-border/50 text-muted-foreground'
+                            }`}>
+                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
+                                isNow ? 'bg-white/20 text-white' :
+                                isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200' :
+                                'bg-secondary text-foreground'
+                              }`}>
+                                {m.nickname.charAt(0)}
+                              </span>
+                              <span className="text-[10px] font-semibold leading-tight">{m.nickname}</span>
+                              {isNow && (
+                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold bg-primary text-white px-1 py-0.5 rounded-full whitespace-nowrap">
+                                  NOW
+                                </span>
+                              )}
+                              {isNext && (
+                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold bg-blue-500 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
+                                  NEXT
+                                </span>
+                              )}
+                            </div>
+                            {/* Arrow between members, wraps back with a loop indicator */}
+                            {idx < orderedQueue.length - 1 ? (
+                              <ArrowRight size={10} className="text-muted-foreground/40 shrink-0" />
+                            ) : (
+                              <div className="flex items-center gap-0.5 text-muted-foreground/40">
+                                <ArrowRight size={10} className="shrink-0" />
+                                <span className="text-[9px] font-bold">↺</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </CardContent>
+        </Card>
 
         <Card className={`shadow-sm border-border ${!isAdmin ? 'lg:col-span-2' : ''}`}>
           <CardHeader>

@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Button } from "@/components/ui/button"
 import { useAuthStore } from '@/store/useAuthStore'
-import { ShieldCheck, Mail } from 'lucide-react'
+import { ShieldCheck, Mail, Loader2 } from 'lucide-react'
 import { hasKeys } from '@/lib/firebase'
 
 export default function Home() {
@@ -15,6 +15,7 @@ export default function Home() {
   const [password, setPassword] = useState('')
   const [nickname, setNickname] = useState('')
   const [error, setError] = useState('')
+  const [googleLoading, setGoogleLoading] = useState(false)
 
   useEffect(() => {
     if (user) {
@@ -62,12 +63,16 @@ export default function Home() {
   }
 
   const handleGoogleLogin = async () => {
+    setError('')
+    setGoogleLoading(true)
     try {
       await loginWithGoogle()
+      // Page will navigate away to Google — googleLoading stays true until then
     } catch (err) {
       console.error("Google login failed:", err)
       const msg = getAuthErrorMessage(err)
       if (msg) setError(msg)
+      setGoogleLoading(false)
     }
   }
 
@@ -178,13 +183,16 @@ export default function Home() {
           </div>
 
           <div className="space-y-4">
-            <Button 
+            <Button
               type="button"
-              className="w-full h-12 text-base font-bold bg-white text-black hover:bg-gray-100 border border-gray-300"
+              disabled={googleLoading}
+              className="w-full h-12 text-base font-bold bg-white text-black hover:bg-gray-100 border border-gray-300 disabled:opacity-70"
               onClick={handleGoogleLogin}
             >
-              <img src="/google-icon.svg" className="w-5 h-5 mr-3" alt="Google" />
-              Continue with Google
+              {googleLoading
+                ? <><Loader2 size={18} className="mr-2 animate-spin" /> Redirecting to Google…</>
+                : <><img src="/google-icon.svg" className="w-5 h-5 mr-3" alt="Google" />Continue with Google</>
+              }
             </Button>
             
             {!hasKeys && (

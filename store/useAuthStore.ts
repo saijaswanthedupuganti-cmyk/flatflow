@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware'
 import { auth, hasKeys } from '@/lib/firebase'
 import {
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   signOut as firebaseSignOut,
@@ -49,14 +48,6 @@ interface AuthState {
   clearRedirectError: () => void
 }
 
-/** True when running on a mobile browser — popups are blocked on mobile */
-function isMobileBrowser(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  )
-}
-
 export const useAuthStore = create<AuthState>()(
   persist(
     (set, get) => ({
@@ -72,13 +63,13 @@ export const useAuthStore = create<AuthState>()(
           return
         }
         const provider = new GoogleAuthProvider()
-        if (isMobileBrowser()) {
-          // Mobile: full-page redirect (popups are blocked on iOS/Android)
-          await signInWithRedirect(auth, provider)
-        } else {
-          // Desktop: popup (better UX)
-          await signInWithPopup(auth, provider)
-        }
+        // Only request the minimum scopes: email + basic profile (name + photo).
+        // Do NOT add extra scopes — we don't need calendar, drive, contacts, etc.
+        provider.addScope('email')
+        provider.addScope('profile')
+        // Use full-page redirect on ALL devices — more reliable than popup
+        // across browsers (avoids third-party cookie blocks, popup-closed errors).
+        await signInWithRedirect(auth, provider)
       },
 
       loginWithEmail: async (email, pass) => {
@@ -153,25 +144,31 @@ export const useAuthStore = create<AuthState>()(
           return
         }
 
-        // Handle the result when returning from a mobile Google redirect
+        // Process the Google redirect result on every page load (desktop + mobile).
+        // If the user just came back from Google OAuth this will resolve with their
+        // credential; otherwise it resolves with null and we do nothing.
         getRedirectResult(auth)
           .then((result) => {
             if (result?.user) {
-              // onAuthStateChanged fires automatically after this — no extra work needed
-              console.log('Google redirect sign-in succeeded:', result.user.displayName)
+              // onAuthStateChanged fires automatically with the signed-in user —
+              // no extra state update needed here.
+              console.log('Google sign-in via redirect succeeded:', result.user.displayName)
             }
           })
           .catch((err: unknown) => {
             console.error('Google redirect error:', err)
-            // Surface the error to the login page so users aren't left in silence
+            // Surface the error so the user isn't left staring at a blank login page
             const code: string = (err as { code?: string })?.code ?? ''
             let message = 'Google sign-in failed. Please try again.'
             if (code.includes('unauthorized-domain')) {
-              message = 'This domain is not authorised for Google sign-in. Add it to Firebase → Authentication → Authorised Domains.'
+              message = 'Google sign-in is not enabled for this domain yet.'
             } else if (code.includes('account-exists-with-different-credential')) {
-              message = 'An account already exists with this email using a different sign-in method.'
+              message = 'An account already exists with this email. Try signing in with email/password instead.'
             } else if (code.includes('network-request-failed')) {
-              message = 'Network error. Check your internet connection and try again.'
+              message = 'Network error. Check your connection and try again.'
+            } else if (code.includes('cancelled-popup-request') || code.includes('popup-closed-by-user')) {
+              // These can occasionally fire during a redirect flow on some browsers — ignore them
+              return
             }
             set({ redirectError: message })
           })

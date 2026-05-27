@@ -15,6 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "FlatFlow | Smart Roommate Management",
   description: "A lightweight roommate and bachelor flat management system focused on rotating household duties fairly.",
+  icons: {
+    icon: [
+      { url: "/flatflow-logo.svg", type: "image/svg+xml" },
+    ],
+    apple: "/flatflow-logo.svg",
+  },
 };
 
 import AuthProvider from "@/components/AuthProvider";

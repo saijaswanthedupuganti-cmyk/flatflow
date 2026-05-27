@@ -3,8 +3,10 @@ import { persist } from 'zustand/middleware'
 import { auth, hasKeys } from '@/lib/firebase'
 import {
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
+  browserPopupRedirectResolver,
   signOut as firebaseSignOut,
   onAuthStateChanged,
   createUserWithEmailAndPassword,
@@ -23,14 +25,8 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null
   isLoading: boolean
-  /** flatId for the flat this user belongs to. null = not yet in a flat */
   flatId: string | null
-  /** True once we've checked Firestore for the user's flat (prevents flicker) */
   flatChecked: boolean
-  /**
-   * Auth error surfaced from redirect flow (e.g. unauthorized domain).
-   * The login page reads this and shows it to the user, then clears it.
-   */
   redirectError: string | null
 
   loginWithGoogle: () => Promise<void>
@@ -40,12 +36,29 @@ interface AuthState {
   loginAsMemberMock: () => void
   logout: () => Promise<void>
   initAuthListener: () => void
-  /** Called after flat creation / join to set the flatId in store */
   setFlatId: (flatId: string) => void
-  /** Re-check the user's flat profile from Firestore */
   refreshFlatId: () => Promise<void>
-  /** Clear the redirectError once the login page has displayed it */
   clearRedirectError: () => void
+}
+
+/** True when running on a mobile browser — popups are blocked on iOS/Android */
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
+    navigator.userAgent
+  )
+}
+
+function googleErrorMessage(code: string): string {
+  if (code.includes('unauthorized-domain'))
+    return 'Google sign-in is not enabled for this domain.'
+  if (code.includes('account-exists-with-different-credential'))
+    return 'An account already exists with this email. Try email/password instead.'
+  if (code.includes('network-request-failed'))
+    return 'Network error. Check your connection and try again.'
+  if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request'))
+    return '' // user dismissed — show nothing
+  return 'Google sign-in failed. Please try again.'
 }
 
 export const useAuthStore = create<AuthState>()(
@@ -59,22 +72,28 @@ export const useAuthStore = create<AuthState>()(
 
       loginWithGoogle: async () => {
         if (!hasKeys) {
-          alert('Firebase is not configured! Use the mock login buttons instead.')
+          alert('Firebase is not configured. Use mock login instead.')
           return
         }
         const provider = new GoogleAuthProvider()
-        // Only request the minimum scopes: email + basic profile (name + photo).
-        // Do NOT add extra scopes — we don't need calendar, drive, contacts, etc.
+        // Only request email + basic profile (name + photo). No extra permissions.
         provider.addScope('email')
         provider.addScope('profile')
-        // Use full-page redirect on ALL devices — more reliable than popup
-        // across browsers (avoids third-party cookie blocks, popup-closed errors).
-        await signInWithRedirect(auth, provider)
+
+        if (isMobileBrowser()) {
+          // Mobile: full-page redirect — popups are blocked on iOS/Android.
+          // Pass browserPopupRedirectResolver explicitly so Firebase uses the
+          // correct resolver; this fixes redirect result processing on Next.js.
+          await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
+        } else {
+          // Desktop: popup is more reliable and gives better UX.
+          await signInWithPopup(auth, provider, browserPopupRedirectResolver)
+        }
       },
 
       loginWithEmail: async (email, pass) => {
         if (!hasKeys) {
-          alert('Firebase is not configured! Use the mock login buttons instead.')
+          alert('Firebase is not configured. Use mock login instead.')
           return
         }
         await signInWithEmailAndPassword(auth, email, pass)
@@ -82,7 +101,7 @@ export const useAuthStore = create<AuthState>()(
 
       signUpWithEmail: async (email, pass, nickname) => {
         if (!hasKeys) {
-          alert('Firebase is not configured! Use the mock login buttons instead.')
+          alert('Firebase is not configured. Use mock login instead.')
           return
         }
         const cred = await createUserWithEmailAndPassword(auth, email, pass)
@@ -116,74 +135,54 @@ export const useAuthStore = create<AuthState>()(
         }),
 
       logout: async () => {
-        if (hasKeys && auth.currentUser) {
-          await firebaseSignOut(auth)
-        }
+        if (hasKeys && auth.currentUser) await firebaseSignOut(auth)
         set({ user: null, flatId: null, flatChecked: false, redirectError: null })
       },
 
       setFlatId: (flatId) => set({ flatId, flatChecked: true }),
-
       clearRedirectError: () => set({ redirectError: null }),
 
       refreshFlatId: async () => {
         const user = get().user
         if (!user) return
-        if (!hasKeys) {
-          set({ flatId: 'FLAT-1234', flatChecked: true })
-          return
-        }
+        if (!hasKeys) { set({ flatId: 'FLAT-1234', flatChecked: true }); return }
         const profile = await getUserFlatProfile(user.uid)
         set({ flatId: profile?.flatId ?? null, flatChecked: true })
       },
 
       initAuthListener: () => {
         if (!hasKeys) {
-          // Mock mode: mark auth as resolved so AuthProvider can enforce routing
           set({ isLoading: false, flatChecked: true })
           return
         }
 
-        // Process the Google redirect result on every page load (desktop + mobile).
-        // If the user just came back from Google OAuth this will resolve with their
-        // credential; otherwise it resolves with null and we do nothing.
-        getRedirectResult(auth)
+        // Process any pending Google redirect result (mobile sign-in).
+        // Must pass the same browserPopupRedirectResolver used in signInWithRedirect.
+        getRedirectResult(auth, browserPopupRedirectResolver)
           .then((result) => {
             if (result?.user) {
-              // onAuthStateChanged fires automatically with the signed-in user —
-              // no extra state update needed here.
-              console.log('Google sign-in via redirect succeeded:', result.user.displayName)
+              console.log('Google redirect sign-in succeeded:', result.user.displayName)
+              // onAuthStateChanged will fire automatically — no extra state update needed
             }
           })
           .catch((err: unknown) => {
             console.error('Google redirect error:', err)
-            // Surface the error so the user isn't left staring at a blank login page
-            const code: string = (err as { code?: string })?.code ?? ''
-            let message = 'Google sign-in failed. Please try again.'
-            if (code.includes('unauthorized-domain')) {
-              message = 'Google sign-in is not enabled for this domain yet.'
-            } else if (code.includes('account-exists-with-different-credential')) {
-              message = 'An account already exists with this email. Try signing in with email/password instead.'
-            } else if (code.includes('network-request-failed')) {
-              message = 'Network error. Check your connection and try again.'
-            } else if (code.includes('cancelled-popup-request') || code.includes('popup-closed-by-user')) {
-              // These can occasionally fire during a redirect flow on some browsers — ignore them
-              return
-            }
-            set({ redirectError: message })
+            const code = (err as { code?: string })?.code ?? ''
+            const msg = googleErrorMessage(code)
+            if (msg) set({ redirectError: msg })
           })
 
         onAuthStateChanged(auth, async (firebaseUser) => {
           if (firebaseUser) {
-            const authUser: AuthUser = {
-              uid: firebaseUser.uid,
-              displayName: firebaseUser.displayName || 'User',
-              email: firebaseUser.email || '',
-              photoURL: firebaseUser.photoURL || undefined,
-            }
-            set({ user: authUser, isLoading: false })
-
-            // Check if this user is already in a flat
+            set({
+              user: {
+                uid: firebaseUser.uid,
+                displayName: firebaseUser.displayName || 'User',
+                email: firebaseUser.email || '',
+                photoURL: firebaseUser.photoURL || undefined,
+              },
+              isLoading: false,
+            })
             const profile = await getUserFlatProfile(firebaseUser.uid)
             set({ flatId: profile?.flatId ?? null, flatChecked: true })
           } else {

@@ -74,7 +74,7 @@ export default function TasksPage() {
 
     setIsCreating(false)
     setNewTaskName('')
-    setSelectedMembers([])
+    setSelectedMembers(activeMembers.map(m => m.uid))  // keep all members ready for next task
     setUseCustomDate(false)
     setNewTaskStartDate(new Date().toISOString().split('T')[0])
   }
@@ -132,7 +132,15 @@ export default function TasksPage() {
             </div>
           )}
           <Button
-            onClick={() => setIsCreating(v => !v)}
+            onClick={() => {
+              if (!isCreating) {
+                // Pre-select ALL active members so every task includes everyone by default
+                setSelectedMembers(activeMembers.map(m => m.uid))
+              } else {
+                setSelectedMembers([])
+              }
+              setIsCreating(v => !v)
+            }}
             variant={isCreating ? 'outline' : 'default'}
             size="sm"
             className="font-semibold"
@@ -279,13 +287,13 @@ export default function TasksPage() {
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
                 <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Participants
+                  Rotation Participants
                 </label>
-                {selectedMembers.length > 0 && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {selectedMembers.length} selected
-                  </span>
-                )}
+                <span className="text-[11px] text-muted-foreground">
+                  {selectedMembers.length === activeMembers.length
+                    ? 'All members included — tap to exclude'
+                    : `${selectedMembers.length} of ${activeMembers.length} selected`}
+                </span>
               </div>
 
               <div className="flex flex-wrap gap-2">
@@ -296,11 +304,11 @@ export default function TasksPage() {
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all border ${
                       selectedMembers.includes(m.uid)
                         ? 'bg-primary text-white border-primary shadow-sm'
-                        : 'bg-background text-foreground border-border hover:bg-secondary'
+                        : 'bg-background text-muted-foreground border-border hover:bg-secondary line-through opacity-60'
                     }`}
                   >
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                      selectedMembers.includes(m.uid) ? 'bg-white/20 text-white' : 'bg-primary/10 text-primary'
+                      selectedMembers.includes(m.uid) ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'
                     }`}>
                       {m.nickname.charAt(0)}
                     </span>

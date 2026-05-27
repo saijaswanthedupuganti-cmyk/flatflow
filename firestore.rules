@@ -71,6 +71,8 @@ service cloud.firestore {
             request.resource.data.userId == request.auth.uid
             || request.resource.data.userId == 'system'
           );
+        // Admin can update entries (used to toggle the hidden field — soft hide without deleting)
+        allow update: if isAdmin(flatId);
         // Admin can delete (needed for flat deletion)
         allow delete: if isAdmin(flatId);
       }

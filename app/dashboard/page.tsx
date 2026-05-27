@@ -5,15 +5,20 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo } from '@/lib/rotationEngine'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2 } from 'lucide-react'
+import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays } from 'lucide-react'
 
 export default function DashboardPage() {
-  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead } = useFlatStore()
+  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
   const [swappingTaskId, setSwappingTaskId] = useState<string | null>(null)
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('')
   const [showInvite, setShowInvite] = useState(false)
   const [inviteCopied, setInviteCopied] = useState(false)
+  // Completion date picker state
+  const [completingTaskId, setCompletingTaskId] = useState<string | null>(null)
+  const [completionDate, setCompletionDate] = useState('')
+  // Activity hide/unhide state
+  const [showHiddenActivities, setShowHiddenActivities] = useState(false)
   // Admin can switch between their own tasks and the org overview
   const [adminView, setAdminView] = useState<'mine' | 'org'>('org')
   const { flatId } = useFlatStore()
@@ -355,6 +360,40 @@ export default function DashboardPage() {
                               <p className="text-sm font-bold text-white">Swap Request Pending</p>
                               <p className="text-xs text-white/70">Waiting for roommate to accept</p>
                             </div>
+                          ) : completingTaskId === task.taskId ? (
+                            /* ── Date confirmation panel ── */
+                            <div className="bg-background/20 p-3 rounded-lg border border-background/20 space-y-3">
+                              <p className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                                <CalendarDays size={13} /> When did you do this?
+                              </p>
+                              <input
+                                type="date"
+                                value={completionDate}
+                                max={new Date().toISOString().split('T')[0]}
+                                onChange={e => setCompletionDate(e.target.value)}
+                                className="w-full bg-background text-foreground border-none rounded-md px-3 py-2 text-sm"
+                              />
+                              <div className="flex gap-2">
+                                <Button
+                                  variant="secondary"
+                                  className="flex-1 font-bold text-foreground"
+                                  disabled={!completionDate}
+                                  onClick={() => {
+                                    markTaskCompleted(task.taskId, currentUser.uid, completionDate)
+                                    setCompletingTaskId(null)
+                                  }}
+                                >
+                                  <CheckCircle2 size={14} className="mr-1.5" /> Confirm
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  className="flex-1 bg-transparent border-white/30 text-white hover:bg-white/10"
+                                  onClick={() => setCompletingTaskId(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </div>
+                            </div>
                           ) : isSwapping ? (
                             <div className="bg-background/20 p-3 rounded-lg border border-background/20 space-y-3">
                               <p className="text-xs font-bold uppercase tracking-wider text-white">Request Swap</p>
@@ -394,7 +433,11 @@ export default function DashboardPage() {
                               <Button
                                 variant="secondary"
                                 className="flex-1 font-bold shadow-sm text-foreground"
-                                onClick={() => markTaskCompleted(task.taskId, currentUser.uid)}
+                                onClick={() => {
+                                  setSwappingTaskId(null)
+                                  setCompletingTaskId(task.taskId)
+                                  setCompletionDate(new Date().toISOString().split('T')[0])
+                                }}
                               >
                                 <CheckCircle2 size={16} className="mr-1.5" />
                                 Done
@@ -554,12 +597,30 @@ export default function DashboardPage() {
 
         <Card className={`shadow-sm border-border ${!isAdmin ? 'lg:col-span-2' : ''}`}>
           <CardHeader>
-            <CardTitle>Recent Activity</CardTitle>
-            <CardDescription>System of record</CardDescription>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle>Recent Activity</CardTitle>
+                <CardDescription>System of record</CardDescription>
+              </div>
+              {isAdmin && activityLog.some(a => a.hidden) && (
+                <button
+                  onClick={() => setShowHiddenActivities(v => !v)}
+                  className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                >
+                  {showHiddenActivities
+                    ? <><Eye size={13} /> Hide hidden</>
+                    : <><EyeOff size={13} /> {activityLog.filter(a => a.hidden).length} hidden</>
+                  }
+                </button>
+              )}
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4 border-l-2 border-muted ml-3 pl-4 relative">
-              {activityLog.slice(0, 8).map((activity) => {
+              {activityLog
+                .filter(a => showHiddenActivities || !a.hidden)
+                .slice(0, 8)
+                .map((activity) => {
                 const isCompleted = activity.action === 'completed_task'
                 const isStatus = activity.action === 'status_change'
                 const isSkipped = activity.action === 'skipped_task'
@@ -569,7 +630,7 @@ export default function DashboardPage() {
                 const actDate = new Date(activity.timestamp)
 
                 return (
-                  <div key={activity.id} className="relative">
+                  <div key={activity.id} className={`relative group ${activity.hidden ? 'opacity-40' : ''}`}>
                     <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-card ${
                       isSystem ? 'bg-orange-500' :
                       isCompleted ? 'bg-green-500' :
@@ -577,18 +638,31 @@ export default function DashboardPage() {
                       isSkipped ? 'bg-red-500' :
                       isTransfer ? 'bg-purple-500' : 'bg-green-500'
                     }`} />
-                    <p className="text-sm">
+                    <p className="text-sm pr-6">
                       <span className="font-semibold">{isSystem ? 'System' : userObj?.nickname || 'Someone'}</span>{' '}
                       {activity.details}.
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5" title={formatDateTime(actDate)}>
                       {timeAgo(activity.timestamp)} · {actDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} {actDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                     </p>
+                    {/* Admin hide/unhide button — shown on hover */}
+                    {isAdmin && (
+                      <button
+                        onClick={() => toggleActivityHidden(activity.id)}
+                        className="absolute right-0 top-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity"
+                        title={activity.hidden ? 'Unhide this entry' : 'Hide this entry'}
+                      >
+                        {activity.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                      </button>
+                    )}
                   </div>
                 )
               })}
-              {activityLog.length === 0 && (
+              {activityLog.filter(a => !a.hidden).length === 0 && activityLog.length === 0 && (
                 <p className="text-sm text-muted-foreground">No recent activity.</p>
+              )}
+              {activityLog.filter(a => !a.hidden).length === 0 && activityLog.length > 0 && !showHiddenActivities && (
+                <p className="text-sm text-muted-foreground">All entries are hidden.</p>
               )}
             </div>
           </CardContent>

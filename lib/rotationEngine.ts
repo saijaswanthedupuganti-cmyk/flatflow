@@ -35,18 +35,21 @@ export function getNextAssignee(task: Task, members: Member[]): string | null {
 
 /**
  * Processes a task completion event.
- * Key rule: the next due date is calculated from NOW (not from the original due date),
- * so overdue days are absorbed by the person who was responsible — the next person
- * always gets a FULL fresh cycle starting from the completion timestamp.
+ *
+ * Key rule: the next due date is calculated from the completion date (not from
+ * the original due date), so overdue days are absorbed by the person who was
+ * responsible — the next person always gets a FULL fresh cycle.
+ *
+ * @param completionDate - Optional. Defaults to now. Pass a past date when the
+ *   user marks a task done retroactively (e.g. "we did this on Saturday").
  */
-export function completeTask(task: Task, members: Member[]): Task {
+export function completeTask(task: Task, members: Member[], completionDate?: Date): Task {
   const nextAssignee = getNextAssignee(task, members)
-  const now = new Date()
+  // Use the provided date or fall back to now
+  const completedAt = completionDate && completionDate <= new Date() ? completionDate : new Date()
 
-  // Next due date starts from NOW (completion time), not from the original due date.
-  // This ensures overdue days are the current person's responsibility —
-  // the next person always gets a full fresh cycle.
-  const nextDueDate = new Date(now)
+  // Next due date starts from completedAt, not from the original due date.
+  const nextDueDate = new Date(completedAt)
   if (task.frequency === 'daily') nextDueDate.setDate(nextDueDate.getDate() + 1)
   else if (task.frequency === 'weekly') nextDueDate.setDate(nextDueDate.getDate() + 7)
   else if (task.frequency === 'monthly') nextDueDate.setDate(nextDueDate.getDate() + 30)
@@ -56,7 +59,7 @@ export function completeTask(task: Task, members: Member[]): Task {
     return {
       ...task,
       status: 'paused',
-      lastCompletedAt: now.toISOString(),
+      lastCompletedAt: completedAt.toISOString(),
     }
   }
 
@@ -64,7 +67,7 @@ export function completeTask(task: Task, members: Member[]): Task {
     ...task,
     status: 'pending',
     currentAssignedUserId: nextAssignee,
-    lastCompletedAt: now.toISOString(),
+    lastCompletedAt: completedAt.toISOString(),
     dueDate: nextDueDate.toISOString(),
   }
 }

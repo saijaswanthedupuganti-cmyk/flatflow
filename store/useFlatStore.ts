@@ -41,6 +41,8 @@ export interface Activity {
   userId: string
   action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'returned_early'
   details: string
+  /** Admin can soft-hide entries without deleting them */
+  hidden?: boolean
 }
 
 export interface SwapRequest {
@@ -69,7 +71,7 @@ interface FlatState {
   addMemberMock: (uid: string, nickname: string, email: string, role: 'admin' | 'member') => void
 
   // Logic Actions
-  markTaskCompleted: (taskId: string, userId: string) => Promise<void>
+  markTaskCompleted: (taskId: string, userId: string, completionDate?: string) => Promise<void>
   changeMemberStatus: (userId: string, status: Member['status']) => Promise<void>
   returnEarly: (userId: string) => Promise<void>
   checkOverdueTasks: () => Promise<void>
@@ -81,6 +83,7 @@ interface FlatState {
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
+  toggleActivityHidden: (id: string) => Promise<void>
 
   // Flat Settings
   renameFlatAction: (newName: string) => Promise<void>
@@ -214,12 +217,26 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
   },
 
-  markTaskCompleted: async (taskId, userId) => {
+  toggleActivityHidden: async (id) => {
+    const state = get()
+    const entry = state.activityLog.find(a => a.id === id)
+    if (!entry) return
+    const newHidden = !entry.hidden
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/activityLog/${id}`), { hidden: newHidden })
+    } else {
+      set(s => ({ activityLog: s.activityLog.map(a => a.id === id ? { ...a, hidden: newHidden } : a) }))
+    }
+  },
+
+  markTaskCompleted: async (taskId, userId, completionDate?) => {
     const state = get()
     const taskIndex = state.tasks.findIndex(t => t.taskId === taskId)
     if (taskIndex === -1) return
     const task = state.tasks[taskIndex]
-    const updatedTask = completeTask(task, state.members)
+    // Parse the optional completion date — reject future dates
+    const completedAt = completionDate ? new Date(completionDate) : undefined
+    const updatedTask = completeTask(task, state.members, completedAt)
 
     if (hasKeys && state.flatId) {
       await setDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), updatedTask)
@@ -228,7 +245,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       newTasks[taskIndex] = updatedTask
       set({ tasks: newTasks })
     }
-    await get().addActivity({ userId, action: 'completed_task', details: `completed ${task.name}` })
+
+    // Include the actual date in the activity entry so the log is accurate
+    const dateLabel = completionDate
+      ? ` on ${new Date(completionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+      : ''
+    await get().addActivity({ userId, action: 'completed_task', details: `completed ${task.name}${dateLabel}` })
   },
 
   changeMemberStatus: async (userId, status) => {

@@ -59,6 +59,9 @@ export default function Home() {
     if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
       return '' // User dismissed — not an error to show
     }
+    if (code.includes('popup-blocked')) {
+      return 'Popup was blocked by your browser. Please allow popups for this site and try again.'
+    }
     return 'Authentication failed. Please try again.'
   }
 

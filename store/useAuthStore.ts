@@ -3,6 +3,7 @@ import { persist } from 'zustand/middleware'
 import { auth, hasKeys } from '@/lib/firebase'
 import {
   GoogleAuthProvider,
+  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   browserPopupRedirectResolver,
@@ -12,6 +13,13 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth'
+
+/** Detect mobile browsers — redirect is more reliable than popup on mobile */
+function isMobileBrowser(): boolean {
+  if (typeof navigator === 'undefined') return false
+  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|Windows Phone/i.test(navigator.userAgent)
+}
+
 import {
   getUserFlatProfile,
   getFlatsInfo,
@@ -19,6 +27,9 @@ import {
   setActiveFlatId,
   type FlatInfo,
 } from '@/lib/flatService'
+
+/** Set in sessionStorage before a redirect so we can detect a silent failure on return */
+const GOOGLE_REDIRECT_KEY = 'ff_google_redirect'
 
 export interface AuthUser {
   uid: string
@@ -84,10 +95,19 @@ export const useAuthStore = create<AuthState>()(
         provider.addScope('email')
         provider.addScope('profile')
 
-        // Use full-page redirect on ALL devices — popup is unreliable because
-        // browsers block the postMessage return signal from the popup window.
-        // Redirect works everywhere: desktop Chrome/Firefox/Safari, iOS Safari, Android.
-        await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
+        if (isMobileBrowser()) {
+          // Mobile: full-page redirect (popups are unreliable / blocked on iOS/Android).
+          // Store a flag so we can detect a silent failure when the page returns.
+          try { sessionStorage.setItem(GOOGLE_REDIRECT_KEY, '1') } catch { /* ignore */ }
+          await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
+        } else {
+          // Desktop: popup via the same-domain proxy (authDomain = garbage-liart.vercel.app).
+          // The popup opens and closes on our own origin, so postMessage works and tokens
+          // stay on our domain — no cross-site storage issue.
+          // Any failure (unauthorized-domain, popup-blocked, etc.) throws immediately
+          // so the catch block in handleGoogleLogin can show a specific error.
+          await signInWithPopup(auth, provider, browserPopupRedirectResolver)
+        }
       },
 
       loginWithEmail: async (email, pass) => {
@@ -183,15 +203,25 @@ export const useAuthStore = create<AuthState>()(
           return
         }
 
-        // Process any pending Google redirect result.
-        // Errors are surfaced visibly so the user always knows what happened.
+        // Process any pending Google redirect result (mobile sign-in only).
+        // If the redirect returned but no user came back, surface a visible error
+        // rather than silently dropping the user back onto the login page.
         getRedirectResult(auth, browserPopupRedirectResolver)
           .then((result) => {
+            let wasPending = false
+            try { wasPending = sessionStorage.getItem(GOOGLE_REDIRECT_KEY) === '1' } catch { /* ignore */ }
+            try { sessionStorage.removeItem(GOOGLE_REDIRECT_KEY) } catch { /* ignore */ }
+
             if (result?.user) {
               console.log('Google redirect sign-in succeeded:', result.user.displayName)
+            } else if (wasPending) {
+              // Redirect was started but came back without a user — likely an
+              // unauthorized-domain or cross-site storage issue.
+              set({ redirectError: 'Google sign-in failed. Check that this domain is authorised in Firebase Console, then try again.' })
             }
           })
           .catch((err: unknown) => {
+            try { sessionStorage.removeItem(GOOGLE_REDIRECT_KEY) } catch { /* ignore */ }
             console.error('Google redirect error:', err)
             const code = (err as { code?: string })?.code ?? ''
             // Show all errors — fall back to a generic message so nothing is silent

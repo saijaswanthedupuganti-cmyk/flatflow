@@ -19,9 +19,25 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        // Apply security headers to all routes
         source: "/(.*)",
         headers: securityHeaders,
+      },
+    ];
+  },
+
+  // Proxy Firebase auth requests through our own domain.
+  // This keeps the entire OAuth flow on one origin, fixing iOS Safari ITP
+  // and Android Chrome cross-site storage blocks.
+  // Previously done via netlify.toml — moving here so it works on any platform.
+  async rewrites() {
+    return [
+      {
+        source: "/__/auth/:path*",
+        destination: "https://garbage-f79f7.firebaseapp.com/__/auth/:path*",
+      },
+      {
+        source: "/__/firebase/:path*",
+        destination: "https://garbage-f79f7.firebaseapp.com/__/firebase/:path*",
       },
     ];
   },

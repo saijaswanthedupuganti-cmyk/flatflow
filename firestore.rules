@@ -26,8 +26,22 @@ service cloud.firestore {
       allow read: if request.auth != null;
       // Any authenticated user can create a flat (they become admin)
       allow create: if request.auth != null;
-      // Only admin can update or delete their flat
-      allow update, delete: if isAdmin(flatId);
+      // Admin can update anything on the flat document
+      // Non-admin joining: may increment memberCount by exactly 1 (and touch ONLY that field)
+      // Non-admin leaving: may decrement memberCount by exactly 1 (and touch ONLY that field,
+      //   but only while they are still a member — call this BEFORE deleting the member doc)
+      allow update: if isAdmin(flatId)
+        || (
+          request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.get('memberCount', 0) + 1
+        )
+        || (
+          isMember(flatId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.get('memberCount', 0) - 1
+        );
+      allow delete: if isAdmin(flatId);
 
       // ── Members ─────────────────────────────────────────────────────────────
       match /members/{memberId} {

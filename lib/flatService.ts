@@ -300,9 +300,10 @@ export async function leaveFlatService(uid: string, flatId: string): Promise<{ n
     timestamp: new Date().toISOString(),
   })
 
-  // Remove member doc and decrement the flat's member counter
-  await deleteDoc(doc(db, `flats/${flatId}/members/${uid}`))
+  // Decrement the flat's member counter FIRST (while isMember() is still true),
+  // then remove the member doc. Order matters for Firestore security rules.
   await updateDoc(doc(db, `flats/${flatId}`), { memberCount: increment(-1) })
+  await deleteDoc(doc(db, `flats/${flatId}/members/${uid}`))
 
   // Update user profile
   await updateDoc(doc(db, `users/${uid}`), {

@@ -4,6 +4,7 @@
 
 FlatFlow is a smart household duty management app built for flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
 
+[![Live](https://img.shields.io/badge/Live-flatsflow.netlify.app-brightgreen)](https://flatsflow.netlify.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org)
 [![Firebase](https://img.shields.io/badge/Firebase-12-orange?logo=firebase)](https://firebase.google.com)
@@ -23,6 +24,7 @@ FlatFlow is a smart household duty management app built for flatmates who want a
 | 📊 **Analytics** | Monthly completion grids, reliability scores, and per-member breakdowns. |
 | 🌙 **Dark Mode** | Full dark/light theme with system preference detection. |
 | 📱 **Mobile-first** | Responsive bottom-nav layout optimised for phones. |
+| 🔐 **Secure** | Role-based Firestore rules, hardened auth, HTTP security headers. |
 
 ---
 
@@ -35,7 +37,7 @@ FlatFlow is a smart household duty management app built for flatmates who want a
 ### Installation
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/flatflow.git
+git clone https://github.com/saijaswanthedupuganti-cmyk/flatflow.git
 cd flatflow
 npm install
 ```
@@ -54,7 +56,7 @@ npm run dev
 # Open http://localhost:3000
 ```
 
-> **No Firebase yet?** The app runs in **Local Mock Mode** automatically when Firebase keys are missing — you can explore all features with seeded demo data.
+> **No Firebase yet?** The app runs in **Local Mock Mode** automatically when Firebase keys are missing — explore all features with seeded demo data.
 
 ---
 
@@ -64,39 +66,59 @@ npm run dev
 flatflow/
 ├── app/
 │   ├── (auth)/           # Login, Join pages
-│   ├── dashboard/        # Main app pages (layout, home, analytics, calendar, tasks, members, settings, about)
+│   ├── dashboard/        # Main app (layout, home, analytics, calendar, tasks, members, settings, about)
 │   └── onboarding/       # Create or join a flat
 ├── components/
-│   ├── ui/               # shadcn/ui components
+│   ├── ui/               # shadcn/ui base components
 │   ├── AuthProvider.tsx  # Central routing guard
-│   └── NotificationToast.tsx  # Real-time activity toasts
+│   └── NotificationToast.tsx
 ├── lib/
 │   ├── firebase.ts       # Firebase init (with mock fallback)
 │   ├── flatService.ts    # Create/join flat helpers
 │   └── rotationEngine.ts # Smart duty rotation logic
 └── store/
-    ├── useAuthStore.ts   # Auth + flat membership state
-    └── useFlatStore.ts   # Tasks, members, activity log
+    ├── useAuthStore.ts   # Auth + flat membership (Zustand + persist)
+    └── useFlatStore.ts   # Tasks, members, activity, swap requests
 ```
 
 ---
 
 ## 🔧 Tech Stack
 
-- **Framework**: Next.js 16 (App Router, Turbopack)
-- **Language**: TypeScript (strict)
-- **Styling**: Tailwind CSS v4 with CSS variables
-- **State**: Zustand v5 with persistence
-- **Backend**: Firebase (Auth + Firestore real-time)
-- **Animations**: Framer Motion
-- **Icons**: Lucide React
-- **Components**: shadcn/ui
+| Layer | Technology |
+|-------|-----------|
+| Framework | Next.js 16 (App Router, Turbopack) |
+| Language | TypeScript (strict) |
+| Styling | Tailwind CSS v4 + CSS variables |
+| State | Zustand v5 with localStorage persistence |
+| Backend | Firebase Auth + Firestore (real-time) |
+| Hosting | Netlify (with Next.js plugin) |
+| Animations | Framer Motion |
+| Icons | Lucide React |
+| Components | shadcn/ui |
 
 ---
 
 ## 🔐 Security
 
-See [SECURITY.md](./SECURITY.md) for details on how Firebase keys are protected.
+- Firestore rules: role-based access (admin vs member), no anonymous reads
+- HTTP security headers: X-Frame-Options, HSTS, CSP, Referrer-Policy
+- Google OAuth: custom `authDomain` proxied through Netlify (fixes iOS Safari)
+- Auth errors: sanitised to prevent user enumeration
+- IDs: `crypto.randomUUID()` throughout
+
+See [SECURITY.md](./SECURITY.md) and [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
+
+---
+
+## 📋 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [PRODUCT.md](./PRODUCT.md) | Business roadmap, trial metrics, expansion plan |
+| [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) | How to connect your own Firebase project |
+| [SECURITY.md](./SECURITY.md) | Security model and key protection |
+| [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | Full audit findings and fixes |
 
 ---
 

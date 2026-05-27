@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo } from '@/lib/rotationEngine'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ChevronRight } from 'lucide-react'
+import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight } from 'lucide-react'
 
 export default function DashboardPage() {
   const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
@@ -624,55 +624,60 @@ export default function DashboardPage() {
                     )}
                   </div>
 
-                  {/* Rotation strip — horizontally scrollable on mobile */}
-                  <div className="overflow-x-auto -mx-1 px-1 pb-1">
-                    <div className="flex items-center gap-1.5 w-max">
-                      {orderedQueue.map((uid, idx) => {
-                        const m         = members.find(x => x.uid === uid)
-                        const isNow     = idx === 0
-                        const isNext    = idx === 1
-                        const isMe      = uid === currentUser.uid
-                        if (!m) return null
-                        return (
-                          <div key={uid} className="flex items-center gap-1.5">
-                            <div className={`relative flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-lg border transition-all min-w-[52px] ${
-                              isNow  ? 'bg-primary border-primary text-white shadow-sm' :
-                              isNext ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' :
-                              isMe   ? 'bg-secondary border-border/80 text-foreground ring-1 ring-primary/30' :
-                                       'bg-card border-border/50 text-muted-foreground'
+                  {/* Rotation strip — vertical on mobile, horizontal on sm+ */}
+                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0">
+                    {orderedQueue.map((uid, idx) => {
+                      const m      = members.find(x => x.uid === uid)
+                      const isNow  = idx === 0
+                      const isNext = idx === 1
+                      const isMe   = uid === currentUser.uid
+                      if (!m) return null
+                      return (
+                        <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
+                          {/* Member card — row on mobile, column on sm+ */}
+                          <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-0.5 sm:justify-center px-3 sm:px-2 py-2 sm:py-1.5 rounded-lg border transition-all w-full sm:w-auto sm:min-w-[52px] ${
+                            isNow  ? 'bg-primary border-primary text-white shadow-sm' :
+                            isNext ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' :
+                            isMe   ? 'bg-secondary border-border/80 text-foreground ring-1 ring-primary/30' :
+                                     'bg-card border-border/50 text-muted-foreground'
+                          }`}>
+                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                              isNow  ? 'bg-white/20 text-white' :
+                              isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200' :
+                                       'bg-secondary text-foreground'
                             }`}>
-                              <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                                isNow ? 'bg-white/20 text-white' :
-                                isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200' :
-                                'bg-secondary text-foreground'
+                              {m.nickname.charAt(0)}
+                            </span>
+                            <span className="text-sm sm:text-[10px] font-semibold leading-tight">{m.nickname}</span>
+                            {/* Badges — inline right on mobile, inline below on sm+ */}
+                            {(isNow || isNext) && (
+                              <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0 ${
+                                isNow  ? 'bg-white/20 text-white' :
+                                         'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
                               }`}>
-                                {m.nickname.charAt(0)}
+                                {isNow ? 'NOW' : 'NEXT'}
                               </span>
-                              <span className="text-[10px] font-semibold leading-tight">{m.nickname}</span>
-                              {isNow && (
-                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold bg-primary text-white px-1 py-0.5 rounded-full whitespace-nowrap">
-                                  NOW
-                                </span>
-                              )}
-                              {isNext && (
-                                <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-extrabold bg-blue-500 text-white px-1 py-0.5 rounded-full whitespace-nowrap">
-                                  NEXT
-                                </span>
-                              )}
-                            </div>
-                            {/* Arrow between members, wraps back with a loop indicator */}
-                            {idx < orderedQueue.length - 1 ? (
-                              <ArrowRight size={10} className="text-muted-foreground/40 shrink-0" />
-                            ) : (
-                              <div className="flex items-center gap-0.5 text-muted-foreground/40">
-                                <ArrowRight size={10} className="shrink-0" />
-                                <span className="text-[9px] font-bold">↺</span>
-                              </div>
                             )}
                           </div>
-                        )
-                      })}
-                    </div>
+                          {/* Arrow: ↓ on mobile, → on desktop */}
+                          {idx < orderedQueue.length - 1 ? (
+                            <>
+                              <ArrowDown  size={10} className="sm:hidden text-muted-foreground/40 self-center" />
+                              <ArrowRight size={10} className="hidden sm:block text-muted-foreground/40 shrink-0" />
+                            </>
+                          ) : (
+                            <>
+                              <div className="sm:hidden flex items-center gap-0.5 text-muted-foreground/40 self-center">
+                                <ArrowDown size={10} /><span className="text-[9px] font-bold">↺</span>
+                              </div>
+                              <div className="hidden sm:flex items-center gap-0.5 text-muted-foreground/40">
+                                <ArrowRight size={10} className="shrink-0" /><span className="text-[9px] font-bold">↺</span>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      )
+                    })}
                   </div>
                 </div>
               )

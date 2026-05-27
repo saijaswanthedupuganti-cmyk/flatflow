@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
-  Plus, ArrowRight, AlertTriangle, PauseCircle, Clock, Edit2,
+  Plus, ArrowRight, ArrowDown, AlertTriangle, PauseCircle, Clock, Edit2,
   Trash2, ClipboardList, CheckCircle2, X, CalendarDays,
 } from 'lucide-react'
 import { getPriorityWeight, getTaskDateInfo } from '@/lib/rotationEngine'
@@ -424,42 +424,45 @@ export default function TasksPage() {
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
                       Rotation Queue
                     </p>
-                    {/* Scrollable strip — prevents overflow on small screens */}
-                    <div className="overflow-x-auto pb-1 -mx-1 px-1">
-                      <div className="flex items-center gap-2 w-max">
-                        {task.queueOrder.map((uid, index) => {
-                          const m         = members.find(x => x.uid === uid)
-                          const isCurrent = uid === task.currentAssignedUserId
-                          if (!m) return null
-                          return (
-                            <div key={uid} className="flex items-center gap-2">
-                              <div className={`relative flex flex-col items-center gap-1 px-2.5 py-2 rounded-xl border-2 transition-all min-w-[62px] ${
-                                isCurrent
-                                  ? 'bg-primary border-primary text-white shadow-md'
-                                  : 'bg-card border-border/60 text-muted-foreground'
+                    {/* Queue — vertical on mobile, horizontal on sm+ */}
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0">
+                      {task.queueOrder.map((uid, index) => {
+                        const m         = members.find(x => x.uid === uid)
+                        const isCurrent = uid === task.currentAssignedUserId
+                        if (!m) return null
+                        return (
+                          <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                            {/* Member card — row on mobile, column on sm+ */}
+                            <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-1 sm:justify-center px-3 sm:px-2.5 py-2 rounded-xl border-2 transition-all w-full sm:w-auto sm:min-w-[62px] ${
+                              isCurrent
+                                ? 'bg-primary border-primary text-white shadow-md'
+                                : 'bg-card border-border/60 text-muted-foreground'
+                            }`}>
+                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
                               }`}>
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
-                                  isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
-                                }`}>
-                                  {m.nickname.charAt(0)}
-                                </div>
-                                <span className="text-[11px] font-semibold leading-tight">{m.nickname}</span>
-                                {m.status === 'out_of_station' && (
-                                  <PauseCircle size={10} className="absolute -top-1.5 -right-1.5 text-orange-400 bg-card rounded-full" />
-                                )}
-                                {isCurrent && (
-                                  <span className="absolute -top-2 left-1/2 -translate-x-1/2 text-[8px] font-bold bg-primary text-white px-1.5 py-0.5 rounded-full whitespace-nowrap">
-                                    NOW
-                                  </span>
-                                )}
+                                {m.nickname.charAt(0)}
                               </div>
-                              {index < task.queueOrder.length - 1 && (
-                                <ArrowRight size={12} className="text-muted-foreground/40 shrink-0" />
+                              <span className="text-sm sm:text-[11px] font-semibold leading-tight">{m.nickname}</span>
+                              {m.status === 'out_of_station' && (
+                                <PauseCircle size={10} className="text-orange-400 ml-auto sm:ml-0" />
+                              )}
+                              {isCurrent && (
+                                <span className="text-[8px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0">
+                                  NOW
+                                </span>
                               )}
                             </div>
-                          )
-                        })}
-                      </div>
+                            {/* Arrow: ↓ on mobile, → on desktop */}
+                            {index < task.queueOrder.length - 1 && (
+                              <>
+                                <ArrowDown  size={12} className="sm:hidden text-muted-foreground/40 self-center" />
+                                <ArrowRight size={12} className="hidden sm:block text-muted-foreground/40 shrink-0" />
+                              </>
+                            )}
+                          </div>
+                        )
+                      })}
                     </div>
                     <p className="text-[11px] text-muted-foreground mt-2">
                       Last done: <span className="font-semibold text-foreground">{dateInfo.lastCompletedFormatted}</span>

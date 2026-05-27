@@ -3,7 +3,6 @@ import { persist } from 'zustand/middleware'
 import { auth, hasKeys } from '@/lib/firebase'
 import {
   GoogleAuthProvider,
-  signInWithPopup,
   signInWithRedirect,
   getRedirectResult,
   browserPopupRedirectResolver,
@@ -53,14 +52,6 @@ interface AuthState {
   clearRedirectError: () => void
 }
 
-/** True when running on a mobile browser — popups are blocked on iOS/Android */
-function isMobileBrowser(): boolean {
-  if (typeof navigator === 'undefined') return false
-  return /iPhone|iPad|iPod|Android|webOS|BlackBerry|IEMobile|Opera Mini/i.test(
-    navigator.userAgent
-  )
-}
-
 function googleErrorMessage(code: string): string {
   if (code.includes('unauthorized-domain'))
     return 'Google sign-in is not enabled for this domain.'
@@ -93,11 +84,10 @@ export const useAuthStore = create<AuthState>()(
         provider.addScope('email')
         provider.addScope('profile')
 
-        if (isMobileBrowser()) {
-          await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
-        } else {
-          await signInWithPopup(auth, provider, browserPopupRedirectResolver)
-        }
+        // Use full-page redirect on ALL devices — popup is unreliable because
+        // browsers block the postMessage return signal from the popup window.
+        // Redirect works everywhere: desktop Chrome/Firefox/Safari, iOS Safari, Android.
+        await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
       },
 
       loginWithEmail: async (email, pass) => {

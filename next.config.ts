@@ -19,7 +19,21 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       {
-        source: "/(.*)",
+        // Apply security headers to every route EXCEPT the Firebase auth proxy
+        // routes (/__/auth/* and /__/firebase/*).
+        //
+        // WHY: Firebase Auth's browserPopupRedirectResolver loads
+        // /__/auth/iframe in an invisible iframe to establish its auth channel.
+        // If X-Frame-Options: DENY is returned on that URL the iframe is
+        // blocked and BOTH signInWithPopup and signInWithRedirect silently
+        // fail — the user picks their Google account and nothing happens.
+        //
+        // On Netlify this was fine because the proxy lived in netlify.toml
+        // (Netlify edge, before Next.js) so Next.js headers never touched
+        // those routes. On Vercel the proxy is inside next.config.ts so
+        // Next.js applies headers AND rewrites to the same request — we must
+        // explicitly exclude the Firebase proxy paths.
+        source: "/((?!__\\/auth|__\\/firebase).*)",
         headers: securityHeaders,
       },
     ];

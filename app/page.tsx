@@ -8,7 +8,7 @@ import { hasKeys } from '@/lib/firebase'
 
 export default function Home() {
   const router = useRouter()
-  const { user, loginWithGoogle, loginWithEmail, signUpWithEmail, loginAsAdminMock, loginAsMemberMock } = useAuthStore()
+  const { user, loginWithGoogle, loginWithEmail, signUpWithEmail, loginAsAdminMock, loginAsMemberMock, redirectError, clearRedirectError } = useAuthStore()
 
   const [isSignUp, setIsSignUp] = useState(false)
   const [email, setEmail] = useState('')
@@ -22,11 +22,52 @@ export default function Home() {
     }
   }, [user, router])
 
+  // Show any error that came back from the Google redirect flow (mobile sign-in)
+  useEffect(() => {
+    if (redirectError) {
+      setError(redirectError)
+      clearRedirectError()
+    }
+  }, [redirectError, clearRedirectError])
+
+  /** Maps Firebase error codes to safe, user-friendly messages.
+   *  We intentionally avoid revealing whether an email exists (prevents enumeration). */
+  function getAuthErrorMessage(err: unknown): string {
+    const code = (err as { code?: string })?.code ?? ''
+    if (code.includes('user-not-found') || code.includes('wrong-password') || code.includes('invalid-credential')) {
+      return 'Invalid email or password.'
+    }
+    if (code.includes('email-already-in-use')) {
+      return 'An account with this email already exists.'
+    }
+    if (code.includes('weak-password')) {
+      return 'Password must be at least 6 characters.'
+    }
+    if (code.includes('too-many-requests')) {
+      return 'Too many attempts. Please wait a few minutes and try again.'
+    }
+    if (code.includes('network-request-failed')) {
+      return 'Network error. Check your internet connection.'
+    }
+    if (code.includes('unauthorized-domain')) {
+      return 'Google sign-in is not enabled for this domain yet. Please use email/password login for now.'
+    }
+    if (code.includes('account-exists-with-different-credential')) {
+      return 'An account already exists with this email. Try signing in with email/password instead.'
+    }
+    if (code.includes('popup-closed-by-user') || code.includes('cancelled-popup-request')) {
+      return '' // User dismissed — not an error to show
+    }
+    return 'Authentication failed. Please try again.'
+  }
+
   const handleGoogleLogin = async () => {
     try {
       await loginWithGoogle()
     } catch (err) {
-      console.error("Login failed:", err)
+      console.error("Google login failed:", err)
+      const msg = getAuthErrorMessage(err)
+      if (msg) setError(msg)
     }
   }
 
@@ -43,9 +84,9 @@ export default function Home() {
       } else {
         await loginWithEmail(email, password)
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auth error:", err)
-      setError(err.message || "Authentication failed. Check your credentials.")
+      setError(getAuthErrorMessage(err))
     }
   }
 
@@ -79,6 +120,7 @@ export default function Home() {
                 <input
                   type="text"
                   required
+                  maxLength={30}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="e.g. Arjun"
@@ -86,12 +128,13 @@ export default function Home() {
                 />
               </div>
             )}
-            
+
             <div className="space-y-1">
               <label className="text-sm font-bold text-muted-foreground">Email Address</label>
               <input
                 type="email"
                 required
+                maxLength={254}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="roommate@example.com"
@@ -104,6 +147,8 @@ export default function Home() {
               <input
                 type="password"
                 required
+                minLength={6}
+                maxLength={128}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
@@ -138,7 +183,7 @@ export default function Home() {
               className="w-full h-12 text-base font-bold bg-white text-black hover:bg-gray-100 border border-gray-300"
               onClick={handleGoogleLogin}
             >
-              <img src="https://www.svgrepo.com/show/475656/google-color.svg" className="w-5 h-5 mr-3" alt="Google" />
+              <img src="/google-icon.svg" className="w-5 h-5 mr-3" alt="Google" />
               Continue with Google
             </Button>
             

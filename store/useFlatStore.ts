@@ -158,7 +158,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   addActivity: async (activityData) => {
     const newActivity: Activity = {
       ...activityData,
-      id: Math.random().toString(36).substr(2, 9),
+      id: crypto.randomUUID(),
       timestamp: new Date().toISOString()
     }
     if (hasKeys && get().flatId) {
@@ -261,7 +261,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   createTask: async (taskData, adminId) => {
     const newTask: Task = {
       ...taskData,
-      taskId: 't' + Math.random().toString(36).substr(2, 9),
+      taskId: 't-' + crypto.randomUUID(),
       status: 'pending',
       lastCompletedAt: new Date().toISOString()
     }
@@ -296,7 +296,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (exists) return
     
     const newRequest: SwapRequest = {
-      id: Math.random().toString(36).substring(2, 9),
+      id: crypto.randomUUID(),
       taskId,
       fromUserId,
       toUserId,

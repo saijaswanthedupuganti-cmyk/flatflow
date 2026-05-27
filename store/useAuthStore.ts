@@ -28,6 +28,11 @@ interface AuthState {
   flatId: string | null
   /** True once we've checked Firestore for the user's flat (prevents flicker) */
   flatChecked: boolean
+  /**
+   * Auth error surfaced from redirect flow (e.g. unauthorized domain).
+   * The login page reads this and shows it to the user, then clears it.
+   */
+  redirectError: string | null
 
   loginWithGoogle: () => Promise<void>
   loginWithEmail: (email: string, pass: string) => Promise<void>
@@ -40,6 +45,8 @@ interface AuthState {
   setFlatId: (flatId: string) => void
   /** Re-check the user's flat profile from Firestore */
   refreshFlatId: () => Promise<void>
+  /** Clear the redirectError once the login page has displayed it */
+  clearRedirectError: () => void
 }
 
 /** True when running on a mobile browser — popups are blocked on mobile */
@@ -57,6 +64,7 @@ export const useAuthStore = create<AuthState>()(
       isLoading: true,
       flatId: null,
       flatChecked: false,
+      redirectError: null,
 
       loginWithGoogle: async () => {
         if (!hasKeys) {
@@ -120,10 +128,12 @@ export const useAuthStore = create<AuthState>()(
         if (hasKeys && auth.currentUser) {
           await firebaseSignOut(auth)
         }
-        set({ user: null, flatId: null, flatChecked: false })
+        set({ user: null, flatId: null, flatChecked: false, redirectError: null })
       },
 
       setFlatId: (flatId) => set({ flatId, flatChecked: true }),
+
+      clearRedirectError: () => set({ redirectError: null }),
 
       refreshFlatId: async () => {
         const user = get().user
@@ -151,8 +161,19 @@ export const useAuthStore = create<AuthState>()(
               console.log('Google redirect sign-in succeeded:', result.user.displayName)
             }
           })
-          .catch((err) => {
-            console.error('Google redirect error:', err?.message)
+          .catch((err: unknown) => {
+            console.error('Google redirect error:', err)
+            // Surface the error to the login page so users aren't left in silence
+            const code: string = (err as { code?: string })?.code ?? ''
+            let message = 'Google sign-in failed. Please try again.'
+            if (code.includes('unauthorized-domain')) {
+              message = 'This domain is not authorised for Google sign-in. Add it to Firebase → Authentication → Authorised Domains.'
+            } else if (code.includes('account-exists-with-different-credential')) {
+              message = 'An account already exists with this email using a different sign-in method.'
+            } else if (code.includes('network-request-failed')) {
+              message = 'Network error. Check your internet connection and try again.'
+            }
+            set({ redirectError: message })
           })
 
         onAuthStateChanged(auth, async (firebaseUser) => {

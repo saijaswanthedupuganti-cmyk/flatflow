@@ -155,6 +155,7 @@ export default function OnboardingPage() {
                 <label className="text-sm font-bold text-muted-foreground">Your Nickname</label>
                 <input
                   type="text"
+                  maxLength={30}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="e.g. Sai"
@@ -165,6 +166,7 @@ export default function OnboardingPage() {
                 <label className="text-sm font-bold text-muted-foreground">Flat Name</label>
                 <input
                   type="text"
+                  maxLength={50}
                   value={flatName}
                   onChange={(e) => setFlatName(e.target.value)}
                   placeholder="e.g. Bachelor Pad, Room 42"
@@ -201,6 +203,7 @@ export default function OnboardingPage() {
                 <label className="text-sm font-bold text-muted-foreground">Your Nickname</label>
                 <input
                   type="text"
+                  maxLength={30}
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
                   placeholder="e.g. Rahul"

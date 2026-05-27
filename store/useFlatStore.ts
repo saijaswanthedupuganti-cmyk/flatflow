@@ -77,7 +77,7 @@ interface FlatState {
   checkOverdueTasks: () => Promise<void>
   transferTask: (taskId: string, fromUserId: string, toUserId: string) => Promise<void>
   manuallyAssignTask: (taskId: string, targetUserId: string, adminId: string) => Promise<void>
-  createTask: (taskData: Omit<Task, 'taskId' | 'status' | 'lastCompletedAt'>, adminId: string) => Promise<void>
+  createTask: (taskData: Omit<Task, 'taskId' | 'status' | 'lastCompletedAt'> & { lastCompletedAt?: string }, adminId: string) => Promise<void>
   deleteTask: (taskId: string, adminId: string) => Promise<void>
   createSwapRequest: (taskId: string, fromUserId: string, toUserId: string) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
@@ -329,7 +329,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       ...taskData,
       taskId: 't-' + crypto.randomUUID(),
       status: 'pending',
-      lastCompletedAt: new Date().toISOString()
+      lastCompletedAt: taskData.lastCompletedAt ?? new Date().toISOString(),
     }
     if (hasKeys && get().flatId) {
       await setDoc(doc(db, `flats/${get().flatId}/tasks/${newTask.taskId}`), newTask)

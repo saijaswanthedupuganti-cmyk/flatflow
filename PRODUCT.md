@@ -135,7 +135,7 @@ This is a **real-user pilot** to validate:
 - [ ] **Progressive Web App (PWA)** — installable on home screen (Android + iOS)
 
 #### Medium Priority
-- [ ] **Multiple flats per user** — user can be in more than one flat
+- [ ] **Multi-flat switcher** — user can belong to multiple flats (different cities, PG owner managing several flats) and switch between them from their profile — like Gmail account switching. Profile icon → dropdown shows all flats → tap to switch instantly. Also: "Join another flat" and "Create a new flat" options inside dashboard.
 - [ ] **Flat announcements** — admin posts a message to all members
 - [ ] **Expense splitting (basic)** — track shared expenses alongside duties
 - [ ] **Task templates** — common flat task presets (Bathroom, Kitchen, etc.)

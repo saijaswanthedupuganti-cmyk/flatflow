@@ -151,7 +151,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       reliabilityScore: 100,
       joinedAt: new Date(),
     }
-    set(s => ({ members: [...s.members, newMember] }))
+    // Add to members list AND append to the end of every task's rotation queue
+    set(s => ({
+      members: [...s.members, newMember],
+      tasks: s.tasks.map(t => ({
+        ...t,
+        queueOrder: t.queueOrder.includes(uid)
+          ? t.queueOrder                        // already in queue — skip
+          : [...t.queueOrder, uid],             // append to end of circle
+      })),
+    }))
   },
 
   initFirestoreListeners: (flatId) => {

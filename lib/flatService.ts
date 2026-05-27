@@ -224,6 +224,19 @@ export async function joinFlat(params: {
     throw e // unexpected error — let the caller handle it
   }
 
+  // Append the new member to the end of every existing task's rotation queue
+  await addMemberToTaskQueues(flatId, uid)
+
+  // Activity log — record the join event
+  const logId = crypto.randomUUID()
+  await setDoc(doc(db, `flats/${flatId}/activityLog/${logId}`), {
+    id: logId,
+    userId: uid,
+    action: 'status_change',
+    details: `${nickname} joined the flat and was added to all task rotations`,
+    timestamp: new Date().toISOString(),
+  })
+
   return { success: true }
 }
 
@@ -234,6 +247,26 @@ export async function updateFlatName(flatId: string, newName: string): Promise<v
 }
 
 // ── Membership Management ────────────────────────────────────────────────────
+
+/**
+ * Append a newly joined member to the end of every task's rotation queue.
+ * Called right after joinFlat() succeeds so the new person is immediately
+ * part of the circle for all existing tasks.
+ */
+async function addMemberToTaskQueues(flatId: string, newUid: string): Promise<void> {
+  if (!hasKeys || !db) return
+  const taskSnaps = await getDocs(collection(db, `flats/${flatId}/tasks`))
+  if (taskSnaps.empty) return
+  const batch = writeBatch(db)
+  taskSnaps.forEach((taskDoc) => {
+    const queue: string[] = taskDoc.data().queueOrder || []
+    // Guard: skip if already in queue (shouldn't happen, but safe)
+    if (!queue.includes(newUid)) {
+      batch.update(taskDoc.ref, { queueOrder: [...queue, newUid] })
+    }
+  })
+  await batch.commit()
+}
 
 /**
  * Reassign all tasks owned by a leaving/kicked member to the next person in queue.

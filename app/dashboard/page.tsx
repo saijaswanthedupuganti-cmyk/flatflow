@@ -7,6 +7,20 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight } from 'lucide-react'
 
+const TASK_EMOJIS: Record<string, string> = {
+  garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
+  laundry: '👕', maintenance: '🔧', other: '📋',
+}
+const FREQ_LABEL: Record<string, string> = {
+  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom',
+}
+const FREQ_COLOR: Record<string, string> = {
+  daily:   'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  weekly:  'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400',
+  monthly: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  custom:  'bg-gray-100   text-gray-600   dark:bg-gray-900/30   dark:text-gray-400',
+}
+
 export default function DashboardPage() {
   const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
@@ -588,96 +602,170 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
         {/* ── Rotation Order — visible to ALL members ───────────────── */}
-        <Card className="shadow-sm border-border">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base">
-              <Repeat size={16} className="text-primary" /> Rotation Order
-            </CardTitle>
-            <CardDescription className="text-xs">
-              Full cycle for every task — see who's now, who's next, and when your turn comes.
-            </CardDescription>
+        <Card className="shadow-sm border-border/60">
+          {/* Card header */}
+          <CardHeader className="pb-3 px-5 pt-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+                <Repeat size={15} className="text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold leading-tight">Rotation Order</CardTitle>
+                <CardDescription className="text-xs mt-0.5 leading-snug">
+                  Full cycle per task — know who's on now, who's next, and your position.
+                </CardDescription>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="space-y-4">
+
+          <CardContent className="px-4 pb-5 space-y-3">
+            {/* Empty state */}
             {tasks.length === 0 && (
-              <p className="text-sm text-muted-foreground text-center py-4">No tasks yet.</p>
+              <div className="flex flex-col items-center py-10 text-muted-foreground">
+                <Repeat size={32} className="opacity-20 mb-3" />
+                <p className="text-sm font-semibold">No tasks yet</p>
+                <p className="text-xs mt-0.5">Create tasks to see the rotation here.</p>
+              </div>
             )}
+
             {tasks.map(task => {
-              const currentIdx = task.queueOrder.indexOf(task.currentAssignedUserId)
-              // Build the ordered circle starting from the current assignee
+              const currentIdx   = task.queueOrder.indexOf(task.currentAssignedUserId)
               const orderedQueue = [
                 ...task.queueOrder.slice(currentIdx),
                 ...task.queueOrder.slice(0, currentIdx),
               ]
-              const isMyTask = task.currentAssignedUserId === currentUser.uid
+              const isMyTask   = task.currentAssignedUserId === currentUser.uid
+              const myPosition = orderedQueue.findIndex(uid => uid === currentUser.uid)
+              const emoji      = TASK_EMOJIS[task.type] ?? '📋'
+              const freqLabel  = FREQ_LABEL[task.frequency]  ?? task.frequency
+              const freqColor  = FREQ_COLOR[task.frequency]  ?? FREQ_COLOR.custom
+              const dateInfo   = getTaskDateInfo(task)
 
               return (
-                <div key={task.taskId} className={`rounded-xl border p-3 space-y-2 ${
-                  isMyTask ? 'border-primary/40 bg-primary/5' : 'border-border/60'
-                }`}>
-                  {/* Task name row */}
-                  <div className="flex items-center justify-between gap-2">
-                    <p className="text-xs font-bold text-foreground truncate">{task.name}</p>
-                    {isMyTask && (
-                      <span className="text-[10px] font-bold bg-primary text-white px-2 py-0.5 rounded-full shrink-0">
-                        Your turn
-                      </span>
-                    )}
+                <div
+                  key={task.taskId}
+                  className={`rounded-2xl border overflow-hidden transition-shadow ${
+                    isMyTask
+                      ? 'border-primary/30 shadow-sm shadow-primary/10'
+                      : 'border-border/60'
+                  }`}
+                >
+                  {/* ── Task header ──────────────────────────────── */}
+                  <div className={`flex items-center gap-3 px-4 py-3 ${
+                    isMyTask ? 'bg-primary/5' : 'bg-secondary/30'
+                  }`}>
+                    <span className="text-xl shrink-0">{emoji}</span>
+
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold leading-tight truncate">{task.name}</p>
+                      <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                        <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded-full ${freqColor}`}>
+                          {freqLabel}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <Clock size={9} /> {dateInfo.dueDateFormatted}
+                        </span>
+                        {dateInfo.isOverdue && (
+                          <span className="text-[10px] font-bold text-red-500 flex items-center gap-0.5">
+                            <AlertTriangle size={9} /> {dateInfo.overdueDays}d overdue
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Right badge: "Your turn" or "#N in queue" */}
+                    <div className="shrink-0 text-right">
+                      {isMyTask ? (
+                        <span className="text-[10px] font-extrabold bg-primary text-white px-2.5 py-1 rounded-full">
+                          Your turn
+                        </span>
+                      ) : myPosition >= 0 ? (
+                        <span className="text-[10px] font-bold text-muted-foreground">
+                          #{myPosition + 1} in queue
+                        </span>
+                      ) : null}
+                    </div>
                   </div>
 
-                  {/* Rotation strip — vertical on mobile, horizontal on sm+ */}
-                  <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0">
-                    {orderedQueue.map((uid, idx) => {
-                      const m      = members.find(x => x.uid === uid)
-                      const isNow  = idx === 0
-                      const isNext = idx === 1
-                      const isMe   = uid === currentUser.uid
-                      if (!m) return null
-                      return (
-                        <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-1.5">
-                          {/* Member card — row on mobile, column on sm+ */}
-                          <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-0.5 sm:justify-center px-3 sm:px-2 py-2 sm:py-1.5 rounded-lg border transition-all w-full sm:w-auto sm:min-w-[52px] ${
-                            isNow  ? 'bg-primary border-primary text-white shadow-sm' :
-                            isNext ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-300 dark:border-blue-700 text-blue-800 dark:text-blue-200' :
-                            isMe   ? 'bg-secondary border-border/80 text-foreground ring-1 ring-primary/30' :
-                                     'bg-card border-border/50 text-muted-foreground'
-                          }`}>
-                            <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
-                              isNow  ? 'bg-white/20 text-white' :
-                              isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200' :
-                                       'bg-secondary text-foreground'
+                  {/* ── Rotation strip ───────────────────────────── */}
+                  <div className="px-4 py-3">
+                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start gap-0">
+                      {orderedQueue.map((uid, idx) => {
+                        const m      = members.find(x => x.uid === uid)
+                        const isNow  = idx === 0
+                        const isNext = idx === 1
+                        const isMe   = uid === currentUser.uid
+                        if (!m) return null
+
+                        return (
+                          <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
+
+                            {/* Member card */}
+                            <div className={`flex flex-row sm:flex-col items-center gap-3 sm:gap-1.5 sm:justify-center
+                              px-3 sm:px-2.5 py-2.5 sm:py-2 rounded-xl border-2 transition-all
+                              w-full sm:w-[72px] ${
+                              isNow  ? 'bg-primary border-primary text-white shadow-md'
+                             : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100'
+                             : isMe   ? 'bg-secondary border-primary/40 text-foreground'
+                             :          'bg-card border-border/50 text-muted-foreground'
                             }`}>
-                              {m.nickname.charAt(0)}
-                            </span>
-                            <span className="text-sm sm:text-[10px] font-semibold leading-tight">{m.nickname}</span>
-                            {/* Badges — inline right on mobile, inline below on sm+ */}
-                            {(isNow || isNext) && (
-                              <span className={`text-[8px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0 ${
-                                isNow  ? 'bg-white/20 text-white' :
-                                         'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
+                              {/* Position — mobile only, left side */}
+                              <span className={`sm:hidden text-[10px] font-bold w-5 text-center shrink-0 ${
+                                isNow ? 'text-white/50' : 'text-muted-foreground/50'
                               }`}>
-                                {isNow ? 'NOW' : 'NEXT'}
+                                #{idx + 1}
                               </span>
+
+                              {/* Avatar */}
+                              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                                isNow  ? 'bg-white/20 text-white'
+                               : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
+                               : isMe   ? 'bg-primary/15 text-primary'
+                               :          'bg-secondary text-foreground'
+                              }`}>
+                                {m.nickname.charAt(0)}
+                              </div>
+
+                              {/* Name */}
+                              <span className={`flex-1 sm:flex-none text-sm sm:text-[11px] font-semibold sm:text-center truncate ${
+                                isNow ? 'text-white' : ''
+                              }`}>
+                                {m.nickname}
+                              </span>
+
+                              {/* Status badge — right side on mobile, below on desktop */}
+                              <span className={`ml-auto sm:ml-0 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
+                                isNow  ? 'bg-white/20 text-white'
+                               : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
+                               : isMe   ? 'bg-primary/15 text-primary'
+                               :          'invisible'      /* keeps height consistent */
+                              }`}>
+                                {isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
+                              </span>
+                            </div>
+
+                            {/* Connector arrow */}
+                            {idx < orderedQueue.length - 1 ? (
+                              <>
+                                <ArrowDown  size={11} className="sm:hidden text-muted-foreground/30 self-center" />
+                                <ArrowRight size={11} className="hidden sm:block text-muted-foreground/30 shrink-0" />
+                              </>
+                            ) : (
+                              <>
+                                <div className="sm:hidden flex items-center gap-0.5 text-muted-foreground/30 self-center">
+                                  <ArrowDown size={11} />
+                                  <span className="text-[10px] font-bold">↺</span>
+                                </div>
+                                <div className="hidden sm:flex items-center gap-0.5 text-muted-foreground/30">
+                                  <ArrowRight size={11} className="shrink-0" />
+                                  <span className="text-[10px] font-bold">↺</span>
+                                </div>
+                              </>
                             )}
                           </div>
-                          {/* Arrow: ↓ on mobile, → on desktop */}
-                          {idx < orderedQueue.length - 1 ? (
-                            <>
-                              <ArrowDown  size={10} className="sm:hidden text-muted-foreground/40 self-center" />
-                              <ArrowRight size={10} className="hidden sm:block text-muted-foreground/40 shrink-0" />
-                            </>
-                          ) : (
-                            <>
-                              <div className="sm:hidden flex items-center gap-0.5 text-muted-foreground/40 self-center">
-                                <ArrowDown size={10} /><span className="text-[9px] font-bold">↺</span>
-                              </div>
-                              <div className="hidden sm:flex items-center gap-0.5 text-muted-foreground/40">
-                                <ArrowRight size={10} className="shrink-0" /><span className="text-[9px] font-bold">↺</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                      )
-                    })}
+                        )
+                      })}
+                    </div>
                   </div>
                 </div>
               )

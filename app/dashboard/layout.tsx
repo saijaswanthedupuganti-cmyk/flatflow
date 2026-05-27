@@ -4,11 +4,12 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users, Settings,
-  LogOut, BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck
+  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 import NotificationToast from '@/components/NotificationToast'
+import FlatSwitcher from '@/components/FlatSwitcher'
 
 const NAV_ITEMS = {
   main: [
@@ -29,7 +30,7 @@ const NAV_ITEMS = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user, logout } = useAuthStore()
+  const { user } = useAuthStore()
   const { members, tasks, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
   const { flatId: authFlatId } = useAuthStore()
 
@@ -41,11 +42,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       initFirestoreListeners(authFlatId)
     }
   }, [user, authFlatId, isSynced, initFirestoreListeners])
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/')
-  }
 
   if (!user) return null
 
@@ -126,8 +122,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </nav>
 
         {/* User Footer */}
-        <div className="p-3 border-t border-border/60">
-          <div className="flex items-center gap-3 p-2 rounded-xl bg-secondary/50 mb-2">
+        <div className="p-3 border-t border-border/60 space-y-2">
+          {/* User info */}
+          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-secondary/50">
             <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
               {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
@@ -139,13 +136,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-3 py-2 text-sm text-muted-foreground hover:text-destructive hover:bg-destructive/8 rounded-xl font-medium transition-colors"
-          >
-            <LogOut size={16} />
-            Sign Out
-          </button>
+          {/* Flat switcher (includes sign out) */}
+          <FlatSwitcher />
         </div>
       </aside>
 

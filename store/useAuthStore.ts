@@ -13,7 +13,13 @@ import {
   signInWithEmailAndPassword,
   updateProfile,
 } from 'firebase/auth'
-import { getUserFlatProfile } from '@/lib/flatService'
+import {
+  getUserFlatProfile,
+  getFlatsInfo,
+  verifyMembership,
+  setActiveFlatId,
+  type FlatInfo,
+} from '@/lib/flatService'
 
 export interface AuthUser {
   uid: string
@@ -25,7 +31,9 @@ export interface AuthUser {
 interface AuthState {
   user: AuthUser | null
   isLoading: boolean
-  flatId: string | null
+  flatId: string | null          // active flat ID
+  allFlatIds: string[]           // all flat IDs the user belongs to
+  allFlats: FlatInfo[]           // flat IDs + names (for switcher UI)
   flatChecked: boolean
   redirectError: string | null
 
@@ -38,6 +46,10 @@ interface AuthState {
   initAuthListener: () => void
   setFlatId: (flatId: string) => void
   refreshFlatId: () => Promise<void>
+  /** Switch active flat and update Firestore */
+  switchFlat: (flatId: string) => Promise<void>
+  /** Add a newly joined/created flat to local state */
+  addFlatToState: (flatId: string, flatName: string) => void
   clearRedirectError: () => void
 }
 
@@ -67,6 +79,8 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       isLoading: true,
       flatId: null,
+      allFlatIds: [],
+      allFlats: [],
       flatChecked: false,
       redirectError: null,
 
@@ -76,17 +90,12 @@ export const useAuthStore = create<AuthState>()(
           return
         }
         const provider = new GoogleAuthProvider()
-        // Only request email + basic profile (name + photo). No extra permissions.
         provider.addScope('email')
         provider.addScope('profile')
 
         if (isMobileBrowser()) {
-          // Mobile: full-page redirect — popups are blocked on iOS/Android.
-          // Pass browserPopupRedirectResolver explicitly so Firebase uses the
-          // correct resolver; this fixes redirect result processing on Next.js.
           await signInWithRedirect(auth, provider, browserPopupRedirectResolver)
         } else {
-          // Desktop: popup is more reliable and gives better UX.
           await signInWithPopup(auth, provider, browserPopupRedirectResolver)
         }
       },
@@ -122,6 +131,8 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: { uid: 'u1', displayName: 'Sai', email: 'sai@gmail.com' },
           flatId: 'FLAT-1234',
+          allFlatIds: ['FLAT-1234'],
+          allFlats: [{ id: 'FLAT-1234', name: 'Bachelor Pad' }],
           flatChecked: true,
           isLoading: false,
         }),
@@ -130,24 +141,50 @@ export const useAuthStore = create<AuthState>()(
         set({
           user: { uid: 'u2', displayName: 'Rahul', email: 'rahul@gmail.com' },
           flatId: 'FLAT-1234',
+          allFlatIds: ['FLAT-1234'],
+          allFlats: [{ id: 'FLAT-1234', name: 'Bachelor Pad' }],
           flatChecked: true,
           isLoading: false,
         }),
 
       logout: async () => {
         if (hasKeys && auth.currentUser) await firebaseSignOut(auth)
-        set({ user: null, flatId: null, flatChecked: false, redirectError: null })
+        set({ user: null, flatId: null, allFlatIds: [], allFlats: [], flatChecked: false, redirectError: null })
       },
 
       setFlatId: (flatId) => set({ flatId, flatChecked: true }),
+
       clearRedirectError: () => set({ redirectError: null }),
+
+      addFlatToState: (flatId, flatName) => {
+        const { allFlatIds, allFlats } = get()
+        if (allFlatIds.includes(flatId)) return
+        set({
+          flatId,
+          allFlatIds: [...allFlatIds, flatId],
+          allFlats: [...allFlats, { id: flatId, name: flatName }],
+          flatChecked: true,
+        })
+      },
+
+      switchFlat: async (flatId) => {
+        const { user } = get()
+        if (!user) return
+        set({ flatId, flatChecked: true })
+        if (hasKeys) await setActiveFlatId(user.uid, flatId)
+      },
 
       refreshFlatId: async () => {
         const user = get().user
         if (!user) return
-        if (!hasKeys) { set({ flatId: 'FLAT-1234', flatChecked: true }); return }
+        if (!hasKeys) {
+          set({ flatId: 'FLAT-1234', allFlatIds: ['FLAT-1234'], allFlats: [{ id: 'FLAT-1234', name: 'Bachelor Pad' }], flatChecked: true })
+          return
+        }
         const profile = await getUserFlatProfile(user.uid)
-        set({ flatId: profile?.flatId ?? null, flatChecked: true })
+        const flatIds = profile?.flatIds ?? []
+        const allFlats = await getFlatsInfo(flatIds)
+        set({ flatId: profile?.activeFlatId ?? null, allFlatIds: flatIds, allFlats, flatChecked: true })
       },
 
       initAuthListener: () => {
@@ -156,13 +193,11 @@ export const useAuthStore = create<AuthState>()(
           return
         }
 
-        // Process any pending Google redirect result (mobile sign-in).
-        // Must pass the same browserPopupRedirectResolver used in signInWithRedirect.
+        // Process any pending Google redirect result (mobile sign-in)
         getRedirectResult(auth, browserPopupRedirectResolver)
           .then((result) => {
             if (result?.user) {
               console.log('Google redirect sign-in succeeded:', result.user.displayName)
-              // onAuthStateChanged will fire automatically — no extra state update needed
             }
           })
           .catch((err: unknown) => {
@@ -183,10 +218,30 @@ export const useAuthStore = create<AuthState>()(
               },
               isLoading: false,
             })
+
             const profile = await getUserFlatProfile(firebaseUser.uid)
-            set({ flatId: profile?.flatId ?? null, flatChecked: true })
+            let activeFlatId = profile?.activeFlatId ?? null
+            let flatIds = profile?.flatIds ?? []
+
+            // Membership verification: handle kicked users
+            if (activeFlatId) {
+              const stillMember = await verifyMembership(firebaseUser.uid, activeFlatId)
+              if (!stillMember) {
+                // Kicked from active flat — switch to next available flat
+                flatIds = flatIds.filter(id => id !== activeFlatId)
+                activeFlatId = flatIds.length > 0 ? flatIds[0] : null
+                // Update their profile (they can write their own doc)
+                try {
+                  await setActiveFlatId(firebaseUser.uid, activeFlatId)
+                } catch { /* best effort */ }
+              }
+            }
+
+            // Fetch flat names for the switcher UI
+            const allFlats = await getFlatsInfo(flatIds)
+            set({ flatId: activeFlatId, allFlatIds: flatIds, allFlats, flatChecked: true })
           } else {
-            set({ user: null, flatId: null, flatChecked: true, isLoading: false })
+            set({ user: null, flatId: null, allFlatIds: [], allFlats: [], flatChecked: true, isLoading: false })
           }
         })
       },
@@ -196,7 +251,9 @@ export const useAuthStore = create<AuthState>()(
       partialize: (state) => ({
         user: state.user,
         flatId: state.flatId,
+        allFlatIds: state.allFlatIds,
         flatChecked: state.flatChecked,
+        // allFlats omitted — always re-fetched from Firestore on load
       }),
     }
   )

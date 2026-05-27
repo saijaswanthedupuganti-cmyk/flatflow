@@ -1,21 +1,31 @@
 "use client"
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 import { createFlat, joinFlat } from '@/lib/flatService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Home, LogIn, Sparkles, ArrowLeft, Loader2 } from 'lucide-react'
+import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X } from 'lucide-react'
 
 type Step = 'choose' | 'create' | 'join'
 
-export default function OnboardingPage() {
+function OnboardingContent() {
   const router = useRouter()
-  const { user, setFlatId, logout } = useAuthStore()
+  const searchParams = useSearchParams()
+
+  // When `addFlat=1`, the user is already logged in and just wants to add another flat
+  const isAddingFlat = searchParams.get('addFlat') === '1'
+  const initialMode = searchParams.get('mode') // 'create' | 'join'
+
+  const { user, setFlatId, logout, addFlatToState } = useAuthStore()
   const { initFirestoreListeners, addMemberMock } = useFlatStore()
 
-  const [step, setStep] = useState<Step>('choose')
+  const [step, setStep] = useState<Step>(() => {
+    if (initialMode === 'create') return 'create'
+    if (initialMode === 'join') return 'join'
+    return 'choose'
+  })
   const [flatName, setFlatName] = useState('')
   const [nickname, setNickname] = useState(user?.displayName || '')
   const [inviteCode, setInviteCode] = useState('')
@@ -35,13 +45,17 @@ export default function OnboardingPage() {
         email: user.email,
         flatName: flatName.trim(),
       })
-      // In mock mode, add this user to the store members
-      addMemberMock(user.uid, nickname.trim(), user.email, 'admin')
-      setFlatId(flatId)
-      initFirestoreListeners(flatId)
+      if (isAddingFlat) {
+        addFlatToState(flatId, flatName.trim())
+        initFirestoreListeners(flatId)
+      } else {
+        addMemberMock(user.uid, nickname.trim(), user.email, 'admin')
+        setFlatId(flatId)
+        initFirestoreListeners(flatId)
+      }
       router.push('/dashboard')
-    } catch (e: any) {
-      setError(e.message || 'Failed to create flat. Please try again.')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to create flat. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -64,13 +78,17 @@ export default function OnboardingPage() {
         setLoading(false)
         return
       }
-      // In mock mode, add this user to the store members
-      addMemberMock(user.uid, nickname.trim(), user.email, 'member')
-      setFlatId(code)
-      initFirestoreListeners(code)
+      if (isAddingFlat) {
+        addFlatToState(code, code) // We'll use flatId as name initially; flat doc listener will update it
+        initFirestoreListeners(code)
+      } else {
+        addMemberMock(user.uid, nickname.trim(), user.email, 'member')
+        setFlatId(code)
+        initFirestoreListeners(code)
+      }
       router.push('/dashboard')
-    } catch (e: any) {
-      setError(e.message || 'Failed to join flat. Please try again.')
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Failed to join flat. Please try again.')
     } finally {
       setLoading(false)
     }
@@ -86,8 +104,24 @@ export default function OnboardingPage() {
             <span className="text-2xl font-extrabold text-white">F</span>
           </div>
           <h1 className="text-3xl font-extrabold text-primary">FlatFlow</h1>
-          <p className="text-muted-foreground mt-1">Welcome, <strong>{user.displayName}</strong>! Let's set up your home.</p>
+          {isAddingFlat ? (
+            <p className="text-muted-foreground mt-1">Add another flat to your account.</p>
+          ) : (
+            <p className="text-muted-foreground mt-1">Welcome, <strong>{user.displayName}</strong>! Let's set up your home.</p>
+          )}
         </div>
+
+        {/* Cancel button (only when adding another flat) */}
+        {isAddingFlat && (
+          <div className="flex justify-end">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <X size={14} /> Cancel
+            </button>
+          </div>
+        )}
 
         {step === 'choose' && (
           <div className="grid gap-4">
@@ -125,14 +159,16 @@ export default function OnboardingPage() {
               </div>
             </button>
 
-            <div className="pt-2 text-center">
-              <button
-                onClick={() => logout().then(() => router.push('/'))}
-                className="text-sm text-muted-foreground hover:text-destructive transition-colors"
-              >
-                Sign out and use a different account
-              </button>
-            </div>
+            {!isAddingFlat && (
+              <div className="pt-2 text-center">
+                <button
+                  onClick={() => logout().then(() => router.push('/'))}
+                  className="text-sm text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  Sign out and use a different account
+                </button>
+              </div>
+            )}
           </div>
         )}
 
@@ -232,5 +268,17 @@ export default function OnboardingPage() {
         )}
       </div>
     </div>
+  )
+}
+
+export default function OnboardingPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    }>
+      <OnboardingContent />
+    </Suspense>
   )
 }

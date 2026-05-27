@@ -22,9 +22,9 @@ service cloud.firestore {
 
     // ── Flats ─────────────────────────────────────────────────────────────────
     match /flats/{flatId} {
-      // Any authenticated user can read (needed for joining with invite code)
+      // Any authenticated user can read (needed to validate invite codes)
       allow read: if request.auth != null;
-      // Any authenticated user can create a flat (they become admin via server-set field)
+      // Any authenticated user can create a flat (they become admin)
       allow create: if request.auth != null;
       // Only admin can update or delete their flat
       allow update, delete: if isAdmin(flatId);
@@ -33,7 +33,7 @@ service cloud.firestore {
       match /members/{memberId} {
         // Only flat members can read the members list
         allow read: if isMember(flatId);
-        // Members can write their own doc; admin can write any member's doc
+        // Members can write (create/update/delete) their own doc; admin can write any member's doc
         allow write: if request.auth != null
           && (
             request.auth.uid == memberId
@@ -61,7 +61,8 @@ service cloud.firestore {
             request.resource.data.userId == request.auth.uid
             || request.resource.data.userId == 'system'
           );
-        // Activity log is append-only — no updates or deletes
+        // Admin can delete (needed for flat deletion)
+        allow delete: if isAdmin(flatId);
       }
 
       // ── Swap Requests ───────────────────────────────────────────────────────
@@ -73,7 +74,8 @@ service cloud.firestore {
         // Only the intended recipient (toUserId) can accept or reject
         allow update: if isMember(flatId)
           && resource.data.toUserId == request.auth.uid;
-        // No deletes on swap requests (keeps history intact)
+        // Admin can delete (needed for flat deletion and kick cleanup)
+        allow delete: if isAdmin(flatId);
       }
     }
   }

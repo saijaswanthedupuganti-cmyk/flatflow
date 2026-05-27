@@ -1,7 +1,15 @@
 import { create } from 'zustand'
-import { completeTask, getNextAssignee } from '../lib/rotationEngine'
+import { completeTask } from '../lib/rotationEngine'
 import { db, hasKeys } from '@/lib/firebase'
-import { collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, query, where } from 'firebase/firestore'
+import {
+  collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc
+} from 'firebase/firestore'
+import {
+  leaveFlatService,
+  kickMemberService,
+  transferAdminService,
+  deleteEntireFlatService,
+} from '@/lib/flatService'
 
 export interface Member {
   uid: string
@@ -55,6 +63,7 @@ interface FlatState {
 
   // Initialization
   initFirestoreListeners: (flatId: string) => void
+  resetFlatData: () => void
   /** Mock mode: add a new member directly to local state */
   addMemberMock: (uid: string, nickname: string, email: string, role: 'admin' | 'member') => void
 
@@ -71,6 +80,12 @@ interface FlatState {
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
+
+  // Membership Management
+  leaveFlat: (uid: string) => Promise<{ nextFlatId: string | null }>
+  kickMember: (targetUid: string, adminId: string) => Promise<void>
+  transferAdmin: (newAdminUid: string, currentAdminUid: string) => Promise<void>
+  deleteFlat: (adminUid: string) => Promise<void>
 }
 
 const yesterday = new Date();
@@ -93,23 +108,38 @@ const MOCK_TASKS: Task[] = [
   { taskId: 't4', name: 'Grocery Run', type: 'groceries', priority: 'low', frequency: 'weekly', currentAssignedUserId: 'u3', queueOrder: ['u3', 'u4', 'u1', 'u2'], status: 'pending', dueDate: tomorrow.toISOString(), lastCompletedAt: yesterday.toISOString() },
 ]
 
+// Module-level unsubscribers — persists across state resets
+let unsubscribers: (() => void)[] = []
+
 export const useFlatStore = create<FlatState>((set, get) => ({
   flatId: hasKeys ? null : 'FLAT-1234',
   name: hasKeys ? null : 'Bachelor Pad',
-  // Real Firebase mode starts empty; mock mode uses fake seed data
   members: hasKeys ? [] : MOCK_MEMBERS,
   tasks: hasKeys ? [] : MOCK_TASKS,
   activityLog: [],
   swapRequests: [],
   isSynced: false,
 
+  resetFlatData: () => {
+    // Unsubscribe all active Firestore listeners
+    unsubscribers.forEach(unsub => unsub())
+    unsubscribers = []
+    set({
+      flatId: null,
+      name: null,
+      members: [],
+      tasks: [],
+      activityLog: [],
+      swapRequests: [],
+      isSynced: false,
+    })
+  },
+
   addMemberMock: (uid, nickname, email, role) => {
     const existing = get().members.find(m => m.uid === uid)
-    if (existing) return // Already in flat
+    if (existing) return
     const newMember: Member = {
-      uid,
-      nickname,
-      role,
+      uid, nickname, role,
       status: 'available',
       reliabilityScore: 100,
       joinedAt: new Date(),
@@ -118,43 +148,55 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   },
 
   initFirestoreListeners: (flatId) => {
+    // Unsubscribe old listeners before subscribing to new flat
+    unsubscribers.forEach(unsub => unsub())
+    unsubscribers = []
+
     if (!hasKeys) {
-      set({ isSynced: true, flatId }) // Running in mock mode
+      set({ isSynced: true, flatId })
       return
     }
 
+    // Reset data for clean switch
+    set({ flatId, name: null, members: [], tasks: [], activityLog: [], swapRequests: [], isSynced: false })
+
+    // FLAT DOC LISTENER — to get flat name
+    const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
+      if (snap.exists()) set({ name: snap.data().name || null })
+    }, (err) => console.warn('Flat doc listener error:', err))
+
     // TASKS LISTENER
-    onSnapshot(collection(db, `flats/${flatId}/tasks`), (snapshot) => {
+    const unsub1 = onSnapshot(collection(db, `flats/${flatId}/tasks`), (snapshot) => {
       const tasks: Task[] = []
       snapshot.forEach((doc) => tasks.push(doc.data() as Task))
       set({ tasks })
-    })
+    }, (err) => console.warn('Tasks listener error:', err))
 
     // MEMBERS LISTENER
-    onSnapshot(collection(db, `flats/${flatId}/members`), (snapshot) => {
+    const unsub2 = onSnapshot(collection(db, `flats/${flatId}/members`), (snapshot) => {
       const members: Member[] = []
       snapshot.forEach((doc) => members.push(doc.data() as Member))
       set({ members })
-    })
+    }, (err) => console.warn('Members listener error:', err))
 
     // SWAP REQUESTS LISTENER
-    onSnapshot(collection(db, `flats/${flatId}/swapRequests`), (snapshot) => {
+    const unsub3 = onSnapshot(collection(db, `flats/${flatId}/swapRequests`), (snapshot) => {
       const swapRequests: SwapRequest[] = []
       snapshot.forEach((doc) => swapRequests.push(doc.data() as SwapRequest))
-      // Sort newest first
       set({ swapRequests: swapRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) })
-    })
+    }, (err) => console.warn('SwapRequests listener error:', err))
 
-    // ACTIVITY LISTENER (Limit to last 50)
-    onSnapshot(collection(db, `flats/${flatId}/activityLog`), (snapshot) => {
+    // ACTIVITY LISTENER (last 50)
+    const unsub4 = onSnapshot(collection(db, `flats/${flatId}/activityLog`), (snapshot) => {
       const activityLog: Activity[] = []
       snapshot.forEach((doc) => activityLog.push(doc.data() as Activity))
       set({ activityLog: activityLog.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50) })
-    })
+    }, (err) => console.warn('ActivityLog listener error:', err))
 
-    set({ flatId, isSynced: true })
+    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4]
+    set({ isSynced: true })
   },
-  
+
   addActivity: async (activityData) => {
     const newActivity: Activity = {
       ...activityData,
@@ -174,7 +216,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (taskIndex === -1) return
     const task = state.tasks[taskIndex]
     const updatedTask = completeTask(task, state.members)
-    
+
     if (hasKeys && state.flatId) {
       await setDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), updatedTask)
     } else {
@@ -201,7 +243,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({ userId, action: 'returned_early', details: `returned early and rejoined queue` })
 
     const state = get()
-    // Unpause tasks locally or remotely
     for (const task of state.tasks) {
       if (task.status === 'paused' && task.queueOrder.includes(userId)) {
         const updatedTask = { ...task, status: 'pending' as const, currentAssignedUserId: userId }
@@ -217,7 +258,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   checkOverdueTasks: async () => {
     const state = get()
     const now = new Date()
-
     for (const task of state.tasks) {
       if (task.status === 'pending' && new Date(task.dueDate) < now) {
         if (hasKeys && state.flatId) {
@@ -265,7 +305,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       status: 'pending',
       lastCompletedAt: new Date().toISOString()
     }
-    
     if (hasKeys && get().flatId) {
       await setDoc(doc(db, `flats/${get().flatId}/tasks/${newTask.taskId}`), newTask)
     } else {
@@ -294,23 +333,21 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const state = get()
     const exists = state.swapRequests.find(r => r.taskId === taskId && r.status === 'pending')
     if (exists) return
-    
+
     const newRequest: SwapRequest = {
       id: crypto.randomUUID(),
-      taskId,
-      fromUserId,
-      toUserId,
+      taskId, fromUserId, toUserId,
       status: 'pending',
       read: false,
       createdAt: new Date().toISOString()
     }
-    
+
     if (hasKeys && state.flatId) {
       await setDoc(doc(db, `flats/${state.flatId}/swapRequests/${newRequest.id}`), newRequest)
     } else {
       set({ swapRequests: [newRequest, ...state.swapRequests] })
     }
-    
+
     const task = state.tasks.find(t => t.taskId === taskId)
     const toUser = state.members.find(m => m.uid === toUserId)
     if (task && toUser) {
@@ -347,5 +384,78 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     } else {
       set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, read: true } : r) }))
     }
-  }
+  },
+
+  // ── Membership Management ──────────────────────────────────────────────────
+
+  leaveFlat: async (uid) => {
+    const state = get()
+    if (!state.flatId) return { nextFlatId: null }
+
+    if (!hasKeys) {
+      // Mock mode — just reset
+      get().resetFlatData()
+      return { nextFlatId: null }
+    }
+
+    const result = await leaveFlatService(uid, state.flatId)
+    get().resetFlatData()
+    return result
+  },
+
+  kickMember: async (targetUid, adminId) => {
+    const state = get()
+    if (!state.flatId) return
+
+    if (!hasKeys) {
+      // Mock mode — just remove from local state
+      set(s => ({
+        members: s.members.filter(m => m.uid !== targetUid),
+        tasks: s.tasks.map(t => ({
+          ...t,
+          queueOrder: t.queueOrder.filter(uid => uid !== targetUid),
+          currentAssignedUserId: t.currentAssignedUserId === targetUid
+            ? t.queueOrder.find(uid => uid !== targetUid) || ''
+            : t.currentAssignedUserId,
+        }))
+      }))
+      return
+    }
+
+    await kickMemberService(adminId, targetUid, state.flatId)
+    // Firestore listeners will update members in real-time
+  },
+
+  transferAdmin: async (newAdminUid, currentAdminUid) => {
+    const state = get()
+    if (!state.flatId) return
+
+    if (!hasKeys) {
+      set(s => ({
+        members: s.members.map(m => ({
+          ...m,
+          role: m.uid === newAdminUid ? 'admin'
+              : m.uid === currentAdminUid ? 'member'
+              : m.role
+        }))
+      }))
+      return
+    }
+
+    await transferAdminService(currentAdminUid, newAdminUid, state.flatId)
+    // Firestore listener will update members
+  },
+
+  deleteFlat: async (adminUid) => {
+    const state = get()
+    if (!state.flatId) return
+
+    if (!hasKeys) {
+      get().resetFlatData()
+      return
+    }
+
+    await deleteEntireFlatService(adminUid, state.flatId)
+    get().resetFlatData()
+  },
 }))

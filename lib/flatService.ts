@@ -1,15 +1,21 @@
 /**
  * flatService.ts
- * Handles flat creation and joining logic (Firebase + mock mode).
+ * Handles flat creation, joining, and membership management (Firebase + mock mode).
  */
 import { db, hasKeys } from '@/lib/firebase'
 import {
-  doc, getDoc, setDoc, collection, getDocs, serverTimestamp
+  doc, getDoc, setDoc, updateDoc, deleteDoc, getDocs,
+  collection, serverTimestamp, arrayUnion, arrayRemove, writeBatch
 } from 'firebase/firestore'
 
 export interface FlatProfile {
-  flatId: string
-  role: 'admin' | 'member'
+  activeFlatId: string
+  flatIds: string[]
+}
+
+export interface FlatInfo {
+  id: string
+  name: string
 }
 
 /** Generate a human-readable flat ID like "FLAT-A3B9" */
@@ -22,19 +28,51 @@ export function generateFlatId(): string {
   return code
 }
 
-/** Read user's flat profile from Firestore. Returns null if not found. */
+/** Read user's flat profile from Firestore. Handles both old (flatId) and new (activeFlatId + flatIds[]) schema. */
 export async function getUserFlatProfile(uid: string): Promise<FlatProfile | null> {
   if (!hasKeys || !db) return null
   try {
     const snap = await getDoc(doc(db, `users/${uid}`))
     if (snap.exists()) {
       const data = snap.data()
-      if (data.flatId) return { flatId: data.flatId, role: data.role || 'member' }
+      // New schema
+      if (data.activeFlatId) {
+        return {
+          activeFlatId: data.activeFlatId,
+          flatIds: Array.isArray(data.flatIds) ? data.flatIds : [data.activeFlatId],
+        }
+      }
+      // Old schema — migrate on read
+      if (data.flatId) {
+        await updateDoc(doc(db, `users/${uid}`), {
+          activeFlatId: data.flatId,
+          flatIds: [data.flatId],
+        })
+        return { activeFlatId: data.flatId, flatIds: [data.flatId] }
+      }
     }
   } catch (e) {
     console.error('getUserFlatProfile error:', e)
   }
   return null
+}
+
+/** Fetch flat name + ID for each flatId. Silently skips any that error. */
+export async function getFlatsInfo(flatIds: string[]): Promise<FlatInfo[]> {
+  if (!hasKeys || !db || flatIds.length === 0) return []
+  const results: FlatInfo[] = []
+  await Promise.all(
+    flatIds.map(async (flatId) => {
+      try {
+        const snap = await getDoc(doc(db, `flats/${flatId}`))
+        results.push({ id: flatId, name: snap.exists() ? (snap.data().name || flatId) : flatId })
+      } catch {
+        results.push({ id: flatId, name: flatId })
+      }
+    })
+  )
+  // Preserve original order
+  return results.sort((a, b) => flatIds.indexOf(a.id) - flatIds.indexOf(b.id))
 }
 
 /** Check if a flat ID exists in Firestore. */
@@ -43,10 +81,26 @@ export async function flatExists(flatId: string): Promise<boolean> {
   try {
     const snap = await getDoc(doc(db, `flats/${flatId}`))
     return snap.exists()
-  } catch (e) {
-    console.error('flatExists error:', e)
+  } catch {
     return false
   }
+}
+
+/** Verify whether a user is still a member of a flat (handles kicked users). */
+export async function verifyMembership(uid: string, flatId: string): Promise<boolean> {
+  if (!hasKeys || !db) return true
+  try {
+    const snap = await getDoc(doc(db, `flats/${flatId}/members/${uid}`))
+    return snap.exists()
+  } catch {
+    return false // Permission denied = kicked
+  }
+}
+
+/** Update the user's activeFlatId in Firestore. */
+export async function setActiveFlatId(uid: string, flatId: string | null): Promise<void> {
+  if (!hasKeys || !db) return
+  await updateDoc(doc(db, `users/${uid}`), { activeFlatId: flatId })
 }
 
 /**
@@ -61,28 +115,23 @@ export async function createFlat(params: {
 }): Promise<string> {
   const { uid, nickname, email, flatName } = params
 
-  if (!hasKeys || !db) {
-    // Mock mode — use the pre-seeded flat ID so mock data loads correctly
-    return 'FLAT-1234'
-  }
+  if (!hasKeys || !db) return 'FLAT-1234'
 
   let flatId = generateFlatId()
-
-  // Ensure uniqueness (retry up to 5 times)
   for (let i = 0; i < 5; i++) {
     if (!(await flatExists(flatId))) break
     flatId = generateFlatId()
   }
 
-  // Write flat document
+  // Flat document
   await setDoc(doc(db, `flats/${flatId}`), {
     name: flatName,
     adminUid: uid,
     createdAt: serverTimestamp(),
   })
 
-  // Write admin member document
-  const memberData = {
+  // Admin member document
+  await setDoc(doc(db, `flats/${flatId}/members/${uid}`), {
     uid,
     nickname,
     email,
@@ -90,14 +139,12 @@ export async function createFlat(params: {
     status: 'available',
     reliabilityScore: 100,
     joinedAt: new Date().toISOString(),
-  }
-  await setDoc(doc(db, `flats/${flatId}/members/${uid}`), memberData)
+  })
 
-  // Write user profile linking to flat
+  // User profile — new multi-flat schema
   await setDoc(doc(db, `users/${uid}`), {
-    flatId,
-    role: 'admin',
-    nickname,
+    activeFlatId: flatId,
+    flatIds: arrayUnion(flatId),
     email,
   }, { merge: true })
 
@@ -116,17 +163,19 @@ export async function joinFlat(params: {
 }): Promise<{ success: boolean; error?: string }> {
   const { uid, nickname, email, flatId } = params
 
-  if (!hasKeys || !db) {
-    // Mock mode — accept any code, treat as joining FLAT-1234
-    return { success: true }
-  }
+  if (!hasKeys || !db) return { success: true }
 
   if (!(await flatExists(flatId))) {
     return { success: false, error: 'Flat not found. Check the invite code and try again.' }
   }
 
+  const memberSnap = await getDoc(doc(db, `flats/${flatId}/members/${uid}`))
+  if (memberSnap.exists()) {
+    return { success: false, error: 'You are already a member of this flat.' }
+  }
+
   // Add member
-  const memberData = {
+  await setDoc(doc(db, `flats/${flatId}/members/${uid}`), {
     uid,
     nickname,
     email,
@@ -134,16 +183,172 @@ export async function joinFlat(params: {
     status: 'available',
     reliabilityScore: 100,
     joinedAt: new Date().toISOString(),
-  }
-  await setDoc(doc(db, `flats/${flatId}/members/${uid}`), memberData)
+  })
 
-  // Link user to flat
+  // User profile — new multi-flat schema
   await setDoc(doc(db, `users/${uid}`), {
-    flatId,
-    role: 'member',
-    nickname,
+    activeFlatId: flatId,
+    flatIds: arrayUnion(flatId),
     email,
   }, { merge: true })
 
   return { success: true }
+}
+
+// ── Membership Management ────────────────────────────────────────────────────
+
+/**
+ * Reassign all tasks owned by a leaving/kicked member to the next person in queue.
+ * Also removes them from all task queueOrders.
+ */
+async function reassignMemberTasks(flatId: string, leavingUid: string): Promise<void> {
+  if (!hasKeys || !db) return
+  const taskSnaps = await getDocs(collection(db, `flats/${flatId}/tasks`))
+  if (taskSnaps.empty) return
+  const batch = writeBatch(db)
+  taskSnaps.forEach((taskDoc) => {
+    const task = taskDoc.data()
+    const newQueue = (task.queueOrder || []).filter((uid: string) => uid !== leavingUid)
+    const update: Record<string, unknown> = { queueOrder: newQueue }
+    if (task.currentAssignedUserId === leavingUid) {
+      update.currentAssignedUserId = newQueue.length > 0 ? newQueue[0] : ''
+    }
+    batch.update(taskDoc.ref, update)
+  })
+  await batch.commit()
+}
+
+/** Cancel pending swap requests that involve a leaving/kicked member. */
+async function cancelMemberSwapRequests(flatId: string, leavingUid: string): Promise<void> {
+  if (!hasKeys || !db) return
+  const swapSnaps = await getDocs(collection(db, `flats/${flatId}/swapRequests`))
+  if (swapSnaps.empty) return
+  const batch = writeBatch(db)
+  swapSnaps.forEach((swapDoc) => {
+    const swap = swapDoc.data()
+    if (swap.status === 'pending' && (swap.fromUserId === leavingUid || swap.toUserId === leavingUid)) {
+      batch.update(swapDoc.ref, { status: 'rejected' })
+    }
+  })
+  await batch.commit()
+}
+
+/**
+ * Member voluntarily leaves a flat.
+ * Returns the nextFlatId to switch to (or null if no flats remain).
+ */
+export async function leaveFlatService(uid: string, flatId: string): Promise<{ nextFlatId: string | null }> {
+  if (!hasKeys || !db) return { nextFlatId: null }
+
+  const userSnap = await getDoc(doc(db, `users/${uid}`))
+  const userData = userSnap.exists() ? userSnap.data() : {}
+  const currentFlatIds: string[] = Array.isArray(userData.flatIds) ? userData.flatIds : [flatId]
+  const remainingFlatIds = currentFlatIds.filter(id => id !== flatId)
+  const nextFlatId = remainingFlatIds.length > 0 ? remainingFlatIds[0] : null
+
+  const memberSnap = await getDoc(doc(db, `flats/${flatId}/members/${uid}`))
+  const memberName = memberSnap.exists() ? memberSnap.data().nickname : 'A member'
+
+  await reassignMemberTasks(flatId, uid)
+  await cancelMemberSwapRequests(flatId, uid)
+
+  // Activity log entry
+  const logId = crypto.randomUUID()
+  await setDoc(doc(db, `flats/${flatId}/activityLog/${logId}`), {
+    id: logId,
+    userId: 'system',
+    action: 'status_change',
+    details: `${memberName} left the flat`,
+    timestamp: new Date().toISOString(),
+  })
+
+  // Remove member doc
+  await deleteDoc(doc(db, `flats/${flatId}/members/${uid}`))
+
+  // Update user profile
+  await updateDoc(doc(db, `users/${uid}`), {
+    flatIds: arrayRemove(flatId),
+    activeFlatId: nextFlatId,
+  })
+
+  return { nextFlatId }
+}
+
+/**
+ * Admin removes a member from the flat (kick).
+ * The kicked user will be redirected to onboarding next time they open the app.
+ */
+export async function kickMemberService(adminUid: string, targetUid: string, flatId: string): Promise<void> {
+  if (!hasKeys || !db) return
+
+  const memberSnap = await getDoc(doc(db, `flats/${flatId}/members/${targetUid}`))
+  const memberName = memberSnap.exists() ? memberSnap.data().nickname : 'A member'
+
+  const adminSnap = await getDoc(doc(db, `flats/${flatId}/members/${adminUid}`))
+  const adminName = adminSnap.exists() ? adminSnap.data().nickname : 'Admin'
+
+  await reassignMemberTasks(flatId, targetUid)
+  await cancelMemberSwapRequests(flatId, targetUid)
+
+  // Activity log
+  const logId = crypto.randomUUID()
+  await setDoc(doc(db, `flats/${flatId}/activityLog/${logId}`), {
+    id: logId,
+    userId: adminUid,
+    action: 'status_change',
+    details: `${adminName} removed ${memberName} from the flat`,
+    timestamp: new Date().toISOString(),
+  })
+
+  // Remove member doc
+  await deleteDoc(doc(db, `flats/${flatId}/members/${targetUid}`))
+
+  // Best-effort: update kicked user's profile (may fail due to Firestore auth rules)
+  try {
+    await updateDoc(doc(db, `users/${targetUid}`), {
+      flatIds: arrayRemove(flatId),
+    })
+  } catch {
+    // Expected: admin can't write another user's doc. The user will be
+    // auto-corrected next time they open the app (membership verification in initAuthListener).
+  }
+}
+
+/**
+ * Transfer the admin role to another member.
+ * Call this before the current admin leaves the flat.
+ */
+export async function transferAdminService(currentAdminUid: string, newAdminUid: string, flatId: string): Promise<void> {
+  if (!hasKeys || !db) return
+  const batch = writeBatch(db)
+  batch.update(doc(db, `flats/${flatId}/members/${currentAdminUid}`), { role: 'member' })
+  batch.update(doc(db, `flats/${flatId}/members/${newAdminUid}`), { role: 'admin' })
+  batch.update(doc(db, `flats/${flatId}`), { adminUid: newAdminUid })
+  await batch.commit()
+}
+
+/**
+ * Delete an entire flat and all its subcollections.
+ * Only called when the admin is the last remaining member.
+ */
+export async function deleteEntireFlatService(adminUid: string, flatId: string): Promise<void> {
+  if (!hasKeys || !db) return
+
+  const subcollections = ['members', 'tasks', 'activityLog', 'swapRequests']
+  for (const sub of subcollections) {
+    const snaps = await getDocs(collection(db, `flats/${flatId}/${sub}`))
+    if (!snaps.empty) {
+      const batch = writeBatch(db)
+      snaps.forEach(d => batch.delete(d.ref))
+      await batch.commit()
+    }
+  }
+
+  await deleteDoc(doc(db, `flats/${flatId}`))
+
+  // Update admin's user profile
+  await updateDoc(doc(db, `users/${adminUid}`), {
+    flatIds: arrayRemove(flatId),
+    activeFlatId: null,
+  })
 }

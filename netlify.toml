@@ -7,3 +7,19 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+
+# Proxy Firebase Auth handlers through our own domain.
+# This fixes Google Sign-In on iOS Safari (ITP) and Android Chrome —
+# the redirect chain never leaves flatsflow.netlify.app, so the browser
+# never blocks the session state as a cross-site tracker.
+[[redirects]]
+  from = "/__/auth/*"
+  to = "https://garbage-f79f7.firebaseapp.com/__/auth/:splat"
+  status = 200
+  force = true
+
+[[redirects]]
+  from = "/__/firebase/*"
+  to = "https://garbage-f79f7.firebaseapp.com/__/firebase/:splat"
+  status = 200
+  force = true

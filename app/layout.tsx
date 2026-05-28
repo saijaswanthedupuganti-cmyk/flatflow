@@ -13,13 +13,25 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FlatFlow | Smart Roommate Management",
-  description: "A lightweight roommate and bachelor flat management system focused on rotating household duties fairly.",
+  title: "Habitiq | Smart Living Management",
+  description: "The smart shared living management platform — automated duty rotation, real-time sync, and fair accountability for flats, PGs, and co-living spaces.",
   icons: {
     icon: [
-      { url: "/flatflow-logo.svg", type: "image/svg+xml" },
+      { url: "/habitiq-logo.svg", type: "image/svg+xml" },
     ],
-    apple: "/flatflow-logo.svg",
+    apple: "/habitiq-logo.svg",
+  },
+  openGraph: {
+    title: "Habitiq — Smart Living Management",
+    description: "Automated duty rotation for flats, PGs, and co-living spaces. No arguments. No forgotten tasks. Just fair, transparent shared living.",
+    siteName: "Habitiq",
+    type: "website",
+    url: "https://garbage-liart.vercel.app",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "Habitiq — Smart Living Management",
+    description: "Automated duty rotation for flats, PGs, and co-living spaces. No arguments. No forgotten tasks. Just fair, transparent shared living.",
   },
 };
 
@@ -42,7 +54,7 @@ export default function RootLayout({
           dangerouslySetInnerHTML={{
             __html: `
               try {
-                const t = localStorage.getItem('flatflow-theme');
+                const t = localStorage.getItem('habitiq-theme');
                 if (t === 'dark') document.documentElement.classList.add('dark');
               } catch(e) {}
             `,

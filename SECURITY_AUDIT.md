@@ -1,4 +1,4 @@
-# FlatFlow — Security Audit & Changes
+# Habitiq — Security Audit & Changes
 
 **Date:** 2026-05-27  
 **Audited by:** Claude Code (acting as ethical hacker / security reviewer)
@@ -7,7 +7,7 @@
 
 ## Summary
 
-A full code security audit was performed on the FlatFlow app (Next.js + Firebase + Netlify).  
+A full code security audit was performed on the Habitiq app (Next.js + Firebase + Netlify).  
 **8 issues found. All 8 fixed.**
 
 ---

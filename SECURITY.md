@@ -2,7 +2,7 @@
 
 ## Firebase API Keys
 
-FlatFlow uses Firebase for authentication and real-time data. The `NEXT_PUBLIC_FIREBASE_*` environment variables are **client-side keys** — they are intentionally exposed to the browser by Firebase's own design.
+Habitiq uses Firebase for authentication and real-time data. The `NEXT_PUBLIC_FIREBASE_*` environment variables are **client-side keys** — they are intentionally exposed to the browser by Firebase's own design.
 
 However, they are **protected by**:
 
@@ -16,7 +16,7 @@ However, they are **protected by**:
 
 ## Setting Up Your Own Instance
 
-See [`FIREBASE_SETUP.md`](./FIREBASE_SETUP.md) to connect FlatFlow to your own Firebase project.
+See [`FIREBASE_SETUP.md`](./FIREBASE_SETUP.md) to connect Habitiq to your own Firebase project.
 
 ## Reporting a Vulnerability
 

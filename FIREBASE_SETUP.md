@@ -1,6 +1,6 @@
-# Firebase Setup Guide for FlatFlow
+# Firebase Setup Guide for Habitiq
 
-This guide walks you through connecting FlatFlow to a real Firebase project so Google login and live data sync works for all roommates.
+This guide walks you through connecting Habitiq to a real Firebase project so Google login and live data sync works for all roommates.
 
 ---
 
@@ -8,7 +8,7 @@ This guide walks you through connecting FlatFlow to a real Firebase project so G
 
 1. Go to **[https://console.firebase.google.com](https://console.firebase.google.com)**
 2. Click **"Add project"**
-3. Name it `flatflow` (or anything you like)
+3. Name it `habitiq` (or anything you like)
 4. Disable Google Analytics if you don't need it → Click **"Create project"**
 
 ---
@@ -16,7 +16,7 @@ This guide walks you through connecting FlatFlow to a real Firebase project so G
 ## Step 2 — Add a Web App
 
 1. In your project, click the **`</>`** (Web) icon to add a web app
-2. Register app name: `flatflow-web`
+2. Register app name: `habitiq-web`
 3. **Do NOT** check "Firebase Hosting" (we use Next.js)
 4. Click **"Register app"**
 5. Firebase shows you a `firebaseConfig` object — **copy all the values**

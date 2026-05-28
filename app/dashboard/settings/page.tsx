@@ -95,10 +95,10 @@ export default function SettingsPage() {
     setIsDark(newDark)
     if (newDark) {
       document.documentElement.classList.add('dark')
-      localStorage.setItem('flatflow-theme', 'dark')
+      localStorage.setItem('habitiq-theme', 'dark')
     } else {
       document.documentElement.classList.remove('dark')
-      localStorage.setItem('flatflow-theme', 'light')
+      localStorage.setItem('habitiq-theme', 'light')
     }
   }
 
@@ -481,7 +481,7 @@ export default function SettingsPage() {
             <div className="flex items-start gap-3">
               <Info size={18} className="text-muted-foreground mt-0.5 shrink-0" />
               <div>
-                <p className="font-semibold text-sm">FlatFlow v0.1.0</p>
+                <p className="font-semibold text-sm">Habitiq v0.1.0</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Shared living, perfectly balanced. Built for bachelors and flatmates who want a fair, automated chore rotation system.
                 </p>

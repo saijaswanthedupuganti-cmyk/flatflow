@@ -1,8 +1,8 @@
-# FlatFlow 🏠
+# Habitiq 🏠
 
 > **Shared living, perfectly balanced.**
 
-FlatFlow is a smart household duty management app built for flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
+Habitiq is a smart household duty management app built for flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
 
 [![Live](https://img.shields.io/badge/Live-flatsflow.netlify.app-brightgreen)](https://flatsflow.netlify.app)
 [![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
@@ -38,7 +38,7 @@ FlatFlow is a smart household duty management app built for flatmates who want a
 
 ```bash
 git clone https://github.com/saijaswanthedupuganti-cmyk/flatflow.git
-cd flatflow
+cd flatflow   # repo name pending rename to habitiq
 npm install
 ```
 

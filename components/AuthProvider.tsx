@@ -31,7 +31,7 @@ const LOADING_CSS = `
   }
 `
 
-function FlatFlowLoadingScreen() {
+function HabitiqLoadingScreen() {
   return (
     <div className="h-screen w-full flex flex-col items-center justify-center gap-6 bg-background text-foreground">
       <style dangerouslySetInnerHTML={{ __html: LOADING_CSS }} />
@@ -127,7 +127,7 @@ function FlatFlowLoadingScreen() {
           className="text-2xl font-bold tracking-tight text-violet-700 dark:text-violet-300"
           style={{ letterSpacing: '-0.02em' }}
         >
-          FlatFlow
+          Habitiq
         </p>
       </div>
 
@@ -181,7 +181,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   const stillChecking = isLoading || (!!user && !flatChecked)
 
   if (stillChecking) {
-    return <FlatFlowLoadingScreen />
+    return <HabitiqLoadingScreen />
   }
 
   return <>{children}</>

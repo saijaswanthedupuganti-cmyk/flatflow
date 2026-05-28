@@ -103,9 +103,9 @@ export default function Home() {
       <div className="max-w-md w-full bg-card rounded-2xl shadow-xl overflow-hidden border border-border">
         <div className="bg-primary/10 p-8 flex flex-col items-center justify-center text-center">
           <div className="w-16 h-16 bg-primary rounded-2xl flex items-center justify-center mb-6 shadow-lg rotate-3">
-            <span className="text-3xl font-extrabold text-white">F</span>
+            <span className="text-3xl font-extrabold text-white">H</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-primary tracking-tight">FlatFlow</h1>
+          <h1 className="text-3xl font-extrabold text-primary tracking-tight">Habitiq</h1>
           <p className="text-muted-foreground mt-2 font-medium">Shared living, perfectly balanced.</p>
         </div>
         

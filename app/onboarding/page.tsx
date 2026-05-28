@@ -101,9 +101,9 @@ function OnboardingContent() {
         {/* Header */}
         <div className="text-center mb-6">
           <div className="w-14 h-14 bg-primary rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg rotate-3">
-            <span className="text-2xl font-extrabold text-white">F</span>
+            <span className="text-2xl font-extrabold text-white">H</span>
           </div>
-          <h1 className="text-3xl font-extrabold text-primary">FlatFlow</h1>
+          <h1 className="text-3xl font-extrabold text-primary">Habitiq</h1>
           {isAddingFlat ? (
             <p className="text-muted-foreground mt-1">Add another flat to your account.</p>
           ) : (

@@ -277,7 +277,7 @@ export const useAuthStore = create<AuthState>()(
       },
     }),
     {
-      name: 'flatflow-auth',
+      name: 'habitiq-auth',
       partialize: (state) => ({
         user: state.user,
         flatId: state.flatId,

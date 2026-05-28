@@ -90,10 +90,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <div className="px-5 pt-5 pb-4 border-b border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-sm font-extrabold text-white">F</span>
+              <span className="text-sm font-extrabold text-white">H</span>
             </div>
             <div>
-              <h2 className="text-base font-extrabold text-foreground tracking-tight leading-none">FlatFlow</h2>
+              <h2 className="text-base font-extrabold text-foreground tracking-tight leading-none">Habitiq</h2>
               <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{flatName || authFlatId || 'Loading…'}</p>
             </div>
           </div>

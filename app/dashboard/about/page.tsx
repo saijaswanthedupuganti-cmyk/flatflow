@@ -7,7 +7,7 @@ const TEAM = [
     name: 'Venkata Sai Jaswanth E',
     nickname: 'Sai Jaswanth',
     role: 'UI/UX Designer & Co-founder',
-    bio: 'Passionate about crafting intuitive digital experiences. Leads the design vision for FlatFlow — from wireframes to pixel-perfect interfaces that make shared living effortless.',
+    bio: 'Passionate about crafting intuitive digital experiences. Leads the design vision for Habitiq — from wireframes to pixel-perfect interfaces that make shared living effortless.',
     avatar: 'SJ',
     color: 'from-blue-500 to-indigo-600',
     linkedin: 'https://www.linkedin.com/in/venkata-sai-jaswanth-e/',
@@ -17,7 +17,7 @@ const TEAM = [
     name: 'Upputuri Bhanu Kalyan',
     nickname: 'Bhanu Kalyan',
     role: 'Full-Stack Developer & Co-founder',
-    bio: 'Brings ideas to life through clean, scalable code. Architected FlatFlow\'s real-time backend, rotation engine, and the seamless Firebase integration that keeps every flatmate in sync.',
+    bio: 'Brings ideas to life through clean, scalable code. Architected Habitiq\'s real-time backend, rotation engine, and the seamless Firebase integration that keeps every flatmate in sync.',
     avatar: 'BK',
     color: 'from-violet-500 to-purple-700',
     linkedin: 'https://www.linkedin.com/in/upputuri-bhanu-kalyan/',
@@ -55,10 +55,10 @@ export default function AboutPage() {
         <div className="relative z-10">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-12 h-12 bg-white/20 rounded-2xl flex items-center justify-center backdrop-blur-sm">
-              <span className="text-2xl font-extrabold">F</span>
+              <span className="text-2xl font-extrabold">H</span>
             </div>
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">FlatFlow</h1>
+              <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Habitiq</h1>
               <p className="text-blue-100 text-sm font-medium">v0.1.0 · Open Beta</p>
             </div>
           </div>
@@ -66,7 +66,7 @@ export default function AboutPage() {
             Shared living, perfectly balanced.
           </p>
           <p className="text-blue-100 mt-3 max-w-2xl leading-relaxed text-sm sm:text-base">
-            FlatFlow is a smart household duty management app built for bachelors and flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
+            Habitiq is a smart household duty management app built for bachelors and flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
           </p>
           <div className="flex flex-wrap gap-3 mt-6">
             <div className="flex items-center gap-1.5 bg-white/15 backdrop-blur-sm border border-white/20 rounded-full px-3 py-1.5 text-xs font-semibold">
@@ -143,7 +143,7 @@ export default function AboutPage() {
       {/* ── Features ──────────────────────────────────── */}
       <div>
         <div className="mb-6">
-          <h2 className="text-2xl font-bold tracking-tight">What FlatFlow Does</h2>
+          <h2 className="text-2xl font-bold tracking-tight">What Habitiq Does</h2>
           <p className="text-muted-foreground mt-1">Every feature built from a real flatmate frustration.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -177,7 +177,7 @@ export default function AboutPage() {
       {/* ── Footer ────────────────────────────────────── */}
       <div className="border-t border-border/60 pt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-semibold">FlatFlow v0.1.0</p>
+          <p className="text-sm font-semibold">Habitiq v0.1.0</p>
           <p className="text-xs text-muted-foreground mt-0.5">Built with ☕ and a very messy kitchen.</p>
         </div>
         <div className="flex items-center gap-4">

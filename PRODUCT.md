@@ -1,19 +1,20 @@
-# FlatFlow — Product & Business Documentation
+# Habitiq — Product & Business Documentation
 
 > **Version:** v0.1.0 (Trial / Pilot Phase)  
-> **Live URL:** https://flatsflow.netlify.app  
+> **Live URL:** https://garbage-liart.vercel.app  
+> **Target Domain:** habitiq.in / habitiq.app  
 > **Status:** 🟢 Live — Real User Trial  
 > **Last Updated:** 2026-05-27
 
 ---
 
-## 1. What is FlatFlow?
+## 1. What is Habitiq?
 
-FlatFlow is a **shared living management platform** that automates household duty rotation among flatmates. It eliminates arguments, forgotten tasks, and unfair workloads by giving every flat a transparent, real-time system for chore management.
+Habitiq is a **shared living management platform** that automates household duty rotation among flatmates. It eliminates arguments, forgotten tasks, and unfair workloads by giving every flat a transparent, real-time system for chore management.
 
 ### The Problem We Solve
 
-| Problem | Without FlatFlow | With FlatFlow |
+| Problem | Without Habitiq | With Habitiq |
 |---------|-----------------|---------------|
 | Who cleans next? | Arguments every week | Auto-assigned, no discussion |
 | Someone is travelling | Task skipped or dumped on others | Smart skip — resumes automatically |
@@ -266,9 +267,9 @@ Full security audit completed 2026-05-27. See [SECURITY_AUDIT.md](./SECURITY_AUD
 
 When collecting feedback from trial users, ask:
 
-1. How often do you open FlatFlow? (Daily / Few times a week / Weekly / Rarely)
+1. How often do you open Habitiq? (Daily / Few times a week / Weekly / Rarely)
 2. Has chore fairness improved in your flat? (Yes / Somewhat / No)
-3. What's the #1 thing you wish FlatFlow could do?
+3. What's the #1 thing you wish Habitiq could do?
 4. Would you recommend this to another flat? (Yes / Maybe / No)
 5. Would you pay ₹49/month to keep using it? (Yes / Maybe / No)
 

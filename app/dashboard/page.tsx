@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
+import NPSBanner from '@/components/NPSBanner'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -38,6 +39,7 @@ export default function DashboardPage() {
   const [showGoingOutModal, setShowGoingOutModal] = useState(false)
   // Admin can switch between their own tasks and the org overview
   const [adminView, setAdminView] = useState<'mine' | 'org'>('mine')
+  const [showNPS, setShowNPS] = useState(false)
   const { flatId } = useFlatStore()
 
   useEffect(() => {
@@ -57,6 +59,19 @@ export default function DashboardPage() {
       if (b.status === 'overdue' && a.status !== 'overdue') return 1;
       return getPriorityWeight(b.priority) - getPriorityWeight(a.priority);
     })
+
+  // NPS trigger: show after 7 days of membership, once per user
+  useEffect(() => {
+    if (!currentMember || !user) return
+    const dismissed = localStorage.getItem(`nps_dismissed_${user.uid}`)
+    const submitted = localStorage.getItem(`nps_submitted_${user.uid}`)
+    if (dismissed || submitted) return
+    const joinedAt = currentMember.joinedAt instanceof Date
+      ? currentMember.joinedAt
+      : new Date(currentMember.joinedAt as unknown as string)
+    const daysSince = (Date.now() - joinedAt.getTime()) / 86400000
+    if (daysSince >= 7) setShowNPS(true)
+  }, [currentMember, user])
 
   // Pending incoming requests to the current user
   const incomingRequests = swapRequests.filter(r => r.toUserId === currentUser.uid && r.status === 'pending')
@@ -191,6 +206,16 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── NPS Survey Banner ───────────────────────────────────────── */}
+      {showNPS && flatId && (
+        <NPSBanner
+          uid={user?.uid ?? 'u1'}
+          nickname={currentMember?.nickname ?? 'User'}
+          flatId={flatId}
+          onDone={() => setShowNPS(false)}
+        />
       )}
 
       {/* ── Swap Request Banner — shown to ALL members, top of page ──── */}

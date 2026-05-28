@@ -6,10 +6,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import {
   Copy, Check, Sun, Moon, Shield, User, Home, Info,
-  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save, Link, UserCheck, Lock
+  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save, Link, UserCheck, Lock, Star, MessageSquare
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import FlatSwitcher from '@/components/FlatSwitcher'
+import { getNpsResponses, type NpsResponse } from '@/lib/npsService'
 
 // ── Simple dialog overlay ──────────────────────────────────────────────────
 interface DialogProps {
@@ -57,6 +58,7 @@ export default function SettingsPage() {
   const router = useRouter()
   const { flatId, name, joinMode, members, leaveFlat, transferAdmin, deleteFlat, renameFlatAction, setJoinMode } = useFlatStore()
   const { user, logout, allFlats } = useAuthStore()
+  const [npsResponses, setNpsResponses] = useState<NpsResponse[]>([])
 
   const handleLogout = async () => {
     await logout()
@@ -89,6 +91,12 @@ export default function SettingsPage() {
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'))
   }, [])
+
+  useEffect(() => {
+    if (isAdmin && flatId) {
+      getNpsResponses(flatId).then(setNpsResponses)
+    }
+  }, [isAdmin, flatId])
 
   const toggleDark = () => {
     const newDark = !isDark
@@ -554,6 +562,96 @@ export default function SettingsPage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── NPS / Feedback (admin only) ──────────────────────────── */}
+        {isAdmin && (
+          <Card className="shadow-sm">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2">
+                <Star size={20} className="text-primary" />
+                Member Feedback
+              </CardTitle>
+              <CardDescription>
+                Net Promoter Score — how likely are members to recommend FlatFlow?
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {npsResponses.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No responses yet. Members will be prompted after 7 days.</p>
+              ) : (() => {
+                const avg = npsResponses.reduce((s, r) => s + r.score, 0) / npsResponses.length
+                const promoters  = npsResponses.filter(r => r.score >= 9).length
+                const passives   = npsResponses.filter(r => r.score >= 7 && r.score <= 8).length
+                const detractors = npsResponses.filter(r => r.score <= 6).length
+                const npsScore   = Math.round(((promoters - detractors) / npsResponses.length) * 100)
+                return (
+                  <>
+                    {/* Score summary */}
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
+                        <p className="text-3xl font-extrabold text-primary">{npsScore > 0 ? '+' : ''}{npsScore}</p>
+                        <p className="text-xs font-bold text-muted-foreground mt-1">NPS Score</p>
+                      </div>
+                      <div className="p-4 rounded-xl bg-secondary/50 border border-border text-center">
+                        <p className="text-3xl font-extrabold">{avg.toFixed(1)}</p>
+                        <p className="text-xs font-bold text-muted-foreground mt-1">Avg Rating / 10</p>
+                      </div>
+                    </div>
+
+                    {/* Breakdown */}
+                    <div className="flex gap-2 text-xs">
+                      <div className="flex-1 text-center p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                        <p className="font-extrabold text-green-700 dark:text-green-400">{promoters}</p>
+                        <p className="text-green-600 dark:text-green-500 font-semibold">Promoters</p>
+                        <p className="text-muted-foreground">9–10</p>
+                      </div>
+                      <div className="flex-1 text-center p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
+                        <p className="font-extrabold text-yellow-700 dark:text-yellow-400">{passives}</p>
+                        <p className="text-yellow-600 dark:text-yellow-500 font-semibold">Passives</p>
+                        <p className="text-muted-foreground">7–8</p>
+                      </div>
+                      <div className="flex-1 text-center p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+                        <p className="font-extrabold text-red-700 dark:text-red-400">{detractors}</p>
+                        <p className="text-red-600 dark:text-red-500 font-semibold">Detractors</p>
+                        <p className="text-muted-foreground">0–6</p>
+                      </div>
+                    </div>
+
+                    {/* Individual responses */}
+                    <div className="space-y-2">
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Responses</p>
+                      {npsResponses.map(r => (
+                        <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-border bg-secondary/20">
+                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 ${
+                            r.score >= 9 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                            : r.score >= 7 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
+                            : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                          }`}>
+                            {r.score}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center justify-between gap-2">
+                              <p className="text-sm font-semibold">{r.nickname}</p>
+                              <p className="text-[10px] text-muted-foreground shrink-0">
+                                {new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              </p>
+                            </div>
+                            {r.comment && (
+                              <p className="text-xs text-muted-foreground mt-0.5 flex items-start gap-1">
+                                <MessageSquare size={10} className="shrink-0 mt-0.5" />
+                                {r.comment}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )
+              })()}
+            </CardContent>
+          </Card>
+        )}
 
         {/* About */}
         <Card className="shadow-sm border-dashed">

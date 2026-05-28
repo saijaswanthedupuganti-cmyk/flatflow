@@ -100,6 +100,17 @@ service cloud.firestore {
         allow delete: if isAdmin(flatId);
       }
 
+      // ── NPS Responses ───────────────────────────────────────────────────────
+      match /npsResponses/{responseId} {
+        // Admin can read all responses for their flat
+        allow read: if isAdmin(flatId);
+        // Any member can submit once (create only their own response)
+        allow create: if isMember(flatId)
+          && request.resource.data.uid == request.auth.uid;
+        // No updates or deletes
+        allow update, delete: if false;
+      }
+
       // ── Swap Requests ───────────────────────────────────────────────────────
       match /swapRequests/{requestId} {
         // All members can read swap requests

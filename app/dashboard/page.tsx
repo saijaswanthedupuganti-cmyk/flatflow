@@ -554,6 +554,63 @@ export default function DashboardPage() {
         ) : null}
       </div>
       
+      {/* ── Flatmates Status — visible to ALL users ── */}
+      <div className="border border-border/60 rounded-2xl overflow-hidden">
+        <div className="flex items-center justify-between px-4 py-2.5 bg-secondary/30 border-b border-border/60">
+          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Flatmates</p>
+          <div className="flex items-center gap-3 text-xs font-semibold">
+            <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
+              <span className="w-2 h-2 rounded-full bg-green-500" />
+              {members.filter(m => m.status === 'available' || m.status === 'busy').length} available
+            </span>
+            <span className="flex items-center gap-1 text-orange-500">
+              <span className="w-2 h-2 rounded-full bg-orange-400" />
+              {members.filter(m => m.status === 'out_of_station').length} out
+            </span>
+          </div>
+        </div>
+        <div className="flex flex-wrap gap-2 px-4 py-3">
+          {members.map(member => {
+            const isAvailable = member.status === 'available' || member.status === 'busy'
+            const isOut       = member.status === 'out_of_station'
+            const isMe        = member.uid === currentUser.uid
+            return (
+              <div
+                key={member.uid}
+                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
+                  isOut
+                    ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300'
+                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
+                }`}
+              >
+                {/* Status dot */}
+                <span className={`w-2 h-2 rounded-full shrink-0 ${
+                  isOut ? 'bg-orange-400' : 'bg-green-500 animate-pulse'
+                }`} />
+                {/* Avatar initial */}
+                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                  isOut
+                    ? 'bg-orange-200 dark:bg-orange-800 text-orange-700 dark:text-orange-200'
+                    : 'bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-200'
+                }`}>
+                  {member.nickname.charAt(0).toUpperCase()}
+                </span>
+                {/* Name */}
+                <span className="max-w-[80px] truncate">{member.nickname}</span>
+                {isMe && <span className="text-[9px] opacity-60 font-bold">you</span>}
+                {/* Status label */}
+                <span className={`text-[9px] font-bold uppercase tracking-wider opacity-70`}>
+                  {isOut ? 'out' : member.status === 'busy' ? 'busy' : ''}
+                </span>
+              </div>
+            )
+          })}
+          {members.length === 0 && (
+            <p className="text-xs text-muted-foreground py-1">No members yet.</p>
+          )}
+        </div>
+      </div>
+
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/60">
         {(!isAdmin || adminView === 'mine') && (

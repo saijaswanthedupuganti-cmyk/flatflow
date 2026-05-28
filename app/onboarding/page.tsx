@@ -3,12 +3,12 @@ import { useState, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
-import { createFlat, joinFlat } from '@/lib/flatService'
+import { createFlat, joinFlat, getFlatJoinMode, requestToJoinFlat } from '@/lib/flatService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X } from 'lucide-react'
+import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X, Clock } from 'lucide-react'
 
-type Step = 'choose' | 'create' | 'join'
+type Step = 'choose' | 'create' | 'join' | 'pending'
 
 function OnboardingContent() {
   const router = useRouter()
@@ -21,14 +21,16 @@ function OnboardingContent() {
   const { user, setFlatId, logout, addFlatToState } = useAuthStore()
   const { initFirestoreListeners, addMemberMock } = useFlatStore()
 
+  const prefillCode = searchParams.get('code') || ''
+
   const [step, setStep] = useState<Step>(() => {
     if (initialMode === 'create') return 'create'
-    if (initialMode === 'join') return 'join'
+    if (initialMode === 'join' || prefillCode) return 'join'
     return 'choose'
   })
   const [flatName, setFlatName] = useState('')
   const [nickname, setNickname] = useState(user?.displayName || '')
-  const [inviteCode, setInviteCode] = useState('')
+  const [inviteCode, setInviteCode] = useState(prefillCode.toUpperCase())
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -67,6 +69,16 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
     try {
+      // Check if this flat requires approval before joining
+      const joinMode = await getFlatJoinMode(code)
+      if (joinMode === 'approval') {
+        const req = await requestToJoinFlat({ uid: user.uid, nickname: nickname.trim(), email: user.email, flatId: code })
+        if (!req.success) { setError(req.error || 'Failed to send request.'); setLoading(false); return }
+        setStep('pending')
+        setLoading(false)
+        return
+      }
+
       const result = await joinFlat({
         uid: user.uid,
         nickname: nickname.trim(),
@@ -79,7 +91,7 @@ function OnboardingContent() {
         return
       }
       if (isAddingFlat) {
-        addFlatToState(code, code) // We'll use flatId as name initially; flat doc listener will update it
+        addFlatToState(code, code)
         initFirestoreListeners(code)
       } else {
         addMemberMock(user.uid, nickname.trim(), user.email, 'member')
@@ -215,6 +227,25 @@ function OnboardingContent() {
                 onClick={handleCreateFlat}
               >
                 {loading ? <><Loader2 size={18} className="mr-2 animate-spin" /> Creating...</> : 'Create Flat & Continue'}
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {step === 'pending' && (
+          <Card className="shadow-md border-primary/30">
+            <CardContent className="p-8 flex flex-col items-center text-center gap-4">
+              <div className="w-14 h-14 bg-orange-100 dark:bg-orange-900/30 rounded-2xl flex items-center justify-center">
+                <Clock size={28} className="text-orange-600 dark:text-orange-400 animate-pulse" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">Request Sent</h2>
+                <p className="text-sm text-muted-foreground mt-2 max-w-xs">
+                  The admin needs to approve your request before you can access the flat. You&apos;ll be able to sign in once approved.
+                </p>
+              </div>
+              <Button variant="outline" onClick={() => router.push('/')} className="mt-2">
+                Back to Sign In
               </Button>
             </CardContent>
           </Card>

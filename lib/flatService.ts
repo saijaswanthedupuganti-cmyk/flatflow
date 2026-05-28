@@ -158,6 +158,70 @@ export async function createFlat(params: {
  * Uses a transaction so the member-count check, member creation, and
  * counter increment are all atomic — prevents race conditions around the 8-member cap.
  */
+/** Returns the join mode for a flat ('auto' or 'approval'). */
+export async function getFlatJoinMode(flatId: string): Promise<'auto' | 'approval'> {
+  if (!hasKeys || !db) return 'auto'
+  const snap = await getDoc(doc(db, `flats/${flatId}`))
+  if (!snap.exists()) return 'auto'
+  return (snap.data().joinMode as 'auto' | 'approval') ?? 'auto'
+}
+
+/** Set join mode on a flat (admin only). */
+export async function setFlatJoinMode(flatId: string, mode: 'auto' | 'approval'): Promise<void> {
+  if (!hasKeys || !db) return
+  await updateDoc(doc(db, `flats/${flatId}`), { joinMode: mode })
+}
+
+/**
+ * Submit a join request (used when the flat is in 'approval' mode).
+ * Returns the request ID so the caller can track it.
+ */
+export async function requestToJoinFlat(params: {
+  uid: string; nickname: string; email: string; flatId: string
+}): Promise<{ success: boolean; error?: string; requestId?: string }> {
+  const { uid, nickname, email, flatId } = params
+  if (!hasKeys || !db) return { success: true, requestId: 'mock' }
+
+  if (!(await flatExists(flatId))) {
+    return { success: false, error: 'Flat not found. Check the invite code and try again.' }
+  }
+
+  // Check not already a member or pending
+  const memberSnap = await getDoc(doc(db, `flats/${flatId}/members/${uid}`))
+  if (memberSnap.exists()) return { success: false, error: 'You are already a member of this flat.' }
+
+  const requestId = crypto.randomUUID()
+  await setDoc(doc(db, `flats/${flatId}/joinRequests/${requestId}`), {
+    id: requestId,
+    uid, nickname, email,
+    status: 'pending',
+    createdAt: new Date().toISOString(),
+  })
+  return { success: true, requestId }
+}
+
+/** Admin approves a join request — calls joinFlat for the user. */
+export async function approveJoinRequestService(
+  flatId: string,
+  requestId: string,
+  uid: string,
+  nickname: string,
+  email: string
+): Promise<{ success: boolean; error?: string }> {
+  const result = await joinFlat({ uid, nickname, email, flatId })
+  if (!result.success) return result
+  if (hasKeys && db) {
+    await updateDoc(doc(db, `flats/${flatId}/joinRequests/${requestId}`), { status: 'approved' })
+  }
+  return { success: true }
+}
+
+/** Admin rejects a join request. */
+export async function rejectJoinRequestService(flatId: string, requestId: string): Promise<void> {
+  if (!hasKeys || !db) return
+  await updateDoc(doc(db, `flats/${flatId}/joinRequests/${requestId}`), { status: 'rejected' })
+}
+
 export async function joinFlat(params: {
   uid: string
   nickname: string

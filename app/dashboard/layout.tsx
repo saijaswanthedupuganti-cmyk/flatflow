@@ -32,7 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const { user } = useAuthStore()
-  const { members, tasks, swapRequests, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
+  const { members, tasks, swapRequests, joinRequests, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
   const { flatId: authFlatId } = useAuthStore()
 
   const currentUser = members.find(m => m.uid === user?.uid)
@@ -48,6 +48,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const overdueTasks    = tasks.filter(t => t.status === 'overdue').length
   const pendingSwaps    = swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length
+  const pendingJoins    = isAdmin ? joinRequests.filter(r => r.status === 'pending').length : 0
 
   const NavLink = ({ href, label, icon: Icon, exact, color, bg, badge }: typeof NAV_ITEMS.main[0] & { badge?: number }) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href)
@@ -127,7 +128,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {isAdmin && (
             <>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-3 mb-1">Admin</p>
-              {NAV_ITEMS.admin.map(item => <NavLink key={item.href} {...item} />)}
+              {NAV_ITEMS.admin.map(item => (
+                <NavLink
+                  key={item.href}
+                  {...item}
+                  badge={item.href === '/dashboard/members' && pendingJoins > 0 ? pendingJoins : undefined}
+                />
+              ))}
             </>
           )}
 

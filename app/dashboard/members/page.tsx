@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Users, MapPinOff, CheckCircle2, ShieldCheck, Star,
-  ClipboardList, UserCheck, UserX, TrendingUp, UserMinus, X, Filter,
+  ClipboardList, UserCheck, UserX, TrendingUp, UserMinus, X, Filter, Bell,
 } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 
@@ -51,7 +51,7 @@ function KickDialog({ member, onClose, onConfirm, loading, error }: KickDialogPr
 }
 
 export default function MembersPage() {
-  const { members, tasks, changeMemberStatus, createSwapRequest, kickMember } = useFlatStore()
+  const { members, tasks, joinRequests, changeMemberStatus, createSwapRequest, approveJoinRequest, rejectJoinRequest, kickMember } = useFlatStore()
   const { user } = useAuthStore()
 
   const currentUserId = user?.uid || 'u1'
@@ -146,6 +146,40 @@ export default function MembersPage() {
             Manage roommate statuses and availability in the rotation.
           </p>
         </div>
+
+        {/* ── Pending join requests (admin only) ─────────────────────── */}
+        {isAdmin && joinRequests.filter(r => r.status === 'pending').length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <Bell size={15} className="text-violet-500" />
+              <h2 className="text-sm font-bold">Join Requests</h2>
+              <span className="bg-violet-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full">
+                {joinRequests.filter(r => r.status === 'pending').length}
+              </span>
+            </div>
+            {joinRequests.filter(r => r.status === 'pending').map(req => (
+              <div key={req.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border-2 border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30">
+                <div className="w-9 h-9 rounded-full bg-violet-200 dark:bg-violet-800 flex items-center justify-center text-sm font-bold text-violet-700 dark:text-violet-200 shrink-0">
+                  {req.nickname.charAt(0).toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">{req.nickname}</p>
+                  <p className="text-xs text-muted-foreground truncate">{req.email}</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white font-bold px-3"
+                    onClick={() => approveJoinRequest(req.id)}>
+                    <CheckCircle2 size={13} className="mr-1" /> Approve
+                  </Button>
+                  <Button size="sm" variant="outline" className="border-destructive/40 text-destructive hover:bg-destructive/10 font-bold px-3"
+                    onClick={() => rejectJoinRequest(req.id)}>
+                    <X size={13} className="mr-1" /> Reject
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* ── Summary stats ───────────────────────────────────────────── */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-3">

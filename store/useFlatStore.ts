@@ -1,6 +1,7 @@
 import { create } from 'zustand'
 import { completeTask, getNextAssignee } from '../lib/rotationEngine'
 import { db, hasKeys } from '@/lib/firebase'
+import { useAuthStore } from './useAuthStore'
 import {
   collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc, getDocs
 } from 'firebase/firestore'
@@ -10,6 +11,9 @@ import {
   transferAdminService,
   deleteEntireFlatService,
   updateFlatName as updateFlatNameService,
+  approveJoinRequestService,
+  rejectJoinRequestService,
+  setFlatJoinMode as setFlatJoinModeService,
 } from '@/lib/flatService'
 
 export interface Member {
@@ -39,10 +43,19 @@ export interface Activity {
   id: string
   timestamp: string
   userId: string
-  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'returned_early'
+  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'task_edited' | 'returned_early'
   details: string
   /** Admin can soft-hide entries without deleting them */
   hidden?: boolean
+}
+
+export interface JoinRequest {
+  id: string
+  uid: string
+  nickname: string
+  email: string
+  status: 'pending' | 'approved' | 'rejected'
+  createdAt: string
 }
 
 export interface SwapRequest {
@@ -60,10 +73,12 @@ export interface SwapRequest {
 interface FlatState {
   flatId: string | null
   name: string | null
+  joinMode: 'auto' | 'approval'
   members: Member[]
   tasks: Task[]
   activityLog: Activity[]
   swapRequests: SwapRequest[]
+  joinRequests: JoinRequest[]
   isSynced: boolean
 
   // Initialization
@@ -80,6 +95,7 @@ interface FlatState {
   transferTask: (taskId: string, fromUserId: string, toUserId: string) => Promise<void>
   manuallyAssignTask: (taskId: string, targetUserId: string, adminId: string) => Promise<void>
   createTask: (taskData: Omit<Task, 'taskId' | 'status' | 'lastCompletedAt'> & { lastCompletedAt?: string }, adminId: string) => Promise<void>
+  editTask: (taskId: string, changes: Partial<Pick<Task, 'name' | 'type' | 'priority' | 'frequency' | 'dueDate'>>, adminId: string) => Promise<void>
   deleteTask: (taskId: string, adminId: string) => Promise<void>
   createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean, isOOSRequest?: boolean) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
@@ -89,6 +105,11 @@ interface FlatState {
 
   // Flat Settings
   renameFlatAction: (newName: string) => Promise<void>
+  setJoinMode: (mode: 'auto' | 'approval') => Promise<void>
+
+  // Join Requests (approval mode)
+  approveJoinRequest: (requestId: string) => Promise<void>
+  rejectJoinRequest: (requestId: string) => Promise<void>
 
   // Membership Management
   leaveFlat: (uid: string) => Promise<{ nextFlatId: string | null }>
@@ -123,10 +144,12 @@ let unsubscribers: (() => void)[] = []
 export const useFlatStore = create<FlatState>((set, get) => ({
   flatId: hasKeys ? null : 'FLAT-1234',
   name: hasKeys ? null : 'Bachelor Pad',
+  joinMode: 'auto',
   members: hasKeys ? [] : MOCK_MEMBERS,
   tasks: hasKeys ? [] : MOCK_TASKS,
   activityLog: [],
   swapRequests: [],
+  joinRequests: [],
   isSynced: false,
 
   resetFlatData: () => {
@@ -136,10 +159,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     set({
       flatId: null,
       name: null,
+      joinMode: 'auto',
       members: [],
       tasks: [],
       activityLog: [],
       swapRequests: [],
+      joinRequests: [],
       isSynced: false,
     })
   },
@@ -176,11 +201,14 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, members: [], tasks: [], activityLog: [], swapRequests: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], isSynced: false })
 
-    // FLAT DOC LISTENER — to get flat name
+    // FLAT DOC LISTENER — to get flat name + joinMode
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
-      if (snap.exists()) set({ name: snap.data().name || null })
+      if (snap.exists()) {
+        const data = snap.data()
+        set({ name: data.name || null, joinMode: (data.joinMode as 'auto' | 'approval') || 'auto' })
+      }
     }, (err) => console.warn('Flat doc listener error:', err))
 
     // TASKS LISTENER
@@ -211,7 +239,14 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ activityLog: activityLog.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50) })
     }, (err) => console.warn('ActivityLog listener error:', err))
 
-    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4]
+    // JOIN REQUESTS LISTENER
+    const unsub5 = onSnapshot(collection(db, `flats/${flatId}/joinRequests`), (snapshot) => {
+      const joinRequests: JoinRequest[] = []
+      snapshot.forEach((doc) => joinRequests.push(doc.data() as JoinRequest))
+      set({ joinRequests: joinRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) })
+    }, (err) => console.warn('JoinRequests listener error:', err))
+
+    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4, unsub5]
     set({ isSynced: true })
   },
 
@@ -305,7 +340,11 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       const newMembers = state.members.map(m => m.uid === userId ? { ...m, status } : m)
       set({ members: newMembers })
     }
-    await get().addActivity({ userId, action: 'status_change', details: `marked as ${status.replace('_', ' ')}` })
+    // Use 'system' when a different user's client triggers this (e.g. OOS auto-trigger
+    // after accepting a swap request) — rules only allow writing activity under own UID or 'system'.
+    const currentUid = useAuthStore.getState().user?.uid
+    const activityUserId = currentUid === userId ? userId : 'system'
+    await get().addActivity({ userId: activityUserId, action: 'status_change', details: `marked as ${status.replace('_', ' ')}` })
 
     if (status === 'out_of_station') {
       const currentState = get()
@@ -420,6 +459,32 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({ userId: adminId, action: 'task_created', details: `created a new task: ${newTask.name}` })
   },
 
+  editTask: async (taskId, changes, adminId) => {
+    const state = get()
+    const task = state.tasks.find(t => t.taskId === taskId)
+    if (!task) return
+
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), changes)
+    } else {
+      set(s => ({ tasks: s.tasks.map(t => t.taskId === taskId ? { ...t, ...changes } : t) }))
+    }
+
+    // Build a readable summary of what changed
+    const changed: string[] = []
+    if (changes.name && changes.name !== task.name) changed.push(`name → "${changes.name}"`)
+    if (changes.priority && changes.priority !== task.priority) changed.push(`priority → ${changes.priority}`)
+    if (changes.frequency && changes.frequency !== task.frequency) changed.push(`frequency → ${changes.frequency}`)
+    if (changes.type && changes.type !== task.type) changed.push(`type → ${changes.type}`)
+    if (changes.dueDate) changed.push(`due date updated`)
+
+    await get().addActivity({
+      userId: adminId,
+      action: 'task_edited',
+      details: `edited ${task.name}${changed.length ? ': ' + changed.join(', ') : ''}`,
+    })
+  },
+
   deleteTask: async (taskId, adminId) => {
     const state = get()
     const task = state.tasks.find(t => t.taskId === taskId)
@@ -517,10 +582,39 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (!flatId) return
     if (hasKeys) {
       await updateFlatNameService(flatId, newName)
-      // The flat doc onSnapshot listener will update `name` in state automatically
     } else {
       set({ name: newName })
     }
+  },
+
+  setJoinMode: async (mode) => {
+    const { flatId } = get()
+    if (!flatId) return
+    if (hasKeys) {
+      await setFlatJoinModeService(flatId, mode)
+    } else {
+      set({ joinMode: mode })
+    }
+  },
+
+  approveJoinRequest: async (requestId) => {
+    const state = get()
+    if (!state.flatId) return
+    const req = state.joinRequests.find(r => r.id === requestId)
+    if (!req) return
+    // Optimistic update
+    set(s => ({ joinRequests: s.joinRequests.map(r => r.id === requestId ? { ...r, status: 'approved' as const } : r) }))
+    await approveJoinRequestService(state.flatId, requestId, req.uid, req.nickname, req.email)
+    await get().addActivity({ userId: req.uid, action: 'status_change', details: `${req.nickname} was approved to join the flat` })
+  },
+
+  rejectJoinRequest: async (requestId) => {
+    const state = get()
+    if (!state.flatId) return
+    const req = state.joinRequests.find(r => r.id === requestId)
+    if (!req) return
+    set(s => ({ joinRequests: s.joinRequests.map(r => r.id === requestId ? { ...r, status: 'rejected' as const } : r) }))
+    await rejectJoinRequestService(state.flatId, requestId)
   },
 
   // ── Membership Management ──────────────────────────────────────────────────

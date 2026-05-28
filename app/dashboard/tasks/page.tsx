@@ -28,11 +28,17 @@ const FREQ_CONFIG = {
 }
 
 export default function TasksPage() {
-  const { tasks, members, manuallyAssignTask, createTask, deleteTask } = useFlatStore()
+  const { tasks, members, manuallyAssignTask, createTask, editTask, deleteTask } = useFlatStore()
   const { user } = useAuthStore()
 
   const [selectedAssigneeId, setSelectedAssigneeId]   = useState<string>('')
   const [overridingTaskId, setOverridingTaskId]       = useState<string | null>(null)
+  const [editingTaskId, setEditingTaskId]             = useState<string | null>(null)
+  const [editName, setEditName]                       = useState('')
+  const [editType, setEditType]                       = useState('')
+  const [editPriority, setEditPriority]               = useState<'high' | 'medium' | 'low'>('medium')
+  const [editFreq, setEditFreq]                       = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [editDueDate, setEditDueDate]                 = useState('')
   const [isCreating, setIsCreating]                   = useState(false)
   const [newTaskName, setNewTaskName]                 = useState('')
   const [newTaskType, setNewTaskType]                 = useState('cleaning')
@@ -396,14 +402,33 @@ export default function TasksPage() {
 
                     {/* Action buttons — icon on mobile, icon+text on sm+ */}
                     <div className="flex gap-1.5 shrink-0">
+                      {/* Edit task */}
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="border-border/60 font-semibold text-xs h-8 px-2 sm:px-3"
+                        onClick={() => {
+                          setEditingTaskId(task.taskId)
+                          setEditName(task.name)
+                          setEditType(task.type)
+                          setEditPriority(task.priority)
+                          setEditFreq(task.frequency as 'daily' | 'weekly' | 'monthly')
+                          setEditDueDate(task.dueDate.split('T')[0])
+                        }}
+                        title="Edit task"
+                      >
+                        <Edit2 size={12} className="shrink-0" />
+                        <span className="hidden sm:inline ml-1.5">Edit</span>
+                      </Button>
+                      {/* Override assignee */}
                       <Button
                         variant="outline"
                         size="sm"
                         className="border-border/60 font-semibold text-xs h-8 px-2 sm:px-3"
                         onClick={() => setOverridingTaskId(isOverriding ? null : task.taskId)}
                       >
-                        <Edit2 size={12} className="shrink-0" />
-                        <span className="hidden sm:inline ml-1.5">{isOverriding ? 'Cancel' : 'Override'}</span>
+                        <span className="hidden sm:inline">{isOverriding ? 'Cancel' : 'Override'}</span>
+                        <span className="sm:hidden">⇄</span>
                       </Button>
                       <Button
                         variant="outline"
@@ -527,6 +552,91 @@ export default function TasksPage() {
           </Card>
         )}
       </div>
+
+      {/* ── Edit Task Modal ───────────────────────────────────────────── */}
+      {editingTaskId && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-border">
+              <h3 className="font-bold text-base">Edit Task</h3>
+              <button onClick={() => setEditingTaskId(null)} className="text-muted-foreground hover:text-foreground p-1">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="px-5 py-4 space-y-3">
+              <div className="space-y-1">
+                <label className="text-xs font-bold text-muted-foreground">Task Name</label>
+                <input
+                  type="text"
+                  maxLength={50}
+                  value={editName}
+                  onChange={e => setEditName(e.target.value)}
+                  className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+                />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground">Type</label>
+                  <select value={editType} onChange={e => setEditType(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm">
+                    {['cleaning','kitchen','garbage','groceries','laundry','maintenance','other'].map(t => (
+                      <option key={t} value={t}>{t.charAt(0).toUpperCase()+t.slice(1)}</option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground">Priority</label>
+                  <select value={editPriority} onChange={e => setEditPriority(e.target.value as 'high' | 'medium' | 'low')}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm">
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground">Frequency</label>
+                  <select value={editFreq} onChange={e => setEditFreq(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm">
+                    <option value="daily">Daily</option>
+                    <option value="weekly">Weekly</option>
+                    <option value="monthly">Monthly</option>
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-xs font-bold text-muted-foreground">Due Date</label>
+                  <input
+                    type="date"
+                    value={editDueDate}
+                    onChange={e => setEditDueDate(e.target.value)}
+                    className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="px-5 pb-5 flex gap-2">
+              <Button variant="outline" className="flex-1" onClick={() => setEditingTaskId(null)}>Cancel</Button>
+              <Button
+                className="flex-1 font-bold"
+                disabled={!editName.trim()}
+                onClick={async () => {
+                  await editTask(editingTaskId, {
+                    name: editName.trim(),
+                    type: editType,
+                    priority: editPriority,
+                    frequency: editFreq,
+                    dueDate: editDueDate ? new Date(editDueDate).toISOString() : undefined,
+                  }, adminId)
+                  setEditingTaskId(null)
+                }}
+              >
+                Save Changes
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

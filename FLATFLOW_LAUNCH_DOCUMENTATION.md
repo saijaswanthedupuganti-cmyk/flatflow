@@ -49,30 +49,114 @@ Habitiq is currently live with real users in the trial phase. The product has be
 
 ### Name: Habitiq
 
-**Habitiq** is the product of two simple words chosen deliberately:
+**Habitiq** is a name built to last — not just for flats, but for every kind of shared living space the product will grow into.
 
-- **Flat** — the universal term for a shared living space across India, the UK, and much of Asia. It immediately signals who the product is for.
-- **Flow** — the idea that living together should flow naturally, without friction, arguments, or dropped responsibilities. When a flat flows, nobody has to think about whose turn it is.
+#### The Name Breakdown
 
-Together, **Habitiq** communicates: *your flat, running smoothly.*
+**Habit** + **IQ**
 
-### Tagline Options
+- **Habit** — drawn from two roots simultaneously:
+  - *Habitat* — where you live. The physical space you share with others. Habitiq is fundamentally about the place people call home, whether that is a bachelor flat, a PG room, a co-living suite, or a hostel block.
+  - *Habit* — the recurring routines of shared living. Cleaning the kitchen. Taking out the trash. Mopping the floor. These are not one-off tasks — they are habits that repeat, rotate, and define the rhythm of a household. Habitiq is the system that makes those habits run on autopilot.
 
-> "Your flat, on autopilot."  
+- **IQ** — intelligence. Smart. Habitiq is not a dumb roster on a whiteboard. It is an intelligent, automated system that thinks ahead — skipping absent members, reassigning overdue tasks, tracking reliability, and giving every flatmate real-time visibility into what is happening in their home.
+
+Together, **Habitiq** means: *the intelligent system for the habits of shared living.*
+
+#### Why This Name Scales
+
+The name was chosen deliberately to work beyond flats. As the product expands into hostels, co-living spaces, student accommodations, villas, and eventually any managed shared space — the name holds. Habitiq does not lock the product into a single space type. It describes the behaviour (habits) and the intelligence (IQ) that every shared space needs, regardless of what it is called.
+
+---
+
+### Primary Tagline
+
+> **"Smart living, managed."**
+
+Short. Confident. Works for B2C (students and flatmates) and B2B (PG owners and co-living operators) without changing a word.
+
+---
+
+### Supporting Taglines
+
 > "No more 'whose turn is it?'"  
-> "Fair duties. Happy flats."  
-> "Shared living, sorted."
+> "Your shared space, on autopilot."  
+> "Fair duties. Zero arguments."  
+> "Shared living, sorted."  
+> "Where shared living flows."
+
+---
 
 ### Brand Voice
 
-- **Direct** — no jargon, no corporate language
-- **Relatable** — speaks like a flatmate, not a product manager
-- **Confident** — we know the problem we solve and solve it well
-- **Light** — shared living is human; the product should feel human too
+| Dimension | Habitiq's Voice |
+|-----------|----------------|
+| **Tone** | Direct and confident — we know exactly what problem we solve |
+| **Register** | Conversational — speaks like a flatmate, not a product manager |
+| **Energy** | Calm and assured — not hype, not corporate, not startup-buzzword heavy |
+| **Humanity** | Warm — shared living is deeply human; the product should feel that way |
+| **Precision** | Specific — "no more arguments about whose turn it is" beats "improve collaboration" |
+
+#### What Habitiq Sounds Like
+
+- "No arguments. No forgotten tasks. Just a fair system that runs itself."
+- "Everyone can see who did what. No one can pretend they forgot."
+- "Set it up once. The rotation handles itself."
+- "When someone's travelling, the app skips them automatically."
+
+#### What Habitiq Does Not Sound Like
+
+- "Leverage synergies to optimise household workflows." ✗
+- "The ultimate roommate management solution." ✗
+- "Gamified chore tracking for the modern co-living experience." ✗
+
+---
+
+### Visual Identity Direction
+
+| Element | Direction |
+|---------|-----------|
+| **Primary colour** | Violet / Indigo — `#7c3aed` → `#4338ca` gradient. Signals intelligence, trust, premium quality. |
+| **Background** | Deep black (`#0a0a0a`) for dark mode. Clean white for light mode. High contrast, no clutter. |
+| **Logo mark** | House icon with a rotation arrow — the home (habitat) + the duty cycle (IQ). Simple, immediately readable at small sizes. |
+| **Typography** | Inter — geometric, modern, highly legible on mobile screens. |
+| **Logo letter** | **H** — clean, bold, recognisable as a standalone mark on app icons and favicons. |
+| **Motion** | Orbiting dots on the loading screen — a visual metaphor for the rotation engine at the core of the product. |
+
+---
 
 ### Brand Positioning
 
-Habitiq sits at the intersection of **productivity tools** and **community living apps**. It is not a chat app (WhatsApp already owns that). It is not an expense tracker (Splitwise owns that). Habitiq owns the specific, underserved category of **household duty management** — the daily operational layer of co-living that no existing tool handles well.
+Habitiq occupies a category it defines: **intelligent shared living management**.
+
+It is not a chat app — WhatsApp owns communication.  
+It is not an expense tracker — Splitwise owns money.  
+It is not a generic to-do app — Todoist and Notion own individual productivity.
+
+Habitiq owns the specific, underserved layer between all of these: **the operational backbone of co-living** — who does what, when, whether it got done, and what happens when it did not. No existing product in the Indian market owns this space. Habitiq is building that ownership from the ground up.
+
+---
+
+### Brand Promise
+
+> Habitiq takes the awkwardness out of shared living. When the system is the authority — not a person — there are no arguments, no resentment, no forgotten chores. Just a home that runs fairly, transparently, and automatically.
+
+---
+
+### Future Brand Expansion
+
+As Habitiq grows from flats into broader shared living categories, the brand expands naturally:
+
+| Category | How Habitiq Fits |
+|----------|-----------------|
+| Bachelor flats & PGs | Core market — duty rotation and fairness |
+| Co-living spaces | Managed operations for operators and residents |
+| Student hostels | Institutional duty management at scale |
+| Villas & vacation rentals | Rotating responsibilities for long-stay guests |
+| Offices & shared workspaces | Rotating office duties (kitchen, common areas) |
+| B2B property managers | Multi-property dashboard and analytics |
+
+The name "Habitiq" works across all of these. It never needs to change.
 
 ---
 

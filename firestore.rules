@@ -61,8 +61,17 @@ service cloud.firestore {
 
         // Members can update/delete their own doc (status, nickname, etc.).
         // Admin can update/delete any member doc (kick, role transfer).
+        // Any flat member may update only the `status` field of another member — needed
+        // for OOS auto-trigger when a swap request is accepted on a different user's device.
         allow update, delete: if request.auth != null
-          && (request.auth.uid == memberId || isAdmin(flatId));
+          && (
+            request.auth.uid == memberId
+            || isAdmin(flatId)
+            || (
+              isMember(flatId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            )
+          );
       }
 
       // ── Tasks ─────────────────────────────────────────────────────────────

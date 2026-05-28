@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import {
   Copy, Check, Sun, Moon, Shield, User, Home, Info,
-  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save
+  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save, Link, UserCheck, Lock
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import FlatSwitcher from '@/components/FlatSwitcher'
@@ -55,7 +55,7 @@ function ConfirmDialog({ open, onClose, title, description, confirmLabel, confir
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { flatId, name, members, leaveFlat, transferAdmin, deleteFlat, renameFlatAction } = useFlatStore()
+  const { flatId, name, joinMode, members, leaveFlat, transferAdmin, deleteFlat, renameFlatAction, setJoinMode } = useFlatStore()
   const { user, logout, allFlats } = useAuthStore()
 
   const handleLogout = async () => {
@@ -337,23 +337,77 @@ export default function SettingsPage() {
             </div>
 
             {isAdmin && (
-              <div className="pt-4 border-t border-border">
-                <p className="text-sm font-bold text-muted-foreground mb-2">Invite Code</p>
-                <p className="text-xs text-muted-foreground mb-3">
-                  Share this code with roommates so they can join your flat.
-                </p>
-                <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-3">
-                  <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1">
-                    {flatId || 'FLAT-1234'}
-                  </code>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={handleCopy}
-                    className="shrink-0 gap-2"
+              <div className="pt-4 border-t border-border space-y-4">
+                {/* Join mode toggle */}
+                <div>
+                  <p className="text-sm font-bold text-muted-foreground mb-1">Join Mode</p>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Control how new roommates enter your flat.
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      onClick={() => setJoinMode('auto')}
+                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${
+                        joinMode === 'auto'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <UserCheck size={16} className={joinMode === 'auto' ? 'text-primary' : 'text-muted-foreground'} />
+                      <div>
+                        <p className={`text-xs font-bold ${joinMode === 'auto' ? 'text-primary' : ''}`}>Auto Join</p>
+                        <p className="text-[10px] text-muted-foreground">Anyone with the code joins instantly</p>
+                      </div>
+                    </button>
+                    <button
+                      onClick={() => setJoinMode('approval')}
+                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${
+                        joinMode === 'approval'
+                          ? 'border-primary bg-primary/5'
+                          : 'border-border hover:border-primary/50'
+                      }`}
+                    >
+                      <Lock size={16} className={joinMode === 'approval' ? 'text-primary' : 'text-muted-foreground'} />
+                      <div>
+                        <p className={`text-xs font-bold ${joinMode === 'approval' ? 'text-primary' : ''}`}>Approval Only</p>
+                        <p className="text-[10px] text-muted-foreground">You must approve each request</p>
+                      </div>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Invite code + link */}
+                <div>
+                  <p className="text-sm font-bold text-muted-foreground mb-1">Invite</p>
+                  <p className="text-xs text-muted-foreground mb-3">Share the code or the full link with roommates.</p>
+
+                  {/* Code */}
+                  <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-3 mb-2">
+                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1">
+                      {flatId || 'FLAT-1234'}
+                    </code>
+                    <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0 gap-2">
+                      {copied ? <><Check size={14} className="text-green-500" /> Copied!</> : <><Copy size={14} /> Code</>}
+                    </Button>
+                  </div>
+
+                  {/* Full invite link */}
+                  <button
+                    onClick={() => {
+                      const link = `${window.location.origin}/onboarding?mode=join&code=${flatId}`
+                      navigator.clipboard.writeText(link).then(() => {
+                        setCopied(true)
+                        setTimeout(() => setCopied(false), 2000)
+                      })
+                    }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-colors"
                   >
-                    {copied ? <><Check size={14} className="text-green-500" /> Copied!</> : <><Copy size={14} /> Copy</>}
-                  </Button>
+                    <Link size={13} className="text-primary shrink-0" />
+                    <span className="text-xs font-semibold text-primary flex-1 text-left truncate">
+                      Copy invite link
+                    </span>
+                    <Copy size={13} className="text-primary shrink-0" />
+                  </button>
                 </div>
               </div>
             )}

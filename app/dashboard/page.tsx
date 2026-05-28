@@ -688,80 +688,147 @@ export default function DashboardPage() {
                   </div>
 
                   {/* ── Rotation strip ───────────────────────────── */}
-                  <div className="px-4 py-3">
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-start gap-0">
+                  <div className="px-3 pb-4 pt-2">
+
+                    {/* ── Mobile: vertical stack ── */}
+                    <div className="flex flex-col gap-1 sm:hidden">
                       {orderedQueue.map((uid, idx) => {
                         const m      = members.find(x => x.uid === uid)
                         const isNow  = idx === 0
                         const isNext = idx === 1
                         const isMe   = uid === currentUser.uid
                         if (!m) return null
-
                         return (
-                          <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1.5 sm:gap-2">
-
-                            {/* Member card */}
-                            <div className={`flex flex-row sm:flex-col items-center gap-3 sm:gap-1.5 sm:justify-center
-                              px-3 sm:px-2.5 py-2.5 sm:py-2 rounded-xl border-2 transition-all
-                              w-full sm:w-[72px] ${
+                          <div key={uid}>
+                            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all ${
                               isNow  ? 'bg-primary border-primary text-white shadow-md'
-                             : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700 text-blue-900 dark:text-blue-100'
-                             : isMe   ? 'bg-secondary border-primary/40 text-foreground'
-                             :          'bg-card border-border/50 text-muted-foreground'
+                             : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
+                             : isMe   ? 'bg-secondary border-primary/40'
+                             :          'bg-card border-border/50'
                             }`}>
-                              {/* Position — mobile only, left side */}
-                              <span className={`sm:hidden text-[10px] font-bold w-5 text-center shrink-0 ${
-                                isNow ? 'text-white/50' : 'text-muted-foreground/50'
+                              {/* Position */}
+                              <span className={`text-[10px] font-bold w-5 text-center shrink-0 tabular-nums ${
+                                isNow ? 'text-white/60' : 'text-muted-foreground/50'
+                              }`}>
+                                #{idx + 1}
+                              </span>
+                              {/* Avatar */}
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                                isNow  ? 'bg-white/25 text-white'
+                               : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
+                               : isMe   ? 'bg-primary/15 text-primary'
+                               :          'bg-secondary text-foreground'
+                              }`}>
+                                {m.nickname.charAt(0).toUpperCase()}
+                              </div>
+                              {/* Name */}
+                              <span className={`flex-1 text-sm font-semibold truncate min-w-0 ${
+                                isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
+                              }`}>
+                                {m.nickname}
+                              </span>
+                              {/* Badge */}
+                              {(isNow || isNext || isMe) && (
+                                <span className={`ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                                  isNow  ? 'bg-white/25 text-white'
+                                 : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
+                                 :          'bg-primary/15 text-primary'
+                                }`}>
+                                  {isNow ? 'NOW' : isNext ? 'NEXT' : 'YOU'}
+                                </span>
+                              )}
+                            </div>
+                            {idx < orderedQueue.length - 1 ? (
+                              <div className="flex justify-center py-0.5">
+                                <ArrowDown size={10} className="text-muted-foreground/25" />
+                              </div>
+                            ) : (
+                              <div className="flex justify-center items-center gap-0.5 py-0.5 text-muted-foreground/25">
+                                <ArrowDown size={10} />
+                                <span className="text-[10px] font-bold leading-none">↺</span>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+
+                    {/* ── Desktop: horizontal scrollable row ── */}
+                    <div className="hidden sm:flex flex-row flex-nowrap items-center gap-0 overflow-x-auto pb-1
+                      [&::-webkit-scrollbar]:h-1 [&::-webkit-scrollbar-track]:rounded-full
+                      [&::-webkit-scrollbar-track]:bg-transparent
+                      [&::-webkit-scrollbar-thumb]:rounded-full
+                      [&::-webkit-scrollbar-thumb]:bg-border/60">
+                      {orderedQueue.map((uid, idx) => {
+                        const m      = members.find(x => x.uid === uid)
+                        const isNow  = idx === 0
+                        const isNext = idx === 1
+                        const isMe   = uid === currentUser.uid
+                        if (!m) return null
+                        return (
+                          <div key={uid} className="flex flex-row items-center gap-0 shrink-0">
+
+                            {/* ── Card ── */}
+                            <div className={`flex flex-col items-center justify-start gap-1.5
+                              w-[90px] min-w-[90px] px-2 pt-2.5 pb-2.5 rounded-xl border-2 transition-all
+                              ${isNow  ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
+                               : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
+                               : isMe   ? 'bg-secondary border-primary/40'
+                               :          'bg-card border-border/50'
+                              }`}>
+
+                              {/* Position number */}
+                              <span className={`text-[9px] font-bold tabular-nums leading-none ${
+                                isNow ? 'text-white/50' : 'text-muted-foreground/40'
                               }`}>
                                 #{idx + 1}
                               </span>
 
                               {/* Avatar */}
-                              <div className={`w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                                isNow  ? 'bg-white/20 text-white'
+                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold shrink-0 ${
+                                isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
                                : isMe   ? 'bg-primary/15 text-primary'
                                :          'bg-secondary text-foreground'
                               }`}>
-                                {m.nickname.charAt(0)}
+                                {m.nickname.charAt(0).toUpperCase()}
                               </div>
 
-                              {/* Name */}
-                              <span className={`flex-1 sm:flex-none text-sm sm:text-[11px] font-semibold sm:text-center truncate ${
-                                isNow ? 'text-white' : ''
-                              }`}>
+                              {/* Name — truncates cleanly, centred */}
+                              <span className={`w-full text-center text-[11px] font-semibold leading-tight truncate px-1 ${
+                                isNow  ? 'text-white'
+                               : isNext ? 'text-blue-900 dark:text-blue-100'
+                               : isMe   ? 'text-foreground'
+                               :          'text-muted-foreground'
+                              }`}
+                                title={m.nickname}
+                              >
                                 {m.nickname}
                               </span>
 
-                              {/* Status badge — right side on mobile, below on desktop */}
-                              <span className={`ml-auto sm:ml-0 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap ${
-                                isNow  ? 'bg-white/20 text-white'
+                              {/* Status badge — always present for consistent height */}
+                              <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap leading-tight ${
+                                isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
                                : isMe   ? 'bg-primary/15 text-primary'
-                               :          'invisible'      /* keeps height consistent */
+                               :          'invisible'
                               }`}>
                                 {isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
                               </span>
                             </div>
 
-                            {/* Connector arrow */}
-                            {idx < orderedQueue.length - 1 ? (
-                              <>
-                                <ArrowDown  size={11} className="sm:hidden text-muted-foreground/30 self-center" />
-                                <ArrowRight size={11} className="hidden sm:block text-muted-foreground/30 shrink-0" />
-                              </>
-                            ) : (
-                              <>
-                                <div className="sm:hidden flex items-center gap-0.5 text-muted-foreground/30 self-center">
-                                  <ArrowDown size={11} />
-                                  <span className="text-[10px] font-bold">↺</span>
+                            {/* ── Connector ── */}
+                            <div className="flex items-center px-1 shrink-0 mt-2">
+                              {idx < orderedQueue.length - 1 ? (
+                                <ArrowRight size={12} className="text-muted-foreground/30" />
+                              ) : (
+                                <div className="flex items-center gap-0.5 text-muted-foreground/30">
+                                  <ArrowRight size={12} />
+                                  <span className="text-[11px] font-bold leading-none">↺</span>
                                 </div>
-                                <div className="hidden sm:flex items-center gap-0.5 text-muted-foreground/30">
-                                  <ArrowRight size={11} className="shrink-0" />
-                                  <span className="text-[10px] font-bold">↺</span>
-                                </div>
-                              </>
-                            )}
+                              )}
+                            </div>
+
                           </div>
                         )
                       })}

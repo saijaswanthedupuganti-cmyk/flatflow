@@ -44,8 +44,10 @@ export default function TasksPage() {
     new Date().toISOString().split('T')[0]   // today yyyy-MM-dd
   )
 
-  const adminId      = user?.uid || 'u1'
+  const adminId       = user?.uid || 'u1'
   const activeMembers = members.filter(m => m.status !== 'inactive')
+  // For manual override: only show members who are currently available or busy
+  const assignableMembers = members.filter(m => m.status === 'available' || m.status === 'busy')
 
   const freqIntervalMs =
     newTaskFreq === 'daily'  ? 86_400_000 :
@@ -482,9 +484,9 @@ export default function TasksPage() {
                         className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm"
                       >
                         <option value="" disabled>Select member</option>
-                        {activeMembers.map(sub => (
+                        {assignableMembers.map(sub => (
                           <option key={sub.uid} value={sub.uid}>
-                            {sub.nickname}{sub.status === 'out_of_station' ? ' (Absent)' : ''}
+                            {sub.nickname}
                           </option>
                         ))}
                       </select>

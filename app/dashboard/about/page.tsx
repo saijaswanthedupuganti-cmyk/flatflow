@@ -1,5 +1,5 @@
 "use client"
-import { ExternalLink, Link2, Zap, Shield, RefreshCw, Bell, BarChart3, CalendarDays, Code2, Layers } from 'lucide-react'
+import { ExternalLink, Link2, Zap, Shield, RefreshCw, Bell, BarChart3, CalendarDays, Layers } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 const TEAM = [
@@ -34,16 +34,6 @@ const FEATURES = [
   { icon: BarChart3,    color: 'text-indigo-500', bg: 'bg-indigo-500/10', title: 'Analytics',           desc: 'Monthly duty completion grids, reliability scores, and per-member breakdowns.' },
 ]
 
-const STACK = [
-  { name: 'Next.js 16',   color: 'bg-black text-white dark:bg-white dark:text-black' },
-  { name: 'React 19',     color: 'bg-blue-500 text-white' },
-  { name: 'TypeScript',   color: 'bg-blue-700 text-white' },
-  { name: 'Firebase',     color: 'bg-orange-500 text-white' },
-  { name: 'Tailwind v4',  color: 'bg-cyan-500 text-white' },
-  { name: 'Zustand',      color: 'bg-amber-600 text-white' },
-  { name: 'Framer Motion',color: 'bg-pink-500 text-white' },
-  { name: 'Lucide Icons', color: 'bg-slate-600 text-white' },
-]
 
 export default function AboutPage() {
   return (
@@ -159,26 +149,16 @@ export default function AboutPage() {
         </div>
       </div>
 
-      {/* ── Tech Stack ────────────────────────────────── */}
-      <div>
-        <div className="mb-4 flex items-center gap-2">
-          <Code2 size={20} className="text-primary" />
-          <h2 className="text-2xl font-bold tracking-tight">Built With</h2>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {STACK.map(tech => (
-            <span key={tech.name} className={`text-xs font-bold px-3 py-1.5 rounded-full ${tech.color}`}>
-              {tech.name}
-            </span>
-          ))}
-        </div>
-      </div>
-
       {/* ── Footer ────────────────────────────────────── */}
-      <div className="border-t border-border/60 pt-8 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+      <div className="border-t border-border/60 pt-6 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
         <div>
           <p className="text-sm font-semibold">Habitiq v0.1.0</p>
-          <p className="text-xs text-muted-foreground mt-0.5">Built with ☕ and a very messy kitchen.</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Built with ☕, a very messy kitchen, and{' '}
+            <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer" className="text-primary font-semibold hover:underline">
+              Claude Code
+            </a>.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           {TEAM.map(p => (

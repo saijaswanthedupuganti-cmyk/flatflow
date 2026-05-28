@@ -2,7 +2,7 @@
 import { useEffect, useState } from 'react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
-import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo } from '@/lib/rotationEngine'
+import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo, getNextAssignee } from '@/lib/rotationEngine'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight } from 'lucide-react'
@@ -68,15 +68,12 @@ export default function DashboardPage() {
 
 
   const upNext = tasks.map(task => {
-    const currentAssignee = task.currentAssignedUserId
-    const currentIndex = task.queueOrder.indexOf(currentAssignee)
-    const nextIndex = (currentIndex + 1) % task.queueOrder.length
-    const nextUserId = task.queueOrder[nextIndex]
-    
+    // Use the same availability logic as the rotation engine — skip out-of-station/inactive
+    const nextUserId = getNextAssignee(task, members)
     return {
       taskName: task.name,
       priority: task.priority,
-      person: members.find(m => m.uid === nextUserId) || members[0]
+      person: nextUserId ? members.find(m => m.uid === nextUserId) : undefined
     }
   })
 

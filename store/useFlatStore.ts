@@ -261,6 +261,30 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       ? ` on ${new Date(completionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
       : ''
     await get().addActivity({ userId, action: 'completed_task', details: `completed ${task.name}${dateLabel}` })
+
+    // Safety net: if the rotation landed on an out-of-station or inactive member
+    // (e.g. state.members was briefly stale), immediately re-rotate to skip them.
+    const newAssigneeId = updatedTask.currentAssignedUserId
+    if (newAssigneeId) {
+      const freshMembers = get().members
+      const newAssignee = freshMembers.find(m => m.uid === newAssigneeId)
+      if (newAssignee && (newAssignee.status === 'out_of_station' || newAssignee.status === 'inactive')) {
+        const skipNew = freshMembers.map(m =>
+          m.uid === newAssigneeId ? { ...m, status: 'out_of_station' as const } : m
+        )
+        const nextAvailable = getNextAssignee(updatedTask, skipNew)
+        if (nextAvailable) {
+          await get().transferTask(taskId, newAssigneeId, nextAvailable)
+        } else {
+          const fs = get()
+          if (hasKeys && fs.flatId) {
+            await updateDoc(doc(db, `flats/${fs.flatId}/tasks/${taskId}`), { status: 'paused' })
+          } else {
+            set(s => ({ tasks: s.tasks.map(t => t.taskId === taskId ? { ...t, status: 'paused' as const } : t) }))
+          }
+        }
+      }
+    }
   },
 
   changeMemberStatus: async (userId, status) => {

@@ -6,6 +6,7 @@ import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff } from 'lucide-react'
+import GoingOutModal from '@/components/GoingOutModal'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -22,7 +23,7 @@ const FREQ_COLOR: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
+  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, transferTask, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
   const [swappingTaskId, setSwappingTaskId] = useState<string | null>(null)
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('')
@@ -33,6 +34,8 @@ export default function DashboardPage() {
   const [completionDate, setCompletionDate] = useState('')
   // Activity hide/unhide state
   const [showHiddenActivities, setShowHiddenActivities] = useState(false)
+  // Going out of station modal
+  const [showGoingOutModal, setShowGoingOutModal] = useState(false)
   // Admin can switch between their own tasks and the org overview
   const [adminView, setAdminView] = useState<'mine' | 'org'>('mine')
   const { flatId } = useFlatStore()
@@ -325,7 +328,16 @@ export default function DashboardPage() {
                   <span className="w-2 h-2 rounded-full bg-green-500" /> Available
                 </span>
                 <button
-                  onClick={() => changeMemberStatus(currentUser.uid, 'out_of_station')}
+                  onClick={() => {
+                    const myTasks = tasks.filter(
+                      t => t.currentAssignedUserId === currentUser.uid && (t.status === 'pending' || t.status === 'overdue')
+                    )
+                    if (myTasks.length > 0) {
+                      setShowGoingOutModal(true)
+                    } else {
+                      changeMemberStatus(currentUser.uid, 'out_of_station')
+                    }
+                  }}
                   className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
                 >
                   <MapPinOff size={12} /> Going Away
@@ -877,6 +889,26 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Going Out of Station modal */}
+      {showGoingOutModal && (
+        <GoingOutModal
+          assignedTasks={tasks.filter(
+            t => t.currentAssignedUserId === currentUser.uid && (t.status === 'pending' || t.status === 'overdue')
+          )}
+          availableMembers={members.filter(
+            m => m.uid !== currentUser.uid && m.status !== 'out_of_station' && m.status !== 'inactive'
+          )}
+          onClose={() => setShowGoingOutModal(false)}
+          onConfirm={async (assignments) => {
+            for (const [taskId, toUserId] of Object.entries(assignments)) {
+              await transferTask(taskId, currentUser.uid, toUserId)
+            }
+            await changeMemberStatus(currentUser.uid, 'out_of_station')
+            setShowGoingOutModal(false)
+          }}
+        />
+      )}
     </div>
   )
 }

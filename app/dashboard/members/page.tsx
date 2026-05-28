@@ -8,6 +8,7 @@ import {
   Users, MapPinOff, CheckCircle2, ShieldCheck, Star,
   ClipboardList, UserCheck, UserX, TrendingUp, UserMinus, X, Filter,
 } from 'lucide-react'
+import GoingOutModal from '@/components/GoingOutModal'
 
 // ── Inline confirm dialog ────────────────────────────────────────────────
 interface KickDialogProps {
@@ -50,7 +51,7 @@ function KickDialog({ member, onClose, onConfirm, loading, error }: KickDialogPr
 }
 
 export default function MembersPage() {
-  const { members, tasks, changeMemberStatus, kickMember } = useFlatStore()
+  const { members, tasks, changeMemberStatus, transferTask, kickMember } = useFlatStore()
   const { user } = useAuthStore()
 
   const currentUserId = user?.uid || 'u1'
@@ -58,11 +59,24 @@ export default function MembersPage() {
   const isAdmin = currentMember?.role === 'admin'
 
   const [showActiveOnly, setShowActiveOnly] = useState(false)
+  const [goingOutTarget, setGoingOutTarget] = useState<Member | null>(null)
   const [kickTarget, setKickTarget] = useState<Member | null>(null)
   const [kickLoading, setKickLoading] = useState(false)
   const [kickError, setKickError] = useState('')
 
   const toggleStatus = (member: Member) => {
+    if (member.status !== 'out_of_station') {
+      // Going OUT — check if they have assigned tasks
+      const isSelf = member.uid === currentUserId
+      const myTasks = tasks.filter(
+        t => t.currentAssignedUserId === member.uid && (t.status === 'pending' || t.status === 'overdue')
+      )
+      if (isSelf && myTasks.length > 0) {
+        // Prompt self to hand off tasks before leaving
+        setGoingOutTarget(member)
+        return
+      }
+    }
     const newStatus = member.status === 'out_of_station' ? 'available' : 'out_of_station'
     changeMemberStatus(member.uid, newStatus)
   }
@@ -313,6 +327,26 @@ export default function MembersPage() {
           })}
         </div>
       </div>
+
+      {/* Going Out of Station modal (self only) */}
+      {goingOutTarget && (
+        <GoingOutModal
+          assignedTasks={tasks.filter(
+            t => t.currentAssignedUserId === goingOutTarget.uid && (t.status === 'pending' || t.status === 'overdue')
+          )}
+          availableMembers={members.filter(
+            m => m.uid !== goingOutTarget.uid && m.status !== 'out_of_station' && m.status !== 'inactive'
+          )}
+          onClose={() => setGoingOutTarget(null)}
+          onConfirm={async (assignments) => {
+            for (const [taskId, toUserId] of Object.entries(assignments)) {
+              await transferTask(taskId, goingOutTarget.uid, toUserId)
+            }
+            await changeMemberStatus(goingOutTarget.uid, 'out_of_station')
+            setGoingOutTarget(null)
+          }}
+        />
+      )}
     </>
   )
 }

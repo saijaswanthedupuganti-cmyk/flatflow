@@ -313,9 +313,20 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       const membersWithStatus = currentState.members.map(m =>
         m.uid === userId ? { ...m, status: 'out_of_station' as const } : m
       )
-      const assignedTasks = currentState.tasks.filter(
-        t => t.currentAssignedUserId === userId && (t.status === 'pending' || t.status === 'overdue')
-      )
+      // Skip tasks that were already handed off via the OOS swap-request flow —
+      // those tasks have a pending or accepted isOOSRequest for this user, meaning
+      // they are being transferred through the request mechanism, not a direct transfer.
+      const assignedTasks = currentState.tasks.filter(t => {
+        if (t.currentAssignedUserId !== userId) return false
+        if (t.status !== 'pending' && t.status !== 'overdue') return false
+        const handledByOOSRequest = currentState.swapRequests.some(
+          r => r.taskId === t.taskId &&
+               r.fromUserId === userId &&
+               r.isOOSRequest &&
+               (r.status === 'pending' || r.status === 'accepted')
+        )
+        return !handledByOOSRequest
+      })
       for (const task of assignedTasks) {
         const nextUserId = getNextAssignee(task, membersWithStatus)
         if (nextUserId) {
@@ -458,10 +469,10 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const request = state.swapRequests.find(r => r.id === requestId)
     if (!request) return
 
+    // Optimistic local update so subsequent checks in this function see the new status
+    set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, status } : r) }))
     if (hasKeys && state.flatId) {
       await updateDoc(doc(db, `flats/${state.flatId}/swapRequests/${requestId}`), { status })
-    } else {
-      set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, status } : r) }))
     }
 
     const task = state.tasks.find(t => t.taskId === request.taskId)
@@ -474,12 +485,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       // Auto-OOS: if this was part of a going-out-of-station batch, check if all OOS
       // requests from this user are now accepted. If so, mark them out of station.
       if (request.isOOSRequest) {
+        // Re-read state — the optimistic update above means this request is now 'accepted'
         const fresh = get()
         const stillPending = fresh.swapRequests.filter(
           r => r.fromUserId === request.fromUserId &&
                r.isOOSRequest === true &&
-               r.status === 'pending' &&
-               r.id !== requestId
+               r.status === 'pending'  // current request is already 'accepted' in local state
         )
         if (stillPending.length === 0) {
           await get().changeMemberStatus(request.fromUserId, 'out_of_station')
@@ -492,10 +503,10 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   markSwapRequestRead: async (requestId) => {
     const state = get()
+    // Optimistic update — hide banner immediately without waiting for Firestore listener
+    set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, read: true } : r) }))
     if (hasKeys && state.flatId) {
       await updateDoc(doc(db, `flats/${state.flatId}/swapRequests/${requestId}`), { read: true })
-    } else {
-      set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, read: true } : r) }))
     }
   },
 

@@ -5,7 +5,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo, getNextAssignee } from '@/lib/rotationEngine'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight } from 'lucide-react'
+import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff } from 'lucide-react'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -22,7 +22,7 @@ const FREQ_COLOR: Record<string, string> = {
 }
 
 export default function DashboardPage() {
-  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
+  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
   const [swappingTaskId, setSwappingTaskId] = useState<string | null>(null)
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('')
@@ -320,6 +320,21 @@ export default function DashboardPage() {
               <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
                 {userTasks.length} Assigned
               </span>
+            </div>
+
+            {/* ── Status quick-toggle (visible to all members) ── */}
+            <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/30 mb-4">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
+                <span className="text-sm font-semibold text-foreground">You&apos;re <span className="text-green-600 dark:text-green-400 font-bold">Available</span></span>
+              </div>
+              <button
+                onClick={() => changeMemberStatus(currentUser.uid, 'out_of_station')}
+                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
+              >
+                <MapPinOff size={14} />
+                Going Out of Station
+              </button>
             </div>
 
             {userTasks.length === 0 ? (

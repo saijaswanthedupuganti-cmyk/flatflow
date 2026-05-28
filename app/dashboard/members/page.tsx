@@ -6,7 +6,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
   Users, MapPinOff, CheckCircle2, ShieldCheck, Star,
-  ClipboardList, UserCheck, UserX, TrendingUp, UserMinus, X,
+  ClipboardList, UserCheck, UserX, TrendingUp, UserMinus, X, Filter,
 } from 'lucide-react'
 
 // ── Inline confirm dialog ────────────────────────────────────────────────
@@ -57,7 +57,7 @@ export default function MembersPage() {
   const currentMember = members.find(m => m.uid === currentUserId)
   const isAdmin = currentMember?.role === 'admin'
 
-  // Kick member state
+  const [showActiveOnly, setShowActiveOnly] = useState(false)
   const [kickTarget, setKickTarget] = useState<Member | null>(null)
   const [kickLoading, setKickLoading] = useState(false)
   const [kickError, setKickError] = useState('')
@@ -180,8 +180,29 @@ export default function MembersPage() {
         </div>
 
         {/* ── Member Cards ────────────────────────────────────────────── */}
+        {/* Filter bar */}
+        <div className="flex items-center justify-between">
+          <p className="text-sm font-semibold text-muted-foreground">
+            {members.length} flatmate{members.length !== 1 ? 's' : ''}
+            {showActiveOnly && <span className="ml-1 text-green-600 dark:text-green-400">· showing active only</span>}
+          </p>
+          <button
+            onClick={() => setShowActiveOnly(v => !v)}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-sm font-bold border transition-all ${
+              showActiveOnly
+                ? 'bg-green-600 text-white border-green-600 shadow-sm'
+                : 'bg-background text-muted-foreground border-border hover:bg-secondary/80'
+            }`}
+          >
+            <Filter size={13} />
+            Active Only
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {members.map((member, i) => {
+          {members
+            .filter(m => !showActiveOnly || m.status === 'available' || m.status === 'busy')
+            .map((member, i) => {
             const sCfg = STATUS_CONFIG[member.status as keyof typeof STATUS_CONFIG] ?? STATUS_CONFIG.available
             const assignedTasks = getAssignedTaskCount(member.uid)
             const queueTasks = getQueueCount(member.uid)
@@ -256,28 +277,26 @@ export default function MembersPage() {
                     </div>
                   </div>
 
-                  {/* Admin actions */}
-                  {isAdmin && (
-                    <div className={`grid gap-2 ${canKick ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                      {/* Status toggle */}
+                  {/* Status toggle — shown for admins (all members) or for yourself */}
+                  {(isAdmin || isSelf) && (
+                    <div className={`grid gap-2 ${(isAdmin && canKick) ? 'grid-cols-2' : 'grid-cols-1'}`}>
                       <Button
-                        variant={member.status === 'out_of_station' ? 'default' : 'outline'}
-                        className={`font-semibold text-sm ${
+                        size="default"
+                        className={`font-bold text-sm h-11 transition-all ${
                           member.status === 'out_of_station'
-                            ? 'bg-green-600 hover:bg-green-700 text-white border-0'
-                            : 'border-orange-300 dark:border-orange-800 text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-900/20'
+                            ? 'bg-green-600 hover:bg-green-700 text-white border-0 shadow-sm'
+                            : 'bg-orange-50 dark:bg-orange-900/20 border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 hover:bg-orange-100 dark:hover:bg-orange-900/40'
                         }`}
                         onClick={() => toggleStatus(member)}
                       >
                         {member.status === 'out_of_station' ? (
-                          <><CheckCircle2 size={14} className="mr-1.5" /> Available</>
+                          <><CheckCircle2 size={15} className="mr-2" /> I&apos;m Back — Available</>
                         ) : (
-                          <><MapPinOff size={14} className="mr-1.5" /> Out of Station</>
+                          <><MapPinOff size={15} className="mr-2" /> Going Out of Station</>
                         )}
                       </Button>
 
-                      {/* Kick button — only shown for other members */}
-                      {canKick && (
+                      {isAdmin && canKick && (
                         <Button
                           variant="outline"
                           className="font-semibold text-sm border-destructive/30 text-destructive hover:bg-destructive hover:text-white"

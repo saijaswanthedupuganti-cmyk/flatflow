@@ -37,7 +37,7 @@ export default function GoingOutModal({ assignedTasks, availableMembers, onConfi
             <div>
               <h3 className="font-bold text-base leading-tight">You have assigned tasks</h3>
               <p className="text-sm text-muted-foreground mt-0.5">
-                Hand off {assignedTasks.length} task{assignedTasks.length !== 1 ? 's' : ''} before going out of station.
+                Choose who covers each task. You&apos;ll go out of station only after they accept.
               </p>
             </div>
           </div>
@@ -92,7 +92,7 @@ export default function GoingOutModal({ assignedTasks, availableMembers, onConfi
             onClick={handleConfirm}
           >
             <MapPinOff size={14} className="mr-1.5" />
-            {loading ? 'Transferring…' : 'Transfer & Go Out'}
+            {loading ? 'Sending…' : 'Send Requests'}
           </Button>
         </div>
 

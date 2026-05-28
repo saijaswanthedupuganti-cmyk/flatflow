@@ -51,7 +51,7 @@ function KickDialog({ member, onClose, onConfirm, loading, error }: KickDialogPr
 }
 
 export default function MembersPage() {
-  const { members, tasks, changeMemberStatus, transferTask, kickMember } = useFlatStore()
+  const { members, tasks, changeMemberStatus, createSwapRequest, kickMember } = useFlatStore()
   const { user } = useAuthStore()
 
   const currentUserId = user?.uid || 'u1'
@@ -340,9 +340,8 @@ export default function MembersPage() {
           onClose={() => setGoingOutTarget(null)}
           onConfirm={async (assignments) => {
             for (const [taskId, toUserId] of Object.entries(assignments)) {
-              await transferTask(taskId, goingOutTarget.uid, toUserId)
+              await createSwapRequest(taskId, goingOutTarget.uid, toUserId, false, true)
             }
-            await changeMemberStatus(goingOutTarget.uid, 'out_of_station')
             setGoingOutTarget(null)
           }}
         />

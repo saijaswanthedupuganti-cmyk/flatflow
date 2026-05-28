@@ -327,21 +327,36 @@ export default function DashboardPage() {
                 <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
                   <span className="w-2 h-2 rounded-full bg-green-500" /> Available
                 </span>
-                <button
-                  onClick={() => {
-                    const myTasks = tasks.filter(
-                      t => t.currentAssignedUserId === currentUser.uid && (t.status === 'pending' || t.status === 'overdue')
+                {(() => {
+                  const pendingOOS = swapRequests.filter(
+                    r => r.fromUserId === currentUser.uid && r.isOOSRequest && r.status === 'pending'
+                  )
+                  if (pendingOOS.length > 0) {
+                    return (
+                      <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20">
+                        <Clock size={12} className="animate-pulse" />
+                        Waiting ({pendingOOS.length} pending)
+                      </span>
                     )
-                    if (myTasks.length > 0) {
-                      setShowGoingOutModal(true)
-                    } else {
-                      changeMemberStatus(currentUser.uid, 'out_of_station')
-                    }
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
-                >
-                  <MapPinOff size={12} /> Going Away
-                </button>
+                  }
+                  return (
+                    <button
+                      onClick={() => {
+                        const myTasks = tasks.filter(
+                          t => t.currentAssignedUserId === currentUser.uid && (t.status === 'pending' || t.status === 'overdue')
+                        )
+                        if (myTasks.length > 0) {
+                          setShowGoingOutModal(true)
+                        } else {
+                          changeMemberStatus(currentUser.uid, 'out_of_station')
+                        }
+                      }}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
+                    >
+                      <MapPinOff size={12} /> Going Away
+                    </button>
+                  )
+                })()}
               </div>
             </div>
 
@@ -959,9 +974,8 @@ export default function DashboardPage() {
           onClose={() => setShowGoingOutModal(false)}
           onConfirm={async (assignments) => {
             for (const [taskId, toUserId] of Object.entries(assignments)) {
-              await transferTask(taskId, currentUser.uid, toUserId)
+              await createSwapRequest(taskId, currentUser.uid, toUserId, false, true)
             }
-            await changeMemberStatus(currentUser.uid, 'out_of_station')
             setShowGoingOutModal(false)
           }}
         />

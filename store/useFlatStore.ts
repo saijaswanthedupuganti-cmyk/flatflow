@@ -54,6 +54,7 @@ export interface SwapRequest {
   read: boolean
   createdAt: string
   isAutomatic?: boolean
+  isOOSRequest?: boolean   // part of a "going out of station" batch
 }
 
 interface FlatState {
@@ -80,7 +81,7 @@ interface FlatState {
   manuallyAssignTask: (taskId: string, targetUserId: string, adminId: string) => Promise<void>
   createTask: (taskData: Omit<Task, 'taskId' | 'status' | 'lastCompletedAt'> & { lastCompletedAt?: string }, adminId: string) => Promise<void>
   deleteTask: (taskId: string, adminId: string) => Promise<void>
-  createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean) => Promise<void>
+  createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean, isOOSRequest?: boolean) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
@@ -424,7 +425,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({ userId: adminId, action: 'task_deleted', details: `deleted the task: ${task.name}` })
   },
 
-  createSwapRequest: async (taskId, fromUserId, toUserId, isAutomatic = false) => {
+  createSwapRequest: async (taskId, fromUserId, toUserId, isAutomatic = false, isOOSRequest = false) => {
     const state = get()
     const exists = state.swapRequests.find(r => r.taskId === taskId && r.status === 'pending')
     if (exists) return
@@ -436,6 +437,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       read: false,
       createdAt: new Date().toISOString(),
       isAutomatic,
+      isOOSRequest,
     }
 
     if (hasKeys && state.flatId) {
@@ -468,6 +470,21 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (status === 'accepted' && task && fromUser) {
       await get().transferTask(request.taskId, request.fromUserId, request.toUserId)
       await get().addActivity({ userId: request.toUserId, action: 'swap_resolved', details: `accepted to cover ${task.name} for ${fromUser.nickname}` })
+
+      // Auto-OOS: if this was part of a going-out-of-station batch, check if all OOS
+      // requests from this user are now accepted. If so, mark them out of station.
+      if (request.isOOSRequest) {
+        const fresh = get()
+        const stillPending = fresh.swapRequests.filter(
+          r => r.fromUserId === request.fromUserId &&
+               r.isOOSRequest === true &&
+               r.status === 'pending' &&
+               r.id !== requestId
+        )
+        if (stillPending.length === 0) {
+          await get().changeMemberStatus(request.fromUserId, 'out_of_station')
+        }
+      }
     } else if (status === 'rejected' && task && fromUser) {
       await get().addActivity({ userId: request.toUserId, action: 'swap_resolved', details: `declined to cover ${task.name} for ${fromUser.nickname}` })
     }

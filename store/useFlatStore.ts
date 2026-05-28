@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import { completeTask, getNextAssignee } from '../lib/rotationEngine'
 import { db, hasKeys } from '@/lib/firebase'
 import {
-  collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc
+  collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc, getDocs
 } from 'firebase/firestore'
 import {
   leaveFlatService,
@@ -244,9 +244,21 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const taskIndex = state.tasks.findIndex(t => t.taskId === taskId)
     if (taskIndex === -1) return
     const task = state.tasks[taskIndex]
-    // Parse the optional completion date — reject future dates
     const completedAt = completionDate ? new Date(completionDate) : undefined
-    const updatedTask = completeTask(task, state.members, completedAt)
+
+    // Always fetch the freshest member availability directly from Firestore so the
+    // rotation never lands on an out-of-station member due to stale Zustand state.
+    let freshMembers = state.members
+    if (hasKeys && state.flatId) {
+      try {
+        const snap = await getDocs(collection(db, `flats/${state.flatId}/members`))
+        freshMembers = snap.docs.map(d => d.data() as Member)
+      } catch {
+        freshMembers = state.members
+      }
+    }
+
+    const updatedTask = completeTask(task, freshMembers, completedAt)
 
     if (hasKeys && state.flatId) {
       await setDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), updatedTask)
@@ -256,17 +268,15 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ tasks: newTasks })
     }
 
-    // Include the actual date in the activity entry so the log is accurate
     const dateLabel = completionDate
       ? ` on ${new Date(completionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
       : ''
     await get().addActivity({ userId, action: 'completed_task', details: `completed ${task.name}${dateLabel}` })
 
-    // Safety net: if the rotation landed on an out-of-station or inactive member
-    // (e.g. state.members was briefly stale), immediately re-rotate to skip them.
+    // Belt-and-suspenders: if the new assignee is still out-of-station, re-rotate.
+    // This handles the edge case where freshMembers itself was incomplete.
     const newAssigneeId = updatedTask.currentAssignedUserId
     if (newAssigneeId) {
-      const freshMembers = get().members
       const newAssignee = freshMembers.find(m => m.uid === newAssigneeId)
       if (newAssignee && (newAssignee.status === 'out_of_station' || newAssignee.status === 'inactive')) {
         const skipNew = freshMembers.map(m =>
@@ -276,9 +286,8 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         if (nextAvailable) {
           await get().transferTask(taskId, newAssigneeId, nextAvailable)
         } else {
-          const fs = get()
-          if (hasKeys && fs.flatId) {
-            await updateDoc(doc(db, `flats/${fs.flatId}/tasks/${taskId}`), { status: 'paused' })
+          if (hasKeys && state.flatId) {
+            await updateDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), { status: 'paused' })
           } else {
             set(s => ({ tasks: s.tasks.map(t => t.taskId === taskId ? { ...t, status: 'paused' as const } : t) }))
           }

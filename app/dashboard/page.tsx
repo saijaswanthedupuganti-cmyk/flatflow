@@ -569,63 +569,6 @@ export default function DashboardPage() {
         ) : null}
       </div>
       
-      {/* ── Flatmates Status — visible to ALL users ── */}
-      <div className="border border-border/60 rounded-2xl overflow-hidden">
-        <div className="flex items-center justify-between px-4 py-2.5 bg-secondary/30 border-b border-border/60">
-          <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Flatmates</p>
-          <div className="flex items-center gap-3 text-xs font-semibold">
-            <span className="flex items-center gap-1 text-green-600 dark:text-green-400">
-              <span className="w-2 h-2 rounded-full bg-green-500" />
-              {members.filter(m => m.status === 'available' || m.status === 'busy').length} available
-            </span>
-            <span className="flex items-center gap-1 text-orange-500">
-              <span className="w-2 h-2 rounded-full bg-orange-400" />
-              {members.filter(m => m.status === 'out_of_station').length} out
-            </span>
-          </div>
-        </div>
-        <div className="flex flex-wrap gap-2 px-4 py-3">
-          {members.map(member => {
-            const isAvailable = member.status === 'available' || member.status === 'busy'
-            const isOut       = member.status === 'out_of_station'
-            const isMe        = member.uid === currentUser.uid
-            return (
-              <div
-                key={member.uid}
-                className={`flex items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-semibold transition-all ${
-                  isOut
-                    ? 'bg-orange-50 dark:bg-orange-900/20 border-orange-200 dark:border-orange-800 text-orange-700 dark:text-orange-300'
-                    : 'bg-green-50 dark:bg-green-900/20 border-green-200 dark:border-green-800 text-green-700 dark:text-green-300'
-                }`}
-              >
-                {/* Status dot */}
-                <span className={`w-2 h-2 rounded-full shrink-0 ${
-                  isOut ? 'bg-orange-400' : 'bg-green-500 animate-pulse'
-                }`} />
-                {/* Avatar initial */}
-                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                  isOut
-                    ? 'bg-orange-200 dark:bg-orange-800 text-orange-700 dark:text-orange-200'
-                    : 'bg-green-200 dark:bg-green-800 text-green-700 dark:text-green-200'
-                }`}>
-                  {member.nickname.charAt(0).toUpperCase()}
-                </span>
-                {/* Name */}
-                <span className="max-w-[80px] truncate">{member.nickname}</span>
-                {isMe && <span className="text-[9px] opacity-60 font-bold">you</span>}
-                {/* Status label */}
-                <span className={`text-[9px] font-bold uppercase tracking-wider opacity-70`}>
-                  {isOut ? 'out' : member.status === 'busy' ? 'busy' : ''}
-                </span>
-              </div>
-            )
-          })}
-          {members.length === 0 && (
-            <p className="text-xs text-muted-foreground py-1">No members yet.</p>
-          )}
-        </div>
-      </div>
-
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/60">
         {(!isAdmin || adminView === 'mine') && (
@@ -770,11 +713,13 @@ export default function DashboardPage() {
                         const isNow  = idx === 0
                         const isNext = idx === 1
                         const isMe   = uid === currentUser.uid
+                        const isOOS  = m?.status === 'out_of_station' || m?.status === 'inactive'
                         if (!m) return null
                         return (
                           <div key={uid}>
                             <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all ${
-                              isNow  ? 'bg-primary border-primary text-white shadow-md'
+                              isOOS  ? 'bg-secondary/40 border-border/30 opacity-50'
+                             : isNow  ? 'bg-primary border-primary text-white shadow-md'
                              : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
                              : isMe   ? 'bg-secondary border-primary/40'
                              :          'bg-card border-border/50'
@@ -787,7 +732,8 @@ export default function DashboardPage() {
                               </span>
                               {/* Avatar */}
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                                isNow  ? 'bg-white/25 text-white'
+                                isOOS   ? 'bg-muted text-muted-foreground'
+                               : isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
                                : isMe   ? 'bg-primary/15 text-primary'
                                :          'bg-secondary text-foreground'
@@ -796,20 +742,20 @@ export default function DashboardPage() {
                               </div>
                               {/* Name */}
                               <span className={`flex-1 text-sm font-semibold truncate min-w-0 ${
-                                isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
+                                isOOS ? 'text-muted-foreground line-through' : isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
                               }`}>
                                 {m.nickname}
                               </span>
                               {/* Badge */}
-                              {(isNow || isNext || isMe) && (
-                                <span className={`ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
-                                  isNow  ? 'bg-white/25 text-white'
-                                 : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
-                                 :          'bg-primary/15 text-primary'
-                                }`}>
-                                  {isNow ? 'NOW' : isNext ? 'NEXT' : 'YOU'}
-                                </span>
-                              )}
+                              <span className={`ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
+                                isOOS  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                               : isNow  ? 'bg-white/25 text-white'
+                               : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
+                               : isMe   ? 'bg-primary/15 text-primary'
+                               :          'invisible'
+                              }`}>
+                                {isOOS ? 'OUT' : isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
+                              </span>
                             </div>
                             {idx < orderedQueue.length - 1 ? (
                               <div className="flex justify-center py-0.5">
@@ -838,13 +784,15 @@ export default function DashboardPage() {
                         const isNext = idx === 1
                         const isMe   = uid === currentUser.uid
                         if (!m) return null
+                        const isOOS = m.status === 'out_of_station' || m.status === 'inactive'
                         return (
                           <div key={uid} className="flex flex-row items-center gap-0 shrink-0">
 
                             {/* ── Card ── */}
                             <div className={`flex flex-col items-center justify-start gap-1
                               w-[76px] min-w-[76px] px-1.5 pt-2 pb-2 rounded-xl border-2 transition-all
-                              ${isNow  ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
+                              ${isOOS  ? 'bg-secondary/40 border-border/30 opacity-50'
+                               : isNow  ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
                                : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
                                : isMe   ? 'bg-secondary border-primary/40'
                                :          'bg-card border-border/50'
@@ -852,7 +800,8 @@ export default function DashboardPage() {
 
                               {/* Avatar */}
                               <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                                isNow  ? 'bg-white/25 text-white'
+                                isOOS   ? 'bg-muted text-muted-foreground'
+                               : isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
                                : isMe   ? 'bg-primary/15 text-primary'
                                :          'bg-secondary text-foreground'
@@ -862,7 +811,8 @@ export default function DashboardPage() {
 
                               {/* Name */}
                               <span className={`w-full text-center text-[10px] font-semibold leading-tight truncate px-1 ${
-                                isNow  ? 'text-white'
+                                isOOS   ? 'text-muted-foreground line-through'
+                               : isNow  ? 'text-white'
                                : isNext ? 'text-blue-900 dark:text-blue-100'
                                : isMe   ? 'text-foreground'
                                :          'text-muted-foreground'
@@ -872,12 +822,13 @@ export default function DashboardPage() {
 
                               {/* Status badge */}
                               <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap leading-tight ${
-                                isNow  ? 'bg-white/25 text-white'
+                                isOOS  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
+                               : isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
                                : isMe   ? 'bg-primary/15 text-primary'
                                :          'invisible'
                               }`}>
-                                {isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
+                                {isOOS ? 'OUT' : isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
                               </span>
                             </div>
 

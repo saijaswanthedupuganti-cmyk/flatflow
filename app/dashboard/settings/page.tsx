@@ -367,37 +367,63 @@ export default function SettingsPage() {
               <User size={20} className="text-primary" />
               Your Profile
             </CardTitle>
-            <CardDescription>Your account information in this flat.</CardDescription>
+            <CardDescription>Your account details and current status.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-5">
+            {/* Avatar + name + email */}
             <div className="flex items-center gap-4">
-              <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center text-2xl font-bold text-primary">
-                {user?.displayName?.charAt(0) || 'U'}
+              <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-white shrink-0">
+                {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
               </div>
-              <div className="space-y-1">
-                <p className="text-xl font-bold">{user?.displayName || 'User'}</p>
-                <p className="text-sm text-muted-foreground">{user?.email}</p>
+              <div className="min-w-0">
+                <p className="text-xl font-bold truncate">{user?.displayName || 'User'}</p>
+                <p className="text-sm text-muted-foreground truncate">{user?.email}</p>
                 <div className="flex items-center gap-1 mt-1">
-                  <Shield size={14} className={isAdmin ? 'text-primary' : 'text-muted-foreground'} />
-                  <span className={`text-xs font-semibold uppercase tracking-wider ${isAdmin ? 'text-primary' : 'text-muted-foreground'}`}>
+                  <Shield size={13} className={isAdmin ? 'text-primary' : 'text-muted-foreground'} />
+                  <span className={`text-xs font-semibold capitalize ${isAdmin ? 'text-primary' : 'text-muted-foreground'}`}>
                     {isAdmin ? 'Admin' : 'Member'}
                   </span>
                 </div>
               </div>
             </div>
 
-            {currentMember && (
-              <div className="grid grid-cols-2 gap-4 mt-6 pt-6 border-t border-border">
-                <div className="bg-secondary/40 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-extrabold text-primary">{currentMember.reliabilityScore}</p>
-                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider font-medium">Reliability Score</p>
-                </div>
-                <div className="bg-secondary/40 rounded-xl p-4 text-center">
-                  <p className="text-3xl font-extrabold capitalize">{currentMember.status.replace('_', ' ')}</p>
-                  <p className="text-xs text-muted-foreground mt-1 uppercase tracking-wider font-medium">Current Status</p>
-                </div>
+            {/* Detail rows */}
+            <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
+                <span className={`text-sm font-semibold capitalize ${
+                  currentMember?.status === 'available' ? 'text-green-600 dark:text-green-400' :
+                  currentMember?.status === 'out_of_station' ? 'text-orange-500' :
+                  'text-muted-foreground'
+                }`}>
+                  {currentMember?.status?.replace(/_/g, ' ') ?? '—'}
+                </span>
               </div>
-            )}
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reliability Score</span>
+                <span className="text-sm font-bold text-primary">{currentMember?.reliabilityScore ?? 100}</span>
+              </div>
+              {allFlats.map(flat => (
+                <div key={flat.id} className="flex items-center justify-between px-4 py-3">
+                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                    {allFlats.length > 1 ? 'Flat' : 'Your Flat'}
+                  </span>
+                  <span className="text-sm font-semibold truncate max-w-[60%] text-right">{flat.name || flat.id}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Sign Out — always visible */}
+            <div className="pt-2 border-t border-border">
+              <Button
+                variant="outline"
+                className="w-full h-11 text-destructive border-destructive/40 hover:bg-destructive/10 hover:border-destructive font-semibold gap-2"
+                onClick={handleLogout}
+              >
+                <LogOut size={16} />
+                Sign Out
+              </Button>
+            </div>
           </CardContent>
         </Card>
 
@@ -538,19 +564,6 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Sign Out — shown on mobile (sidebar has FlatSwitcher with logout on desktop) */}
-        <Card className="shadow-sm border-border md:hidden">
-          <CardContent className="p-4">
-            <Button
-              variant="outline"
-              className="w-full h-12 text-destructive border-destructive/40 hover:bg-destructive/10 hover:border-destructive font-semibold gap-2"
-              onClick={handleLogout}
-            >
-              <LogOut size={18} />
-              Sign Out
-            </Button>
-          </CardContent>
-        </Card>
       </div>
     </>
   )

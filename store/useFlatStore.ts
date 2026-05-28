@@ -275,7 +275,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
     if (status === 'out_of_station') {
       const currentState = get()
-      // Treat this member as out_of_station for queue calculations even if Firestore hasn't synced yet
+      // Apply the status change locally so getNextAssignee skips this user immediately
       const membersWithStatus = currentState.members.map(m =>
         m.uid === userId ? { ...m, status: 'out_of_station' as const } : m
       )
@@ -285,7 +285,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       for (const task of assignedTasks) {
         const nextUserId = getNextAssignee(task, membersWithStatus)
         if (nextUserId) {
-          await get().createSwapRequest(task.taskId, userId, nextUserId, true)
+          // Directly transfer — task must not stay with an out-of-station member
+          await get().transferTask(task.taskId, userId, nextUserId)
+        } else {
+          // Everyone is out — pause so the task stops accumulating overdue
+          if (hasKeys && currentState.flatId) {
+            await updateDoc(doc(db, `flats/${currentState.flatId}/tasks/${task.taskId}`), { status: 'paused' })
+          } else {
+            set(s => ({ tasks: s.tasks.map(t => t.taskId === task.taskId ? { ...t, status: 'paused' as const } : t) }))
+          }
+          await get().addActivity({ userId: 'system', action: 'system_override', details: `paused ${task.name} — all members out of station` })
         }
       }
     }

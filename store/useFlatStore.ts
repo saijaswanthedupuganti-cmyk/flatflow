@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import { completeTask } from '../lib/rotationEngine'
+import { completeTask, getNextAssignee } from '../lib/rotationEngine'
 import { db, hasKeys } from '@/lib/firebase'
 import {
   collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc
@@ -53,6 +53,7 @@ export interface SwapRequest {
   status: 'pending' | 'accepted' | 'rejected'
   read: boolean
   createdAt: string
+  isAutomatic?: boolean
 }
 
 interface FlatState {
@@ -79,7 +80,7 @@ interface FlatState {
   manuallyAssignTask: (taskId: string, targetUserId: string, adminId: string) => Promise<void>
   createTask: (taskData: Omit<Task, 'taskId' | 'status' | 'lastCompletedAt'> & { lastCompletedAt?: string }, adminId: string) => Promise<void>
   deleteTask: (taskId: string, adminId: string) => Promise<void>
-  createSwapRequest: (taskId: string, fromUserId: string, toUserId: string) => Promise<void>
+  createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
@@ -271,6 +272,23 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ members: newMembers })
     }
     await get().addActivity({ userId, action: 'status_change', details: `marked as ${status.replace('_', ' ')}` })
+
+    if (status === 'out_of_station') {
+      const currentState = get()
+      // Treat this member as out_of_station for queue calculations even if Firestore hasn't synced yet
+      const membersWithStatus = currentState.members.map(m =>
+        m.uid === userId ? { ...m, status: 'out_of_station' as const } : m
+      )
+      const assignedTasks = currentState.tasks.filter(
+        t => t.currentAssignedUserId === userId && (t.status === 'pending' || t.status === 'overdue')
+      )
+      for (const task of assignedTasks) {
+        const nextUserId = getNextAssignee(task, membersWithStatus)
+        if (nextUserId) {
+          await get().createSwapRequest(task.taskId, userId, nextUserId, true)
+        }
+      }
+    }
   },
 
   returnEarly: async (userId) => {
@@ -364,7 +382,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({ userId: adminId, action: 'task_deleted', details: `deleted the task: ${task.name}` })
   },
 
-  createSwapRequest: async (taskId, fromUserId, toUserId) => {
+  createSwapRequest: async (taskId, fromUserId, toUserId, isAutomatic = false) => {
     const state = get()
     const exists = state.swapRequests.find(r => r.taskId === taskId && r.status === 'pending')
     if (exists) return
@@ -374,7 +392,8 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       taskId, fromUserId, toUserId,
       status: 'pending',
       read: false,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      isAutomatic,
     }
 
     if (hasKeys && state.flatId) {

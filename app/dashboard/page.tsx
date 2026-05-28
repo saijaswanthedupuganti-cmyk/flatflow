@@ -214,11 +214,14 @@ export default function DashboardPage() {
                 {/* Text */}
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-bold text-violet-500 dark:text-violet-400 uppercase tracking-widest mb-0.5">
-                    Swap Request — Action Required
+                    {req.isAutomatic ? 'Auto-Assigned Request — Action Required' : 'Swap Request — Action Required'}
                   </p>
                   <p className="text-sm font-semibold text-violet-900 dark:text-violet-100">
-                    <span className="font-extrabold">{fromUser.nickname}</span> asked you to cover{' '}
-                    <span className="font-extrabold">{task.name}</span>.
+                    {req.isAutomatic ? (
+                      <><span className="font-extrabold">{fromUser.nickname}</span> is out of station — you&apos;re next in queue for <span className="font-extrabold">{task.name}</span>.</>
+                    ) : (
+                      <><span className="font-extrabold">{fromUser.nickname}</span> asked you to cover <span className="font-extrabold">{task.name}</span>.</>
+                    )}
                   </p>
                   <p className="text-xs text-violet-600 dark:text-violet-400 mt-0.5">
                     If you accept, this task transfers to you. If you decline, it stays with {fromUser.nickname}.

@@ -34,7 +34,7 @@ export default function DashboardPage() {
   // Activity hide/unhide state
   const [showHiddenActivities, setShowHiddenActivities] = useState(false)
   // Admin can switch between their own tasks and the org overview
-  const [adminView, setAdminView] = useState<'mine' | 'org'>('org')
+  const [adminView, setAdminView] = useState<'mine' | 'org'>('mine')
   const { flatId } = useFlatStore()
 
   useEffect(() => {

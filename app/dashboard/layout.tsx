@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users, Settings,
-  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck,
+  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck, Repeat2,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
@@ -16,6 +16,7 @@ const NAV_ITEMS = {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, exact: false, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays, exact: false, color: 'text-green-500', bg: 'bg-green-500/10' },
+    { href: '/dashboard/swaps', label: 'Swaps', icon: Repeat2, exact: false, color: 'text-violet-500', bg: 'bg-violet-500/10' },
   ],
   admin: [
     { href: '/dashboard/tasks', label: 'Tasks & Rotation', icon: ClipboardList, exact: false, color: 'text-orange-500', bg: 'bg-orange-500/10' },
@@ -31,7 +32,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const { user } = useAuthStore()
-  const { members, tasks, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
+  const { members, tasks, swapRequests, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
   const { flatId: authFlatId } = useAuthStore()
 
   const currentUser = members.find(m => m.uid === user?.uid)
@@ -45,9 +46,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!user) return null
 
-  const overdueTasks = tasks.filter(t => t.status === 'overdue').length
+  const overdueTasks    = tasks.filter(t => t.status === 'overdue').length
+  const pendingSwaps    = swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length
 
-  const NavLink = ({ href, label, icon: Icon, exact, color, bg }: typeof NAV_ITEMS.main[0]) => {
+  const NavLink = ({ href, label, icon: Icon, exact, color, bg, badge }: typeof NAV_ITEMS.main[0] & { badge?: number }) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href)
     return (
       <Link
@@ -64,7 +66,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Icon size={15} className={isActive ? 'text-white' : color} />
         </span>
         <span className="flex-1">{label}</span>
-        {isActive && <ChevronRight size={14} className="opacity-60" />}
+        {badge ? (
+          <span className="bg-violet-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">
+            {badge}
+          </span>
+        ) : isActive ? (
+          <ChevronRight size={14} className="opacity-60" />
+        ) : null}
       </Link>
     )
   }
@@ -108,7 +116,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mb-2">Main</p>
-          {NAV_ITEMS.main.map(item => <NavLink key={item.href} {...item} />)}
+          {NAV_ITEMS.main.map(item => (
+            <NavLink
+              key={item.href}
+              {...item}
+              badge={item.href === '/dashboard/swaps' && pendingSwaps > 0 ? pendingSwaps : undefined}
+            />
+          ))}
 
           {isAdmin && (
             <>
@@ -152,7 +166,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border/60 flex justify-around items-center px-2 py-2 z-50">
         <MobileNavLink {...NAV_ITEMS.main[0]} />
         <MobileNavLink {...NAV_ITEMS.main[1]} />
-        <MobileNavLink {...NAV_ITEMS.main[2]} />
+        {/* Swaps with badge */}
+        <Link href="/dashboard/swaps" className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative ${pathname.startsWith('/dashboard/swaps') ? 'text-primary' : 'text-muted-foreground'}`}>
+          <Repeat2 size={22} />
+          <span className="text-[10px] font-semibold">Swaps</span>
+          {pendingSwaps > 0 && (
+            <span className="absolute -top-0.5 right-1 bg-violet-500 text-white text-[9px] font-extrabold px-1 py-0.5 rounded-full min-w-[16px] text-center leading-none">
+              {pendingSwaps}
+            </span>
+          )}
+        </Link>
         {isAdmin
           ? <MobileNavLink {...NAV_ITEMS.admin[0]} />
           : <MobileNavLink {...NAV_ITEMS.general[1]} />}

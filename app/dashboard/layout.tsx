@@ -54,7 +54,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return (
       <Link
         href={href}
-        className={`group flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150 ${
+        className={`group flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all duration-150 ${
           isActive
             ? 'bg-primary text-primary-foreground shadow-sm'
             : 'text-muted-foreground hover:text-foreground hover:bg-secondary/80'
@@ -95,7 +95,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <aside className="hidden md:flex flex-col w-64 bg-card border-r border-border/60 shadow-sm">
 
         {/* Logo */}
-        <div className="px-5 pt-5 pb-4 border-b border-border/60">
+        <div className="px-4 pt-4 pb-3 border-b border-border/60">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm">
               <span className="text-sm font-extrabold text-white">H</span>
@@ -114,8 +114,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
 
         {/* Nav */}
-        <nav className="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto">
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mb-2">Main</p>
+        <nav className="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mb-1">Main</p>
           {NAV_ITEMS.main.map(item => (
             <NavLink
               key={item.href}
@@ -126,20 +126,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
           {isAdmin && (
             <>
-              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-4 mb-2">Admin</p>
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-3 mb-1">Admin</p>
               {NAV_ITEMS.admin.map(item => <NavLink key={item.href} {...item} />)}
             </>
           )}
 
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-4 mb-2">General</p>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-3 mb-1">General</p>
           {NAV_ITEMS.general.map(item => <NavLink key={item.href} {...item} />)}
         </nav>
 
-        {/* User Footer */}
+        {/* User Footer — FlatSwitcher first, user info below */}
         <div className="p-3 border-t border-border/60 space-y-2">
+          {/* Flat switcher (flat name, switch, sign out) */}
+          <FlatSwitcher />
           {/* User info */}
           <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-secondary/50">
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
+            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
               {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
@@ -150,8 +152,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </div>
             </div>
           </div>
-          {/* Flat switcher (includes sign out) */}
-          <FlatSwitcher />
         </div>
       </aside>
 

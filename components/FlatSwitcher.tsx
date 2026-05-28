@@ -71,7 +71,7 @@ export default function FlatSwitcher() {
 
       {/* Dropdown */}
       {open && (
-        <div className="absolute bottom-full left-0 right-0 mb-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50">
+        <div className="absolute bottom-full left-0 right-0 mb-1 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-50 max-h-72 overflow-y-auto">
 
           {/* Current flat */}
           {currentFlat && (

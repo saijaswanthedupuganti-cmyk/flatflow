@@ -121,20 +121,19 @@ export default function DashboardPage() {
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening'
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div>
-          <p className="text-sm font-medium text-muted-foreground mb-1">{greeting} 👋</p>
-          <h1 className="text-3xl font-extrabold tracking-tight leading-tight">
+          <h1 className="text-2xl font-extrabold tracking-tight leading-tight">
             {isAdmin
               ? adminView === 'org' ? 'Flat Overview' : currentUser.displayName
               : currentUser.displayName}
           </h1>
-          <p className="text-muted-foreground mt-1 text-sm">
-            {isAdmin
-              ? adminView === 'org' ? 'Global duty roster and flat management.' : 'Your personal duties in the rotation.'
-              : 'Your duties and flat activity for today.'}
+          <p className="text-muted-foreground text-xs mt-0.5">
+            {greeting} 👋 · {isAdmin
+              ? adminView === 'org' ? 'Global duty roster' : 'Your personal duties'
+              : 'Your duties for today'}
           </p>
         </div>
         <div className="flex items-center gap-2 flex-wrap shrink-0">
@@ -291,58 +290,55 @@ export default function DashboardPage() {
 
         {(isAdmin ? adminView === 'mine' : false) && isOutOfStation ? (
           <Card className="col-span-1 md:col-span-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md">
-            <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <CardContent className="p-4 flex flex-row items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold">You are marked as Out of Station</h2>
-                <p className="text-orange-100 mt-1">The smart rotation engine is currently skipping your duties.</p>
+                <h2 className="text-base font-bold">You&apos;re Out of Station</h2>
+                <p className="text-orange-100 text-xs mt-0.5">Rotation is skipping your duties.</p>
               </div>
-              <Button size="lg" variant="secondary" className="font-bold text-orange-600 w-full md:w-auto" onClick={() => returnEarly(currentUser.uid)}>
-                I'm Back (Return Early)
+              <Button size="sm" variant="secondary" className="font-bold text-orange-600 shrink-0" onClick={() => returnEarly(currentUser.uid)}>
+                I&apos;m Back
               </Button>
             </CardContent>
           </Card>
         ) : !isAdmin && isOutOfStation ? (
           <Card className="col-span-1 md:col-span-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md">
-            <CardContent className="p-8 flex flex-col md:flex-row items-center justify-between gap-6">
+            <CardContent className="p-4 flex flex-row items-center justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-bold">You are marked as Out of Station</h2>
-                <p className="text-orange-100 mt-1">The smart rotation engine is currently skipping your duties.</p>
+                <h2 className="text-base font-bold">You&apos;re Out of Station</h2>
+                <p className="text-orange-100 text-xs mt-0.5">Rotation is skipping your duties.</p>
               </div>
-              <Button size="lg" variant="secondary" className="font-bold text-orange-600 w-full md:w-auto" onClick={() => returnEarly(currentUser.uid)}>
-                I'm Back (Return Early)
+              <Button size="sm" variant="secondary" className="font-bold text-orange-600 shrink-0" onClick={() => returnEarly(currentUser.uid)}>
+                I&apos;m Back
               </Button>
             </CardContent>
           </Card>
         ) : (!isAdmin || adminView === 'mine') && !isOutOfStation ? (
           <div className="col-span-1 md:col-span-3">
-            <div className="flex items-center justify-between mb-4 mt-2">
-              <h2 className="text-xl font-bold">Your Pending Duties</h2>
-              <span className="bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-bold">
-                {userTasks.length} Assigned
-              </span>
-            </div>
-
-            {/* ── Status quick-toggle (visible to all members) ── */}
-            <div className="flex items-center justify-between p-3 rounded-xl border border-border bg-secondary/30 mb-4">
+            {/* Header + status toggle in one compact row */}
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-bold flex items-center gap-2">
+                Your Duties
+                <span className="bg-primary/10 text-primary px-2 py-0.5 rounded-full text-xs font-bold">{userTasks.length}</span>
+              </h2>
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse" />
-                <span className="text-sm font-semibold text-foreground">You&apos;re <span className="text-green-600 dark:text-green-400 font-bold">Available</span></span>
+                <span className="hidden sm:flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className="w-2 h-2 rounded-full bg-green-500" /> Available
+                </span>
+                <button
+                  onClick={() => changeMemberStatus(currentUser.uid, 'out_of_station')}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
+                >
+                  <MapPinOff size={12} /> Going Away
+                </button>
               </div>
-              <button
-                onClick={() => changeMemberStatus(currentUser.uid, 'out_of_station')}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-bold border-2 border-orange-400 dark:border-orange-600 text-orange-700 dark:text-orange-300 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 transition-all"
-              >
-                <MapPinOff size={14} />
-                Going Out of Station
-              </button>
             </div>
 
             {userTasks.length === 0 ? (
                <Card className="bg-secondary/30 border-dashed border-2">
-                 <CardContent className="flex flex-col items-center justify-center p-12">
-                   <CheckCircle2 size={48} className="mb-4 text-green-500 opacity-80" />
-                   <div className="text-2xl font-bold">All clear!</div>
-                   <p className="text-muted-foreground">You have no pending tasks right now.</p>
+                 <CardContent className="flex flex-col items-center justify-center p-8">
+                   <CheckCircle2 size={36} className="mb-2 text-green-500 opacity-80" />
+                   <div className="text-lg font-bold">All clear!</div>
+                   <p className="text-sm text-muted-foreground">No pending tasks right now.</p>
                  </CardContent>
                </Card>
             ) : (
@@ -355,56 +351,38 @@ export default function DashboardPage() {
 
                   return (
                     <Card key={task.taskId} className={`${style.bg} ${style.text} border-none shadow-md transition-all hover:scale-[1.02]`}>
-                      <CardHeader className="pb-1">
-                        <CardTitle className="text-base font-medium flex items-center justify-between">
-                          <span className="flex items-center gap-2">
+                      <CardContent className="p-4">
+                        {/* Top row: icon + freq + priority */}
+                        <div className="flex items-center justify-between mb-1">
+                          <span className="flex items-center gap-1.5">
                             {style.icon}
-                            <span className="text-xs font-bold uppercase tracking-wider opacity-80">
-                              {task.frequency} duty
-                            </span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{task.frequency}</span>
                           </span>
                           {task.priority === 'high' && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold tracking-wider border flex items-center gap-1 ${style.badge}`}>
-                              <ArrowUpCircle size={12} /> High
+                            <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold border flex items-center gap-1 ${style.badge}`}>
+                              <ArrowUpCircle size={10} /> High
                             </span>
                           )}
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {/* Task name */}
-                        <div className="text-2xl font-bold mt-1 leading-tight">{task.name}</div>
+                        </div>
 
-                        {/* Overdue accountability block */}
+                        {/* Task name */}
+                        <div className="text-xl font-bold leading-tight">{task.name}</div>
+
+                        {/* Dates */}
                         {dateInfo.isOverdue ? (
-                          <div className="mt-3 bg-black/20 rounded-lg p-3 border border-white/20 space-y-1">
-                            <p className="text-xs font-extrabold uppercase tracking-wider text-white/90">
-                              ⚠️ {dateInfo.overdueLabel}
-                            </p>
-                            <p className="text-xs text-white/75">
-                              Was due: <span className="font-bold">{dateInfo.originalDueFormatted}</span>
-                            </p>
-                            <p className="text-xs text-white/75">
-                              Complete it now → next person starts a fresh {task.frequency} cycle from today
-                            </p>
+                          <div className="mt-2 bg-black/20 rounded-lg p-2 border border-white/20">
+                            <p className="text-xs font-extrabold text-white/90">⚠️ {dateInfo.overdueLabel}</p>
+                            <p className="text-xs text-white/70 mt-0.5">Due: <span className="font-bold">{dateInfo.originalDueFormatted}</span></p>
                           </div>
                         ) : (
-                          <div className="mt-2 space-y-1">
-                            <p className="text-xs text-white/80 font-medium">
-                              {dateInfo.cycleLabel}
-                            </p>
-                            <p className="text-xs text-white/70">
-                              Due: <span className="font-bold">{dateInfo.dueDateFormatted}</span>
-                            </p>
+                          <div className="mt-1.5 flex items-center gap-3">
+                            <p className="text-xs text-white/75">{dateInfo.cycleLabel}</p>
+                            <p className="text-xs text-white/60">Due: <span className="font-semibold">{dateInfo.dueDateFormatted}</span></p>
                           </div>
                         )}
 
-                        {/* Last completed info */}
-                        <p className="text-[11px] text-white/60 mt-1">
-                          Last done: {dateInfo.lastCompletedFormatted}
-                        </p>
-
                         {/* Action area */}
-                        <div className="mt-4">
+                        <div className="mt-3">
                           {hasPendingRequest ? (
                             <div className="bg-background/20 p-3 rounded-lg border border-background/20 text-center">
                               <Clock className="mx-auto mb-2 opacity-80" size={22} />
@@ -513,6 +491,7 @@ export default function DashboardPage() {
             )}
           </div>
         ) : adminView === 'org' ? (
+
           <div className="col-span-1 md:col-span-3">
             <h2 className="text-xl font-bold mb-4 mt-2">Active Roster (This Week)</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -564,82 +543,77 @@ export default function DashboardPage() {
       </div>
       
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-8 pt-6 border-t border-border/60">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/60">
         {(!isAdmin || adminView === 'mine') && (
           <Card className="shadow-sm border-border/60 col-span-1">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-2">
-                <Flame size={16} className="text-orange-500" />
-                <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reliability</span>
+            <CardContent className="p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Flame size={13} className="text-orange-500" />
+                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reliability</span>
               </div>
-              <div className="text-3xl font-extrabold">{currentMember?.reliabilityScore ?? 100}</div>
-              <div className="w-full bg-secondary rounded-full h-1.5 mt-2">
-                <div className="h-1.5 rounded-full bg-orange-400 transition-all" style={{ width: `${currentMember?.reliabilityScore ?? 100}%` }} />
+              <div className="text-2xl font-extrabold">{currentMember?.reliabilityScore ?? 100}</div>
+              <div className="w-full bg-secondary rounded-full h-1 mt-1.5">
+                <div className="h-1 rounded-full bg-orange-400 transition-all" style={{ width: `${currentMember?.reliabilityScore ?? 100}%` }} />
               </div>
             </CardContent>
           </Card>
         )}
         <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <CheckCircle2 size={16} className="text-green-500" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Flat Health</span>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <CheckCircle2 size={13} className="text-green-500" />
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Flat Health</span>
             </div>
-            <div className="text-3xl font-extrabold">
+            <div className="text-2xl font-extrabold">
               {Math.round((tasks.filter(t => t.status !== 'overdue').length / (tasks.length || 1)) * 100)}%
             </div>
-            <p className="text-xs text-muted-foreground mt-1">{tasks.filter(t => t.status === 'overdue').length} overdue</p>
+            <p className="text-xs text-muted-foreground mt-0.5">{tasks.filter(t => t.status === 'overdue').length} overdue</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <AlertCircle size={16} className="text-blue-500" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Total Tasks</span>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <AlertCircle size={13} className="text-blue-500" />
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Tasks</span>
             </div>
-            <div className="text-3xl font-extrabold">{tasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-1">{members.filter(m => m.status === 'available').length} members active</p>
+            <div className="text-2xl font-extrabold">{tasks.length}</div>
+            <p className="text-xs text-muted-foreground mt-0.5">{members.filter(m => m.status === 'available').length} active</p>
           </CardContent>
         </Card>
         <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 mb-2">
-              <Inbox size={16} className="text-purple-500" />
-              <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Pending Swaps</span>
+          <CardContent className="p-3">
+            <div className="flex items-center gap-1.5 mb-1">
+              <Inbox size={13} className="text-purple-500" />
+              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Swaps</span>
             </div>
-            <div className="text-3xl font-extrabold">
+            <div className="text-2xl font-extrabold">
               {swapRequests.filter(r => r.status === 'pending').length}
             </div>
-            <p className="text-xs text-muted-foreground mt-1">swap requests open</p>
+            <p className="text-xs text-muted-foreground mt-0.5">pending</p>
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ── Rotation Order — visible to ALL members ───────────────── */}
         <Card className="shadow-sm border-border/60">
-          {/* Card header */}
-          <CardHeader className="pb-3 px-5 pt-5">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
-                <Repeat size={15} className="text-primary" />
+          <CardHeader className="pb-2 px-4 pt-4">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                <Repeat size={13} className="text-primary" />
               </div>
               <div>
                 <CardTitle className="text-sm font-bold leading-tight">Rotation Order</CardTitle>
-                <CardDescription className="text-xs mt-0.5 leading-snug">
-                  Full cycle per task — know who's on now, who's next, and your position.
-                </CardDescription>
+                <CardDescription className="text-xs leading-snug">Who's on, who's next, your position.</CardDescription>
               </div>
             </div>
           </CardHeader>
 
-          <CardContent className="px-4 pb-5 space-y-3">
-            {/* Empty state */}
+          <CardContent className="px-3 pb-3 space-y-2">
             {tasks.length === 0 && (
-              <div className="flex flex-col items-center py-10 text-muted-foreground">
-                <Repeat size={32} className="opacity-20 mb-3" />
+              <div className="flex flex-col items-center py-8 text-muted-foreground">
+                <Repeat size={28} className="opacity-20 mb-2" />
                 <p className="text-sm font-semibold">No tasks yet</p>
-                <p className="text-xs mt-0.5">Create tasks to see the rotation here.</p>
               </div>
             )}
 
@@ -784,23 +758,16 @@ export default function DashboardPage() {
                           <div key={uid} className="flex flex-row items-center gap-0 shrink-0">
 
                             {/* ── Card ── */}
-                            <div className={`flex flex-col items-center justify-start gap-1.5
-                              w-[90px] min-w-[90px] px-2 pt-2.5 pb-2.5 rounded-xl border-2 transition-all
+                            <div className={`flex flex-col items-center justify-start gap-1
+                              w-[76px] min-w-[76px] px-1.5 pt-2 pb-2 rounded-xl border-2 transition-all
                               ${isNow  ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
                                : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
                                : isMe   ? 'bg-secondary border-primary/40'
                                :          'bg-card border-border/50'
                               }`}>
 
-                              {/* Position number */}
-                              <span className={`text-[9px] font-bold tabular-nums leading-none ${
-                                isNow ? 'text-white/50' : 'text-muted-foreground/40'
-                              }`}>
-                                #{idx + 1}
-                              </span>
-
                               {/* Avatar */}
-                              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-base font-bold shrink-0 ${
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
                                 isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
                                : isMe   ? 'bg-primary/15 text-primary'
@@ -809,20 +776,18 @@ export default function DashboardPage() {
                                 {m.nickname.charAt(0).toUpperCase()}
                               </div>
 
-                              {/* Name — truncates cleanly, centred */}
-                              <span className={`w-full text-center text-[11px] font-semibold leading-tight truncate px-1 ${
+                              {/* Name */}
+                              <span className={`w-full text-center text-[10px] font-semibold leading-tight truncate px-1 ${
                                 isNow  ? 'text-white'
                                : isNext ? 'text-blue-900 dark:text-blue-100'
                                : isMe   ? 'text-foreground'
                                :          'text-muted-foreground'
-                              }`}
-                                title={m.nickname}
-                              >
+                              }`} title={m.nickname}>
                                 {m.nickname}
                               </span>
 
-                              {/* Status badge — always present for consistent height */}
-                              <span className={`text-[9px] font-extrabold px-2 py-0.5 rounded-full whitespace-nowrap leading-tight ${
+                              {/* Status badge */}
+                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap leading-tight ${
                                 isNow  ? 'bg-white/25 text-white'
                                : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
                                : isMe   ? 'bg-primary/15 text-primary'
@@ -865,7 +830,7 @@ export default function DashboardPage() {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4 border-l-2 border-muted ml-3 pl-4 relative">
+            <div className="space-y-3 border-l-2 border-muted ml-2 pl-3 relative">
               {activityLog
                 .filter(a => !a.hidden)
                 .slice(0, 5)

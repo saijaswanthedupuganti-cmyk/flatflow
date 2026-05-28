@@ -860,37 +860,25 @@ export default function DashboardPage() {
             <div className="flex items-center justify-between">
               <div>
                 <CardTitle>Recent Activity</CardTitle>
-                <CardDescription>System of record</CardDescription>
+                <CardDescription>Latest 5 events</CardDescription>
               </div>
-              {isAdmin && activityLog.some(a => a.hidden) && (
-                <button
-                  onClick={() => setShowHiddenActivities(v => !v)}
-                  className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  {showHiddenActivities
-                    ? <><Eye size={13} /> Hide hidden</>
-                    : <><EyeOff size={13} /> {activityLog.filter(a => a.hidden).length} hidden</>
-                  }
-                </button>
-              )}
             </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4 border-l-2 border-muted ml-3 pl-4 relative">
               {activityLog
-                .filter(a => showHiddenActivities || !a.hidden)
-                .slice(0, 8)
+                .filter(a => !a.hidden)
+                .slice(0, 5)
                 .map((activity) => {
                 const isCompleted = activity.action === 'completed_task'
-                const isStatus = activity.action === 'status_change'
-                const isSkipped = activity.action === 'skipped_task'
-                const isTransfer = activity.action === 'transferred_task' || activity.action === 'swap_resolved'
-                const isSystem = activity.userId === 'system'
-                const userObj = members.find(m => m.uid === activity.userId)
-                const actDate = new Date(activity.timestamp)
-
+                const isStatus    = activity.action === 'status_change'
+                const isSkipped   = activity.action === 'skipped_task'
+                const isTransfer  = activity.action === 'transferred_task' || activity.action === 'swap_resolved'
+                const isSystem    = activity.userId === 'system'
+                const userObj     = members.find(m => m.uid === activity.userId)
+                const actDate     = new Date(activity.timestamp)
                 return (
-                  <div key={activity.id} className={`relative group ${activity.hidden ? 'opacity-40' : ''}`}>
+                  <div key={activity.id} className="relative">
                     <div className={`absolute -left-[21px] top-1 w-3 h-3 rounded-full border-2 border-card ${
                       isSystem ? 'bg-orange-500' :
                       isCompleted ? 'bg-green-500' :
@@ -898,33 +886,29 @@ export default function DashboardPage() {
                       isSkipped ? 'bg-red-500' :
                       isTransfer ? 'bg-purple-500' : 'bg-green-500'
                     }`} />
-                    <p className="text-sm pr-6">
+                    <p className="text-sm">
                       <span className="font-semibold">{isSystem ? 'System' : userObj?.nickname || 'Someone'}</span>{' '}
                       {activity.details}.
                     </p>
-                    <p className="text-xs text-muted-foreground mt-0.5" title={formatDateTime(actDate)}>
-                      {timeAgo(activity.timestamp)} · {actDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} {actDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      {timeAgo(activity.timestamp)} · {actDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                     </p>
-                    {/* Admin hide/unhide button — shown on hover */}
-                    {isAdmin && (
-                      <button
-                        onClick={() => toggleActivityHidden(activity.id)}
-                        className="absolute right-0 top-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity"
-                        title={activity.hidden ? 'Unhide this entry' : 'Hide this entry'}
-                      >
-                        {activity.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
-                      </button>
-                    )}
                   </div>
                 )
               })}
-              {activityLog.filter(a => !a.hidden).length === 0 && activityLog.length === 0 && (
-                <p className="text-sm text-muted-foreground">No recent activity.</p>
-              )}
-              {activityLog.filter(a => !a.hidden).length === 0 && activityLog.length > 0 && !showHiddenActivities && (
-                <p className="text-sm text-muted-foreground">All entries are hidden.</p>
+              {activityLog.filter(a => !a.hidden).length === 0 && (
+                <p className="text-sm text-muted-foreground">No activity yet.</p>
               )}
             </div>
+            {/* View all link */}
+            {activityLog.length > 0 && (
+              <a
+                href="/dashboard/activity"
+                className="mt-4 flex items-center justify-center gap-1.5 w-full py-2 rounded-xl text-sm font-semibold text-primary hover:bg-primary/5 border border-primary/20 transition-colors"
+              >
+                View all activity <ChevronRight size={14} />
+              </a>
+            )}
           </CardContent>
         </Card>
       </div>

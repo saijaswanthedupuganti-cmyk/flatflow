@@ -1,9 +1,15 @@
 import { create } from 'zustand'
+
+// Firestore rejects undefined field values — strip them before any write
+function fs<T extends object>(obj: T): T {
+  return Object.fromEntries(Object.entries(obj).filter(([, v]) => v !== undefined)) as T
+}
 import { completeTask, getNextAssignee } from '../lib/rotationEngine'
 import { db, hasKeys } from '@/lib/firebase'
 import { useAuthStore } from './useAuthStore'
 import {
-  collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc, getDocs
+  collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc, getDocs,
+  query, orderBy, limit,
 } from 'firebase/firestore'
 import {
   leaveFlatService,
@@ -31,19 +37,21 @@ export interface Task {
   name: string
   type: string
   priority: 'high' | 'medium' | 'low'
-  frequency: 'daily' | 'weekly' | 'monthly' | 'custom'
+  frequency: 'daily' | 'weekly' | 'monthly' | 'custom' | 'one_time'
   currentAssignedUserId: string
   queueOrder: string[]
   status: 'pending' | 'completed' | 'overdue' | 'paused'
   dueDate: string
   lastCompletedAt: string
+  groupId?: string    // shared ID for all jobs in the same group task
+  groupName?: string  // display name of the parent group (e.g. "Sunday Cleaning")
 }
 
 export interface Activity {
   id: string
   timestamp: string
   userId: string
-  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'task_edited' | 'returned_early'
+  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'task_edited' | 'returned_early' | 'expense_added' | 'expense_deleted' | 'settlement_added' | 'bill_generated' | 'bill_paid' | 'bill_skipped'
   details: string
   /** Admin can soft-hide entries without deleting them */
   hidden?: boolean
@@ -70,6 +78,97 @@ export interface SwapRequest {
   isOOSRequest?: boolean   // part of a "going out of station" batch
 }
 
+export type ExpenseCategory =
+  | 'rent' | 'electricity' | 'water' | 'internet' | 'gas'
+  | 'maid' | 'grocery' | 'milk' | 'ac'
+  | 'maintenance' | 'food' | 'household' | 'other'
+
+export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'SGD' | 'AUD'
+
+export interface Expense {
+  id: string
+  description: string
+  amount: number
+  currency: Currency
+  paidBy: string
+  splitAmong: string[]
+  splitType: 'equal' | 'percent' | 'custom'
+  splits: Record<string, number>  // userId → their share amount
+  category: ExpenseCategory
+  date: string              // yyyy-MM-dd
+  month?: string            // yyyy-MM — which billing cycle this belongs to
+  note?: string
+  deferToNextMonth?: boolean
+  createdAt: string
+  createdBy: string
+}
+
+export interface RecurringBill {
+  id: string
+  name: string
+  category: ExpenseCategory
+  amount: number | null    // null = variable (e.g. electricity)
+  currency: Currency
+  billingDay: number       // 1–28, day of month to generate
+  rotationQueue: string[]  // payer rotation — who physically pays landlord/utility
+  currentPayerIndex: number
+  participants?: string[]  // who splits the cost — defaults to rotationQueue if unset
+  isVariable: boolean
+  active: boolean
+  createdBy: string
+  createdAt: string
+  lastGeneratedMonth: string  // 'yyyy-MM' or '' — prevents double-generation
+}
+
+// ── Bill Instance — transactional layer for recurring bills ────────────────────
+// One instance is created per template per month when the bill is generated.
+// Templates (RecurringBill) are configurations. Instances are the transactions.
+
+export type BillInstanceStatus =
+  | 'pending'          // variable bill: billing day arrived, amount not yet entered
+  | 'split_generated'  // amount confirmed, splits computed, members notified
+  | 'paid'             // payer confirmed payment to landlord / utility company
+  | 'overdue'          // past due date and not yet paid
+  | 'skipped'          // admin explicitly skipped this bill for this month
+
+export interface BillInstance {
+  id: string
+  templateId: string       // RecurringBill.id
+  month: string            // yyyy-MM
+
+  // Snapshot from template at generation time
+  name: string
+  category: ExpenseCategory
+  currency: Currency
+
+  amount: number | null    // null for variable until entered
+
+  paidBy: string           // uid of who pays upfront (from payer rotation)
+  participants: string[]   // uid[] of who splits this bill
+  splits: Record<string, number> | null  // null until split_generated
+
+  status: BillInstanceStatus
+
+  dueDate: string          // yyyy-MM-dd
+  paidAt: string | null    // when payer confirmed payment
+  skippedReason: string | null
+  generatedAt: string
+  generatedBy: string
+}
+
+export interface Settlement {
+  id: string
+  fromUserId: string        // who paid
+  toUserId: string          // who received
+  amount: number
+  currency: Currency
+  note?: string
+  date: string
+  month?: string            // yyyy-MM — which billing cycle this covers
+  type?: 'immediate' | 'month_end' | 'carry_forward' | 'rent_adjustment'
+  createdAt: string
+}
+
 interface FlatState {
   flatId: string | null
   name: string | null
@@ -79,6 +178,10 @@ interface FlatState {
   activityLog: Activity[]
   swapRequests: SwapRequest[]
   joinRequests: JoinRequest[]
+  expenses: Expense[]
+  settlements: Settlement[]
+  recurringBills: RecurringBill[]
+  billInstances: BillInstance[]
   isSynced: boolean
 
   // Initialization
@@ -98,6 +201,17 @@ interface FlatState {
   editTask: (taskId: string, changes: Partial<Pick<Task, 'name' | 'type' | 'priority' | 'frequency' | 'dueDate'>>, adminId: string) => Promise<void>
   deleteTask: (taskId: string, adminId: string) => Promise<void>
   createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean, isOOSRequest?: boolean) => Promise<void>
+  addExpense: (data: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>
+  deleteExpense: (expenseId: string) => Promise<void>
+  addSettlement: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
+  deleteSettlement: (settlementId: string) => Promise<void>
+  createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
+  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'isVariable' | 'active' | 'currency'>>) => Promise<void>
+  deleteRecurringBill: (billId: string) => Promise<void>
+  generateBill: (billId: string, amount?: number) => Promise<void>
+  confirmBillAmount: (instanceId: string, amount: number) => Promise<void>
+  markBillPaid: (instanceId: string) => Promise<void>
+  skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
@@ -138,6 +252,127 @@ const MOCK_TASKS: Task[] = [
   { taskId: 't4', name: 'Grocery Run', type: 'groceries', priority: 'low', frequency: 'weekly', currentAssignedUserId: 'u3', queueOrder: ['u3', 'u4', 'u1', 'u2'], status: 'pending', dueDate: tomorrow.toISOString(), lastCompletedAt: yesterday.toISOString() },
 ]
 
+const MOCK_EXPENSES: Expense[] = [
+  {
+    id: 'ex1', description: 'June Rent', amount: 32000, currency: 'INR',
+    paidBy: 'u1', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
+    splits: { u1: 8000, u2: 8000, u3: 8000, u4: 8000 },
+    category: 'rent', date: '2026-06-01', createdAt: new Date(2026, 5, 1).toISOString(), createdBy: 'u1',
+  },
+  {
+    id: 'ex2', description: 'Electricity Bill', amount: 2800, currency: 'INR',
+    paidBy: 'u2', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
+    splits: { u1: 700, u2: 700, u3: 700, u4: 700 },
+    category: 'electricity', date: '2026-06-03', createdAt: new Date(2026, 5, 3).toISOString(), createdBy: 'u2',
+  },
+  {
+    id: 'ex3', description: 'WiFi', amount: 1200, currency: 'INR',
+    paidBy: 'u1', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
+    splits: { u1: 300, u2: 300, u3: 300, u4: 300 },
+    category: 'internet', date: '2026-06-02', createdAt: new Date(2026, 5, 2).toISOString(), createdBy: 'u1',
+  },
+]
+
+const MOCK_RECURRING_BILLS: RecurringBill[] = [
+  {
+    id: 'rb1', name: 'Room Rent', category: 'rent', amount: 20000, currency: 'INR',
+    billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 0,
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    isVariable: false, active: true, createdBy: 'u1',
+    createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-05',
+  },
+  {
+    // WiFi already generated for June — shows split_generated instance
+    id: 'rb2', name: 'WiFi', category: 'internet', amount: 800, currency: 'INR',
+    billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 2,
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    isVariable: false, active: true, createdBy: 'u1',
+    createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-06',
+  },
+  {
+    id: 'rb3', name: 'Water Bill', category: 'water', amount: 600, currency: 'INR',
+    billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 2,
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    isVariable: false, active: true, createdBy: 'u1',
+    createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-05',
+  },
+  {
+    // Electricity variable: generated for June but amount pending
+    id: 'rb4', name: 'Electricity', category: 'electricity', amount: null, currency: 'INR',
+    billingDay: 10, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 0,
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    isVariable: true, active: true, createdBy: 'u1',
+    createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-06',
+  },
+]
+
+const MOCK_BILL_INSTANCES: BillInstance[] = [
+  {
+    // WiFi — June 2026, splits computed, Arjun paying this month
+    id: 'bi1', templateId: 'rb2', month: '2026-06',
+    name: 'WiFi', category: 'internet', currency: 'INR',
+    amount: 800,
+    paidBy: 'u3',
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    splits: { u1: 200, u2: 200, u3: 200, u4: 200 },
+    status: 'split_generated',
+    dueDate: '2026-06-01',
+    paidAt: null, skippedReason: null,
+    generatedAt: new Date(2026, 5, 1).toISOString(),
+    generatedBy: 'u1',
+  },
+  {
+    // Electricity — June 2026, variable: amount not yet entered
+    id: 'bi2', templateId: 'rb4', month: '2026-06',
+    name: 'Electricity', category: 'electricity', currency: 'INR',
+    amount: null,
+    paidBy: 'u1',
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    splits: null,
+    status: 'pending',
+    dueDate: '2026-06-10',
+    paidAt: null, skippedReason: null,
+    generatedAt: new Date(2026, 5, 10).toISOString(),
+    generatedBy: 'u1',
+  },
+]
+
+// ── Pure helper: compute per-person bill splits with mid-month proration ──────
+function computeBillSplits(
+  amount: number,
+  participants: string[],
+  members: Member[],
+  today: Date,
+): Record<string, number> {
+  const yr = today.getFullYear()
+  const mo = today.getMonth() + 1
+  const monthStart = new Date(yr, mo - 1, 1)
+  const totalDays = new Date(yr, mo, 0).getDate()
+
+  const weights: Record<string, number> = {}
+  for (const uid of participants) {
+    const member = members.find(m => m.uid === uid)
+    if (!member) { weights[uid] = 1; continue }
+    const joined = member.joinedAt instanceof Date
+      ? member.joinedAt
+      : new Date(member.joinedAt as unknown as string)
+    weights[uid] = (!joined || isNaN(joined.getTime()) || joined <= monthStart)
+      ? 1
+      : Math.max(0, (totalDays - joined.getDate() + 1) / totalDays)
+  }
+
+  const totalWeight = Object.values(weights).reduce((s, w) => s + w, 0)
+  return Object.fromEntries(
+    participants.map(uid => {
+      const w = weights[uid] ?? 1
+      const share = totalWeight > 0
+        ? Math.round((amount * w / totalWeight) * 100) / 100
+        : Math.round((amount / participants.length) * 100) / 100
+      return [uid, share]
+    })
+  )
+}
+
 // Module-level unsubscribers — persists across state resets
 let unsubscribers: (() => void)[] = []
 
@@ -150,6 +385,10 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   activityLog: [],
   swapRequests: [],
   joinRequests: [],
+  expenses: hasKeys ? [] : MOCK_EXPENSES,
+  settlements: [],
+  recurringBills: hasKeys ? [] : MOCK_RECURRING_BILLS,
+  billInstances: hasKeys ? [] : MOCK_BILL_INSTANCES,
   isSynced: false,
 
   resetFlatData: () => {
@@ -165,6 +404,10 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       activityLog: [],
       swapRequests: [],
       joinRequests: [],
+      expenses: [],
+      settlements: [],
+      recurringBills: [],
+      billInstances: [],
       isSynced: false,
     })
   },
@@ -201,7 +444,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], isSynced: false })
 
     // FLAT DOC LISTENER — to get flat name + joinMode
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
@@ -232,12 +475,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ swapRequests: swapRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) })
     }, (err) => console.warn('SwapRequests listener error:', err))
 
-    // ACTIVITY LISTENER (last 50)
-    const unsub4 = onSnapshot(collection(db, `flats/${flatId}/activityLog`), (snapshot) => {
-      const activityLog: Activity[] = []
-      snapshot.forEach((doc) => activityLog.push(doc.data() as Activity))
-      set({ activityLog: activityLog.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()).slice(0, 50) })
-    }, (err) => console.warn('ActivityLog listener error:', err))
+    // ACTIVITY LISTENER (most recent 50, sorted server-side so we never fetch the whole collection)
+    const unsub4 = onSnapshot(
+      query(collection(db, `flats/${flatId}/activityLog`), orderBy('timestamp', 'desc'), limit(50)),
+      (snapshot) => {
+        const activityLog: Activity[] = []
+        snapshot.forEach((doc) => activityLog.push(doc.data() as Activity))
+        set({ activityLog })
+      },
+      (err) => console.warn('ActivityLog listener error:', err)
+    )
 
     // JOIN REQUESTS LISTENER
     const unsub5 = onSnapshot(collection(db, `flats/${flatId}/joinRequests`), (snapshot) => {
@@ -246,7 +493,47 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ joinRequests: joinRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()) })
     }, (err) => console.warn('JoinRequests listener error:', err))
 
-    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4, unsub5]
+    // EXPENSES LISTENER (most recent 100, sorted by date)
+    const unsub6 = onSnapshot(
+      query(collection(db, `flats/${flatId}/expenses`), orderBy('date', 'desc'), limit(100)),
+      (snapshot) => {
+        const expenses: Expense[] = []
+        snapshot.forEach((doc) => expenses.push(doc.data() as Expense))
+        set({ expenses })
+      },
+      (err) => console.warn('Expenses listener error:', err)
+    )
+
+    // SETTLEMENTS LISTENER
+    const unsub7 = onSnapshot(
+      query(collection(db, `flats/${flatId}/settlements`), orderBy('date', 'desc'), limit(100)),
+      (snapshot) => {
+        const settlements: Settlement[] = []
+        snapshot.forEach((doc) => settlements.push(doc.data() as Settlement))
+        set({ settlements })
+      },
+      (err) => console.warn('Settlements listener error:', err)
+    )
+
+    // RECURRING BILLS LISTENER
+    const unsub8 = onSnapshot(collection(db, `flats/${flatId}/recurringBills`), (snapshot) => {
+      const recurringBills: RecurringBill[] = []
+      snapshot.forEach((doc) => recurringBills.push(doc.data() as RecurringBill))
+      set({ recurringBills })
+    }, (err) => console.warn('RecurringBills listener error:', err))
+
+    // BILL INSTANCES LISTENER
+    const unsub9 = onSnapshot(
+      query(collection(db, `flats/${flatId}/billInstances`), orderBy('generatedAt', 'desc'), limit(200)),
+      (snapshot) => {
+        const billInstances: BillInstance[] = []
+        snapshot.forEach((doc) => billInstances.push(doc.data() as BillInstance))
+        set({ billInstances })
+      },
+      (err) => console.warn('BillInstances listener error:', err)
+    )
+
+    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4, unsub5, unsub6, unsub7, unsub8, unsub9]
     set({ isSynced: true })
   },
 
@@ -527,6 +814,216 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (task && toUser) {
       await get().addActivity({ userId: fromUserId, action: 'swap_requested', details: `requested ${toUser.nickname} to cover ${task.name}` })
     }
+  },
+
+  addExpense: async (data) => {
+    const newExpense: Expense = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    if (hasKeys && get().flatId) {
+      await setDoc(doc(db, `flats/${get().flatId}/expenses/${newExpense.id}`), fs(newExpense))
+    } else {
+      set(s => ({ expenses: [newExpense, ...s.expenses] }))
+    }
+    await get().addActivity({
+      userId: data.createdBy,
+      action: 'expense_added',
+      details: `added expense: ${data.description}`,
+    })
+  },
+
+  deleteExpense: async (expenseId) => {
+    if (hasKeys && get().flatId) {
+      await deleteDoc(doc(db, `flats/${get().flatId}/expenses/${expenseId}`))
+    } else {
+      set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))
+    }
+  },
+
+  addSettlement: async (data) => {
+    const newSettlement: Settlement = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    if (hasKeys && get().flatId) {
+      await setDoc(doc(db, `flats/${get().flatId}/settlements/${newSettlement.id}`), fs(newSettlement))
+    } else {
+      set(s => ({ settlements: [newSettlement, ...s.settlements] }))
+    }
+    const receiver = get().members.find(m => m.uid === data.toUserId)
+    await get().addActivity({
+      userId: data.fromUserId,
+      action: 'settlement_added',
+      details: `settled up with ${receiver?.nickname ?? '…'}`,
+    })
+  },
+
+  deleteSettlement: async (settlementId) => {
+    if (hasKeys && get().flatId) {
+      await deleteDoc(doc(db, `flats/${get().flatId}/settlements/${settlementId}`))
+    } else {
+      set(s => ({ settlements: s.settlements.filter(s => s.id !== settlementId) }))
+    }
+  },
+
+  createRecurringBill: async (data) => {
+    const newBill: RecurringBill = {
+      ...data,
+      id: crypto.randomUUID(),
+      currentPayerIndex: 0,
+      lastGeneratedMonth: '',
+      createdAt: new Date().toISOString(),
+    }
+    if (hasKeys && get().flatId) {
+      await setDoc(doc(db, `flats/${get().flatId}/recurringBills/${newBill.id}`), fs(newBill))
+    } else {
+      set(s => ({ recurringBills: [...s.recurringBills, newBill] }))
+    }
+  },
+
+  updateRecurringBill: async (billId, changes) => {
+    if (hasKeys && get().flatId) {
+      await updateDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`), changes)
+    } else {
+      set(s => ({ recurringBills: s.recurringBills.map(b => b.id === billId ? { ...b, ...changes } : b) }))
+    }
+  },
+
+  deleteRecurringBill: async (billId) => {
+    if (hasKeys && get().flatId) {
+      await deleteDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`))
+    } else {
+      set(s => ({ recurringBills: s.recurringBills.filter(b => b.id !== billId) }))
+    }
+  },
+
+  generateBill: async (billId, amount?) => {
+    const state = get()
+    const bill = state.recurringBills.find(b => b.id === billId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!bill || !uid) return
+
+    const today = new Date()
+    const yr = today.getFullYear()
+    const mo = today.getMonth() + 1
+    const currentMonth = `${yr}-${String(mo).padStart(2, '0')}`
+    const dueDate = `${currentMonth}-${String(bill.billingDay).padStart(2, '0')}`
+    const payer = bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+
+    // participants: who splits — falls back to rotationQueue for backward compat
+    const participants = bill.participants ?? bill.rotationQueue
+
+    // For fixed bills or when amount is explicitly provided, compute splits immediately
+    const finalAmount = bill.isVariable ? (amount ?? null) : (bill.amount ?? null)
+
+    let splits: Record<string, number> | null = null
+    let status: BillInstanceStatus = 'pending'
+
+    if (finalAmount !== null && finalAmount > 0) {
+      splits = computeBillSplits(finalAmount, participants, state.members, today)
+      status = 'split_generated'
+    }
+
+    const instance: BillInstance = {
+      id: crypto.randomUUID(),
+      templateId: billId,
+      month: currentMonth,
+      name: bill.name,
+      category: bill.category,
+      currency: bill.currency,
+      amount: finalAmount,
+      paidBy: payer,
+      participants,
+      splits,
+      status,
+      dueDate,
+      paidAt: null,
+      skippedReason: null,
+      generatedAt: new Date().toISOString(),
+      generatedBy: uid,
+    }
+
+    if (hasKeys && state.flatId) {
+      await setDoc(doc(db, `flats/${state.flatId}/billInstances/${instance.id}`), fs(instance))
+    } else {
+      set(s => ({ billInstances: [...s.billInstances, instance] }))
+    }
+
+    // Advance payer rotation and record generation month
+    const nextIndex = (bill.currentPayerIndex + 1) % bill.rotationQueue.length
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`), {
+        currentPayerIndex: nextIndex,
+        lastGeneratedMonth: currentMonth,
+      })
+    } else {
+      set(s => ({
+        recurringBills: s.recurringBills.map(b => b.id === billId
+          ? { ...b, currentPayerIndex: nextIndex, lastGeneratedMonth: currentMonth }
+          : b)
+      }))
+    }
+
+    const monthName = today.toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+    await get().addActivity({
+      userId: uid,
+      action: 'bill_generated',
+      details: `generated ${bill.name} bill for ${monthName}`,
+    })
+  },
+
+  confirmBillAmount: async (instanceId, amount) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!instance || !uid || amount <= 0) return
+
+    const splits = computeBillSplits(amount, instance.participants, state.members, new Date())
+    const changes = { amount, splits, status: 'split_generated' as BillInstanceStatus }
+
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    } else {
+      set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
+    }
+    await get().addActivity({
+      userId: uid,
+      action: 'bill_generated',
+      details: `confirmed ${instance.name} amount: ₹${amount}`,
+    })
+  },
+
+  markBillPaid: async (instanceId) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!instance || !uid) return
+
+    const changes = { status: 'paid' as BillInstanceStatus, paidAt: new Date().toISOString() }
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    } else {
+      set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
+    }
+    await get().addActivity({
+      userId: uid,
+      action: 'bill_paid',
+      details: `marked ${instance.name} as paid to landlord/provider`,
+    })
+  },
+
+  skipBillInstance: async (instanceId, reason?) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!instance || !uid) return
+
+    const changes = { status: 'skipped' as BillInstanceStatus, skippedReason: reason ?? null }
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    } else {
+      set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
+    }
+    await get().addActivity({
+      userId: uid,
+      action: 'bill_skipped',
+      details: `skipped ${instance.name}${reason ? `: ${reason}` : ''}`,
+    })
   },
 
   resolveSwapRequest: async (requestId, status) => {

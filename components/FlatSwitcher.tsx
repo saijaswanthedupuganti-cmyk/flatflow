@@ -1,13 +1,13 @@
 "use client"
 import { useState, useRef, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Check, ChevronDown, Plus, LogIn, LogOut, Home } from 'lucide-react'
+import { Check, ChevronDown, Plus, LogIn, Home } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 
 export default function FlatSwitcher() {
   const router = useRouter()
-  const { user, flatId, allFlats, switchFlat, logout } = useAuthStore()
+  const { user, flatId, allFlats, switchFlat } = useAuthStore()
   const { initFirestoreListeners, resetFlatData, name: liveFlatName } = useFlatStore()
 
   const [open, setOpen] = useState(false)
@@ -41,13 +41,6 @@ export default function FlatSwitcher() {
     } finally {
       setSwitching(false)
     }
-  }
-
-  const handleLogout = async () => {
-    setOpen(false)
-    resetFlatData()
-    await logout()
-    router.push('/')
   }
 
   return (
@@ -128,18 +121,6 @@ export default function FlatSwitcher() {
             </button>
           </div>
 
-          {/* Sign out */}
-          <div className="px-3 pb-3 border-t border-border/60 pt-2">
-            <button
-              onClick={handleLogout}
-              className="w-full flex items-center gap-2.5 px-2 py-2 rounded-lg hover:bg-destructive/10 transition-colors text-left group"
-            >
-              <div className="w-6 h-6 rounded-md bg-secondary flex items-center justify-center shrink-0 group-hover:bg-destructive/20">
-                <LogOut size={11} className="text-muted-foreground group-hover:text-destructive" />
-              </div>
-              <span className="text-sm font-medium text-muted-foreground group-hover:text-destructive">Sign Out</span>
-            </button>
-          </div>
         </div>
       )}
     </div>

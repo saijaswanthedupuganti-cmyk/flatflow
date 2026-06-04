@@ -14,13 +14,18 @@ const TASK_EMOJIS: Record<string, string> = {
   laundry: '👕', maintenance: '🔧', other: '📋',
 }
 const FREQ_LABEL: Record<string, string> = {
-  daily: 'Daily', weekly: 'Weekly', monthly: 'Monthly', custom: 'Custom',
+  daily:    'Daily',
+  weekly:   'Weekly',
+  monthly:  'Monthly',
+  custom:   'Custom',
+  one_time: 'One-time',
 }
 const FREQ_COLOR: Record<string, string> = {
-  daily:   'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
-  weekly:  'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400',
-  monthly: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
-  custom:  'bg-gray-100   text-gray-600   dark:bg-gray-900/30   dark:text-gray-400',
+  daily:    'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+  weekly:   'bg-blue-100   text-blue-700   dark:bg-blue-900/30   dark:text-blue-400',
+  monthly:  'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+  custom:   'bg-gray-100   text-gray-600   dark:bg-gray-900/30   dark:text-gray-400',
+  one_time: 'bg-teal-100   text-teal-700   dark:bg-teal-900/30   dark:text-teal-400',
 }
 
 export default function DashboardPage() {
@@ -408,7 +413,9 @@ export default function DashboardPage() {
                         <div className="flex items-center justify-between mb-1">
                           <span className="flex items-center gap-1.5">
                             {style.icon}
-                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">{task.frequency}</span>
+                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
+                              {FREQ_LABEL[task.frequency] ?? task.frequency}
+                            </span>
                           </span>
                           {task.priority === 'high' && (
                             <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold border flex items-center gap-1 ${style.badge}`}>
@@ -669,7 +676,10 @@ export default function DashboardPage() {
               </div>
             )}
 
-            {tasks.map(task => {
+            {tasks
+              .filter(task => !(task.frequency === 'one_time' && task.status === 'completed'))
+              .map(task => {
+              const isOneTime  = task.frequency === 'one_time'
               const currentIdx   = task.queueOrder.indexOf(task.currentAssignedUserId)
               const orderedQueue = [
                 ...task.queueOrder.slice(currentIdx),
@@ -728,11 +738,38 @@ export default function DashboardPage() {
                     </div>
                   </div>
 
-                  {/* ── Rotation strip ───────────────────────────── */}
+                  {/* ── Rotation strip / One-time assignment ─────── */}
                   <div className="px-3 pb-4 pt-2">
 
-                    {/* ── Mobile: vertical stack ── */}
-                    <div className="flex flex-col gap-1 sm:hidden">
+                    {/* One-time task: simple assigned-to row, no queue */}
+                    {isOneTime && (() => {
+                      const assignee = members.find(m => m.uid === task.currentAssignedUserId)
+                      if (!assignee) return null
+                      return (
+                        <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 ${
+                          isMyTask
+                            ? 'bg-primary border-primary text-white shadow-md'
+                            : 'bg-card border-border/50'
+                        }`}>
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                            isMyTask ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
+                          }`}>
+                            {assignee.nickname.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={`flex-1 text-sm font-semibold ${isMyTask ? 'text-white' : 'text-foreground'}`}>
+                            {assignee.nickname}
+                          </span>
+                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                            isMyTask ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'
+                          }`}>
+                            {isMyTask ? 'YOU' : 'ASSIGNED'}
+                          </span>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Recurring task: full queue strip */}
+                    {!isOneTime && (<><div className="flex flex-col gap-1 sm:hidden">
                       {orderedQueue.map((uid, idx) => {
                         const m      = members.find(x => x.uid === uid)
                         const isNow  = idx === 0
@@ -873,6 +910,7 @@ export default function DashboardPage() {
                         )
                       })}
                     </div>
+                    </>)}
                   </div>
                 </div>
               )

@@ -123,6 +123,63 @@ service cloud.firestore {
         // Admin can delete (needed for flat deletion and kick cleanup)
         allow delete: if isAdmin(flatId);
       }
+
+      // ── Expenses ────────────────────────────────────────────────────────────
+      match /expenses/{expenseId} {
+        allow read: if isMember(flatId);
+        allow create: if isMember(flatId)
+          && request.resource.data.createdBy == request.auth.uid;
+        allow delete: if isMember(flatId)
+          && (resource.data.createdBy == request.auth.uid || isAdmin(flatId));
+        allow update: if false;
+      }
+
+      // ── Settlements ──────────────────────────────────────────────────────────
+      match /settlements/{settlementId} {
+        allow read: if isMember(flatId);
+        allow create: if isMember(flatId)
+          && request.resource.data.fromUserId == request.auth.uid;
+        allow delete: if isMember(flatId)
+          && (resource.data.fromUserId == request.auth.uid || isAdmin(flatId));
+        allow update: if false;
+      }
+
+      // ── Recurring Bills ──────────────────────────────────────────────────────
+      match /recurringBills/{billId} {
+        allow read: if isMember(flatId);
+        allow create, update, delete: if isAdmin(flatId);
+      }
+
+      // ── Bill Instances ────────────────────────────────────────────────────────
+      // One instance per recurring bill per month. Separate from ad-hoc expenses.
+      match /billInstances/{instanceId} {
+        // All members can read
+        allow read: if isMember(flatId);
+        // Admin creates instances (via generateBill)
+        allow create: if isAdmin(flatId)
+          && request.resource.data.generatedBy == request.auth.uid;
+        // Admin can update any field (skip, edit amount, etc.)
+        // Payer can mark their own instance as paid
+        allow update: if isAdmin(flatId)
+          || (isMember(flatId) && resource.data.paidBy == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt']));
+        // Admin can delete (needed for flat deletion)
+        allow delete: if isAdmin(flatId);
+      }
+
+      // ── Join Requests ────────────────────────────────────────────────────────
+      // Used when the flat is in 'approval' mode. Non-members submit requests;
+      // the admin approves or rejects them.
+      match /joinRequests/{requestId} {
+        // Admin reads all pending requests; requester can read their own status
+        allow read: if isAdmin(flatId)
+          || (request.auth != null && resource.data.uid == request.auth.uid);
+        // Any authenticated user may submit a join request for themselves
+        allow create: if request.auth != null
+          && request.resource.data.uid == request.auth.uid;
+        // Admin can approve/reject (update status) or delete
+        allow update, delete: if isAdmin(flatId);
+      }
     }
   }
 }

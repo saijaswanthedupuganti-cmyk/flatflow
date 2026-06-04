@@ -4,7 +4,7 @@ import { ExternalLink, Link2, RefreshCw, Bell, BarChart3, CalendarDays, Shield, 
 const TEAM = [
   {
     name: 'Venkata Sai Jaswanth E',
-    role: 'Co-founder & Designer',
+    role: 'Founder',
     bio: 'Leads the design vision for Habitiq — from concept to interface. Focused on making shared living feel effortless through thoughtful product decisions.',
     avatar: 'SJ',
     linkedin: 'https://www.linkedin.com/in/venkata-sai-jaswanth-e/',

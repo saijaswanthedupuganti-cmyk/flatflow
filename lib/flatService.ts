@@ -19,12 +19,14 @@ export interface FlatInfo {
   name: string
 }
 
-/** Generate a human-readable flat ID like "FLAT-A3B9" */
+/** Generate a human-readable flat ID like "FLAT-A3B9" using cryptographically secure randomness */
 export function generateFlatId(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const bytes = new Uint8Array(4)
+  crypto.getRandomValues(bytes)
   let code = 'FLAT-'
   for (let i = 0; i < 4; i++) {
-    code += chars[Math.floor(Math.random() * chars.length)]
+    code += chars[bytes[i] % chars.length]
   }
   return code
 }
@@ -343,10 +345,17 @@ async function reassignMemberTasks(flatId: string, leavingUid: string): Promise<
   const batch = writeBatch(db)
   taskSnaps.forEach((taskDoc) => {
     const task = taskDoc.data()
-    const newQueue = (task.queueOrder || []).filter((uid: string) => uid !== leavingUid)
+    const oldQueue: string[] = task.queueOrder || []
+    const leavingIndex = oldQueue.indexOf(leavingUid)
+    const newQueue = oldQueue.filter((uid: string) => uid !== leavingUid)
     const update: Record<string, unknown> = { queueOrder: newQueue }
     if (task.currentAssignedUserId === leavingUid) {
-      update.currentAssignedUserId = newQueue.length > 0 ? newQueue[0] : ''
+      // Assign to the person who was NEXT after the leaving member in the original
+      // queue. After filtering, that person now sits at `leavingIndex` (or wraps
+      // to 0 if the leaving member was last in the queue).
+      update.currentAssignedUserId = newQueue.length > 0
+        ? newQueue[leavingIndex % newQueue.length]
+        : ''
     }
     batch.update(taskDoc.ref, update)
   })
@@ -437,9 +446,12 @@ export async function kickMemberService(adminUid: string, targetUid: string, fla
     timestamp: new Date().toISOString(),
   })
 
-  // Remove member doc and decrement the flat's member counter
-  await deleteDoc(doc(db, `flats/${flatId}/members/${targetUid}`))
-  await updateDoc(doc(db, `flats/${flatId}`), { memberCount: increment(-1) })
+  // Delete member doc and decrement counter atomically — if either fails, neither
+  // commits, so memberCount never gets stuck at a value that prevents future joins.
+  const kickBatch = writeBatch(db)
+  kickBatch.delete(doc(db, `flats/${flatId}/members/${targetUid}`))
+  kickBatch.update(doc(db, `flats/${flatId}`), { memberCount: increment(-1) })
+  await kickBatch.commit()
 
   // Best-effort: update kicked user's profile (may fail due to Firestore auth rules)
   try {
@@ -472,7 +484,7 @@ export async function transferAdminService(currentAdminUid: string, newAdminUid:
 export async function deleteEntireFlatService(adminUid: string, flatId: string): Promise<void> {
   if (!hasKeys || !db) return
 
-  const subcollections = ['members', 'tasks', 'activityLog', 'swapRequests']
+  const subcollections = ['members', 'tasks', 'activityLog', 'swapRequests', 'joinRequests', 'npsResponses', 'expenses', 'settlements', 'recurringBills']
   for (const sub of subcollections) {
     const snaps = await getDocs(collection(db, `flats/${flatId}/${sub}`))
     if (!snaps.empty) {

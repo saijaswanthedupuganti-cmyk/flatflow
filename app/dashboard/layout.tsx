@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users, Settings,
-  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck, Repeat2,
+  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
@@ -16,13 +16,14 @@ const NAV_ITEMS = {
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, color: 'text-blue-500', bg: 'bg-blue-500/10' },
     { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, exact: false, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays, exact: false, color: 'text-green-500', bg: 'bg-green-500/10' },
+    { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt, exact: false, color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { href: '/dashboard/swaps', label: 'Swaps', icon: Repeat2, exact: false, color: 'text-violet-500', bg: 'bg-violet-500/10' },
   ],
   admin: [
     { href: '/dashboard/tasks', label: 'Tasks & Rotation', icon: ClipboardList, exact: false, color: 'text-orange-500', bg: 'bg-orange-500/10' },
-    { href: '/dashboard/members', label: 'Members', icon: Users, exact: false, color: 'text-pink-500', bg: 'bg-pink-500/10' },
   ],
   general: [
+    { href: '/dashboard/members', label: 'Members', icon: Users, exact: false, color: 'text-pink-500', bg: 'bg-pink-500/10' },
     { href: '/dashboard/settings', label: 'Settings', icon: Settings, exact: false, color: 'text-muted-foreground', bg: 'bg-secondary' },
     { href: '/dashboard/about', label: 'About', icon: Info, exact: false, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ],
@@ -31,9 +32,8 @@ const NAV_ITEMS = {
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter()
   const pathname = usePathname()
-  const { user } = useAuthStore()
-  const { members, tasks, swapRequests, joinRequests, initFirestoreListeners, isSynced, name: flatName } = useFlatStore()
-  const { flatId: authFlatId } = useAuthStore()
+  const { user, allFlats, flatId: authFlatId, logout } = useAuthStore()
+  const { members, tasks, swapRequests, joinRequests, initFirestoreListeners, isSynced, name: flatName, resetFlatData } = useFlatStore()
 
   const currentUser = members.find(m => m.uid === user?.uid)
   const isAdmin = currentUser?.role === 'admin'
@@ -142,23 +142,35 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           {NAV_ITEMS.general.map(item => <NavLink key={item.href} {...item} />)}
         </nav>
 
-        {/* User Footer — FlatSwitcher first, user info below */}
+        {/* User Footer */}
         <div className="p-3 border-t border-border/60 space-y-2">
-          {/* Flat switcher (flat name, switch, sign out) */}
           <FlatSwitcher />
-          {/* User info */}
-          <div className="flex items-center gap-3 px-2 py-2 rounded-xl bg-secondary/50">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-white font-bold text-sm shrink-0">
+
+          {/* Profile — navigates to full profile page */}
+          <Link
+            href="/dashboard/profile"
+            className={`flex items-center gap-3 px-2 py-2 rounded-xl transition-colors ${
+              pathname === '/dashboard/profile'
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-secondary/50 hover:bg-secondary'
+            }`}
+          >
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${
+              pathname === '/dashboard/profile' ? 'bg-white/20' : 'bg-primary'
+            }`}>
               {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
             </div>
             <div className="min-w-0 flex-1">
               <p className="text-sm font-semibold truncate leading-tight">{user?.displayName || 'User'}</p>
               <div className="flex items-center gap-1 mt-0.5">
-                <ShieldCheck size={11} className={isAdmin ? 'text-primary' : 'text-muted-foreground'} />
-                <p className="text-[11px] text-muted-foreground capitalize">{isAdmin ? 'Admin' : 'Member'}</p>
+                <ShieldCheck size={11} className={pathname === '/dashboard/profile' ? 'text-primary-foreground/70' : isAdmin ? 'text-primary' : 'text-muted-foreground'} />
+                <p className={`text-[11px] capitalize ${pathname === '/dashboard/profile' ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                  {isAdmin ? 'Admin' : 'Member'}
+                </p>
               </div>
             </div>
-          </div>
+            <ChevronDown size={13} className={`shrink-0 transition-transform -rotate-90 ${pathname === '/dashboard/profile' ? 'text-primary-foreground/60' : 'text-muted-foreground/60'}`} />
+          </Link>
         </div>
       </aside>
 
@@ -172,7 +184,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border/60 flex justify-around items-center px-2 py-2 z-50">
         <MobileNavLink {...NAV_ITEMS.main[0]} />
-        <MobileNavLink {...NAV_ITEMS.main[1]} />
+        <MobileNavLink {...NAV_ITEMS.main[3]} />
         {/* Swaps with badge */}
         <Link href="/dashboard/swaps" className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative ${pathname.startsWith('/dashboard/swaps') ? 'text-primary' : 'text-muted-foreground'}`}>
           <Repeat2 size={22} />
@@ -185,8 +197,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </Link>
         {isAdmin
           ? <MobileNavLink {...NAV_ITEMS.admin[0]} />
+          : <MobileNavLink {...NAV_ITEMS.general[0]} />}
+        {isAdmin
+          ? <MobileNavLink {...NAV_ITEMS.general[0]} />
           : <MobileNavLink {...NAV_ITEMS.general[1]} />}
-        <MobileNavLink {...NAV_ITEMS.general[0]} />
       </nav>
     </div>
   )

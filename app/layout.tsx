@@ -15,11 +15,12 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Habitiq | Smart Living Management",
   description: "The smart shared living management platform — automated duty rotation, real-time sync, and fair accountability for flats, PGs, and co-living spaces.",
+  manifest: "/manifest.json",
   icons: {
     icon: [
       { url: "/habitiq-logo.svg", type: "image/svg+xml" },
     ],
-    apple: "/habitiq-logo.svg",
+    apple: "/api/pwa-icon/180",
   },
   openGraph: {
     title: "Habitiq — Smart Living Management",
@@ -36,6 +37,8 @@ export const metadata: Metadata = {
 };
 
 import AuthProvider from "@/components/AuthProvider";
+import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 export default function RootLayout({
   children,
@@ -60,9 +63,18 @@ export default function RootLayout({
             `,
           }}
         />
+        <link rel="manifest" href="/manifest.json" />
+        <meta name="theme-color" content="#4f46e5" />
+        <meta name="mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+        <meta name="apple-mobile-web-app-title" content="Habitiq" />
+        <link rel="apple-touch-icon" href="/api/pwa-icon/180" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <AuthProvider>{children}</AuthProvider>
+        <ServiceWorkerRegistration />
+        <PWAInstallPrompt />
       </body>
     </html>
   );

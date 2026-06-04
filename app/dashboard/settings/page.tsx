@@ -5,14 +5,11 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
-  Copy, Check, Sun, Moon, Shield, User, Home, Info,
-  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X, Pencil, Save, Link, UserCheck, Lock, Star, MessageSquare
+  Sun, Moon, Shield, User, Info,
+  LogOut, AlertTriangle, DoorOpen, ShieldCheck, X,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
-import FlatSwitcher from '@/components/FlatSwitcher'
-import { getNpsResponses, type NpsResponse } from '@/lib/npsService'
 
-// ── Simple dialog overlay ──────────────────────────────────────────────────
 interface DialogProps {
   open: boolean
   onClose: () => void
@@ -56,30 +53,15 @@ function ConfirmDialog({ open, onClose, title, description, confirmLabel, confir
 
 export default function SettingsPage() {
   const router = useRouter()
-  const { flatId, name, joinMode, members, leaveFlat, transferAdmin, deleteFlat, renameFlatAction, setJoinMode } = useFlatStore()
-  const { user, logout, allFlats } = useAuthStore()
-  const [npsResponses, setNpsResponses] = useState<NpsResponse[]>([])
-
-  const handleLogout = async () => {
-    await logout()
-    router.push('/')
-  }
+  const { name, members, leaveFlat, transferAdmin, deleteFlat } = useFlatStore()
+  const { user, logout } = useAuthStore()
 
   const currentMember = members.find(m => m.uid === user?.uid)
   const isAdmin = currentMember?.role === 'admin'
   const otherMembers = members.filter(m => m.uid !== user?.uid)
   const hasOtherMembers = otherMembers.length > 0
 
-  const [copied, setCopied] = useState(false)
   const [isDark, setIsDark] = useState(false)
-
-  // Flat name editing
-  const [editingName, setEditingName] = useState(false)
-  const [draftName, setDraftName] = useState('')
-  const [nameLoading, setNameLoading] = useState(false)
-  const [nameError, setNameError] = useState('')
-
-  // Leave flat dialog states
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showTransferAdmin, setShowTransferAdmin] = useState(false)
   const [showDeleteFlat, setShowDeleteFlat] = useState(false)
@@ -87,16 +69,9 @@ export default function SettingsPage() {
   const [leaveLoading, setLeaveLoading] = useState(false)
   const [leaveError, setLeaveError] = useState('')
 
-  // Sync dark mode from <html> class on mount
   useEffect(() => {
     setIsDark(document.documentElement.classList.contains('dark'))
   }, [])
-
-  useEffect(() => {
-    if (isAdmin && flatId) {
-      getNpsResponses(flatId).then(setNpsResponses)
-    }
-  }, [isAdmin, flatId])
 
   const toggleDark = () => {
     const newDark = !isDark
@@ -110,30 +85,18 @@ export default function SettingsPage() {
     }
   }
 
-  const handleCopy = () => {
-    if (!flatId) return
-    navigator.clipboard.writeText(flatId).then(() => {
-      setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
-    })
-  }
-
   const handleLeaveClick = () => {
     setLeaveError('')
     if (isAdmin && hasOtherMembers) {
-      // Must transfer admin first
       setSelectedNewAdmin(otherMembers[0]?.uid || '')
       setShowTransferAdmin(true)
     } else if (isAdmin && !hasOtherMembers) {
-      // Last member — will delete flat
       setShowDeleteFlat(true)
     } else {
-      // Regular member — simple confirm
       setShowLeaveConfirm(true)
     }
   }
 
-  /** Regular member leaves */
   const handleConfirmLeave = async () => {
     if (!user) return
     setLeaveLoading(true)
@@ -141,7 +104,6 @@ export default function SettingsPage() {
     try {
       const { nextFlatId } = await leaveFlat(user.uid)
       if (nextFlatId) {
-        // useAuthStore will be updated by FlatSwitcher or we push to dashboard
         router.push('/dashboard')
       } else {
         await logout()
@@ -154,7 +116,6 @@ export default function SettingsPage() {
     }
   }
 
-  /** Admin transfers role then leaves */
   const handleTransferAndLeave = async () => {
     if (!user || !selectedNewAdmin) return
     setLeaveLoading(true)
@@ -176,7 +137,6 @@ export default function SettingsPage() {
     }
   }
 
-  /** Admin deletes entire flat (last member) */
   const handleDeleteFlat = async () => {
     if (!user) return
     setLeaveLoading(true)
@@ -193,29 +153,7 @@ export default function SettingsPage() {
     }
   }
 
-  const activeMembers = members.filter(m => m.status !== 'inactive')
   const flatDisplayName = name || 'My Flat'
-
-  const handleStartEditName = () => {
-    setDraftName(flatDisplayName)
-    setNameError('')
-    setEditingName(true)
-  }
-
-  const handleSaveName = async () => {
-    const trimmed = draftName.trim()
-    if (!trimmed || trimmed === flatDisplayName) { setEditingName(false); return }
-    setNameLoading(true)
-    setNameError('')
-    try {
-      await renameFlatAction(trimmed)
-      setEditingName(false)
-    } catch (e: unknown) {
-      setNameError(e instanceof Error ? e.message : 'Failed to rename. Try again.')
-    } finally {
-      setNameLoading(false)
-    }
-  }
 
   return (
     <>
@@ -224,7 +162,7 @@ export default function SettingsPage() {
         open={showLeaveConfirm}
         onClose={() => setShowLeaveConfirm(false)}
         title={`Leave ${flatDisplayName}?`}
-        description="You will lose access to this flat. Your tasks will be reassigned. You can join again with an invite code."
+        description="You will lose access to this flat. Your tasks will be reassigned. You can rejoin with an invite code."
         confirmLabel="Leave Flat"
         onConfirm={handleConfirmLeave}
         loading={leaveLoading}
@@ -268,161 +206,13 @@ export default function SettingsPage() {
         {leaveError && <p className="text-sm text-destructive font-medium">{leaveError}</p>}
       </ConfirmDialog>
 
-      <div className="space-y-6">
+      <div className="space-y-6 max-w-2xl">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-          <p className="text-muted-foreground mt-1">Manage your flat and personal preferences.</p>
+          <p className="text-muted-foreground mt-1">Your personal preferences and account.</p>
         </div>
 
-        {/* Flat Info */}
-        <Card className="shadow-sm">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Home size={20} className="text-primary" />
-              Flat Information
-            </CardTitle>
-            <CardDescription>Details about your shared home.</CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {/* Flat Name — admin can edit it inline */}
-              <div className="space-y-1.5">
-                <p className="text-sm font-bold text-muted-foreground">Flat Name</p>
-                {editingName ? (
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <input
-                        autoFocus
-                        type="text"
-                        maxLength={50}
-                        value={draftName}
-                        onChange={e => setDraftName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') handleSaveName(); if (e.key === 'Escape') setEditingName(false) }}
-                        className="flex-1 bg-background border border-primary rounded-lg px-3 py-1.5 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-primary/30"
-                      />
-                      <button
-                        onClick={handleSaveName}
-                        disabled={nameLoading || !draftName.trim()}
-                        className="p-1.5 rounded-lg bg-primary text-white hover:bg-primary/90 disabled:opacity-50 transition-colors"
-                        title="Save"
-                      >
-                        <Save size={14} />
-                      </button>
-                      <button
-                        onClick={() => setEditingName(false)}
-                        className="p-1.5 rounded-lg bg-secondary hover:bg-secondary/80 transition-colors"
-                        title="Cancel"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                    {nameError && <p className="text-xs text-destructive">{nameError}</p>}
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2 group">
-                    <p className="text-lg font-semibold">{flatDisplayName}</p>
-                    {isAdmin && (
-                      <button
-                        onClick={handleStartEditName}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md text-muted-foreground hover:text-primary hover:bg-primary/10 transition-all"
-                        title="Edit flat name"
-                      >
-                        <Pencil size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
-                {isAdmin && !editingName && (
-                  <p className="text-[11px] text-muted-foreground">
-                    ID: <span className="font-mono">{flatId}</span> — never changes
-                  </p>
-                )}
-              </div>
-              <div className="space-y-1">
-                <p className="text-sm font-bold text-muted-foreground">Total Members</p>
-                <p className="text-lg font-semibold">{activeMembers.length} roommates</p>
-              </div>
-            </div>
-
-            {isAdmin && (
-              <div className="pt-4 border-t border-border space-y-4">
-                {/* Join mode toggle */}
-                <div>
-                  <p className="text-sm font-bold text-muted-foreground mb-1">Join Mode</p>
-                  <p className="text-xs text-muted-foreground mb-3">
-                    Control how new roommates enter your flat.
-                  </p>
-                  <div className="grid grid-cols-2 gap-2">
-                    <button
-                      onClick={() => setJoinMode('auto')}
-                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${
-                        joinMode === 'auto'
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <UserCheck size={16} className={joinMode === 'auto' ? 'text-primary' : 'text-muted-foreground'} />
-                      <div>
-                        <p className={`text-xs font-bold ${joinMode === 'auto' ? 'text-primary' : ''}`}>Auto Join</p>
-                        <p className="text-[10px] text-muted-foreground">Anyone with the code joins instantly</p>
-                      </div>
-                    </button>
-                    <button
-                      onClick={() => setJoinMode('approval')}
-                      className={`flex items-center gap-2 p-3 rounded-xl border-2 text-left transition-all ${
-                        joinMode === 'approval'
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:border-primary/50'
-                      }`}
-                    >
-                      <Lock size={16} className={joinMode === 'approval' ? 'text-primary' : 'text-muted-foreground'} />
-                      <div>
-                        <p className={`text-xs font-bold ${joinMode === 'approval' ? 'text-primary' : ''}`}>Approval Only</p>
-                        <p className="text-[10px] text-muted-foreground">You must approve each request</p>
-                      </div>
-                    </button>
-                  </div>
-                </div>
-
-                {/* Invite code + link */}
-                <div>
-                  <p className="text-sm font-bold text-muted-foreground mb-1">Invite</p>
-                  <p className="text-xs text-muted-foreground mb-3">Share the code or the full link with roommates.</p>
-
-                  {/* Code */}
-                  <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-3 mb-2">
-                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1">
-                      {flatId || 'FLAT-1234'}
-                    </code>
-                    <Button size="sm" variant="outline" onClick={handleCopy} className="shrink-0 gap-2">
-                      {copied ? <><Check size={14} className="text-green-500" /> Copied!</> : <><Copy size={14} /> Code</>}
-                    </Button>
-                  </div>
-
-                  {/* Full invite link */}
-                  <button
-                    onClick={() => {
-                      const link = `${window.location.origin}/onboarding?mode=join&code=${flatId}`
-                      navigator.clipboard.writeText(link).then(() => {
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 2000)
-                      })
-                    }}
-                    className="w-full flex items-center gap-2 px-4 py-2.5 bg-primary/5 hover:bg-primary/10 border border-primary/20 rounded-xl transition-colors"
-                  >
-                    <Link size={13} className="text-primary shrink-0" />
-                    <span className="text-xs font-semibold text-primary flex-1 text-left truncate">
-                      Copy invite link
-                    </span>
-                    <Copy size={13} className="text-primary shrink-0" />
-                  </button>
-                </div>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Profile */}
+        {/* ── Profile ──────────────────────────────────────────────────── */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -432,7 +222,6 @@ export default function SettingsPage() {
             <CardDescription>Your account details and current status.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-5">
-            {/* Avatar + name + email */}
             <div className="flex items-center gap-4">
               <div className="w-16 h-16 rounded-full bg-primary flex items-center justify-center text-2xl font-bold text-white shrink-0">
                 {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
@@ -443,13 +232,12 @@ export default function SettingsPage() {
                 <div className="flex items-center gap-1 mt-1">
                   <Shield size={13} className={isAdmin ? 'text-primary' : 'text-muted-foreground'} />
                   <span className={`text-xs font-semibold capitalize ${isAdmin ? 'text-primary' : 'text-muted-foreground'}`}>
-                    {isAdmin ? 'Admin' : 'Member'}
+                    {isAdmin ? 'Admin' : 'Member'} · {flatDisplayName}
                   </span>
                 </div>
               </div>
             </div>
 
-            {/* Detail rows */}
             <div className="divide-y divide-border rounded-xl border border-border overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3">
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</span>
@@ -465,22 +253,13 @@ export default function SettingsPage() {
                 <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Reliability Score</span>
                 <span className="text-sm font-bold text-primary">{currentMember?.reliabilityScore ?? 100}</span>
               </div>
-              {allFlats.map(flat => (
-                <div key={flat.id} className="flex items-center justify-between px-4 py-3">
-                  <span className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-                    {allFlats.length > 1 ? 'Flat' : 'Your Flat'}
-                  </span>
-                  <span className="text-sm font-semibold truncate max-w-[60%] text-right">{flat.name || flat.id}</span>
-                </div>
-              ))}
             </div>
 
-            {/* Sign Out — always visible */}
             <div className="pt-2 border-t border-border">
               <Button
                 variant="outline"
                 className="w-full h-11 text-destructive border-destructive/40 hover:bg-destructive/10 hover:border-destructive font-semibold gap-2"
-                onClick={handleLogout}
+                onClick={async () => { await logout(); router.push('/') }}
               >
                 <LogOut size={16} />
                 Sign Out
@@ -489,25 +268,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Flat Switcher — mobile only (desktop has it in sidebar) */}
-        <Card className="shadow-sm md:hidden">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Home size={20} className="text-primary" />
-              Switch Flat
-            </CardTitle>
-            <CardDescription>
-              {allFlats.length > 1
-                ? `You are in ${allFlats.length} flats. Tap to switch.`
-                : 'Join or create another flat.'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <FlatSwitcher />
-          </CardContent>
-        </Card>
-
-        {/* Appearance */}
+        {/* ── Appearance ───────────────────────────────────────────────── */}
         <Card className="shadow-sm">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -533,7 +294,6 @@ export default function SettingsPage() {
                 }`} />
               </button>
             </div>
-
             <div className="grid grid-cols-2 gap-3 mt-4">
               <button
                 onClick={() => { if (isDark) toggleDark() }}
@@ -563,97 +323,7 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* ── NPS / Feedback (admin only) ──────────────────────────── */}
-        {isAdmin && (
-          <Card className="shadow-sm">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Star size={20} className="text-primary" />
-                Member Feedback
-              </CardTitle>
-              <CardDescription>
-                Net Promoter Score — how likely are members to recommend FlatFlow?
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {npsResponses.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No responses yet. Members will be prompted after 7 days.</p>
-              ) : (() => {
-                const avg = npsResponses.reduce((s, r) => s + r.score, 0) / npsResponses.length
-                const promoters  = npsResponses.filter(r => r.score >= 9).length
-                const passives   = npsResponses.filter(r => r.score >= 7 && r.score <= 8).length
-                const detractors = npsResponses.filter(r => r.score <= 6).length
-                const npsScore   = Math.round(((promoters - detractors) / npsResponses.length) * 100)
-                return (
-                  <>
-                    {/* Score summary */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
-                        <p className="text-3xl font-extrabold text-primary">{npsScore > 0 ? '+' : ''}{npsScore}</p>
-                        <p className="text-xs font-bold text-muted-foreground mt-1">NPS Score</p>
-                      </div>
-                      <div className="p-4 rounded-xl bg-secondary/50 border border-border text-center">
-                        <p className="text-3xl font-extrabold">{avg.toFixed(1)}</p>
-                        <p className="text-xs font-bold text-muted-foreground mt-1">Avg Rating / 10</p>
-                      </div>
-                    </div>
-
-                    {/* Breakdown */}
-                    <div className="flex gap-2 text-xs">
-                      <div className="flex-1 text-center p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
-                        <p className="font-extrabold text-green-700 dark:text-green-400">{promoters}</p>
-                        <p className="text-green-600 dark:text-green-500 font-semibold">Promoters</p>
-                        <p className="text-muted-foreground">9–10</p>
-                      </div>
-                      <div className="flex-1 text-center p-2 rounded-lg bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200 dark:border-yellow-800">
-                        <p className="font-extrabold text-yellow-700 dark:text-yellow-400">{passives}</p>
-                        <p className="text-yellow-600 dark:text-yellow-500 font-semibold">Passives</p>
-                        <p className="text-muted-foreground">7–8</p>
-                      </div>
-                      <div className="flex-1 text-center p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
-                        <p className="font-extrabold text-red-700 dark:text-red-400">{detractors}</p>
-                        <p className="text-red-600 dark:text-red-500 font-semibold">Detractors</p>
-                        <p className="text-muted-foreground">0–6</p>
-                      </div>
-                    </div>
-
-                    {/* Individual responses */}
-                    <div className="space-y-2">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-widest">Responses</p>
-                      {npsResponses.map(r => (
-                        <div key={r.id} className="flex items-start gap-3 p-3 rounded-xl border border-border bg-secondary/20">
-                          <div className={`w-9 h-9 rounded-xl flex items-center justify-center text-sm font-extrabold shrink-0 ${
-                            r.score >= 9 ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
-                            : r.score >= 7 ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300'
-                            : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
-                          }`}>
-                            {r.score}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-2">
-                              <p className="text-sm font-semibold">{r.nickname}</p>
-                              <p className="text-[10px] text-muted-foreground shrink-0">
-                                {new Date(r.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                              </p>
-                            </div>
-                            {r.comment && (
-                              <p className="text-xs text-muted-foreground mt-0.5 flex items-start gap-1">
-                                <MessageSquare size={10} className="shrink-0 mt-0.5" />
-                                {r.comment}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )
-              })()}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* About */}
+        {/* ── About ────────────────────────────────────────────────────── */}
         <Card className="shadow-sm border-dashed">
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
@@ -661,14 +331,19 @@ export default function SettingsPage() {
               <div>
                 <p className="font-semibold text-sm">Habitiq v0.1.0</p>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Shared living, perfectly balanced. Built for bachelors and flatmates who want a fair, automated chore rotation system.
+                  Shared living, perfectly balanced. Built for flatmates who want a fair, automated chore rotation system.
                 </p>
+                {isAdmin && (
+                  <p className="text-xs text-primary font-semibold mt-2">
+                    Manage your flat — invite code, join mode, feedback — in <strong>Manage Flat</strong> (Admin section).
+                  </p>
+                )}
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* ── Danger Zone ─────────────────────────────────────────────── */}
+        {/* ── Danger Zone ──────────────────────────────────────────────── */}
         <Card className="shadow-sm border-destructive/30">
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-destructive">
@@ -676,20 +351,19 @@ export default function SettingsPage() {
               Danger Zone
             </CardTitle>
             <CardDescription>
-              These actions are permanent and cannot be undone.
+              Actions below apply to <span className="font-semibold text-foreground">{flatDisplayName}</span> and cannot be undone.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            {/* Leave flat */}
             <div className="flex items-center justify-between p-4 rounded-xl bg-destructive/5 border border-destructive/20">
               <div>
-                <p className="font-semibold text-sm">Leave this flat</p>
+                <p className="font-semibold text-sm">Leave <span className="text-primary">{flatDisplayName}</span></p>
                 <p className="text-xs text-muted-foreground mt-0.5">
                   {isAdmin && hasOtherMembers
                     ? 'You must transfer admin role before leaving.'
                     : isAdmin && !hasOtherMembers
-                    ? 'You are the only member — leaving will delete this flat.'
-                    : 'Your tasks will be reassigned to the next person.'}
+                    ? 'You are the only member — leaving will permanently delete this flat.'
+                    : 'Your tasks will be reassigned to the next person in rotation.'}
                 </p>
               </div>
               <Button
@@ -703,7 +377,6 @@ export default function SettingsPage() {
               </Button>
             </div>
 
-            {/* Admin-only: shows transfer + delete hint */}
             {isAdmin && (
               <div className="flex items-start gap-3 px-4 py-3 rounded-xl bg-secondary/50 border border-border">
                 <ShieldCheck size={15} className="text-primary mt-0.5 shrink-0" />
@@ -715,7 +388,6 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
-
       </div>
     </>
   )

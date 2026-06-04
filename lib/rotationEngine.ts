@@ -49,9 +49,19 @@ export function completeTask(task: Task, members: Member[], completionDate?: Dat
   const completedAt = completionDate && completionDate <= new Date() ? completionDate : new Date()
 
   // Next due date starts from completedAt, not from the original due date.
+  // One-time tasks are marked done permanently — no rotation, no new due date
+  if (task.frequency === 'one_time') {
+    return {
+      ...task,
+      status: 'completed',
+      lastCompletedAt: completedAt.toISOString(),
+    }
+  }
+
   const nextDueDate = new Date(completedAt)
   if (task.frequency === 'daily') nextDueDate.setDate(nextDueDate.getDate() + 1)
   else if (task.frequency === 'weekly') nextDueDate.setDate(nextDueDate.getDate() + 7)
+  else if ((task.frequency as string) === 'fortnightly') nextDueDate.setDate(nextDueDate.getDate() + 14)
   else if (task.frequency === 'monthly') nextDueDate.setDate(nextDueDate.getDate() + 30)
   else nextDueDate.setDate(nextDueDate.getDate() + 7) // fallback for 'custom'
 
@@ -95,10 +105,12 @@ export function getTaskUrgency(task: Task): 'normal' | 'warning' | 'overdue' {
 
   if (diffHours < 0) return 'overdue'
 
-  if (task.frequency === 'weekly') {
-    if (diffHours <= 48) return 'warning'
+  if (task.frequency === 'one_time') {
+    if (diffHours <= 24) return 'warning'
   } else if (task.frequency === 'daily') {
     if (diffHours <= 8) return 'warning'
+  } else if (task.frequency === 'weekly' || (task.frequency as string) === 'fortnightly') {
+    if (diffHours <= 48) return 'warning'
   } else {
     if (diffHours <= 24) return 'warning'
   }
@@ -162,9 +174,29 @@ export function getTaskDateInfo(task: Task): TaskDateInfo {
   const dueDate = new Date(task.dueDate)
   const lastCompleted = new Date(task.lastCompletedAt)
 
+  // One-time tasks: no cycle, show due date only
+  if (task.frequency === 'one_time') {
+    const dueDate = new Date(task.dueDate)
+    const diffMs = dueDate.getTime() - now.getTime()
+    const isOverdue = diffMs < 0 || task.status === 'overdue'
+    const overdueDays = isOverdue ? Math.ceil(Math.abs(diffMs) / 86400000) : 0
+    return {
+      cycleLabel: task.status === 'completed' ? 'Done' : 'One-time',
+      dueDateFormatted: formatDate(dueDate),
+      lastCompletedFormatted: formatDateTime(new Date(task.lastCompletedAt)),
+      overdueDays,
+      overdueLabel: isOverdue && task.status !== 'completed'
+        ? `${overdueDays} day${overdueDays === 1 ? '' : 's'} overdue`
+        : '',
+      originalDueFormatted: formatDate(dueDate),
+      isOverdue: isOverdue && task.status !== 'completed',
+    }
+  }
+
   const cycleLengthMs =
     task.frequency === 'daily' ? 86400000 :
     task.frequency === 'weekly' ? 604800000 :
+    (task.frequency as string) === 'fortnightly' ? 1209600000 :
     task.frequency === 'monthly' ? 2592000000 : 604800000
   const cycleDays = Math.round(cycleLengthMs / 86400000)
 

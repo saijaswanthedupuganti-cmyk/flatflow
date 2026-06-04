@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button'
 import {
   Plus, ArrowRight, ArrowDown, AlertTriangle, PauseCircle, Clock, Edit2,
-  Trash2, ClipboardList, CheckCircle2, X, CalendarDays,
+  Trash2, ClipboardList, CheckCircle2, X, CalendarDays, Repeat2, Users, Zap,
 } from 'lucide-react'
 import { getPriorityWeight, getTaskDateInfo } from '@/lib/rotationEngine'
 
@@ -22,9 +22,10 @@ const PRIORITY_CONFIG = {
 }
 
 const FREQ_CONFIG = {
-  daily:   { label: 'Daily',   bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400' },
-  weekly:  { label: 'Weekly',  bg: 'bg-blue-100 dark:bg-blue-900/30',    text: 'text-blue-700 dark:text-blue-400' },
-  monthly: { label: 'Monthly', bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' },
+  daily:    { label: 'Daily',    bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400' },
+  weekly:   { label: 'Weekly',   bg: 'bg-blue-100 dark:bg-blue-900/30',    text: 'text-blue-700 dark:text-blue-400' },
+  monthly:  { label: 'Monthly',  bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' },
+  one_time: { label: 'One-time', bg: 'bg-teal-100 dark:bg-teal-900/30',    text: 'text-teal-700 dark:text-teal-400' },
 }
 
 export default function TasksPage() {
@@ -37,14 +38,41 @@ export default function TasksPage() {
   const [editName, setEditName]                       = useState('')
   const [editType, setEditType]                       = useState('')
   const [editPriority, setEditPriority]               = useState<'high' | 'medium' | 'low'>('medium')
-  const [editFreq, setEditFreq]                       = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [editFreq, setEditFreq]                       = useState<'daily' | 'weekly' | 'monthly' | 'one_time'>('weekly')
   const [editDueDate, setEditDueDate]                 = useState('')
   const [isCreating, setIsCreating]                   = useState(false)
   const [newTaskName, setNewTaskName]                 = useState('')
   const [newTaskType, setNewTaskType]                 = useState('cleaning')
   const [newTaskPriority, setNewTaskPriority]         = useState<'high' | 'medium' | 'low'>('medium')
   const [newTaskFreq, setNewTaskFreq]                 = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [newTaskDueDate, setNewTaskDueDate]           = useState(
+    new Date(Date.now() + 86_400_000).toISOString().split('T')[0]  // tomorrow
+  )
+  const [newTaskAssignee, setNewTaskAssignee]         = useState<string>('')
   const [selectedMembers, setSelectedMembers]         = useState<string[]>([])
+
+  // ── Type selector + Group Task ───────────────────────────────────────────
+  const [showTypeSelector, setShowTypeSelector]       = useState(false)
+  const [isGroupCreating, setIsGroupCreating]         = useState(false)
+  const [groupTaskName, setGroupTaskName]             = useState('')
+  const [groupTaskDueDate, setGroupTaskDueDate]       = useState(new Date().toISOString().split('T')[0])
+  const [groupTaskPriority, setGroupTaskPriority]     = useState<'high' | 'medium' | 'low'>('medium')
+  const [groupTaskType, setGroupTaskType]             = useState('cleaning')
+  const [groupSubtasks, setGroupSubtasks]             = useState([
+    { id: '1', name: '', assigneeId: '' },
+    { id: '2', name: '', assigneeId: '' },
+  ])
+  const [groupIsRecurring, setGroupIsRecurring]       = useState(false)
+  const [groupFreq, setGroupFreq]                     = useState<'daily' | 'weekly' | 'monthly'>('weekly')
+  const [groupStartDate, setGroupStartDate]           = useState(new Date().toISOString().split('T')[0])
+
+  // ── Temp Task ────────────────────────────────────────────────────────────
+  const [isTempCreating, setIsTempCreating]           = useState(false)
+  const [tempTaskName, setTempTaskName]               = useState('')
+  const [tempTaskAssignee, setTempTaskAssignee]       = useState('')
+  const [tempTaskDueDate, setTempTaskDueDate]         = useState(new Date().toISOString().split('T')[0])
+  const [tempTaskPriority, setTempTaskPriority]       = useState<'high' | 'medium' | 'low'>('medium')
+  const [tempTaskType, setTempTaskType]               = useState('other')
   const [useCustomDate, setUseCustomDate]             = useState(false)
   const [newTaskStartDate, setNewTaskStartDate]       = useState(
     new Date().toISOString().split('T')[0]   // today yyyy-MM-dd
@@ -62,13 +90,9 @@ export default function TasksPage() {
 
   const handleCreate = () => {
     if (!newTaskName.trim() || selectedMembers.length === 0) return
-
     const startDate = (useCustomDate && newTaskStartDate)
       ? new Date(newTaskStartDate + 'T00:00:00')
       : new Date()
-
-    const dueDate = new Date(startDate.getTime() + freqIntervalMs).toISOString()
-
     createTask({
       name: newTaskName,
       type: newTaskType,
@@ -76,13 +100,12 @@ export default function TasksPage() {
       frequency: newTaskFreq,
       currentAssignedUserId: selectedMembers[0],
       queueOrder: selectedMembers,
-      dueDate,
+      dueDate: new Date(startDate.getTime() + freqIntervalMs).toISOString(),
       lastCompletedAt: startDate.toISOString(),
     }, adminId)
-
     setIsCreating(false)
     setNewTaskName('')
-    setSelectedMembers(activeMembers.map(m => m.uid))  // keep all members ready for next task
+    setSelectedMembers(activeMembers.map(m => m.uid))
     setUseCustomDate(false)
     setNewTaskStartDate(new Date().toISOString().split('T')[0])
   }
@@ -102,6 +125,80 @@ export default function TasksPage() {
       setOverridingTaskId(null)
       setSelectedAssigneeId('')
     }
+  }
+
+  const handleCreateGroupTask = async () => {
+    const valid = groupSubtasks.filter(s => s.name.trim() && s.assigneeId)
+    if (!groupTaskName.trim() || valid.length === 0) return
+    const groupId = crypto.randomUUID()
+    const now = new Date().toISOString()
+
+    for (const sub of valid) {
+      if (groupIsRecurring) {
+        // Recurring group task: assigned person is first in queue, rest of flat as OOS fallback
+        const freqMs = groupFreq === 'daily' ? 86_400_000 : groupFreq === 'weekly' ? 604_800_000 : 2_592_000_000
+        const start = new Date(groupStartDate + 'T00:00:00')
+        const queueOrder = [
+          sub.assigneeId,
+          ...activeMembers.filter(m => m.uid !== sub.assigneeId).map(m => m.uid),
+        ]
+        await createTask({
+          name: sub.name.trim(),
+          type: groupTaskType,
+          priority: groupTaskPriority,
+          frequency: groupFreq,
+          currentAssignedUserId: sub.assigneeId,
+          queueOrder,
+          dueDate: new Date(start.getTime() + freqMs).toISOString(),
+          lastCompletedAt: start.toISOString(),
+          groupId,
+          groupName: groupTaskName.trim(),
+        }, adminId)
+      } else {
+        // One-time group task: assigned to one person, done once
+        await createTask({
+          name: sub.name.trim(),
+          type: groupTaskType,
+          priority: groupTaskPriority,
+          frequency: 'one_time',
+          currentAssignedUserId: sub.assigneeId,
+          queueOrder: [sub.assigneeId],
+          dueDate: new Date(groupTaskDueDate + 'T23:59:59').toISOString(),
+          lastCompletedAt: now,
+          groupId,
+          groupName: groupTaskName.trim(),
+        }, adminId)
+      }
+    }
+
+    setIsGroupCreating(false)
+    setGroupTaskName('')
+    setGroupTaskDueDate(new Date().toISOString().split('T')[0])
+    setGroupTaskPriority('medium')
+    setGroupTaskType('cleaning')
+    setGroupSubtasks([{ id: '1', name: '', assigneeId: '' }, { id: '2', name: '', assigneeId: '' }])
+    setGroupIsRecurring(false)
+    setGroupFreq('weekly')
+  }
+
+  const handleCreateTempTask = async () => {
+    if (!tempTaskName.trim() || !tempTaskAssignee) return
+    await createTask({
+      name: tempTaskName.trim(),
+      type: tempTaskType,
+      priority: tempTaskPriority,
+      frequency: 'one_time',
+      currentAssignedUserId: tempTaskAssignee,
+      queueOrder: [tempTaskAssignee],
+      dueDate: new Date(tempTaskDueDate + 'T23:59:59').toISOString(),
+      lastCompletedAt: new Date().toISOString(),
+    }, adminId)
+    setIsTempCreating(false)
+    setTempTaskName('')
+    setTempTaskAssignee('')
+    setTempTaskDueDate(new Date().toISOString().split('T')[0])
+    setTempTaskPriority('medium')
+    setTempTaskType('other')
   }
 
   const overdueCount = tasks.filter(t => t.status === 'overdue').length
@@ -141,19 +238,16 @@ export default function TasksPage() {
           )}
           <Button
             onClick={() => {
-              if (!isCreating) {
-                // Pre-select ALL active members so every task includes everyone by default
-                setSelectedMembers(activeMembers.map(m => m.uid))
-              } else {
-                setSelectedMembers([])
-              }
-              setIsCreating(v => !v)
+              if (isCreating) { setIsCreating(false); setSelectedMembers([]) }
+              else if (isGroupCreating) { setIsGroupCreating(false) }
+              else if (isTempCreating) { setIsTempCreating(false) }
+              else { setShowTypeSelector(true) }
             }}
-            variant={isCreating ? 'outline' : 'default'}
+            variant={isCreating || isGroupCreating || isTempCreating ? 'outline' : 'default'}
             size="sm"
             className="font-semibold"
           >
-            {isCreating
+            {isCreating || isGroupCreating || isTempCreating
               ? <><X size={14} className="mr-1" />Cancel</>
               : <><Plus size={14} className="mr-1" />New Task</>}
           </Button>
@@ -239,9 +333,8 @@ export default function TasksPage() {
               </div>
             </div>
 
-            {/* ── Custom Calendar ──────────────────────────────────────── */}
+            {/* ── Custom Start Date ─────────────────────────────────── */}
             <div className="rounded-xl border border-border/60 bg-secondary/30 overflow-hidden">
-              {/* Toggle row */}
               <div className="flex items-center justify-between gap-3 px-4 py-3">
                 <div className="flex items-center gap-2 min-w-0">
                   <CalendarDays size={14} className="text-primary shrink-0" />
@@ -252,35 +345,20 @@ export default function TasksPage() {
                     </p>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => setUseCustomDate(v => !v)}
-                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${
-                    useCustomDate ? 'bg-primary' : 'bg-border'
-                  }`}
-                  aria-checked={useCustomDate}
-                  role="switch"
-                >
-                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    useCustomDate ? 'translate-x-6' : 'translate-x-1'
-                  }`} />
+                <button type="button" onClick={() => setUseCustomDate(v => !v)}
+                  className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors focus:outline-none ${useCustomDate ? 'bg-primary' : 'bg-border'}`}
+                  aria-checked={useCustomDate} role="switch">
+                  <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${useCustomDate ? 'translate-x-6' : 'translate-x-1'}`} />
                 </button>
               </div>
-
-              {/* Expanded date picker */}
               {useCustomDate && (
                 <div className="border-t border-border/60 px-4 py-3 space-y-2">
-                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                    When was it last done / started?
-                  </label>
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">When was it last done / started?</label>
                   <div className="flex flex-col sm:flex-row sm:items-center gap-2">
-                    <input
-                      type="date"
-                      value={newTaskStartDate}
+                    <input type="date" value={newTaskStartDate}
                       max={new Date().toISOString().split('T')[0]}
                       onChange={e => setNewTaskStartDate(e.target.value)}
-                      className="w-full sm:w-auto bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
-                    />
+                      className="w-full sm:w-auto bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30" />
                     {customDuePreview && (
                       <p className="text-xs text-muted-foreground">
                         Next due: <span className="font-semibold text-foreground">{customDuePreview}</span>
@@ -294,32 +372,24 @@ export default function TasksPage() {
             {/* Rotation Participants */}
             <div className="space-y-2">
               <div className="flex items-center justify-between gap-2">
-                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
-                  Rotation Participants
-                </label>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Rotation Participants</label>
                 <span className="text-[11px] text-muted-foreground">
                   {selectedMembers.length === activeMembers.length
                     ? 'All members included — tap to exclude'
                     : `${selectedMembers.length} of ${activeMembers.length} selected`}
                 </span>
               </div>
-
               <div className="flex flex-wrap gap-2">
                 {activeMembers.map(m => (
-                  <button
-                    key={m.uid}
-                    onClick={() => toggleMember(m.uid)}
+                  <button key={m.uid} onClick={() => toggleMember(m.uid)}
                     className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-sm font-semibold transition-all border ${
                       selectedMembers.includes(m.uid)
                         ? 'bg-primary text-white border-primary shadow-sm'
                         : 'bg-background text-muted-foreground border-border hover:bg-secondary line-through opacity-60'
-                    }`}
-                  >
+                    }`}>
                     <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
                       selectedMembers.includes(m.uid) ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'
-                    }`}>
-                      {m.nickname.charAt(0)}
-                    </span>
+                    }`}>{m.nickname.charAt(0)}</span>
                     {m.nickname}
                     {selectedMembers.includes(m.uid) && (
                       <span className="w-4 h-4 rounded-full bg-white/20 flex items-center justify-center text-[10px] font-bold shrink-0">
@@ -329,7 +399,6 @@ export default function TasksPage() {
                   </button>
                 ))}
               </div>
-
               {selectedMembers.length > 0 && (
                 <p className="text-xs text-muted-foreground">
                   Order: {selectedMembers.map(uid => members.find(m => m.uid === uid)?.nickname).filter(Boolean).join(' → ')}
@@ -337,13 +406,348 @@ export default function TasksPage() {
               )}
             </div>
 
-            <Button
-              onClick={handleCreate}
-              disabled={!newTaskName.trim() || selectedMembers.length === 0}
-              className="w-full font-bold"
-            >
+            <Button onClick={handleCreate} disabled={!newTaskName.trim() || selectedMembers.length === 0} className="w-full font-bold">
               <ClipboardList size={15} className="mr-2" />
               Create Task & Start Rotation
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Type selector modal ──────────────────────────────────────── */}
+      {showTypeSelector && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <div className="bg-card border border-border rounded-2xl shadow-xl w-full max-w-md p-6">
+            <div className="flex items-start justify-between mb-5">
+              <div>
+                <h3 className="font-bold text-lg">What type of task?</h3>
+                <p className="text-sm text-muted-foreground mt-0.5">Choose how this task should work.</p>
+              </div>
+              <button onClick={() => setShowTypeSelector(false)} className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-secondary">
+                <X size={18} />
+              </button>
+            </div>
+            <div className="space-y-3">
+
+              {/* Option 1 — Recurring Duty */}
+              <button
+                onClick={() => { setShowTypeSelector(false); setSelectedMembers(activeMembers.map(m => m.uid)); setIsCreating(true) }}
+                className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-border hover:border-primary/50 hover:bg-primary/5 text-left transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
+                  <Repeat2 size={20} className="text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <p className="font-bold text-sm group-hover:text-primary transition-colors">Recurring Duty</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Rotates between members — daily, weekly, or monthly. Skips people who are out of station automatically.
+                  </p>
+                  <p className="text-[11px] text-blue-600 dark:text-blue-400 font-semibold mt-1.5">
+                    e.g. Garbage duty → Sai this week, Rahul next week
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 2 — Group Task */}
+              <button
+                onClick={() => { setShowTypeSelector(false); setIsGroupCreating(true) }}
+                className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-border hover:border-teal-500/50 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 text-left transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0">
+                  <Users size={20} className="text-teal-600 dark:text-teal-400" />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <p className="font-bold text-sm group-hover:text-teal-600 dark:group-hover:text-teal-400 transition-colors">Group Task</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Split one job across people — each gets their own part. Can be one-time or repeat every week/month.
+                  </p>
+                  <p className="text-[11px] text-teal-600 dark:text-teal-400 font-semibold mt-1.5">
+                    e.g. Sunday Cleaning → Sai: kitchen · Rahul: bedroom · Priya: hall
+                  </p>
+                </div>
+              </button>
+
+              {/* Option 3 — Temp Task */}
+              <button
+                onClick={() => { setShowTypeSelector(false); setIsTempCreating(true) }}
+                className="w-full flex items-start gap-4 p-4 rounded-xl border-2 border-border hover:border-amber-500/50 hover:bg-amber-50/50 dark:hover:bg-amber-950/20 text-left transition-all group"
+              >
+                <div className="w-11 h-11 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                  <Zap size={20} className="text-amber-600 dark:text-amber-400" />
+                </div>
+                <div className="flex-1 min-w-0 pt-0.5">
+                  <p className="font-bold text-sm group-hover:text-amber-600 dark:group-hover:text-amber-400 transition-colors">Temp Task</p>
+                  <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                    Assign one quick job to one person. When they mark it done, it&apos;s closed — no rotation, no repeat.
+                  </p>
+                  <p className="text-[11px] text-amber-600 dark:text-amber-400 font-semibold mt-1.5">
+                    e.g. Buy vegetables today → Sai → done ✓
+                  </p>
+                </div>
+              </button>
+
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Temp Task form ────────────────────────────────────────────── */}
+      {isTempCreating && (
+        <Card className="border-amber-300 dark:border-amber-700 shadow-md">
+          <CardHeader className="border-b border-border/60 pb-4 px-4 sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                <Zap size={16} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold">Temp Task</CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  One person, one job. Done once and closed — no rotation, no repeat.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 space-y-4">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="col-span-2 space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Task</label>
+                <input
+                  autoFocus
+                  type="text"
+                  value={tempTaskName}
+                  onChange={e => setTempTaskName(e.target.value)}
+                  placeholder="e.g., Buy vegetables"
+                  maxLength={50}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500/30"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Type</label>
+                <select value={tempTaskType} onChange={e => setTempTaskType(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm">
+                  <option value="other">📋 Other</option>
+                  <option value="groceries">🛒 Groceries</option>
+                  <option value="cleaning">🧹 Cleaning</option>
+                  <option value="kitchen">🍳 Kitchen</option>
+                  <option value="garbage">🗑️ Garbage</option>
+                  <option value="laundry">👕 Laundry</option>
+                  <option value="maintenance">🔧 Maintenance</option>
+                </select>
+              </div>
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Priority</label>
+                <select value={tempTaskPriority} onChange={e => setTempTaskPriority(e.target.value as 'high' | 'medium' | 'low')}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm">
+                  <option value="high">🔴 High</option>
+                  <option value="medium">🟡 Medium</option>
+                  <option value="low">🟢 Low</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due by</label>
+                <input type="date" value={tempTaskDueDate}
+                  min={new Date().toISOString().split('T')[0]}
+                  onChange={e => setTempTaskDueDate(e.target.value)}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Assign to</label>
+                <div className="flex flex-wrap gap-2">
+                  {activeMembers.map(m => (
+                    <button key={m.uid} onClick={() => setTempTaskAssignee(m.uid)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all border ${
+                        tempTaskAssignee === m.uid
+                          ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+                          : 'bg-background text-muted-foreground border-border hover:bg-secondary'
+                      }`}>
+                      <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shrink-0 ${
+                        tempTaskAssignee === m.uid ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
+                      }`}>{m.nickname.charAt(0)}</span>
+                      {m.nickname}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <Button
+              onClick={handleCreateTempTask}
+              disabled={!tempTaskName.trim() || !tempTaskAssignee}
+              className="w-full font-bold bg-amber-500 hover:bg-amber-600 text-white"
+            >
+              <Zap size={15} className="mr-2" />
+              Assign Task
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* ── Group Task form ───────────────────────────────────────────── */}
+      {isGroupCreating && (
+        <Card className="border-teal-300 dark:border-teal-700 shadow-md">
+          <CardHeader className="border-b border-border/60 pb-4 px-4 sm:px-5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-xl bg-teal-100 dark:bg-teal-900/30 flex items-center justify-center shrink-0">
+                <Users size={16} className="text-teal-600 dark:text-teal-400" />
+              </div>
+              <div>
+                <CardTitle className="text-sm font-bold">Create Group Task</CardTitle>
+                <CardDescription className="text-xs mt-0.5">
+                  Assign different jobs to different people — all due at the same time.
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-4 sm:p-5 space-y-4">
+
+            {/* One-time / Recurring toggle */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center bg-secondary/80 border border-border/60 rounded-xl p-1 gap-0.5">
+                <button onClick={() => setGroupIsRecurring(false)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    !groupIsRecurring ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}>
+                  One-time
+                </button>
+                <button onClick={() => setGroupIsRecurring(true)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
+                    groupIsRecurring ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
+                  }`}>
+                  Recurring
+                </button>
+              </div>
+              {groupIsRecurring && (
+                <p className="text-[11px] text-muted-foreground">
+                  Repeats on schedule. If someone is out of station, their job moves to the next available person.
+                </p>
+              )}
+            </div>
+
+            {/* Group name + date/frequency + priority */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+              <div className="col-span-2 sm:col-span-1 space-y-1">
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Group Name</label>
+                <input
+                  type="text"
+                  value={groupTaskName}
+                  onChange={e => setGroupTaskName(e.target.value)}
+                  placeholder="e.g., Sunday Cleaning"
+                  maxLength={50}
+                  className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                />
+              </div>
+              {groupIsRecurring ? (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Frequency</label>
+                    <select value={groupFreq} onChange={e => setGroupFreq(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                      className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm">
+                      <option value="daily">Daily</option>
+                      <option value="weekly">Weekly</option>
+                      <option value="monthly">Monthly</option>
+                    </select>
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Start Date</label>
+                    <input type="date" value={groupStartDate}
+                      onChange={e => setGroupStartDate(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm" />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Due Date</label>
+                    <input type="date" value={groupTaskDueDate}
+                      min={new Date().toISOString().split('T')[0]}
+                      onChange={e => setGroupTaskDueDate(e.target.value)}
+                      className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm" />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Priority</label>
+                    <select value={groupTaskPriority} onChange={e => setGroupTaskPriority(e.target.value as 'high' | 'medium' | 'low')}
+                      className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm">
+                      <option value="high">🔴 High</option>
+                      <option value="medium">🟡 Medium</option>
+                      <option value="low">🟢 Low</option>
+                    </select>
+                  </div>
+                </>
+              )}
+              {groupIsRecurring && (
+                <div className="space-y-1">
+                  <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Priority</label>
+                  <select value={groupTaskPriority} onChange={e => setGroupTaskPriority(e.target.value as 'high' | 'medium' | 'low')}
+                    className="w-full bg-background border border-border rounded-xl px-3 py-2.5 text-sm">
+                    <option value="high">🔴 High</option>
+                    <option value="medium">🟡 Medium</option>
+                    <option value="low">🟢 Low</option>
+                  </select>
+                </div>
+              )}
+            </div>
+
+            {/* Sub-tasks */}
+            <div className="space-y-2.5">
+              <div>
+                <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">
+                  Jobs — who does what
+                </label>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  Each row is one person&apos;s job. All are due on the date above.
+                </p>
+              </div>
+              <div className="space-y-2">
+                {groupSubtasks.map((sub, idx) => (
+                  <div key={sub.id} className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-muted-foreground w-5 text-right shrink-0">{idx + 1}.</span>
+                    <input
+                      type="text"
+                      value={sub.name}
+                      onChange={e => setGroupSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, name: e.target.value } : s))}
+                      placeholder="What needs doing? (e.g., Clean Kitchen)"
+                      maxLength={50}
+                      className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-teal-500/30"
+                    />
+                    <select
+                      value={sub.assigneeId}
+                      onChange={e => setGroupSubtasks(prev => prev.map(s => s.id === sub.id ? { ...s, assigneeId: e.target.value } : s))}
+                      className="w-28 sm:w-36 bg-background border border-border rounded-xl px-2 py-2 text-sm shrink-0"
+                    >
+                      <option value="" disabled>Who?</option>
+                      {activeMembers.map(m => (
+                        <option key={m.uid} value={m.uid}>{m.nickname}</option>
+                      ))}
+                    </select>
+                    {groupSubtasks.length > 1 && (
+                      <button
+                        onClick={() => setGroupSubtasks(prev => prev.filter(s => s.id !== sub.id))}
+                        className="p-1.5 text-muted-foreground hover:text-destructive hover:bg-destructive/10 rounded-lg transition-colors shrink-0"
+                      >
+                        <X size={14} />
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <button
+                onClick={() => setGroupSubtasks(prev => [...prev, { id: crypto.randomUUID(), name: '', assigneeId: '' }])}
+                className="flex items-center gap-1.5 text-sm font-semibold text-teal-600 dark:text-teal-400 hover:text-teal-700 dark:hover:text-teal-300 transition-colors py-1"
+              >
+                <Plus size={14} /> Add another job
+              </button>
+            </div>
+
+            <Button
+              onClick={handleCreateGroupTask}
+              disabled={!groupTaskName.trim() || groupSubtasks.filter(s => s.name.trim() && s.assigneeId).length === 0}
+              className="w-full font-bold bg-teal-600 hover:bg-teal-700 text-white"
+            >
+              <Users size={15} className="mr-2" />
+              Create Group Task ({groupSubtasks.filter(s => s.name.trim() && s.assigneeId).length} {groupSubtasks.filter(s => s.name.trim() && s.assigneeId).length === 1 ? 'job' : 'jobs'})
             </Button>
           </CardContent>
         </Card>
@@ -358,8 +762,10 @@ export default function TasksPage() {
           const fCfg         = FREQ_CONFIG[task.frequency as keyof typeof FREQ_CONFIG] ?? FREQ_CONFIG.weekly
           const emoji        = TASK_EMOJIS[task.type] ?? '📋'
 
+          const isOneTimeDone = task.frequency === 'one_time' && task.status === 'completed'
+
           return (
-            <Card key={task.taskId} className={`shadow-sm overflow-hidden border-l-4 ${pCfg.border}`}>
+            <Card key={task.taskId} className={`shadow-sm overflow-hidden border-l-4 ${pCfg.border} ${isOneTimeDone ? 'opacity-60' : ''}`}>
               <CardContent className="p-0">
 
                 {/* ── Card header ──────────────────────────────────────── */}
@@ -373,7 +779,12 @@ export default function TasksPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5 flex-wrap">
                         <h3 className="text-base font-bold leading-tight truncate">{task.name}</h3>
-                        {task.status === 'overdue' && (
+                        {isOneTimeDone && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
+                            <CheckCircle2 size={9} /> Done
+                          </span>
+                        )}
+                        {task.status === 'overdue' && !isOneTimeDone && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full whitespace-nowrap shrink-0">
                             <AlertTriangle size={9} /> {dateInfo.overdueDays}d overdue
                           </span>
@@ -390,6 +801,11 @@ export default function TasksPage() {
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${fCfg.bg} ${fCfg.text}`}>
                           {fCfg.label}
                         </span>
+                        {task.groupName && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-teal-100 dark:bg-teal-900/30 text-teal-700 dark:text-teal-400 flex items-center gap-1">
+                            <Users size={8} /> {task.groupName}
+                          </span>
+                        )}
                         <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pCfg.bg} ${pCfg.text}`}>
                           ● {pCfg.label}
                         </span>
@@ -446,51 +862,76 @@ export default function TasksPage() {
                 {/* ── Body: Queue + override ───────────────────────────── */}
                 <div className="px-4 py-3 flex flex-col lg:flex-row gap-4">
 
-                  {/* Rotation queue — horizontal scroll on mobile */}
+                  {/* Queue / Assignment display */}
                   <div className="flex-1 min-w-0">
                     <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">
-                      Rotation Queue
+                      {task.frequency === 'one_time' ? 'Assigned To' : 'Rotation Queue'}
                     </p>
-                    {/* Queue — vertical on mobile, horizontal on sm+ */}
-                    <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0">
-                      {task.queueOrder.map((uid, index) => {
-                        const m         = members.find(x => x.uid === uid)
-                        const isCurrent = uid === task.currentAssignedUserId
+
+                    {task.frequency === 'one_time' ? (
+                      /* One-time: show just the single assigned person */
+                      (() => {
+                        const m = members.find(x => x.uid === task.currentAssignedUserId)
                         if (!m) return null
                         return (
-                          <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                            {/* Member card — row on mobile, column on sm+ */}
-                            <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-1 sm:justify-center px-3 sm:px-2.5 py-2 rounded-xl border-2 transition-all w-full sm:w-auto sm:min-w-[62px] ${
-                              isCurrent
-                                ? 'bg-primary border-primary text-white shadow-md'
-                                : 'bg-card border-border/60 text-muted-foreground'
+                          <div className={`inline-flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 ${
+                            isOneTimeDone
+                              ? 'bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300'
+                              : 'bg-primary border-primary text-white shadow-md'
+                          }`}>
+                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
+                              isOneTimeDone ? 'bg-teal-200 dark:bg-teal-800 text-teal-700 dark:text-teal-300' : 'bg-white/20 text-white'
                             }`}>
-                              <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
-                              }`}>
-                                {m.nickname.charAt(0)}
-                              </div>
-                              <span className="text-sm sm:text-[11px] font-semibold leading-tight">{m.nickname}</span>
-                              {m.status === 'out_of_station' && (
-                                <PauseCircle size={10} className="text-orange-400 ml-auto sm:ml-0" />
-                              )}
-                              {isCurrent && (
-                                <span className="text-[8px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0">
-                                  NOW
-                                </span>
-                              )}
+                              {m.nickname.charAt(0)}
                             </div>
-                            {/* Arrow: ↓ on mobile, → on desktop */}
-                            {index < task.queueOrder.length - 1 && (
-                              <>
-                                <ArrowDown  size={12} className="sm:hidden text-muted-foreground/40 self-center" />
-                                <ArrowRight size={12} className="hidden sm:block text-muted-foreground/40 shrink-0" />
-                              </>
-                            )}
+                            <span className="font-semibold text-sm">{m.nickname}</span>
+                            {isOneTimeDone
+                              ? <span className="text-[10px] font-bold bg-teal-200 dark:bg-teal-800 text-teal-700 dark:text-teal-300 px-1.5 py-0.5 rounded-full">DONE</span>
+                              : <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">PENDING</span>
+                            }
                           </div>
                         )
-                      })}
-                    </div>
+                      })()
+                    ) : (
+                      /* Recurring: show full rotation queue with arrows */
+                      <div className="flex flex-col sm:flex-row sm:flex-wrap sm:items-center gap-0">
+                        {task.queueOrder.map((uid, index) => {
+                          const m         = members.find(x => x.uid === uid)
+                          const isCurrent = uid === task.currentAssignedUserId
+                          if (!m) return null
+                          return (
+                            <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                              <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-1 sm:justify-center px-3 sm:px-2.5 py-2 rounded-xl border-2 transition-all w-full sm:w-auto sm:min-w-[62px] ${
+                                isCurrent
+                                  ? 'bg-primary border-primary text-white shadow-md'
+                                  : 'bg-card border-border/60 text-muted-foreground'
+                              }`}>
+                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
+                                  isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
+                                }`}>
+                                  {m.nickname.charAt(0)}
+                                </div>
+                                <span className="text-sm sm:text-[11px] font-semibold leading-tight">{m.nickname}</span>
+                                {m.status === 'out_of_station' && (
+                                  <PauseCircle size={10} className="text-orange-400 ml-auto sm:ml-0" />
+                                )}
+                                {isCurrent && (
+                                  <span className="text-[8px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0">
+                                    NOW
+                                  </span>
+                                )}
+                              </div>
+                              {index < task.queueOrder.length - 1 && (
+                                <>
+                                  <ArrowDown  size={12} className="sm:hidden text-muted-foreground/40 self-center" />
+                                  <ArrowRight size={12} className="hidden sm:block text-muted-foreground/40 shrink-0" />
+                                </>
+                              )}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    )}
                     <p className="text-[11px] text-muted-foreground mt-2">
                       Last done: <span className="font-semibold text-foreground">{dateInfo.lastCompletedFormatted}</span>
                     </p>
@@ -597,11 +1038,12 @@ export default function TasksPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-bold text-muted-foreground">Frequency</label>
-                  <select value={editFreq} onChange={e => setEditFreq(e.target.value as 'daily' | 'weekly' | 'monthly')}
+                  <select value={editFreq} onChange={e => setEditFreq(e.target.value as 'daily' | 'weekly' | 'monthly' | 'one_time')}
                     className="w-full bg-background border border-border rounded-lg px-3 py-2 text-sm">
                     <option value="daily">Daily</option>
                     <option value="weekly">Weekly</option>
                     <option value="monthly">Monthly</option>
+                    <option value="one_time">One-time</option>
                   </select>
                 </div>
                 <div className="space-y-1">

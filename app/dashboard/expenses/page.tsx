@@ -5,7 +5,7 @@ import {
   useFlatStore,
   type Expense, type Settlement, type RecurringBill,
   type BillInstance, type BillInstanceStatus, type MonthCycle,
-  type ExpenseCategory, type Currency,
+  type ExpenseCategory, type Currency, type PayerMode, type SplitMethod,
 } from '@/store/useFlatStore'
 import {
   computeMonthNetBalances, suggestSettlements, computeCarryForward,
@@ -23,6 +23,7 @@ import {
   Wallet, Inbox, Check, AlertCircle, RefreshCw, Pencil,
   Zap, Play, PauseCircle, LayoutList, CircleDollarSign, Clock,
   CalendarCheck, ArrowRight, ChevronRight, ChevronLeft, RotateCcw,
+  UserCircle, Repeat2, HelpCircle, Sparkles, History, ChevronDown, ChevronUp,
 } from 'lucide-react'
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -574,6 +575,18 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
 
 // ── Monthly Bill Form Modal ───────────────────────────────────────────────────
 
+const PAYER_MODE_CONFIG: Record<PayerMode, { label: string; desc: string; icon: React.ReactNode }> = {
+  rotation: { label: 'Rotates',      desc: 'Members take turns paying each month', icon: <Repeat2 size={13} /> },
+  fixed:    { label: 'Fixed payer',  desc: 'Same person pays every month',         icon: <UserCircle size={13} /> },
+  manual:   { label: 'Choose each month', desc: 'Admin picks payer when generating', icon: <HelpCircle size={13} /> },
+}
+
+const SPLIT_METHOD_CONFIG: Record<SplitMethod, { label: string; desc: string }> = {
+  equal:   { label: 'Equal',       desc: 'Split equally among participants' },
+  percent: { label: 'By %',        desc: 'Each person pays a fixed percentage' },
+  custom:  { label: 'Custom ₹',    desc: 'Set a fixed amount per person' },
+}
+
 function MonthlyBillModal({
   members, currentUserId, initial, onSave, onClose,
 }: {
@@ -585,50 +598,71 @@ function MonthlyBillModal({
 }) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    name: initial?.name ?? '',
-    category: (initial?.category ?? 'other') as ExpenseCategory,
-    isVariable: initial?.isVariable ?? false,
-    amount: initial?.amount != null ? initial.amount.toString() : '',
-    currency: (initial?.currency ?? 'INR') as Currency,
-    billingDay: initial?.billingDay?.toString() ?? '1',
+    name:          initial?.name ?? '',
+    category:      (initial?.category ?? 'other') as ExpenseCategory,
+    isVariable:    initial?.isVariable ?? false,
+    amount:        initial?.amount != null ? initial.amount.toString() : '',
+    currency:      (initial?.currency ?? 'INR') as Currency,
+    billingDay:    initial?.billingDay?.toString() ?? '1',
     rotationQueue: initial?.rotationQueue ?? members.map(m => m.uid),
-    active: initial?.active ?? true,
+    active:        initial?.active ?? true,
+    // Payer config
+    payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
+    fixedPayerUid: initial?.fixedPayerUid ?? '',
+    // Split config
+    splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
+    percentSplits: Object.fromEntries(members.map(m => [m.uid, initial?.percentSplits?.[m.uid]?.toString() ?? ''])),
+    customSplits:  Object.fromEntries(members.map(m => [m.uid, initial?.customSplits?.[m.uid]?.toString() ?? ''])),
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
     ...f,
-    rotationQueue: f.rotationQueue.includes(uid) ? f.rotationQueue.filter(id => id !== uid) : [...f.rotationQueue, uid],
+    rotationQueue: f.rotationQueue.includes(uid)
+      ? f.rotationQueue.filter(id => id !== uid)
+      : [...f.rotationQueue, uid],
   }))
+
+  const totalAmount = parseFloat(form.amount) || 0
+  const totalPercent = form.rotationQueue.reduce((s, uid) => s + (parseFloat(form.percentSplits[uid]) || 0), 0)
+  const totalCustom  = form.rotationQueue.reduce((s, uid) => s + (parseFloat(form.customSplits[uid])  || 0), 0)
+  const percentOk = Math.abs(totalPercent - 100) <= 1
+  const customOk  = !form.isVariable && totalAmount > 0 && Math.abs(totalCustom - totalAmount) <= 0.5
 
   const handleSave = async () => {
     if (!form.name.trim()) return
     if (!form.isVariable && (!parseFloat(form.amount) || parseFloat(form.amount) <= 0)) return
     if (form.rotationQueue.length === 0) return
+    if (form.payerMode === 'fixed' && !form.fixedPayerUid) return
+    if (form.splitMethod === 'percent' && !percentOk) return
     setSaving(true)
     await onSave({
-      name: form.name.trim(),
-      category: form.category,
-      isVariable: form.isVariable,
-      amount: form.isVariable ? null : parseFloat(form.amount),
-      currency: form.currency,
-      billingDay: Math.min(28, Math.max(1, parseInt(form.billingDay) || 1)),
+      name:        form.name.trim(),
+      category:    form.category,
+      isVariable:  form.isVariable,
+      amount:      form.isVariable ? null : parseFloat(form.amount),
+      currency:    form.currency,
+      billingDay:  Math.min(28, Math.max(1, parseInt(form.billingDay) || 1)),
       rotationQueue: form.rotationQueue,
-      participants: form.rotationQueue,  // who splits — same as payer queue for now
-      active: form.active,
-      createdBy: currentUserId,
+      participants:  form.rotationQueue,
+      payerMode:     form.payerMode,
+      fixedPayerUid: form.payerMode === 'fixed' ? form.fixedPayerUid : undefined,
+      splitMethod:   form.splitMethod,
+      percentSplits: form.splitMethod === 'percent'
+        ? Object.fromEntries(form.rotationQueue.map(uid => [uid, parseFloat(form.percentSplits[uid]) || 0]))
+        : undefined,
+      customSplits: form.splitMethod === 'custom'
+        ? Object.fromEntries(form.rotationQueue.map(uid => [uid, parseFloat(form.customSplits[uid]) || 0]))
+        : undefined,
+      active:      form.active,
+      createdBy:   currentUserId,
     })
     onClose()
   }
 
-  const firstPayerUid = form.rotationQueue[0]
-  const firstPayer = members.find(m => m.uid === firstPayerUid)
-  const perPersonAmt = parseFloat(form.amount) > 0 && form.rotationQueue.length > 0
-    ? parseFloat(form.amount) / form.rotationQueue.length
-    : 0
-
   return (
     <Modal title={initial ? 'Edit Monthly Bill' : 'New Monthly Bill'} onClose={onClose}>
       <div className="space-y-5">
+
         {/* Category */}
         <div>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Category</Label>
@@ -652,7 +686,7 @@ function MonthlyBillModal({
             onChange={e => setForm(f => ({ ...f, name: e.target.value }))} maxLength={50} />
         </div>
 
-        {/* Variable toggle */}
+        {/* Fixed / Variable toggle */}
         <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/30">
           <button onClick={() => setForm(f => ({ ...f, isVariable: !f.isVariable }))}
             className={`w-10 h-6 rounded-full transition-colors shrink-0 ${form.isVariable ? 'bg-primary' : 'bg-border'}`}>
@@ -661,9 +695,7 @@ function MonthlyBillModal({
           <div>
             <p className="text-sm font-semibold">{form.isVariable ? 'Variable amount' : 'Fixed amount'}</p>
             <p className="text-xs text-muted-foreground">
-              {form.isVariable
-                ? 'Amount changes each month — enter it when generating (e.g. electricity meter reading)'
-                : 'Same amount every month — stays until you change it (e.g. rent)'}
+              {form.isVariable ? 'Enter actual amount each month (electricity, water, gas)' : 'Same amount every month (rent, WiFi, maid)'}
             </p>
           </div>
         </div>
@@ -692,34 +724,144 @@ function MonthlyBillModal({
               onChange={e => setForm(f => ({ ...f, billingDay: e.target.value }))} />
             <span className="text-sm text-muted-foreground">of each month</span>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">After this date, the bill appears as due for that month.</p>
         </div>
 
+        {/* Participants (multi-select chips) */}
         <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Split among</Label>
-          <p className="text-xs text-muted-foreground mb-2">Bill is split equally among all selected members.</p>
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Participants — who splits this bill</Label>
           <div className="flex flex-wrap gap-2">
             {members.map(m => (
               <button key={m.uid} onClick={() => toggleMember(m.uid)}
                 className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                   form.rotationQueue.includes(m.uid)
                     ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-secondary text-muted-foreground border-border'
+                    : 'bg-secondary text-muted-foreground border-border hover:border-primary/40'
                 }`}>
                 {m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}
               </button>
             ))}
           </div>
-          {perPersonAmt > 0 && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Each person pays: <span className="font-bold text-foreground">{CURRENCY_SYMBOLS[form.currency]}{perPersonAmt % 1 === 0 ? perPersonAmt.toFixed(0) : perPersonAmt.toFixed(2)}</span>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Select all members who share this bill. You can select multiple.
+          </p>
+        </div>
+
+        {/* Payer Mode */}
+        <div>
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Who pays each month</Label>
+          <div className="grid grid-cols-3 gap-1.5 mb-2">
+            {(Object.entries(PAYER_MODE_CONFIG) as [PayerMode, typeof PAYER_MODE_CONFIG[PayerMode]][]).map(([mode, cfg]) => (
+              <button key={mode} onClick={() => setForm(f => ({ ...f, payerMode: mode }))}
+                className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all ${
+                  form.payerMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
+                }`}>
+                <span className={form.payerMode === mode ? 'text-primary' : 'text-muted-foreground'}>{cfg.icon}</span>
+                <span className="text-[10px] font-bold leading-tight">{cfg.label}</span>
+              </button>
+            ))}
+          </div>
+          <p className="text-[11px] text-muted-foreground">{PAYER_MODE_CONFIG[form.payerMode].desc}</p>
+
+          {/* Fixed payer: select who */}
+          {form.payerMode === 'fixed' && (
+            <div className="mt-2">
+              <Label className="text-[11px] font-bold text-muted-foreground mb-1.5 block">Select fixed payer</Label>
+              <div className="flex flex-wrap gap-2">
+                {members.filter(m => form.rotationQueue.includes(m.uid)).map(m => (
+                  <button key={m.uid} onClick={() => setForm(f => ({ ...f, fixedPayerUid: m.uid }))}
+                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                      form.fixedPayerUid === m.uid
+                        ? 'bg-emerald-600 text-white border-emerald-600'
+                        : 'bg-secondary text-muted-foreground border-border hover:border-emerald-400'
+                    }`}>
+                    {m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Split Method */}
+        <div>
+          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">How to split the amount</Label>
+          <div className="flex gap-1.5 mb-3">
+            {(Object.entries(SPLIT_METHOD_CONFIG) as [SplitMethod, typeof SPLIT_METHOD_CONFIG[SplitMethod]][]).map(([method, cfg]) => (
+              <button key={method} onClick={() => setForm(f => ({ ...f, splitMethod: method }))}
+                className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
+                  form.splitMethod === method ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'
+                }`}>
+                {cfg.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Equal: show preview */}
+          {form.splitMethod === 'equal' && !form.isVariable && totalAmount > 0 && form.rotationQueue.length > 0 && (
+            <p className="text-xs text-muted-foreground bg-secondary/60 rounded-lg px-3 py-2">
+              Each person pays <span className="font-bold text-foreground">
+                {CURRENCY_SYMBOLS[form.currency]}{(totalAmount / form.rotationQueue.length).toFixed(0)}
+              </span> per month
             </p>
           )}
-          {form.rotationQueue.length > 0 && firstPayer && (
-            <p className="text-xs text-muted-foreground mt-1">
-              Pays this month: <span className="font-semibold text-foreground">{firstPayerUid === currentUserId ? `${firstPayer.nickname} (you)` : firstPayer.nickname}</span>
-              {' '}· advances automatically each month
-            </p>
+
+          {/* Percent: per-member inputs */}
+          {form.splitMethod === 'percent' && (
+            <div className="space-y-2">
+              {form.rotationQueue.map(uid => {
+                const m = members.find(x => x.uid === uid)
+                const pct = parseFloat(form.percentSplits[uid]) || 0
+                const share = (pct / 100) * totalAmount
+                return (
+                  <div key={uid} className="flex items-center gap-2">
+                    <span className="text-sm font-medium w-24 truncate shrink-0">
+                      {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
+                    </span>
+                    <div className="relative flex-1">
+                      <Input type="number" placeholder="0" min="0" max="100" className="pr-7"
+                        value={form.percentSplits[uid]}
+                        onChange={e => setForm(f => ({ ...f, percentSplits: { ...f.percentSplits, [uid]: e.target.value } }))} />
+                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
+                    </div>
+                    {pct > 0 && !form.isVariable && totalAmount > 0 && (
+                      <span className="text-xs font-bold text-muted-foreground w-16 text-right shrink-0">
+                        {CURRENCY_SYMBOLS[form.currency]}{share.toFixed(0)}
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+              <p className={`text-xs px-3 py-2 rounded-lg font-medium ${percentOk ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'}`}>
+                {percentOk ? '✓ Adds up to 100%' : `Total: ${totalPercent.toFixed(0)}% of 100%`}
+              </p>
+            </div>
+          )}
+
+          {/* Custom: per-member fixed amounts */}
+          {form.splitMethod === 'custom' && !form.isVariable && (
+            <div className="space-y-2">
+              {form.rotationQueue.map(uid => {
+                const m = members.find(x => x.uid === uid)
+                return (
+                  <div key={uid} className="flex items-center gap-2">
+                    <span className="text-sm font-medium w-24 truncate shrink-0">
+                      {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
+                    </span>
+                    <div className="relative flex-1">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[form.currency]}</span>
+                      <Input type="number" placeholder="0" min="0" className="pl-6"
+                        value={form.customSplits[uid]}
+                        onChange={e => setForm(f => ({ ...f, customSplits: { ...f.customSplits, [uid]: e.target.value } }))} />
+                    </div>
+                  </div>
+                )
+              })}
+              {totalAmount > 0 && (
+                <p className={`text-xs px-3 py-2 rounded-lg font-medium ${customOk ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'}`}>
+                  {customOk ? '✓ Splits match total' : `Total splits: ${CURRENCY_SYMBOLS[form.currency]}${totalCustom.toFixed(0)} of ${CURRENCY_SYMBOLS[form.currency]}${totalAmount.toFixed(0)}`}
+                </p>
+              )}
+            </div>
           )}
         </div>
 
@@ -737,14 +879,18 @@ function MonthlyBillModal({
 // ── Generate Bills Modal ─────────────────────────────────────────────────────
 
 function GenerateBillsModal({
-  dueBills, members, onGenerate, onClose,
+  dueBills, members, currentUserId, onGenerate, onClose,
 }: {
   dueBills: RecurringBill[]
   members: { uid: string; nickname: string }[]
-  onGenerate: (billId: string, amount?: number) => Promise<void>
+  currentUserId: string
+  onGenerate: (billId: string, amount?: number, manualPayerUid?: string) => Promise<void>
   onClose: () => void
 }) {
   const [amounts, setAmounts] = useState<Record<string, string>>({})
+  const [manualPayers, setManualPayers] = useState<Record<string, string>>(() =>
+    Object.fromEntries(dueBills.filter(b => b.payerMode === 'manual').map(b => [b.id, b.rotationQueue[0] ?? '']))
+  )
   const [selected, setSelected] = useState<Set<string>>(new Set(dueBills.map(b => b.id)))
   const [generating, setGenerating] = useState(false)
   const [done, setDone] = useState<Set<string>>(new Set())
@@ -772,7 +918,7 @@ function GenerateBillsModal({
     for (const bill of selectedBills) {
       const amount = bill.isVariable ? parseFloat(amounts[bill.id]) : bill.amount
       if (!amount || amount <= 0) continue
-      await onGenerate(bill.id, bill.isVariable ? amount : undefined)
+      await onGenerate(bill.id, bill.isVariable ? amount : undefined, manualPayers[bill.id])
       setDone(d => new Set([...d, bill.id]))
     }
     setGenerating(false)
@@ -788,7 +934,12 @@ function GenerateBillsModal({
 
         {dueBills.map(bill => {
           const cfg = CATEGORY_CONFIG[bill.category]
-          const payerUid = bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+          // Determine displayed payer based on payerMode
+          const payerUid = bill.payerMode === 'fixed' && bill.fixedPayerUid
+            ? bill.fixedPayerUid
+            : bill.payerMode === 'manual'
+              ? (manualPayers[bill.id] || bill.rotationQueue[0])
+              : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
           const payer = members.find(m => m.uid === payerUid)
           const isDone = done.has(bill.id)
           const isSelected = selected.has(bill.id)
@@ -830,6 +981,26 @@ function GenerateBillsModal({
                   <span className="text-sm font-extrabold shrink-0">{formatAmount(bill.amount, bill.currency)}</span>
                 ) : null}
               </button>
+
+              {/* Manual payer: show selector */}
+              {bill.payerMode === 'manual' && isSelected && !isDone && (
+                <div className="px-4 pb-3 border-t border-border/50 pt-3">
+                  <Label className="text-xs font-bold text-muted-foreground mb-1.5 block">Who pays this month?</Label>
+                  <div className="flex flex-wrap gap-2">
+                    {bill.rotationQueue.map(uid => {
+                      const m = members.find(x => x.uid === uid)
+                      return (
+                        <button key={uid} onClick={() => setManualPayers(p => ({ ...p, [bill.id]: uid }))}
+                          className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
+                            manualPayers[bill.id] === uid ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-secondary text-muted-foreground border-border'
+                          }`}>
+                          {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
 
               {bill.isVariable && isSelected && !isDone && (
                 <div className="px-4 pb-4 border-t border-border/50 pt-3">
@@ -1477,6 +1648,243 @@ function MonthEndModal({
   )
 }
 
+// ── Quick Setup Modal — bulk-create standard recurring bills ─────────────────
+
+const QUICK_TEMPLATES: { category: ExpenseCategory; name: string; isVariable: boolean; typical: number | null; emoji: string }[] = [
+  { category: 'rent',        name: 'Rent',             isVariable: false, typical: 15000, emoji: '🏠' },
+  { category: 'electricity', name: 'Electricity',      isVariable: true,  typical: null,  emoji: '⚡' },
+  { category: 'water',       name: 'Water',            isVariable: true,  typical: null,  emoji: '💧' },
+  { category: 'internet',    name: 'Internet / WiFi',  isVariable: false, typical: 799,   emoji: '📶' },
+  { category: 'maid',        name: 'Maid',             isVariable: false, typical: 2000,  emoji: '🧹' },
+  { category: 'gas',         name: 'Gas / LPG',        isVariable: true,  typical: null,  emoji: '🔥' },
+  { category: 'maintenance', name: 'Maintenance',      isVariable: true,  typical: null,  emoji: '🔧' },
+  { category: 'ac',          name: 'AC / Cooling',     isVariable: true,  typical: null,  emoji: '❄️' },
+]
+
+function QuickSetupModal({
+  members, currentUserId, onSave, onClose,
+}: {
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  onSave: (bills: Array<Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>>) => Promise<void>
+  onClose: () => void
+}) {
+  const [selected, setSelected] = useState<Set<string>>(new Set(['rent', 'electricity', 'internet']))
+  const [amounts, setAmounts] = useState<Record<string, string>>(
+    Object.fromEntries(QUICK_TEMPLATES.filter(t => !t.isVariable && t.typical).map(t => [t.category, String(t.typical)]))
+  )
+  const [payerModes, setPayerModes] = useState<Record<string, PayerMode>>(
+    Object.fromEntries(QUICK_TEMPLATES.map(t => [t.category, 'rotation' as PayerMode]))
+  )
+  const [saving, setSaving] = useState(false)
+
+  const allParticipants = members.map(m => m.uid)
+
+  async function handleCreate() {
+    const bills = QUICK_TEMPLATES
+      .filter(t => selected.has(t.category))
+      .map(t => ({
+        name: t.name,
+        category: t.category,
+        isVariable: t.isVariable,
+        amount: t.isVariable ? null : (parseFloat(amounts[t.category]) || null),
+        currency: 'INR' as Currency,
+        billingDay: 1,
+        rotationQueue: allParticipants,
+        participants: allParticipants,
+        payerMode: payerModes[t.category],
+        splitMethod: 'equal' as SplitMethod,
+        active: true,
+        createdBy: currentUserId,
+      }))
+    if (bills.length === 0) return
+    setSaving(true)
+    await onSave(bills)
+    onClose()
+  }
+
+  return (
+    <Modal title="Quick Bill Setup" onClose={onClose}>
+      <div className="space-y-4">
+        <p className="text-sm text-muted-foreground">
+          Select the bills that apply to your flat. You can edit any of them individually after setup.
+        </p>
+
+        <div className="space-y-2">
+          {QUICK_TEMPLATES.map(t => {
+            const on = selected.has(t.category)
+            return (
+              <div key={t.category}
+                className={`rounded-xl border transition-all overflow-hidden ${on ? 'border-primary/40' : 'border-border opacity-60'}`}>
+                <div className="flex items-center gap-3 p-3">
+                  {/* Toggle */}
+                  <button onClick={() => setSelected(s => {
+                    const n = new Set(s)
+                    n.has(t.category) ? n.delete(t.category) : n.add(t.category)
+                    return n
+                  })} className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${on ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}>
+                    {on && <Check size={11} className="text-white" strokeWidth={3} />}
+                  </button>
+
+                  <span className="text-xl shrink-0">{t.emoji}</span>
+
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-bold">{t.name}</p>
+                    <p className="text-[11px] text-muted-foreground">{t.isVariable ? 'Variable — enter each month' : 'Fixed monthly'}</p>
+                  </div>
+
+                  {/* Amount (fixed only) */}
+                  {!t.isVariable && on && (
+                    <div className="relative w-24 shrink-0">
+                      <span className="absolute left-2 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₹</span>
+                      <input type="number" placeholder="0" min="0"
+                        className="w-full h-8 pl-5 pr-2 rounded-lg border border-border bg-background text-xs font-bold outline-none focus:border-primary/60"
+                        value={amounts[t.category] ?? ''}
+                        onChange={e => setAmounts(a => ({ ...a, [t.category]: e.target.value }))} />
+                    </div>
+                  )}
+                </div>
+
+                {/* Payer mode (when selected) */}
+                {on && (
+                  <div className="px-3 pb-3 flex items-center gap-1.5">
+                    <span className="text-[11px] text-muted-foreground shrink-0">Paid by:</span>
+                    {(['rotation', 'fixed', 'manual'] as PayerMode[]).map(mode => (
+                      <button key={mode} onClick={() => setPayerModes(p => ({ ...p, [t.category]: mode }))}
+                        className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                          payerModes[t.category] === mode ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'
+                        }`}>
+                        {mode === 'rotation' ? 'Rotates' : mode === 'fixed' ? 'Fixed' : 'Manual'}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )
+          })}
+        </div>
+
+        <p className="text-[11px] text-muted-foreground">
+          All bills will split equally among all {members.length} members. Configure individual splits after setup.
+        </p>
+
+        <div className="flex gap-2 pt-1">
+          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+          <Button className="flex-1 font-bold" onClick={handleCreate} disabled={saving || selected.size === 0}>
+            {saving ? 'Creating…' : `Create ${selected.size} bill${selected.size !== 1 ? 's' : ''}`}
+          </Button>
+        </div>
+      </div>
+    </Modal>
+  )
+}
+
+// ── Bill Cycle Row — compact view of a bill's current month status ────────────
+
+function BillCycleRow({
+  bill, instance, members, currentUserId, isAdmin,
+  onGenerate, onConfirmAmount, onMarkPaid,
+}: {
+  bill: RecurringBill
+  instance: BillInstance | null
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  isAdmin: boolean
+  onGenerate: () => void
+  onConfirmAmount: (id: string, amount: number) => void
+  onMarkPaid: (id: string) => void
+}) {
+  const [pendingAmount, setPendingAmount] = useState('')
+  const [showInput, setShowInput] = useState(false)
+  const cfg = CATEGORY_CONFIG[bill.category]
+
+  // Determine current payer display
+  const payerUid = bill.payerMode === 'fixed' && bill.fixedPayerUid
+    ? bill.fixedPayerUid
+    : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+  const payer = members.find(m => m.uid === payerUid)
+  const isYouPayer = payerUid === currentUserId
+
+  const due = !instance && bill.active
+
+  return (
+    <div className={`flex items-center gap-3 p-3 rounded-xl border transition-all ${
+      !instance && due ? 'border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20' :
+      instance?.status === 'paid' ? 'border-emerald-200 dark:border-emerald-800 bg-emerald-50/30 dark:bg-emerald-950/10' :
+      instance?.status === 'pending' ? 'border-amber-200 dark:border-amber-800' :
+      'border-border bg-card'
+    }`}>
+      {/* Category */}
+      <span className="text-lg shrink-0">{cfg?.emoji}</span>
+
+      {/* Name + payer */}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-semibold truncate">{bill.name}</p>
+        <p className="text-[11px] text-muted-foreground">
+          {bill.payerMode === 'manual' && !instance ? 'Select payer on generate' :
+           isYouPayer ? 'You pay' : `${payer?.nickname ?? '…'} pays`}
+          {bill.payerMode === 'rotation' && <span className="ml-1 opacity-60">· rotating</span>}
+        </p>
+      </div>
+
+      {/* Amount */}
+      <div className="text-right shrink-0">
+        {instance?.amount ? (
+          <p className="text-sm font-extrabold">{formatAmount(instance.amount, instance.currency)}</p>
+        ) : bill.amount ? (
+          <p className="text-sm font-bold text-muted-foreground">{formatAmount(bill.amount, bill.currency)}</p>
+        ) : (
+          <p className="text-[11px] text-muted-foreground italic">Variable</p>
+        )}
+      </div>
+
+      {/* Status / action */}
+      {!instance && due && isAdmin && (
+        <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs h-7 px-2.5 shrink-0" onClick={onGenerate}>
+          <Play size={11} className="mr-1" /> Generate
+        </Button>
+      )}
+      {instance?.status === 'pending' && isAdmin && !showInput && (
+        <button onClick={() => setShowInput(true)}
+          className="flex items-center gap-1 text-[11px] font-bold text-amber-600 dark:text-amber-400 shrink-0">
+          <Clock size={11} /> Enter
+        </button>
+      )}
+      {instance?.status === 'pending' && showInput && (
+        <div className="flex items-center gap-1 shrink-0">
+          <div className="relative w-20">
+            <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">₹</span>
+            <input type="number" autoFocus placeholder="0"
+              className="w-full h-7 pl-4 pr-1 rounded-lg border border-border bg-background text-xs font-bold outline-none focus:border-primary/60"
+              value={pendingAmount} onChange={e => setPendingAmount(e.target.value)} />
+          </div>
+          <button onClick={() => { const a = parseFloat(pendingAmount); if (a > 0 && instance) { onConfirmAmount(instance.id, a); setShowInput(false) } }}
+            className="h-7 px-2 rounded-lg bg-primary text-primary-foreground text-[10px] font-bold">OK</button>
+        </div>
+      )}
+      {instance?.status === 'split_generated' && (
+        <div className="flex items-center gap-1.5 shrink-0">
+          <span className="text-[10px] font-bold text-brand-600 dark:text-brand-400 bg-brand-50 dark:bg-brand-900/20 px-2 py-0.5 rounded-full">Split Ready</span>
+          {isYouPayer && (
+            <button onClick={() => onMarkPaid(instance.id)} className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-75">
+              <Check size={11} />
+            </button>
+          )}
+        </div>
+      )}
+      {instance?.status === 'paid' && (
+        <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full shrink-0">Paid ✓</span>
+      )}
+      {instance?.status === 'skipped' && (
+        <span className="text-[10px] font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full shrink-0">Skipped</span>
+      )}
+      {!instance && !due && (
+        <span className="text-[10px] text-muted-foreground shrink-0 italic">Not yet due</span>
+      )}
+    </div>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
@@ -1484,7 +1892,8 @@ export default function ExpensesPage() {
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, addSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
-    generateBill, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance, closeMonth,
+    generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
+    createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
   } = useFlatStore()
   const { user } = useAuthStore()
 
@@ -1495,6 +1904,8 @@ export default function ExpensesPage() {
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
+  const [showQuickSetup, setShowQuickSetup] = useState(false)
+  const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set())
   const hasAutoOpened = useRef(false)
 
   // Month cycle helpers
@@ -1869,93 +2280,192 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ── MONTHLY BILLS TAB ────────────────────────────────────────────── */}
+      {/* ── MONTHLY BILLS TAB — 3 sections: This Month · Templates · History ── */}
       {tab === 'recurring' && (
-        <div className="space-y-4">
-          {dueBills.length > 0 && isAdmin && (
-            <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
-              <Zap size={18} className="text-amber-600 shrink-0" />
-              <p className="text-sm font-bold text-amber-800 dark:text-amber-200 flex-1">
-                {dueBills.length} bill{dueBills.length > 1 ? 's' : ''} ready to generate for {monthLabel(currentMonthKey())}
-              </p>
-              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0"
-                onClick={() => setShowGenerate(true)}>
-                Generate
-              </Button>
-            </div>
-          )}
+        <div className="space-y-8">
 
-          {/* Monthly summary card */}
-          {recurringBills.filter(b => b.active).length > 0 && (
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              <div className="p-4 rounded-xl border border-border bg-card">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Fixed/month</p>
-                <p className="text-xl font-extrabold">{formatAmount(fixedMonthlyTotal, 'INR')}</p>
+          {/* ── Section 1: This Month ── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{monthLabel(currentMonthKey())}</h2>
                 <p className="text-xs text-muted-foreground mt-0.5">
-                  {recurringBills.filter(b => b.active && !b.isVariable).length} bills
+                  {billInstances.filter(b => b.month === currentMonthKey() && b.status !== 'skipped').length} generated
+                  {dueBills.length > 0 ? ` · ${dueBills.length} due` : ''}
+                  {billInstances.filter(b => b.month === currentMonthKey() && b.status === 'pending').length > 0
+                    ? ` · ${billInstances.filter(b => b.month === currentMonthKey() && b.status === 'pending').length} awaiting amount` : ''}
                 </p>
               </div>
-              <div className="p-4 rounded-xl border border-border bg-card">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Per person</p>
-                <p className="text-xl font-extrabold">
-                  {typicalMemberCount > 0 ? formatAmount(fixedMonthlyTotal / typicalMemberCount, 'INR') : '—'}
-                </p>
-                <p className="text-xs text-muted-foreground mt-0.5">{typicalMemberCount} members avg</p>
-              </div>
-              <div className="p-4 rounded-xl border border-border bg-card col-span-2 sm:col-span-1">
-                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-1">Variable</p>
-                {variableBillNames.length > 0 ? (
-                  <p className="text-sm font-semibold leading-snug">{variableBillNames.join(', ')}</p>
-                ) : (
-                  <p className="text-sm text-muted-foreground">None</p>
-                )}
-                <p className="text-xs text-muted-foreground mt-0.5">entered on generate</p>
-              </div>
+              {isAdmin && dueBills.filter(b => b.payerMode !== 'manual' && !b.isVariable).length > 0 && (
+                <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                  onClick={() => generateAllDueBills(currentMonthKey())}>
+                  <Zap size={13} className="mr-1" /> Generate All
+                </Button>
+              )}
             </div>
+
+            {recurringBills.filter(b => b.active).length === 0 ? (
+              <p className="text-sm text-muted-foreground italic">No recurring bills configured yet.</p>
+            ) : (
+              <div className="space-y-2">
+                {recurringBills.filter(b => b.active).map(bill => {
+                  const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
+                  return (
+                    <BillCycleRow
+                      key={bill.id}
+                      bill={bill}
+                      instance={instance}
+                      members={members}
+                      currentUserId={currentUserId}
+                      isAdmin={!!isAdmin}
+                      onGenerate={() => {
+                        if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                        else generateBill(bill.id)
+                      }}
+                      onConfirmAmount={confirmBillAmount}
+                      onMarkPaid={markBillPaid}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* ── Section 2: Bill Templates ── */}
+          <section>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Bill Templates</h2>
+              {isAdmin && (
+                <div className="flex gap-2">
+                  {recurringBills.length === 0 && (
+                    <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                      <Sparkles size={13} className="mr-1" /> Quick Setup
+                    </Button>
+                  )}
+                  <Button size="sm" className="font-bold" onClick={() => setShowAddBill(true)}>
+                    <Plus size={13} className="mr-1" /> Add Bill
+                  </Button>
+                </div>
+              )}
+            </div>
+
+            {recurringBills.length === 0 ? (
+              <Card className="border-dashed border-2">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
+                  <p className="font-bold text-base text-muted-foreground">No recurring bills yet</p>
+                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
+                    Set up rent, electricity, WiFi and other monthly bills. They&apos;ll generate automatically each month.
+                  </p>
+                  {isAdmin && (
+                    <div className="flex gap-2">
+                      <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                        <Sparkles size={14} className="mr-1.5" /> Quick Setup
+                      </Button>
+                      <Button className="font-bold" onClick={() => setShowAddBill(true)}>
+                        <Plus size={14} className="mr-1.5" /> Add Bill
+                      </Button>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-3">
+                {recurringBills.map(bill => {
+                  const currentInstance = billInstances.find(b => b.templateId === bill.id && b.month === currentMonthKey()) ?? null
+                  return (
+                    <MonthlyBillRow
+                      key={bill.id} bill={bill} members={members}
+                      currentUserId={currentUserId} isAdmin={!!isAdmin}
+                      currentInstance={currentInstance}
+                      onEdit={() => setEditBill(bill)}
+                      onDelete={() => deleteRecurringBill(bill.id)}
+                      onGenerate={() => {
+                        if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                        else generateBill(bill.id)
+                      }}
+                      onConfirmAmount={confirmBillAmount}
+                      onEditAmount={editBillInstanceAmount}
+                      onMarkPaid={markBillPaid}
+                      onSkip={skipBillInstance}
+                      onDeleteInstance={deleteBillInstance}
+                    />
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+          {/* ── Section 3: History (Phase 2c) ── */}
+          {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <History size={15} className="text-muted-foreground" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">History</h2>
+              </div>
+              <div className="space-y-2">
+                {monthCycles.filter(mc => mc.status === 'closed').map(mc => {
+                  const expanded = expandedHistory.has(mc.month)
+                  const grandTotal = mc.totalBillsINR + mc.totalExpensesINR
+                  const hasCf = mc.carryForwardOut && Object.keys(mc.carryForwardOut.balances).length > 0
+                  return (
+                    <div key={mc.month} className="rounded-xl border border-border bg-card overflow-hidden">
+                      <button
+                        onClick={() => setExpandedHistory(s => {
+                          const n = new Set(s); n.has(mc.month) ? n.delete(mc.month) : n.add(mc.month); return n
+                        })}
+                        className="w-full flex items-center gap-3 p-4 hover:bg-secondary/30 transition-colors text-left">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <p className="text-sm font-bold">{monthLabelUtil(mc.month)}</p>
+                            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Closed ✓</span>
+                            {hasCf && <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Carry-fwd</span>}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-0.5">
+                            {formatAmount(grandTotal, 'INR')} total · {formatAmount(mc.totalSettledINR, 'INR')} settled
+                          </p>
+                        </div>
+                        {expanded ? <ChevronUp size={15} className="text-muted-foreground shrink-0" /> : <ChevronDown size={15} className="text-muted-foreground shrink-0" />}
+                      </button>
+
+                      {expanded && (
+                        <div className="px-4 pb-4 border-t border-border/40 pt-3 space-y-3">
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              ['Recurring Bills', formatAmount(mc.totalBillsINR, 'INR')],
+                              ['Expenses', formatAmount(mc.totalExpensesINR, 'INR')],
+                              ['Settled', formatAmount(mc.totalSettledINR, 'INR')],
+                            ].map(([l, v]) => (
+                              <div key={l} className="p-2.5 rounded-xl bg-secondary/50">
+                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{l}</p>
+                                <p className="text-sm font-extrabold mt-0.5">{v}</p>
+                              </div>
+                            ))}
+                          </div>
+                          {hasCf && (
+                            <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1">Carried to {monthLabelUtil(mc.carryForwardOut!.toMonth)}</p>
+                              <div className="flex flex-wrap gap-x-3">
+                                {Object.entries(mc.carryForwardOut!.balances).map(([uid, amt]) => {
+                                  const m = members.find(x => x.uid === uid)
+                                  return (
+                                    <span key={uid} className={`text-xs font-semibold ${amt > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                      {m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                                    </span>
+                                  )
+                                })}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </section>
           )}
 
-          {recurringBills.length === 0 ? (
-            <Card className="border-dashed border-2">
-              <CardContent className="flex flex-col items-center justify-center p-16 text-center">
-                <RefreshCw size={44} className="text-muted-foreground/25 mb-4" />
-                <p className="font-bold text-lg text-muted-foreground">No monthly bills set up</p>
-                <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs">
-                  Add rent, electricity, water, and other bills that repeat every month.
-                </p>
-                {isAdmin && (
-                  <Button className="mt-5 font-bold" onClick={() => setShowAddBill(true)}>
-                    <Plus size={15} className="mr-1.5" /> Add first bill
-                  </Button>
-                )}
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="space-y-3">
-              {recurringBills.map(bill => {
-                const currentInstance = billInstances.find(
-                  b => b.templateId === bill.id && b.month === currentMonthKey()
-                ) ?? null
-                return (
-                  <MonthlyBillRow
-                    key={bill.id} bill={bill} members={members}
-                    currentUserId={currentUserId} isAdmin={!!isAdmin}
-                    currentInstance={currentInstance}
-                    onEdit={() => setEditBill(bill)}
-                    onDelete={() => deleteRecurringBill(bill.id)}
-                    onGenerate={() => {
-                      if (bill.isVariable) setShowGenerate(true)
-                      else generateBill(bill.id)
-                    }}
-                    onConfirmAmount={confirmBillAmount}
-                    onEditAmount={editBillInstanceAmount}
-                    onMarkPaid={markBillPaid}
-                    onSkip={(id) => skipBillInstance(id)}
-                    onDeleteInstance={deleteBillInstance}
-                  />
-                )
-              })}
-            </div>
-          )}
         </div>
       )}
 
@@ -1964,7 +2474,7 @@ export default function ExpensesPage() {
         <ExpenseModal members={members} currentUserId={currentUserId} onSave={addExpense} onClose={() => setShowAddExpense(false)} />
       )}
       {showAddBill && (
-        <MonthlyBillModal members={members} currentUserId={currentUserId} onSave={createRecurringBill} onClose={() => setShowAddBill(false)} />
+        <MonthlyBillModal members={members} currentUserId={currentUserId} onSave={_createSingle} onClose={() => setShowAddBill(false)} />
       )}
       {editBill && (
         <MonthlyBillModal members={members} currentUserId={currentUserId} initial={editBill}
@@ -1975,8 +2485,13 @@ export default function ExpensesPage() {
         <SettleUpModal preToUserId={settleTarget.userId} preAmount={settleTarget.amount} preCurrency={settleTarget.currency}
           members={members} currentUserId={currentUserId} onSettle={addSettlement} onClose={() => setSettleTarget(null)} />
       )}
+      {showQuickSetup && (
+        <QuickSetupModal members={members} currentUserId={currentUserId}
+          onSave={bulkCreateRecurringBills} onClose={() => setShowQuickSetup(false)} />
+      )}
       {showGenerate && dueBills.length > 0 && (
-        <GenerateBillsModal dueBills={dueBills} members={members} onGenerate={generateBill} onClose={() => setShowGenerate(false)} />
+        <GenerateBillsModal dueBills={dueBills} members={members} currentUserId={currentUserId}
+          onGenerate={generateBill} onClose={() => setShowGenerate(false)} />
       )}
       {showMonthEnd && (
         <MonthEndModal

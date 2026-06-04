@@ -103,6 +103,12 @@ export interface Expense {
   createdBy: string
 }
 
+// How the payer is determined each month
+export type PayerMode = 'rotation' | 'fixed' | 'manual'
+
+// How the bill amount is split among participants
+export type SplitMethod = 'equal' | 'percent' | 'custom'
+
 export interface RecurringBill {
   id: string
   name: string
@@ -110,9 +116,19 @@ export interface RecurringBill {
   amount: number | null    // null = variable (e.g. electricity)
   currency: Currency
   billingDay: number       // 1–28, day of month to generate
-  rotationQueue: string[]  // payer rotation — who physically pays landlord/utility
+
+  // Payer configuration
+  rotationQueue: string[]     // ordered list for rotation — also default participants
   currentPayerIndex: number
-  participants?: string[]  // who splits the cost — defaults to rotationQueue if unset
+  payerMode: PayerMode        // how payer is chosen each month (default: 'rotation')
+  fixedPayerUid?: string      // used when payerMode === 'fixed'
+
+  // Participant / split configuration
+  participants?: string[]     // who splits — defaults to rotationQueue if unset
+  splitMethod: SplitMethod    // how amount is divided (default: 'equal')
+  percentSplits?: Record<string, number>  // uid → 0-100 for 'percent' method
+  customSplits?: Record<string, number>   // uid → fixed ₹ for 'custom' method
+
   isVariable: boolean
   active: boolean
   createdBy: string
@@ -235,9 +251,11 @@ interface FlatState {
   addSettlement: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
   deleteSettlement: (settlementId: string) => Promise<void>
   createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
-  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'isVariable' | 'active' | 'currency'>>) => Promise<void>
+  bulkCreateRecurringBills: (bills: Array<Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>>) => Promise<void>
+  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'payerMode' | 'fixedPayerUid' | 'splitMethod' | 'percentSplits' | 'customSplits' | 'isVariable' | 'active' | 'currency'>>) => Promise<void>
   deleteRecurringBill: (billId: string) => Promise<void>
-  generateBill: (billId: string, amount?: number) => Promise<void>
+  generateBill: (billId: string, amount?: number, manualPayerUid?: string) => Promise<void>
+  generateAllDueBills: (month: string) => Promise<void>
   confirmBillAmount: (instanceId: string, amount: number) => Promise<void>
   editBillInstanceAmount: (instanceId: string, amount: number) => Promise<void>
   markBillPaid: (instanceId: string) => Promise<void>
@@ -313,14 +331,16 @@ const MOCK_RECURRING_BILLS: RecurringBill[] = [
     id: 'rb1', name: 'Room Rent', category: 'rent', amount: 20000, currency: 'INR',
     billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 0,
     participants: ['u1', 'u2', 'u3', 'u4'],
+    payerMode: 'rotation', splitMethod: 'equal',
     isVariable: false, active: true, createdBy: 'u1',
     createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-05',
   },
   {
-    // WiFi already generated for June — shows split_generated instance
+    // WiFi — fixed payer (u1 always pays), already generated for June
     id: 'rb2', name: 'WiFi', category: 'internet', amount: 800, currency: 'INR',
     billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 2,
     participants: ['u1', 'u2', 'u3', 'u4'],
+    payerMode: 'fixed', fixedPayerUid: 'u1', splitMethod: 'equal',
     isVariable: false, active: true, createdBy: 'u1',
     createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-06',
   },
@@ -328,16 +348,28 @@ const MOCK_RECURRING_BILLS: RecurringBill[] = [
     id: 'rb3', name: 'Water Bill', category: 'water', amount: 600, currency: 'INR',
     billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 2,
     participants: ['u1', 'u2', 'u3', 'u4'],
+    payerMode: 'rotation', splitMethod: 'equal',
     isVariable: false, active: true, createdBy: 'u1',
     createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-05',
   },
   {
-    // Electricity variable: generated for June but amount pending
+    // Electricity variable — manual payer selected each month
     id: 'rb4', name: 'Electricity', category: 'electricity', amount: null, currency: 'INR',
     billingDay: 10, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 0,
     participants: ['u1', 'u2', 'u3', 'u4'],
+    payerMode: 'manual', splitMethod: 'equal',
     isVariable: true, active: true, createdBy: 'u1',
     createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-06',
+  },
+  {
+    // Maid — percent split: u1 and u2 pay more (share larger room)
+    id: 'rb5', name: 'Maid', category: 'maid', amount: 3000, currency: 'INR',
+    billingDay: 1, rotationQueue: ['u1', 'u2', 'u3', 'u4'], currentPayerIndex: 0,
+    participants: ['u1', 'u2', 'u3', 'u4'],
+    payerMode: 'rotation', splitMethod: 'percent',
+    percentSplits: { u1: 30, u2: 30, u3: 20, u4: 20 },
+    isVariable: false, active: true, createdBy: 'u1',
+    createdAt: new Date(2026, 5, 1).toISOString(), lastGeneratedMonth: '2026-05',
   },
 ]
 
@@ -946,6 +978,27 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
   },
 
+  bulkCreateRecurringBills: async (bills) => {
+    const flatId = get().flatId
+    const uid = useAuthStore.getState().user?.uid
+    if (!uid) return
+    const newBills: RecurringBill[] = bills.map(data => ({
+      ...data,
+      id: crypto.randomUUID(),
+      currentPayerIndex: 0,
+      lastGeneratedMonth: '',
+      createdAt: new Date().toISOString(),
+      createdBy: uid,
+    }))
+    if (hasKeys && flatId) {
+      for (const bill of newBills) {
+        await setDoc(doc(db, `flats/${flatId}/recurringBills/${bill.id}`), fs(bill))
+      }
+    } else {
+      set(s => ({ recurringBills: [...s.recurringBills, ...newBills] }))
+    }
+  },
+
   updateRecurringBill: async (billId, changes) => {
     if (hasKeys && get().flatId) {
       await updateDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`), changes)
@@ -962,7 +1015,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
   },
 
-  generateBill: async (billId, amount?) => {
+  generateBill: async (billId, amount?, manualPayerUid?) => {
     const state = get()
     const bill = state.recurringBills.find(b => b.id === billId)
     const uid = useAuthStore.getState().user?.uid
@@ -973,19 +1026,39 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const mo = today.getMonth() + 1
     const currentMonth = `${yr}-${String(mo).padStart(2, '0')}`
     const dueDate = `${currentMonth}-${String(bill.billingDay).padStart(2, '0')}`
-    const payer = bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
 
-    // participants: who splits — falls back to rotationQueue for backward compat
+    // ── Determine payer based on payerMode ──────────────────────────────────
+    const payerMode = bill.payerMode ?? 'rotation'
+    let payer: string
+    if (payerMode === 'fixed' && bill.fixedPayerUid) {
+      payer = bill.fixedPayerUid
+    } else if (payerMode === 'manual' && manualPayerUid) {
+      payer = manualPayerUid
+    } else {
+      payer = bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+    }
+
+    // ── Determine participants ──────────────────────────────────────────────
     const participants = bill.participants ?? bill.rotationQueue
 
-    // For fixed bills or when amount is explicitly provided, compute splits immediately
+    // ── Determine final amount ──────────────────────────────────────────────
     const finalAmount = bill.isVariable ? (amount ?? null) : (bill.amount ?? null)
 
+    // ── Compute splits based on splitMethod ─────────────────────────────────
+    const splitMethod = bill.splitMethod ?? 'equal'
     let splits: Record<string, number> | null = null
     let status: BillInstanceStatus = 'pending'
 
     if (finalAmount !== null && finalAmount > 0) {
-      splits = computeBillSplits(finalAmount, participants, state.members, today)
+      if (splitMethod === 'percent' && bill.percentSplits) {
+        splits = Object.fromEntries(
+          participants.map(u => [u, Math.round(finalAmount * (bill.percentSplits![u] ?? 0) / 100 * 100) / 100])
+        )
+      } else if (splitMethod === 'custom' && bill.customSplits) {
+        splits = bill.customSplits
+      } else {
+        splits = computeBillSplits(finalAmount, participants, state.members, today)
+      }
       status = 'split_generated'
     }
 
@@ -1014,18 +1087,18 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set(s => ({ billInstances: [...s.billInstances, instance] }))
     }
 
-    // Advance payer rotation and record generation month
-    const nextIndex = (bill.currentPayerIndex + 1) % bill.rotationQueue.length
+    // Advance rotation index ONLY for rotation mode
+    const billUpdate: { lastGeneratedMonth: string; currentPayerIndex?: number } = {
+      lastGeneratedMonth: currentMonth,
+    }
+    if (payerMode === 'rotation') {
+      billUpdate.currentPayerIndex = (bill.currentPayerIndex + 1) % bill.rotationQueue.length
+    }
     if (hasKeys && state.flatId) {
-      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`), {
-        currentPayerIndex: nextIndex,
-        lastGeneratedMonth: currentMonth,
-      })
+      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`), billUpdate)
     } else {
       set(s => ({
-        recurringBills: s.recurringBills.map(b => b.id === billId
-          ? { ...b, currentPayerIndex: nextIndex, lastGeneratedMonth: currentMonth }
-          : b)
+        recurringBills: s.recurringBills.map(b => b.id === billId ? { ...b, ...billUpdate } : b),
       }))
     }
 
@@ -1035,6 +1108,26 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       action: 'bill_generated',
       details: `generated ${bill.name} bill for ${monthName}`,
     })
+  },
+
+  generateAllDueBills: async (month) => {
+    const state = get()
+    const uid = useAuthStore.getState().user?.uid
+    if (!uid) return
+    const [yr, mo] = month.split('-').map(Number)
+    const today = new Date()
+    const dueBills = state.recurringBills.filter(b =>
+      b.active &&
+      b.lastGeneratedMonth !== month &&
+      b.payerMode !== 'manual' &&    // manual bills skip batch generation
+      !b.isVariable &&                // variable bills need admin-entered amount
+      today.getDate() >= b.billingDay
+    )
+    for (const bill of dueBills) {
+      if (!state.billInstances.find(bi => bi.templateId === bill.id && bi.month === month)) {
+        await get().generateBill(bill.id)
+      }
+    }
   },
 
   confirmBillAmount: async (instanceId, amount) => {

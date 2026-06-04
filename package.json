@@ -6,7 +6,15 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:report": "playwright show-report",
+    "test:auth": "playwright test tests/auth.spec.ts",
+    "test:tasks": "playwright test tests/tasks.spec.ts",
+    "test:expenses": "playwright test tests/expenses.spec.ts",
+    "test:mobile": "playwright test --grep @mobile"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -23,6 +31,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@playwright/test": "^1.60.0",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

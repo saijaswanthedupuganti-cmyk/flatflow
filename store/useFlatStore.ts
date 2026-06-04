@@ -239,8 +239,10 @@ interface FlatState {
   deleteRecurringBill: (billId: string) => Promise<void>
   generateBill: (billId: string, amount?: number) => Promise<void>
   confirmBillAmount: (instanceId: string, amount: number) => Promise<void>
+  editBillInstanceAmount: (instanceId: string, amount: number) => Promise<void>
   markBillPaid: (instanceId: string) => Promise<void>
   skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
+  deleteBillInstance: (instanceId: string) => Promise<void>
   closeMonth: (
     month: string,
     confirmedSettlements: { fromUserId: string; toUserId: string; amount: number; type: 'month_end' | 'rent_adjustment'; note?: string }[],
@@ -289,23 +291,21 @@ const MOCK_TASKS: Task[] = [
 
 const MOCK_EXPENSES: Expense[] = [
   {
+    // Rent logged as ad-hoc expense (not yet migrated to a BillInstance)
     id: 'ex1', description: 'June Rent', amount: 32000, currency: 'INR',
     paidBy: 'u1', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
     splits: { u1: 8000, u2: 8000, u3: 8000, u4: 8000 },
-    category: 'rent', date: '2026-06-01', createdAt: new Date(2026, 5, 1).toISOString(), createdBy: 'u1',
+    category: 'rent', date: '2026-06-01', month: '2026-06',
+    createdAt: new Date(2026, 5, 1).toISOString(), createdBy: 'u1',
   },
   {
-    id: 'ex2', description: 'Electricity Bill', amount: 2800, currency: 'INR',
+    id: 'ex2', description: 'Groceries run', amount: 1800, currency: 'INR',
     paidBy: 'u2', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
-    splits: { u1: 700, u2: 700, u3: 700, u4: 700 },
-    category: 'electricity', date: '2026-06-03', createdAt: new Date(2026, 5, 3).toISOString(), createdBy: 'u2',
+    splits: { u1: 450, u2: 450, u3: 450, u4: 450 },
+    category: 'grocery', date: '2026-06-05', month: '2026-06',
+    createdAt: new Date(2026, 5, 5).toISOString(), createdBy: 'u2',
   },
-  {
-    id: 'ex3', description: 'WiFi', amount: 1200, currency: 'INR',
-    paidBy: 'u1', splitAmong: ['u1', 'u2', 'u3', 'u4'], splitType: 'equal',
-    splits: { u1: 300, u2: 300, u3: 300, u4: 300 },
-    category: 'internet', date: '2026-06-02', createdAt: new Date(2026, 5, 2).toISOString(), createdBy: 'u1',
-  },
+  // WiFi (ex3) removed — now represented by BillInstance bi1 to avoid double-counting
 ]
 
 const MOCK_RECURRING_BILLS: RecurringBill[] = [
@@ -1094,6 +1094,43 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       action: 'bill_skipped',
       details: `skipped ${instance.name}${reason ? `: ${reason}` : ''}`,
     })
+  },
+
+  editBillInstanceAmount: async (instanceId, amount) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!instance || !uid || amount <= 0) return
+    const splits = computeBillSplits(amount, instance.participants, state.members, new Date())
+    const changes = { amount, splits, status: 'split_generated' as BillInstanceStatus }
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    } else {
+      set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
+    }
+    await get().addActivity({ userId: uid, action: 'bill_generated', details: `edited ${instance.name} amount to ${amount}` })
+  },
+
+  deleteBillInstance: async (instanceId) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    const uid = useAuthStore.getState().user?.uid
+    if (!instance || !uid) return
+    if (hasKeys && state.flatId) {
+      await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`))
+      // Reset so the bill shows as DUE again and can be re-generated
+      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${instance.templateId}`), {
+        lastGeneratedMonth: '',
+      })
+    } else {
+      set(s => ({
+        billInstances: s.billInstances.filter(b => b.id !== instanceId),
+        recurringBills: s.recurringBills.map(b =>
+          b.id === instance.templateId ? { ...b, lastGeneratedMonth: '' } : b
+        ),
+      }))
+    }
+    await get().addActivity({ userId: uid, action: 'bill_skipped', details: `deleted and reset ${instance.name} — can be regenerated` })
   },
 
   closeMonth: async (month, confirmedSettlements, summary, carryForwardOut) => {

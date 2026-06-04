@@ -1,5 +1,6 @@
 "use client"
 import { useState, useMemo, useRef, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 import {
   useFlatStore,
   type Expense, type Settlement, type RecurringBill,
@@ -71,12 +72,22 @@ function ordinal(n: number): string {
   return n + (s[(v - 20) % 10] || s[v] || s[0])
 }
 
-// ── Modal shell ──────────────────────────────────────────────────────────────
+// ── Modal shell — React Portal so it renders above all overflow:hidden parents ──
 
 function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
-  return (
-    <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4">
-      <div className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl">
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+  if (!mounted) return null
+
+  return createPortal(
+    <div
+      className="fixed inset-0 bg-black/60 z-[200] flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onClose() }}
+    >
+      <div
+        className="bg-card border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-lg max-h-[92vh] overflow-y-auto shadow-2xl"
+        onClick={e => e.stopPropagation()}
+      >
         <div className="flex items-center justify-between px-5 py-4 border-b border-border sticky top-0 bg-card z-10">
           <h2 className="font-bold text-base">{title}</h2>
           <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-secondary text-muted-foreground transition-colors">
@@ -85,7 +96,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
         </div>
         <div className="p-5">{children}</div>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 
@@ -601,6 +613,7 @@ function MonthlyBillModal({
       currency: form.currency,
       billingDay: Math.min(28, Math.max(1, parseInt(form.billingDay) || 1)),
       rotationQueue: form.rotationQueue,
+      participants: form.rotationQueue,  // who splits — same as payer queue for now
       active: form.active,
       createdBy: currentUserId,
     })
@@ -881,18 +894,23 @@ const INSTANCE_STATUS_CONFIG: Record<BillInstanceStatus, {
 }
 
 function BillInstanceCard({
-  instance, members, currentUserId, isAdmin, onConfirmAmount, onMarkPaid, onSkip,
+  instance, members, currentUserId, isAdmin,
+  onConfirmAmount, onEditAmount, onMarkPaid, onSkip, onDelete,
 }: {
   instance: BillInstance
   members: { uid: string; nickname: string }[]
   currentUserId: string
   isAdmin: boolean
   onConfirmAmount: (instanceId: string, amount: number) => void
+  onEditAmount: (instanceId: string, amount: number) => void
   onMarkPaid: (instanceId: string) => void
   onSkip: (instanceId: string) => void
+  onDelete: (instanceId: string) => void
 }) {
   const [showAmountInput, setShowAmountInput] = useState(false)
-  const [amountInput, setAmountInput] = useState('')
+  const [amountInput, setAmountInput] = useState(instance.amount?.toString() ?? '')
+  const [editMode, setEditMode] = useState(false)
+  const [editAmount, setEditAmount] = useState(instance.amount?.toString() ?? '')
   const cfg = INSTANCE_STATUS_CONFIG[instance.status]
   const payer = members.find(m => m.uid === instance.paidBy)
   const isYouPayer = instance.paidBy === currentUserId
@@ -908,26 +926,57 @@ function BillInstanceCard({
             {cfg.label}
           </span>
         </div>
-        <div className="flex items-center gap-2">
-          {/* Payer can mark paid; admin can skip */}
+        <div className="flex items-center gap-2.5">
           {instance.status === 'split_generated' && isYouPayer && (
-            <button
-              onClick={() => onMarkPaid(instance.id)}
-              className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-75 transition-opacity"
-            >
+            <button onClick={() => onMarkPaid(instance.id)}
+              className="flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400 hover:opacity-75 transition-opacity">
               <Check size={11} /> Mark paid
             </button>
           )}
+          {/* Admin: edit amount if split already generated */}
+          {instance.status === 'split_generated' && isAdmin && (
+            <button onClick={() => { setEditMode(true); setEditAmount(instance.amount?.toString() ?? '') }}
+              className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
+              <Pencil size={10} /> Edit
+            </button>
+          )}
+          {/* Admin: delete instance and reset to DUE so it can be regenerated */}
+          {instance.status !== 'paid' && isAdmin && (
+            <button onClick={() => onDelete(instance.id)}
+              className="flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-600 transition-colors">
+              <Trash2 size={10} /> Redo
+            </button>
+          )}
           {instance.status !== 'skipped' && instance.status !== 'paid' && isAdmin && (
-            <button
-              onClick={() => onSkip(instance.id)}
-              className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors"
-            >
+            <button onClick={() => onSkip(instance.id)}
+              className="text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors">
               Skip
             </button>
           )}
         </div>
       </div>
+
+      {/* Inline edit amount (admin, split_generated) */}
+      {editMode && (
+        <div className="px-4 py-3 border-b border-border/40 bg-secondary/40">
+          <p className="text-[11px] font-bold text-muted-foreground mb-2">Edit amount — splits will recompute</p>
+          <div className="flex items-center gap-2">
+            <div className="relative flex-1">
+              <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">₹</span>
+              <input type="number" placeholder="0" min="0" autoFocus
+                className="w-full h-8 pl-6 pr-3 rounded-lg border border-border bg-background text-sm font-medium outline-none focus:border-primary/60"
+                value={editAmount} onChange={e => setEditAmount(e.target.value)} />
+            </div>
+            <button onClick={() => { const a = parseFloat(editAmount); if (a > 0) { onEditAmount(instance.id, a); setEditMode(false) } }}
+              className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-bold hover:opacity-90 transition-opacity">
+              Save
+            </button>
+            <button onClick={() => setEditMode(false)} className="text-muted-foreground hover:text-foreground">
+              <X size={14} />
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Body */}
       <div className="px-4 py-3">
@@ -1028,15 +1077,17 @@ function BillInstanceCard({
 
 function MonthlyBillRow({
   bill, members, currentUserId, isAdmin, currentInstance,
-  onEdit, onDelete, onGenerate, onConfirmAmount, onMarkPaid, onSkip,
+  onEdit, onDelete, onGenerate, onConfirmAmount, onEditAmount, onMarkPaid, onSkip, onDeleteInstance,
 }: {
   bill: RecurringBill; members: { uid: string; nickname: string }[]
   currentUserId: string; isAdmin: boolean
   currentInstance: BillInstance | null
   onEdit: () => void; onDelete: () => void; onGenerate: () => void
   onConfirmAmount: (instanceId: string, amount: number) => void
+  onEditAmount: (instanceId: string, amount: number) => void
   onMarkPaid: (instanceId: string) => void
   onSkip: (instanceId: string) => void
+  onDeleteInstance: (instanceId: string) => void
 }) {
   const cfg = CATEGORY_CONFIG[bill.category]
   const currentPayerUid = bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
@@ -1099,8 +1150,10 @@ function MonthlyBillRow({
             currentUserId={currentUserId}
             isAdmin={isAdmin}
             onConfirmAmount={onConfirmAmount}
+            onEditAmount={onEditAmount}
             onMarkPaid={onMarkPaid}
             onSkip={onSkip}
+            onDelete={onDeleteInstance}
           />
         </div>
       )}
@@ -1431,7 +1484,7 @@ export default function ExpensesPage() {
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, addSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
-    generateBill, confirmBillAmount, markBillPaid, skipBillInstance, closeMonth,
+    generateBill, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance, closeMonth,
   } = useFlatStore()
   const { user } = useAuthStore()
 
@@ -1894,8 +1947,10 @@ export default function ExpensesPage() {
                       else generateBill(bill.id)
                     }}
                     onConfirmAmount={confirmBillAmount}
+                    onEditAmount={editBillInstanceAmount}
                     onMarkPaid={markBillPaid}
                     onSkip={(id) => skipBillInstance(id)}
+                    onDeleteInstance={deleteBillInstance}
                   />
                 )
               })}

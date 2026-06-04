@@ -1,11 +1,13 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
+import Link from 'next/link'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo, getNextAssignee } from '@/lib/rotationEngine'
+import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff } from 'lucide-react'
+import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 import NPSBanner from '@/components/NPSBanner'
 
@@ -28,8 +30,14 @@ const FREQ_COLOR: Record<string, string> = {
   one_time: 'bg-teal-100   text-teal-700   dark:bg-teal-900/30   dark:text-teal-400',
 }
 
+function currentMonthKey() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+}
+
 export default function DashboardPage() {
-  const { members, tasks, activityLog, swapRequests, markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, transferTask, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
+  const { members, tasks, activityLog, swapRequests, expenses, settlements, billInstances, recurringBills,
+    markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, transferTask, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
   const [swappingTaskId, setSwappingTaskId] = useState<string | null>(null)
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('')
@@ -143,6 +151,25 @@ export default function DashboardPage() {
   const now = new Date()
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening'
 
+  // Bills & Expenses summary for the widget
+  const currentUserId = user?.uid ?? 'u1'
+  const myBalances = useMemo(
+    () => computeBalances(currentUserId, expenses, settlements, billInstances),
+    [currentUserId, expenses, settlements, billInstances],
+  )
+  const thisMonthBillsTotal = useMemo(() => {
+    const m = currentMonthKey()
+    return billInstances
+      .filter(b => b.month === m && b.status !== 'skipped' && b.currency === 'INR' && b.amount)
+      .reduce((s, b) => s + (b.amount ?? 0), 0)
+  }, [billInstances])
+  const pendingBills = useMemo(
+    () => recurringBills.filter(b => b.active && b.lastGeneratedMonth !== currentMonthKey()).length,
+    [recurringBills],
+  )
+  const iOweTotal = myBalances.filter(b => b.amount < 0 && b.currency === 'INR').reduce((s, b) => s + b.amount, 0)
+  const owedToMe = myBalances.filter(b => b.amount > 0 && b.currency === 'INR').reduce((s, b) => s + b.amount, 0)
+
   return (
     <div className="space-y-4">
       {/* ── Page Header ── */}
@@ -211,6 +238,48 @@ export default function DashboardPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── Bills & Expenses Summary ────────────────────────────────── */}
+      {(thisMonthBillsTotal > 0 || pendingBills > 0 || myBalances.length > 0) && (
+        <Link href="/dashboard/expenses" className="block group">
+          <div className="rounded-xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-7 h-7 rounded-lg bg-brand-500/10 flex items-center justify-center shrink-0">
+                  <Receipt size={14} className="text-brand-600 dark:text-brand-400" />
+                </div>
+                <span className="text-sm font-bold">Bills &amp; Expenses</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                {pendingBills > 0 && (
+                  <span className="text-[10px] font-extrabold bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 px-2 py-0.5 rounded-full">
+                    {pendingBills} due
+                  </span>
+                )}
+                <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+              </div>
+            </div>
+            <div className="grid grid-cols-3 gap-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bills this month</p>
+                <p className="text-base font-extrabold mt-0.5">{formatAmount(thisMonthBillsTotal, 'INR')}</p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">You owe</p>
+                <p className={`text-base font-extrabold mt-0.5 ${iOweTotal < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                  {iOweTotal < 0 ? formatAmount(Math.abs(iOweTotal), 'INR') : '—'}
+                </p>
+              </div>
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Owed to you</p>
+                <p className={`text-base font-extrabold mt-0.5 ${owedToMe > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted-foreground'}`}>
+                  {owedToMe > 0 ? formatAmount(owedToMe, 'INR') : '—'}
+                </p>
+              </div>
+            </div>
+          </div>
+        </Link>
       )}
 
       {/* ── NPS Survey Banner ───────────────────────────────────────── */}

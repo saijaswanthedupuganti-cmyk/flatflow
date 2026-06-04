@@ -167,6 +167,17 @@ service cloud.firestore {
         allow delete: if isAdmin(flatId);
       }
 
+      // ── Month Cycles ─────────────────────────────────────────────────────────
+      // One document per flat per month. Backbone of the monthly lifecycle.
+      match /monthCycles/{cycleId} {
+        // All members can read (needed to display carry-forward, history)
+        allow read: if isMember(flatId);
+        // Admin creates and updates (open/close cycle)
+        allow create, update: if isAdmin(flatId);
+        // No delete — month history is permanent
+        allow delete: if false;
+      }
+
       // ── Join Requests ────────────────────────────────────────────────────────
       // Used when the flat is in 'approval' mode. Non-members submit requests;
       // the admin approves or rejects them.

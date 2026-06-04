@@ -169,6 +169,34 @@ export interface Settlement {
   createdAt: string
 }
 
+// ── Month Cycle — the backbone of the monthly lifecycle ───────────────────────
+// One document per flat per month. Created when the month is first accessed.
+// Closed by admin at month-end after all settlements are confirmed.
+
+export type MonthCycleStatus = 'open' | 'closing' | 'closed'
+
+export interface MonthCycle {
+  id: string                // flatId_YYYY-MM
+  flatId: string
+  month: string             // YYYY-MM
+  status: MonthCycleStatus
+
+  openedAt: string
+  closedAt: string | null
+
+  // Aggregates written on close
+  totalBillsINR: number
+  totalExpensesINR: number
+  totalSettledINR: number
+  netBalances: Record<string, number>  // uid → net (positive = owed to uid)
+
+  // Carry-forward links
+  carryForwardIn:  { fromMonth: string; balances: Record<string, number> } | null
+  carryForwardOut: { toMonth: string;   balances: Record<string, number> } | null
+
+  createdBy: string
+}
+
 interface FlatState {
   flatId: string | null
   name: string | null
@@ -182,6 +210,7 @@ interface FlatState {
   settlements: Settlement[]
   recurringBills: RecurringBill[]
   billInstances: BillInstance[]
+  monthCycles: MonthCycle[]
   isSynced: boolean
 
   // Initialization
@@ -212,6 +241,12 @@ interface FlatState {
   confirmBillAmount: (instanceId: string, amount: number) => Promise<void>
   markBillPaid: (instanceId: string) => Promise<void>
   skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
+  closeMonth: (
+    month: string,
+    confirmedSettlements: { fromUserId: string; toUserId: string; amount: number; type: 'month_end' | 'rent_adjustment'; note?: string }[],
+    summary: { totalBillsINR: number; totalExpensesINR: number; totalSettledINR: number; netBalances: Record<string, number> },
+    carryForwardOut: Record<string, number> | null,
+  ) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
@@ -306,6 +341,28 @@ const MOCK_RECURRING_BILLS: RecurringBill[] = [
   },
 ]
 
+const MOCK_MONTH_CYCLES: MonthCycle[] = [
+  {
+    // May 2026 — closed, with carry-forward into June
+    id: 'FLAT-1234_2026-05',
+    flatId: 'FLAT-1234',
+    month: '2026-05',
+    status: 'closed',
+    openedAt: new Date(2026, 4, 1).toISOString(),
+    closedAt: new Date(2026, 5, 1).toISOString(),
+    totalBillsINR: 21400,
+    totalExpensesINR: 3200,
+    totalSettledINR: 24150,
+    netBalances: { u1: 0, u2: 0, u3: 0, u4: 0 },
+    carryForwardIn: null,
+    carryForwardOut: {
+      toMonth: '2026-06',
+      balances: { u1: 450, u2: -300, u3: -150, u4: 0 },
+    },
+    createdBy: 'u1',
+  },
+]
+
 const MOCK_BILL_INSTANCES: BillInstance[] = [
   {
     // WiFi — June 2026, splits computed, Arjun paying this month
@@ -389,6 +446,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   settlements: [],
   recurringBills: hasKeys ? [] : MOCK_RECURRING_BILLS,
   billInstances: hasKeys ? [] : MOCK_BILL_INSTANCES,
+  monthCycles: hasKeys ? [] : MOCK_MONTH_CYCLES,
   isSynced: false,
 
   resetFlatData: () => {
@@ -408,6 +466,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       settlements: [],
       recurringBills: [],
       billInstances: [],
+      monthCycles: [],
       isSynced: false,
     })
   },
@@ -444,7 +503,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
 
     // FLAT DOC LISTENER — to get flat name + joinMode
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
@@ -533,7 +592,18 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       (err) => console.warn('BillInstances listener error:', err)
     )
 
-    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4, unsub5, unsub6, unsub7, unsub8, unsub9]
+    // MONTH CYCLES LISTENER — last 6 months
+    const unsub10 = onSnapshot(
+      query(collection(db, `flats/${flatId}/monthCycles`), orderBy('month', 'desc'), limit(6)),
+      (snapshot) => {
+        const monthCycles: MonthCycle[] = []
+        snapshot.forEach((doc) => monthCycles.push(doc.data() as MonthCycle))
+        set({ monthCycles })
+      },
+      (err) => console.warn('MonthCycles listener error:', err)
+    )
+
+    unsubscribers = [unsub0, unsub1, unsub2, unsub3, unsub4, unsub5, unsub6, unsub7, unsub8, unsub9, unsub10]
     set({ isSynced: true })
   },
 
@@ -1023,6 +1093,79 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       userId: uid,
       action: 'bill_skipped',
       details: `skipped ${instance.name}${reason ? `: ${reason}` : ''}`,
+    })
+  },
+
+  closeMonth: async (month, confirmedSettlements, summary, carryForwardOut) => {
+    const state = get()
+    const uid = useAuthStore.getState().user?.uid
+    if (!uid) return
+
+    const today = new Date().toISOString()
+    const nextMonth = (() => {
+      const [y, m] = month.split('-').map(Number)
+      const n = new Date(y, m, 1)
+      return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}`
+    })()
+
+    // Get carry-forward from previous month (already in state or look up)
+    const prevMonth = (() => {
+      const [y, m] = month.split('-').map(Number)
+      const p = new Date(y, m - 2, 1)
+      return `${p.getFullYear()}-${String(p.getMonth() + 1).padStart(2, '0')}`
+    })()
+    const prevCycle = state.monthCycles.find(mc => mc.month === prevMonth)
+    const carryForwardIn = prevCycle?.carryForwardOut ?? null
+
+    // Write confirmed settlements
+    for (const s of confirmedSettlements) {
+      await get().addSettlement({
+        fromUserId: s.fromUserId,
+        toUserId: s.toUserId,
+        amount: s.amount,
+        currency: 'INR',
+        note: s.note ?? undefined,
+        date: today.split('T')[0],
+        month,
+        type: s.type,
+      })
+    }
+
+    // Write/update MonthCycle doc
+    const cycleId = `${state.flatId}_${month}`
+    const cycle: MonthCycle = {
+      id: cycleId,
+      flatId: state.flatId ?? '',
+      month,
+      status: 'closed',
+      openedAt: state.monthCycles.find(mc => mc.month === month)?.openedAt ?? today,
+      closedAt: today,
+      totalBillsINR: summary.totalBillsINR,
+      totalExpensesINR: summary.totalExpensesINR,
+      totalSettledINR: summary.totalSettledINR + confirmedSettlements.reduce((s, c) => s + c.amount, 0),
+      netBalances: summary.netBalances,
+      carryForwardIn: carryForwardIn ? { fromMonth: prevMonth, balances: carryForwardIn.balances ?? carryForwardIn } : null,
+      carryForwardOut: carryForwardOut ? { toMonth: nextMonth, balances: carryForwardOut } : null,
+      createdBy: uid,
+    }
+
+    if (hasKeys && state.flatId) {
+      await setDoc(doc(db, `flats/${state.flatId}/monthCycles/${cycleId}`), fs(cycle))
+    } else {
+      set(s => ({
+        monthCycles: [
+          cycle,
+          ...s.monthCycles.filter(mc => mc.month !== month),
+        ],
+      }))
+    }
+
+    const label = new Date(Number(month.split('-')[0]), Number(month.split('-')[1]) - 1, 1)
+      .toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
+    await get().addActivity({
+      userId: uid,
+      action: 'settlement_added',
+      details: `closed ${label} — ${confirmedSettlements.length} settlement${confirmedSettlements.length !== 1 ? 's' : ''} recorded${carryForwardOut ? ', balance carried forward' : ''}`,
     })
   },
 

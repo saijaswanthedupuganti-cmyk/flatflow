@@ -484,7 +484,7 @@ export async function transferAdminService(currentAdminUid: string, newAdminUid:
 export async function deleteEntireFlatService(adminUid: string, flatId: string): Promise<void> {
   if (!hasKeys || !db) return
 
-  const subcollections = ['members', 'tasks', 'activityLog', 'swapRequests', 'joinRequests', 'npsResponses', 'expenses', 'settlements', 'recurringBills']
+  const subcollections = ['members', 'tasks', 'activityLog', 'swapRequests', 'joinRequests', 'npsResponses', 'expenses', 'settlements', 'recurringBills', 'billInstances', 'monthCycles']
   for (const sub of subcollections) {
     const snaps = await getDocs(collection(db, `flats/${flatId}/${sub}`))
     if (!snaps.empty) {

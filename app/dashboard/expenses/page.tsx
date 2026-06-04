@@ -3,9 +3,14 @@ import { useState, useMemo, useRef, useEffect } from 'react'
 import {
   useFlatStore,
   type Expense, type Settlement, type RecurringBill,
-  type BillInstance, type BillInstanceStatus,
+  type BillInstance, type BillInstanceStatus, type MonthCycle,
   type ExpenseCategory, type Currency,
 } from '@/store/useFlatStore'
+import {
+  computeMonthNetBalances, suggestSettlements, computeCarryForward,
+  buildMonthSummary, prevMonthKey, nextMonthKey, monthLabel as monthLabelUtil,
+  type SuggestedSettlement,
+} from '@/lib/settlementUtils'
 import { useAuthStore } from '@/store/useAuthStore'
 import { computeBalances, formatAmount, type Balance } from '@/lib/expenseUtils'
 import { Card, CardContent } from '@/components/ui/card'
@@ -16,6 +21,7 @@ import {
   Plus, Receipt, ArrowUpRight, ArrowDownLeft, Trash2, X,
   Wallet, Inbox, Check, AlertCircle, RefreshCw, Pencil,
   Zap, Play, PauseCircle, LayoutList, CircleDollarSign, Clock,
+  CalendarCheck, ArrowRight, ChevronRight, ChevronLeft, RotateCcw,
 } from 'lucide-react'
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -1122,14 +1128,310 @@ function MonthlyBillRow({
   )
 }
 
+// ── Month-End Settlement Modal ────────────────────────────────────────────────
+
+type SettlementChoice = { confirmed: boolean; type: 'month_end' | 'rent_adjustment'; note: string }
+
+function MonthEndModal({
+  month, members, currentUserId, prevCycle, expenses, billInstances, settlements,
+  onClose, onConfirm,
+}: {
+  month: string
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  prevCycle: MonthCycle | null
+  expenses: Expense[]
+  billInstances: BillInstance[]
+  settlements: Settlement[]
+  onClose: () => void
+  onConfirm: (
+    confirmed: { fromUserId: string; toUserId: string; amount: number; type: 'month_end' | 'rent_adjustment'; note?: string }[],
+    summary: { totalBillsINR: number; totalExpensesINR: number; totalSettledINR: number; netBalances: Record<string, number> },
+    carryForwardOut: Record<string, number> | null,
+  ) => Promise<void>
+}) {
+  const carryForwardIn = prevCycle?.carryForwardOut?.balances ?? null
+  const summary = useMemo(
+    () => buildMonthSummary(month, expenses, billInstances, settlements, carryForwardIn),
+    [month, expenses, billInstances, settlements, carryForwardIn],
+  )
+  const suggestions = useMemo(
+    () => suggestSettlements(summary.netBalances),
+    [summary.netBalances],
+  )
+
+  const [step, setStep] = useState<'overview' | 'settlements' | 'confirm'>('overview')
+  const [choices, setChoices] = useState<Record<number, SettlementChoice>>(() =>
+    Object.fromEntries(suggestions.map((_, i) => [i, { confirmed: true, type: 'month_end', note: '' }]))
+  )
+  const [saving, setSaving] = useState(false)
+
+  const confirmedList = suggestions.filter((_, i) => choices[i]?.confirmed)
+  const carryForwardOut = useMemo(
+    () => computeCarryForward(summary.netBalances, confirmedList),
+    [summary.netBalances, confirmedList],
+  )
+
+  const totalConfirmed = confirmedList.reduce((s, c) => s + c.amount, 0)
+
+  const nick = (uid: string) => {
+    if (uid === currentUserId) return 'You'
+    return members.find(m => m.uid === uid)?.nickname ?? uid
+  }
+
+  async function handleConfirm() {
+    setSaving(true)
+    const confirmed = suggestions
+      .map((s, i) => ({ ...s, type: choices[i]?.type ?? 'month_end', note: choices[i]?.note }))
+      .filter((_, i) => choices[i]?.confirmed)
+    await onConfirm(confirmed, summary, carryForwardOut)
+    onClose()
+  }
+
+  return (
+    <Modal title={`Close ${monthLabelUtil(month)}`} onClose={onClose}>
+      {/* Step indicator */}
+      <div className="flex items-center gap-1.5 mb-5">
+        {(['overview', 'settlements', 'confirm'] as const).map((s, i) => (
+          <div key={s} className="flex items-center gap-1.5">
+            <div className={`w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-extrabold transition-colors ${
+              step === s ? 'bg-primary text-primary-foreground' :
+              (['overview', 'settlements', 'confirm'].indexOf(step) > i) ? 'bg-emerald-500 text-white' :
+              'bg-secondary text-muted-foreground'
+            }`}>{['overview', 'settlements', 'confirm'].indexOf(step) > i ? <Check size={11} /> : i + 1}</div>
+            <span className={`text-xs font-semibold hidden sm:block ${step === s ? 'text-foreground' : 'text-muted-foreground'}`}>
+              {s === 'overview' ? 'Summary' : s === 'settlements' ? 'Settlements' : 'Confirm'}
+            </span>
+            {i < 2 && <ChevronRight size={12} className="text-muted-foreground/40 shrink-0" />}
+          </div>
+        ))}
+      </div>
+
+      {/* ── Screen 1: Overview ── */}
+      {step === 'overview' && (
+        <div className="space-y-4">
+          {/* Carry-forward banner */}
+          {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl border border-brand-200 dark:border-brand-900/50 bg-brand-50 dark:bg-brand-900/10">
+              <RotateCcw size={15} className="text-brand-600 dark:text-brand-400 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-xs font-bold text-brand-700 dark:text-brand-300">Carry-forward from {monthLabelUtil(prevMonthKey(month))}</p>
+                <div className="flex flex-wrap gap-x-3 mt-0.5">
+                  {Object.entries(carryForwardIn).map(([uid, amt]) => (
+                    <span key={uid} className={`text-xs font-medium ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'}`}>
+                      {nick(uid)}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Blocker: variable bills pending */}
+          {summary.pendingVariableBills > 0 && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30">
+              <AlertCircle size={15} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                {summary.pendingVariableBills} variable bill{summary.pendingVariableBills > 1 ? 's' : ''} still need amounts entered. Enter them in Monthly Bills before closing.
+              </p>
+            </div>
+          )}
+
+          {/* Month totals */}
+          <div className="grid grid-cols-2 gap-2">
+            {[
+              ['Recurring Bills', summary.totalBillsINR],
+              ['Shared Expenses', summary.totalExpensesINR],
+              ['Already Settled', summary.totalSettledINR],
+              ['Net Unsettled', summary.totalBillsINR + summary.totalExpensesINR - summary.totalSettledINR],
+            ].map(([label, val]) => (
+              <div key={label as string} className="p-3 rounded-xl bg-secondary/50 border border-border/50">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-0.5">{label as string}</p>
+                <p className={`text-base font-extrabold ${label === 'Net Unsettled' && (val as number) > 0 ? 'text-amber-600 dark:text-amber-400' : ''}`}>
+                  {formatAmount(val as number, 'INR')}
+                </p>
+              </div>
+            ))}
+          </div>
+
+          {/* Net balances per person */}
+          {Object.keys(summary.netBalances).length > 0 && (
+            <div>
+              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-2">Net position this month</p>
+              <div className="space-y-1.5">
+                {Object.entries(summary.netBalances)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([uid, bal]) => (
+                    <div key={uid} className="flex justify-between items-center px-3 py-2 rounded-lg bg-secondary/40">
+                      <span className="text-sm font-medium">{nick(uid)}</span>
+                      <span className={`text-sm font-extrabold ${bal > 0 ? 'text-emerald-600 dark:text-emerald-400' : bal < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                        {bal > 0 ? '+' : ''}{formatAmount(bal, 'INR')}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
+            <Button
+              className="flex-1 font-bold"
+              disabled={suggestions.length === 0 && !carryForwardIn}
+              onClick={() => setStep(suggestions.length > 0 ? 'settlements' : 'confirm')}
+            >
+              {suggestions.length > 0 ? 'Review Settlements' : 'Close with no transfers'} <ChevronRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Screen 2: Settlements ── */}
+      {step === 'settlements' && (
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
+            Confirm which transfers will be recorded. Unconfirmed amounts carry to {monthLabelUtil(nextMonthKey(month))}.
+          </p>
+
+          <div className="space-y-3">
+            {suggestions.map((s, i) => {
+              const ch = choices[i] ?? { confirmed: true, type: 'month_end', note: '' }
+              return (
+                <div key={i} className={`rounded-xl border transition-all overflow-hidden ${ch.confirmed ? 'border-primary/40 bg-primary/5' : 'border-border opacity-50'}`}>
+                  <div className="flex items-center gap-3 p-3.5">
+                    {/* Confirm toggle */}
+                    <button
+                      onClick={() => setChoices(c => ({ ...c, [i]: { ...ch, confirmed: !ch.confirmed } }))}
+                      className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 transition-colors ${ch.confirmed ? 'bg-primary border-primary' : 'border-muted-foreground/40'}`}
+                    >
+                      {ch.confirmed && <Check size={11} className="text-white" strokeWidth={3} />}
+                    </button>
+
+                    {/* Transfer arrow */}
+                    <div className="flex-1 flex items-center gap-2 min-w-0">
+                      <span className="text-sm font-bold truncate">{nick(s.fromUserId)}</span>
+                      <ArrowRight size={14} className="text-muted-foreground shrink-0" />
+                      <span className="text-sm font-bold truncate">{nick(s.toUserId)}</span>
+                    </div>
+
+                    {/* Amount */}
+                    <span className="text-base font-extrabold shrink-0">{formatAmount(s.amount, 'INR')}</span>
+                  </div>
+
+                  {ch.confirmed && (
+                    <div className="px-3.5 pb-3 space-y-2 border-t border-border/40 pt-3">
+                      {/* Type toggle */}
+                      <div className="flex gap-1.5">
+                        {(['month_end', 'rent_adjustment'] as const).map(t => (
+                          <button key={t}
+                            onClick={() => setChoices(c => ({ ...c, [i]: { ...ch, type: t } }))}
+                            className={`flex-1 py-1.5 rounded-lg text-xs font-bold border transition-all ${
+                              ch.type === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'
+                            }`}>
+                            {t === 'month_end' ? 'Cash / UPI' : 'Rent Adjustment'}
+                          </button>
+                        ))}
+                      </div>
+                      {ch.type === 'rent_adjustment' && (
+                        <p className="text-[11px] text-muted-foreground">
+                          ₹{s.amount} deducted from {nick(s.fromUserId)}&apos;s rent next month instead of cash transfer.
+                        </p>
+                      )}
+                      <input
+                        placeholder="Note (optional)"
+                        maxLength={80}
+                        value={ch.note}
+                        onChange={e => setChoices(c => ({ ...c, [i]: { ...ch, note: e.target.value } }))}
+                        className="w-full h-8 px-3 rounded-lg border border-border bg-background text-xs font-medium outline-none focus:border-primary/60"
+                      />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Carry-forward preview */}
+          {carryForwardOut && Object.keys(carryForwardOut).length > 0 && (
+            <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/20">
+              <p className="text-[11px] font-bold uppercase tracking-wider text-amber-700 dark:text-amber-400 mb-1">Carries to {monthLabelUtil(nextMonthKey(month))}</p>
+              <div className="flex flex-wrap gap-x-3">
+                {Object.entries(carryForwardOut).map(([uid, amt]) => (
+                  <span key={uid} className={`text-xs font-semibold ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                    {nick(uid)}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" onClick={() => setStep('overview')}><ChevronLeft size={14} className="mr-1" /> Back</Button>
+            <Button className="flex-1 font-bold" onClick={() => setStep('confirm')}>
+              Review & Close <ChevronRight size={14} className="ml-1" />
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* ── Screen 3: Confirm ── */}
+      {step === 'confirm' && (
+        <div className="space-y-4">
+          <div className="p-4 rounded-xl border border-border bg-secondary/30 space-y-2">
+            <p className="text-sm font-bold">{monthLabelUtil(month)} — final summary</p>
+            <div className="space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Settlements to record</span>
+                <span className="font-bold">{confirmedList.length}</span>
+              </div>
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Total transferred</span>
+                <span className="font-bold">{formatAmount(totalConfirmed, 'INR')}</span>
+              </div>
+              {carryForwardOut && Object.keys(carryForwardOut).length > 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Carry to {monthLabelUtil(nextMonthKey(month))}</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">Yes</span>
+                </div>
+              )}
+              {(!carryForwardOut || Object.keys(carryForwardOut).length === 0) && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">All balances</span>
+                  <span className="font-bold text-emerald-600 dark:text-emerald-400">Fully settled ✓</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <p className="text-xs text-muted-foreground">
+            This will close {monthLabelUtil(month)} permanently. All confirmed settlements will be recorded and the month will be locked.
+          </p>
+
+          <div className="flex gap-2 pt-1">
+            <Button variant="outline" onClick={() => setStep(suggestions.length > 0 ? 'settlements' : 'overview')}>
+              <ChevronLeft size={14} className="mr-1" /> Back
+            </Button>
+            <Button
+              className="flex-1 font-bold bg-emerald-600 hover:bg-emerald-700 text-white"
+              onClick={handleConfirm} disabled={saving}
+            >
+              {saving ? 'Closing…' : `Close ${monthLabelUtil(month)}`}
+            </Button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
   const {
-    expenses, settlements, recurringBills, billInstances, members,
+    expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, addSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
-    generateBill, confirmBillAmount, markBillPaid, skipBillInstance,
+    generateBill, confirmBillAmount, markBillPaid, skipBillInstance, closeMonth,
   } = useFlatStore()
   const { user } = useAuthStore()
 
@@ -1139,7 +1441,14 @@ export default function ExpensesPage() {
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
+  const [showMonthEnd, setShowMonthEnd] = useState(false)
   const hasAutoOpened = useRef(false)
+
+  // Month cycle helpers
+  const currentCycle = monthCycles.find(mc => mc.month === currentMonthKey())
+  const prevCycle = monthCycles.find(mc => mc.month === prevMonthKey(currentMonthKey()))
+  const carryForwardIn = prevCycle?.carryForwardOut?.balances ?? null
+  const isCurrentMonthClosed = currentCycle?.status === 'closed'
 
   const currentUserId = user?.uid || 'u1'
   const currentUser = members.find(m => m.uid === currentUserId)
@@ -1394,6 +1703,28 @@ export default function ExpensesPage() {
             </section>
           )}
 
+          {/* ── Carry-forward banner ──────────────────────────────────────── */}
+          {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
+            <div className="flex items-start gap-3 p-3.5 rounded-xl border border-brand-200 dark:border-brand-900/50 bg-brand-50 dark:bg-brand-900/10">
+              <RotateCcw size={14} className="text-brand-600 dark:text-brand-400 mt-0.5 shrink-0" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-bold text-brand-700 dark:text-brand-300">
+                  Carry-forward from {monthLabelUtil(prevMonthKey(currentMonthKey()))} included in balances
+                </p>
+                <div className="flex flex-wrap gap-x-3 mt-0.5">
+                  {Object.entries(carryForwardIn).map(([uid, amt]) => {
+                    const m = members.find(x => x.uid === uid)
+                    return (
+                      <span key={uid} className={`text-xs font-medium ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                        {uid === currentUserId ? 'You' : m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                      </span>
+                    )
+                  })}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ── Your Balance ─────────────────────────────────────────────── */}
           <section>
             <div className="flex items-center gap-2 mb-3">
@@ -1403,6 +1734,42 @@ export default function ExpensesPage() {
             <BalanceSummary balances={balances} members={members}
               onSettle={(uid, amt, cur) => setSettleTarget({ userId: uid, amount: amt, currency: cur })} />
           </section>
+
+          {/* ── Month-End Settlement ──────────────────────────────────────── */}
+          {isAdmin && (
+            <section>
+              <div className="flex items-center gap-2 mb-3">
+                <CalendarCheck size={15} className="text-muted-foreground" />
+                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Month-End Settlement</h2>
+              </div>
+              {isCurrentMonthClosed ? (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20">
+                  <Check size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                  <div className="flex-1">
+                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{monthLabelUtil(currentMonthKey())} is closed</p>
+                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">
+                      {currentCycle?.carryForwardOut
+                        ? `Balance carried to ${monthLabelUtil(nextMonthKey(currentMonthKey()))}`
+                        : 'All balances settled'}
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-secondary/30">
+                  <CalendarCheck size={16} className="text-muted-foreground shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold">{monthLabelUtil(currentMonthKey())}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Settle all bills, expenses{carryForwardIn ? ' + carry-forward' : ''} in one flow
+                    </p>
+                  </div>
+                  <Button size="sm" className="font-bold shrink-0" onClick={() => setShowMonthEnd(true)}>
+                    Close Month
+                  </Button>
+                </div>
+              )}
+            </section>
+          )}
 
           {/* ── History ─────────────────────────────────────────────────── */}
           <section>
@@ -1555,6 +1922,21 @@ export default function ExpensesPage() {
       )}
       {showGenerate && dueBills.length > 0 && (
         <GenerateBillsModal dueBills={dueBills} members={members} onGenerate={generateBill} onClose={() => setShowGenerate(false)} />
+      )}
+      {showMonthEnd && (
+        <MonthEndModal
+          month={currentMonthKey()}
+          members={members}
+          currentUserId={currentUserId}
+          prevCycle={prevCycle ?? null}
+          expenses={expenses}
+          billInstances={billInstances}
+          settlements={settlements}
+          onClose={() => setShowMonthEnd(false)}
+          onConfirm={async (confirmed, summary, cfOut) => {
+            await closeMonth(currentMonthKey(), confirmed, summary, cfOut)
+          }}
+        />
       )}
     </div>
   )

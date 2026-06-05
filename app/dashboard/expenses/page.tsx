@@ -1903,7 +1903,6 @@ export default function ExpensesPage() {
   } = useFlatStore()
   const { user } = useAuthStore()
 
-  const [tab, setTab] = useState<'expenses' | 'recurring'>('expenses')
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [showAddBill, setShowAddBill] = useState(false)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
@@ -1968,105 +1967,35 @@ export default function ExpensesPage() {
       .reduce((sum, e) => sum + (e.currency === 'INR' ? e.amount : 0), 0)
   }, [grouped])
 
-  const thisMonthMemberShares = useMemo(() => {
-    const key = currentMonthKey()
-    const monthExpenses = grouped.find(([k]) => k === key)?.[1] ?? []
-    const shares: Record<string, number> = {}
-    for (const exp of monthExpenses) {
-      if (exp.currency !== 'INR') continue
-      for (const uid of exp.splitAmong) {
-        shares[uid] = (shares[uid] ?? 0) + (exp.splits[uid] ?? 0)
-      }
-    }
-    return shares
-  }, [grouped])
-
-  const thisMonthExpenseCount = useMemo(() => {
-    const key = currentMonthKey()
-    return grouped.find(([k]) => k === key)?.[1]?.length ?? 0
-  }, [grouped])
-
-  // Category spend summary for current month
-  const categorySpend = useMemo(() => {
-    const key = currentMonthKey()
-    const monthExpenses = grouped.find(([k]) => k === key)?.[1] ?? []
-    const spend: Partial<Record<ExpenseCategory, number>> = {}
-    for (const exp of monthExpenses) {
-      if (exp.currency !== 'INR') continue
-      spend[exp.category] = (spend[exp.category] ?? 0) + exp.amount
-    }
-    return (Object.entries(spend) as [ExpenseCategory, number][])
-      .filter(([, amt]) => amt > 0)
-      .sort(([, a], [, b]) => b - a)
-  }, [grouped])
-
-  const fixedMonthlyTotal = useMemo(() =>
-    recurringBills.filter(b => b.active && !b.isVariable && b.currency === 'INR')
-      .reduce((sum, b) => sum + (b.amount ?? 0), 0),
-  [recurringBills])
-
-  const variableBillNames = useMemo(() =>
-    recurringBills.filter(b => b.active && b.isVariable).map(b => b.name),
-  [recurringBills])
-
-  const typicalMemberCount = useMemo(() => {
-    const active = recurringBills.filter(b => b.active)
-    if (active.length === 0) return members.length
-    return Math.round(active.reduce((s, b) => s + b.rotationQueue.length, 0) / active.length)
-  }, [recurringBills, members])
 
   return (
-    <div className="space-y-6 max-w-3xl">
+    <div className="space-y-8 max-w-3xl">
 
       {/* ── Header ────────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Bills & Expenses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">Monthly bills + shared expenses, all in one place.</p>
+          <p className="text-muted-foreground mt-1 text-sm">{monthLabel(currentMonthKey())}</p>
         </div>
         <div className="flex gap-2 shrink-0">
-          {thisMonthTotal > 0 && tab === 'expenses' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
-              <Receipt size={13} className="text-amber-600 dark:text-amber-400" />
-              <span className="text-xs font-bold text-amber-700 dark:text-amber-300">{formatAmount(thisMonthTotal, 'INR')} this month</span>
-            </div>
+          <Button variant="outline" onClick={() => setShowAddExpense(true)} className="font-bold">
+            <Plus size={15} className="mr-1.5" /> Add Expense
+          </Button>
+          {isAdmin && (
+            <Button onClick={() => setShowAddBill(true)} className="font-bold">
+              <Plus size={15} className="mr-1.5" /> Add Bill
+            </Button>
           )}
-          {tab === 'expenses'
-            ? <Button onClick={() => setShowAddExpense(true)} className="font-bold"><Plus size={15} className="mr-1.5" /> Add Expense</Button>
-            : isAdmin && <Button onClick={() => setShowAddBill(true)} className="font-bold"><Plus size={15} className="mr-1.5" /> New Bill</Button>
-          }
         </div>
       </div>
 
-      {/* ── Tabs ──────────────────────────────────────────────────────────── */}
-      <div className="flex gap-1 p-1 bg-secondary/50 rounded-xl w-fit">
-        {([
-          ['expenses', 'Shared Expenses', Receipt],
-          ['recurring', 'Monthly Bills', RefreshCw],
-        ] as const).map(([key, label, Icon]) => (
-          <button key={key} onClick={() => setTab(key)}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-              tab === key ? 'bg-card shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'
-            }`}>
-            <Icon size={14} />
-            {label}
-            {key === 'recurring' && dueBills.length > 0 && (
-              <span className="bg-amber-500 text-white text-[10px] font-extrabold px-1.5 py-0.5 rounded-full min-w-[18px] text-center">{dueBills.length}</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* ── Due Bills Banner ──────────────────────────────────────────────── */}
-      {dueBills.length > 0 && isAdmin && tab === 'expenses' && (
+      {/* ── Alerts ────────────────────────────────────────────────────────── */}
+      {(dueBills.length > 0 && isAdmin) && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
           <Zap size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
-              {dueBills.length} monthly bill{dueBills.length > 1 ? 's' : ''} due for {monthLabel(currentMonthKey())}
-            </p>
-            <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              {dueBills.map(b => b.name).join(', ')}
+              {dueBills.length} bill{dueBills.length > 1 ? 's' : ''} due — {dueBills.map(b => b.name).join(', ')}
             </p>
           </div>
           <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0"
@@ -2076,14 +2005,12 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ── 2-day month-end reminder for variable bills ───────────────────── */}
       {isNearMonthEnd && pendingVariableBills.length > 0 && (
         <div className="flex items-center gap-3 p-4 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
           <AlertCircle size={18} className="text-blue-600 dark:text-blue-400 shrink-0" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-blue-800 dark:text-blue-200">Month ending soon — confirm these bills</p>
-            <p className="text-xs text-blue-700 dark:text-blue-400 mt-0.5">
-              {pendingVariableBills.map(b => b.name).join(', ')} — enter this month&apos;s amount before the month closes
+            <p className="text-sm font-bold text-blue-800 dark:text-blue-200">
+              Month ending soon — confirm {pendingVariableBills.map(b => b.name).join(', ')}
             </p>
           </div>
           {isAdmin && (
@@ -2095,385 +2022,274 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ── SHARED EXPENSES TAB ──────────────────────────────────────────── */}
-      {tab === 'expenses' && (
-        <div className="space-y-8">
-
-          {/* ── Monthly Statement ──────────────────────────────────────────── */}
-          {thisMonthTotal > 0 && (
-            <section>
-              <Card className="border-primary/20 bg-gradient-to-br from-primary/5 via-card to-card overflow-hidden">
-                <CardContent className="p-5">
-                  <div className="flex items-start justify-between gap-4 mb-4">
-                    <div>
-                      <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">{monthLabel(currentMonthKey())}</p>
-                      <p className="text-3xl font-extrabold mt-1 tracking-tight">{formatAmount(thisMonthTotal, 'INR')}</p>
-                      <p className="text-sm text-muted-foreground mt-0.5">total flat spend this month</p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className="text-xs text-muted-foreground uppercase tracking-wide font-bold">Expenses</p>
-                      <p className="text-2xl font-extrabold">{thisMonthExpenseCount}</p>
-                    </div>
-                  </div>
-
-                  {/* Per-person share breakdown */}
-                  {Object.keys(thisMonthMemberShares).length > 0 && (
-                    <div>
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">Each person&apos;s share</p>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {Object.entries(thisMonthMemberShares)
-                          .sort(([, a], [, b]) => b - a)
-                          .map(([uid, share]) => {
-                            const member = members.find(m => m.uid === uid)
-                            const isYou = uid === currentUserId
-                            return (
-                              <div key={uid}
-                                className={`flex justify-between items-center rounded-lg px-3 py-2 ${isYou ? 'bg-primary/10 border border-primary/20' : 'bg-secondary/60'}`}>
-                                <span className={`text-xs font-semibold ${isYou ? 'text-primary' : ''}`}>
-                                  {isYou ? `${member?.nickname} (you)` : member?.nickname ?? uid}
-                                </span>
-                                <span className={`text-xs font-extrabold ${isYou ? 'text-primary' : ''}`}>
-                                  {formatAmount(share, 'INR')}
-                                </span>
-                              </div>
-                            )
-                          })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Category spend summary */}
-                  {categorySpend.length > 0 && (
-                    <div className="mt-4">
-                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider mb-2">By category</p>
-                      <div className="space-y-1.5">
-                        {categorySpend.map(([cat, amt]) => {
-                          const cfg = CATEGORY_CONFIG[cat]
-                          const pct = thisMonthTotal > 0 ? (amt / thisMonthTotal) * 100 : 0
-                          return (
-                            <div key={cat} className="flex items-center gap-2">
-                              <span className="text-sm shrink-0">{cfg?.emoji}</span>
-                              <div className="flex-1 min-w-0">
-                                <div className="flex justify-between items-center mb-0.5">
-                                  <span className="text-xs font-semibold">{cfg?.label}</span>
-                                  <span className="text-xs font-bold">{formatAmount(amt, 'INR')}</span>
-                                </div>
-                                <div className="h-1 bg-secondary rounded-full overflow-hidden">
-                                  <div className="h-full bg-primary/60 rounded-full" style={{ width: `${pct}%` }} />
-                                </div>
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </section>
-          )}
-
-          {/* ── Carry-forward banner ──────────────────────────────────────── */}
-          {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
-            <div className="flex items-start gap-3 p-3.5 rounded-xl border border-brand-200 dark:border-brand-900/50 bg-brand-50 dark:bg-brand-900/10">
-              <RotateCcw size={14} className="text-brand-600 dark:text-brand-400 mt-0.5 shrink-0" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-bold text-brand-700 dark:text-brand-300">
-                  Carry-forward from {monthLabelUtil(prevMonthKey(currentMonthKey()))} included in balances
-                </p>
-                <div className="flex flex-wrap gap-x-3 mt-0.5">
-                  {Object.entries(carryForwardIn).map(([uid, amt]) => {
-                    const m = members.find(x => x.uid === uid)
-                    return (
-                      <span key={uid} className={`text-xs font-medium ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                        {uid === currentUserId ? 'You' : m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
-                      </span>
-                    )
-                  })}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* ── Your Balance ─────────────────────────────────────────────── */}
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <Wallet size={15} className="text-muted-foreground" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Balance</h2>
-            </div>
-            <BalanceSummary balances={balances} members={members}
-              onSettle={(uid, amt, cur) => setSettleTarget({ userId: uid, amount: amt, currency: cur })} />
-          </section>
-
-          {/* ── Month-End Settlement ──────────────────────────────────────── */}
-          {isAdmin && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <CalendarCheck size={15} className="text-muted-foreground" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Month-End Settlement</h2>
-              </div>
-              {isCurrentMonthClosed ? (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20">
-                  <Check size={16} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                  <div className="flex-1">
-                    <p className="text-sm font-bold text-emerald-700 dark:text-emerald-300">{monthLabelUtil(currentMonthKey())} is closed</p>
-                    <p className="text-xs text-emerald-600/70 dark:text-emerald-400/70 mt-0.5">
-                      {currentCycle?.carryForwardOut
-                        ? `Balance carried to ${monthLabelUtil(nextMonthKey(currentMonthKey()))}`
-                        : 'All balances settled'}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <div className="flex items-center gap-3 p-4 rounded-xl border border-border bg-secondary/30">
-                  <CalendarCheck size={16} className="text-muted-foreground shrink-0" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold">{monthLabelUtil(currentMonthKey())}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      Settle all bills, expenses{carryForwardIn ? ' + carry-forward' : ''} in one flow
-                    </p>
-                  </div>
-                  <Button size="sm" className="font-bold shrink-0" onClick={() => setShowMonthEnd(true)}>
-                    Close Month
-                  </Button>
-                </div>
-              )}
-            </section>
-          )}
-
-          {/* ── History ─────────────────────────────────────────────────── */}
-          <section>
-            <div className="flex items-center gap-2 mb-3">
-              <LayoutList size={15} className="text-muted-foreground" />
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">History</h2>
-              {sortedExpenses.length > 0 && (
-                <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sortedExpenses.length}</span>
-              )}
-            </div>
-
-            {sortedExpenses.length === 0 ? (
-              <Card className="border-dashed border-2">
-                <CardContent className="flex flex-col items-center justify-center p-16 text-center">
-                  <Inbox size={44} className="text-muted-foreground/25 mb-4" />
-                  <p className="font-bold text-lg text-muted-foreground">No expenses yet</p>
-                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs">
-                    Set up monthly bills in the Monthly Bills tab, or add a shared expense here.
-                  </p>
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-6">
-                {grouped.map(([monthKey, monthExpenses]) => {
-                  const monthTotal = monthExpenses.reduce((s, e) => s + (e.currency === 'INR' ? e.amount : 0), 0)
-                  return (
-                    <div key={monthKey}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">{monthLabel(monthKey)}</p>
-                        {monthTotal > 0 && <p className="text-xs font-bold text-muted-foreground">{formatAmount(monthTotal, 'INR')} total</p>}
-                      </div>
-                      <div className="space-y-2">
-                        {monthExpenses.map(exp => (
-                          <ExpenseRow key={exp.id} expense={exp} members={members} currentUserId={currentUserId}
-                            canDelete={exp.createdBy === currentUserId || isAdmin} onDelete={deleteExpense} />
-                        ))}
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            )}
-          </section>
+      {/* ── Balance ───────────────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Wallet size={15} className="text-muted-foreground" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Balance</h2>
         </div>
-      )}
 
-      {/* ── MONTHLY BILLS TAB — 3 sections: This Month · Templates · History ── */}
-      {tab === 'recurring' && (
-        <div className="space-y-8">
+        {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
+          <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-secondary/30 mb-3">
+            <RotateCcw size={13} className="text-muted-foreground shrink-0" />
+            <p className="text-xs text-muted-foreground">
+              Carry-forward from {monthLabelUtil(prevMonthKey(currentMonthKey()))} included
+              {Object.entries(carryForwardIn).map(([uid, amt]) => {
+                const m = members.find(x => x.uid === uid)
+                return (
+                  <span key={uid} className={`ml-2 font-semibold ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
+                    {uid === currentUserId ? 'You' : m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                  </span>
+                )
+              })}
+            </p>
+          </div>
+        )}
 
-          {/* ── Section 1: This Month ── */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <div>
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">{monthLabel(currentMonthKey())}</h2>
-                <p className="text-xs text-muted-foreground mt-0.5">
-                  {billInstances.filter(b => b.month === currentMonthKey() && b.status !== 'skipped').length} generated
-                  {dueBills.length > 0 ? ` · ${dueBills.length} due` : ''}
-                  {billInstances.filter(b => b.month === currentMonthKey() && b.status === 'pending').length > 0
-                    ? ` · ${billInstances.filter(b => b.month === currentMonthKey() && b.status === 'pending').length} awaiting amount` : ''}
+        <BalanceSummary balances={balances} members={members}
+          onSettle={(uid, amt, cur) => setSettleTarget({ userId: uid, amount: amt, currency: cur })} />
+
+        {isAdmin && (
+          <div className="mt-3">
+            {isCurrentMonthClosed ? (
+              <div className="flex items-center gap-2.5 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20">
+                <Check size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
+                  {monthLabelUtil(currentMonthKey())} closed
+                  {currentCycle?.carryForwardOut ? ` · balance carried to ${monthLabelUtil(nextMonthKey(currentMonthKey()))}` : ' · all settled'}
                 </p>
               </div>
+            ) : (
+              <button
+                onClick={() => setShowMonthEnd(true)}
+                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors cursor-pointer">
+                <div className="flex items-center gap-2.5">
+                  <CalendarCheck size={15} className="text-muted-foreground" />
+                  <p className="text-sm font-semibold">Close {monthLabelUtil(currentMonthKey())}</p>
+                </div>
+                <ChevronRight size={15} className="text-muted-foreground" />
+              </button>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* ── Monthly Bills ─────────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <RefreshCw size={15} className="text-muted-foreground" />
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Monthly Bills</h2>
+            {recurringBills.filter(b => b.active).length > 0 && (
+              <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
+                {recurringBills.filter(b => b.active).length}
+              </span>
+            )}
+          </div>
+          {isAdmin && (
+            <div className="flex gap-2">
+              {recurringBills.length === 0 && (
+                <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                  <Sparkles size={13} className="mr-1" /> Quick Setup
+                </Button>
+              )}
               {isAdmin && dueBills.filter(b => b.payerMode !== 'manual' && !b.isVariable).length > 0 && (
-                <Button size="sm" className="bg-amber-500 hover:bg-amber-600 text-white font-bold"
+                <Button size="sm" variant="outline" className="font-semibold"
                   onClick={() => generateAllDueBills(currentMonthKey())}>
                   <Zap size={13} className="mr-1" /> Generate All
                 </Button>
               )}
             </div>
+          )}
+        </div>
 
-            {recurringBills.filter(b => b.active).length === 0 ? (
-              <p className="text-sm text-muted-foreground italic">No recurring bills configured yet.</p>
-            ) : (
-              <div className="space-y-2">
-                {recurringBills.filter(b => b.active).map(bill => {
-                  const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
-                  return (
-                    <BillCycleRow
-                      key={bill.id}
-                      bill={bill}
-                      instance={instance}
-                      members={members}
-                      currentUserId={currentUserId}
-                      isAdmin={!!isAdmin}
-                      onGenerate={() => {
-                        if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                        else generateBill(bill.id)
-                      }}
-                      onConfirmAmount={confirmBillAmount}
-                      onMarkPaid={markBillPaid}
-                    />
-                  )
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* ── Section 2: Bill Templates ── */}
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Bill Templates</h2>
+        {recurringBills.filter(b => b.active).length === 0 ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+              <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
+              <p className="font-bold text-base text-muted-foreground">No monthly bills yet</p>
+              <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
+                Add rent, electricity, WiFi — they rotate automatically each month.
+              </p>
               {isAdmin && (
                 <div className="flex gap-2">
-                  {recurringBills.length === 0 && (
-                    <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
-                      <Sparkles size={13} className="mr-1" /> Quick Setup
-                    </Button>
-                  )}
-                  <Button size="sm" className="font-bold" onClick={() => setShowAddBill(true)}>
-                    <Plus size={13} className="mr-1" /> Add Bill
+                  <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                    <Sparkles size={14} className="mr-1.5" /> Quick Setup
+                  </Button>
+                  <Button className="font-bold" onClick={() => setShowAddBill(true)}>
+                    <Plus size={14} className="mr-1.5" /> Add Bill
                   </Button>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-2">
+            {recurringBills.filter(b => b.active).map(bill => {
+              const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
+              return (
+                <BillCycleRow
+                  key={bill.id}
+                  bill={bill}
+                  instance={instance}
+                  members={members}
+                  currentUserId={currentUserId}
+                  isAdmin={!!isAdmin}
+                  onGenerate={() => {
+                    if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                    else generateBill(bill.id)
+                  }}
+                  onConfirmAmount={confirmBillAmount}
+                  onMarkPaid={markBillPaid}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Bill templates section — collapsed under "Manage Bills" for admins */}
+        {isAdmin && recurringBills.length > 0 && (
+          <div className="mt-3 space-y-2">
+            {recurringBills.map(bill => {
+              const currentInstance = billInstances.find(b => b.templateId === bill.id && b.month === currentMonthKey()) ?? null
+              return (
+                <MonthlyBillRow
+                  key={bill.id} bill={bill} members={members}
+                  currentUserId={currentUserId} isAdmin={!!isAdmin}
+                  currentInstance={currentInstance}
+                  onEdit={() => setEditBill(bill)}
+                  onDelete={() => deleteRecurringBill(bill.id)}
+                  onGenerate={() => {
+                    if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                    else generateBill(bill.id)
+                  }}
+                  onConfirmAmount={confirmBillAmount}
+                  onEditAmount={editBillInstanceAmount}
+                  onMarkPaid={markBillPaid}
+                  onSkip={skipBillInstance}
+                  onDeleteInstance={deleteBillInstance}
+                />
+              )
+            })}
+          </div>
+        )}
+
+        {/* Closed month history */}
+        {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
+          <div className="mt-4 space-y-2">
+            <div className="flex items-center gap-2 mb-2">
+              <History size={13} className="text-muted-foreground" />
+              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Past Months</p>
             </div>
-
-            {recurringBills.length === 0 ? (
-              <Card className="border-dashed border-2">
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                  <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
-                  <p className="font-bold text-base text-muted-foreground">No recurring bills yet</p>
-                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
-                    Set up rent, electricity, WiFi and other monthly bills. They&apos;ll generate automatically each month.
-                  </p>
-                  {isAdmin && (
-                    <div className="flex gap-2">
-                      <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
-                        <Sparkles size={14} className="mr-1.5" /> Quick Setup
-                      </Button>
-                      <Button className="font-bold" onClick={() => setShowAddBill(true)}>
-                        <Plus size={14} className="mr-1.5" /> Add Bill
-                      </Button>
+            {monthCycles.filter(mc => mc.status === 'closed').map(mc => {
+              const expanded = expandedHistory.has(mc.month)
+              const grandTotal = mc.totalBillsINR + mc.totalExpensesINR
+              const hasCf = mc.carryForwardOut && Object.keys(mc.carryForwardOut.balances).length > 0
+              return (
+                <div key={mc.month} className="rounded-xl border border-border bg-card overflow-hidden">
+                  <button
+                    onClick={() => setExpandedHistory(s => {
+                      const n = new Set(s); n.has(mc.month) ? n.delete(mc.month) : n.add(mc.month); return n
+                    })}
+                    className="w-full flex items-center gap-3 p-3.5 hover:bg-secondary/30 transition-colors text-left cursor-pointer">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-bold">{monthLabelUtil(mc.month)}</p>
+                        <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Closed</span>
+                        {hasCf && <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Carry-fwd</span>}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {formatAmount(grandTotal, 'INR')} total · {formatAmount(mc.totalSettledINR, 'INR')} settled
+                      </p>
                     </div>
-                  )}
-                </CardContent>
-              </Card>
-            ) : (
-              <div className="space-y-3">
-                {recurringBills.map(bill => {
-                  const currentInstance = billInstances.find(b => b.templateId === bill.id && b.month === currentMonthKey()) ?? null
-                  return (
-                    <MonthlyBillRow
-                      key={bill.id} bill={bill} members={members}
-                      currentUserId={currentUserId} isAdmin={!!isAdmin}
-                      currentInstance={currentInstance}
-                      onEdit={() => setEditBill(bill)}
-                      onDelete={() => deleteRecurringBill(bill.id)}
-                      onGenerate={() => {
-                        if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                        else generateBill(bill.id)
-                      }}
-                      onConfirmAmount={confirmBillAmount}
-                      onEditAmount={editBillInstanceAmount}
-                      onMarkPaid={markBillPaid}
-                      onSkip={skipBillInstance}
-                      onDeleteInstance={deleteBillInstance}
-                    />
-                  )
-                })}
-              </div>
-            )}
-          </section>
-
-          {/* ── Section 3: History (Phase 2c) ── */}
-          {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
-            <section>
-              <div className="flex items-center gap-2 mb-3">
-                <History size={15} className="text-muted-foreground" />
-                <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">History</h2>
-              </div>
-              <div className="space-y-2">
-                {monthCycles.filter(mc => mc.status === 'closed').map(mc => {
-                  const expanded = expandedHistory.has(mc.month)
-                  const grandTotal = mc.totalBillsINR + mc.totalExpensesINR
-                  const hasCf = mc.carryForwardOut && Object.keys(mc.carryForwardOut.balances).length > 0
-                  return (
-                    <div key={mc.month} className="rounded-xl border border-border bg-card overflow-hidden">
-                      <button
-                        onClick={() => setExpandedHistory(s => {
-                          const n = new Set(s); n.has(mc.month) ? n.delete(mc.month) : n.add(mc.month); return n
-                        })}
-                        className="w-full flex items-center gap-3 p-4 hover:bg-secondary/30 transition-colors text-left">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <p className="text-sm font-bold">{monthLabelUtil(mc.month)}</p>
-                            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Closed ✓</span>
-                            {hasCf && <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Carry-fwd</span>}
+                    {expanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
+                  </button>
+                  {expanded && (
+                    <div className="px-4 pb-4 border-t border-border/40 pt-3 space-y-3">
+                      <div className="grid grid-cols-3 gap-2">
+                        {[
+                          ['Bills', formatAmount(mc.totalBillsINR, 'INR')],
+                          ['Expenses', formatAmount(mc.totalExpensesINR, 'INR')],
+                          ['Settled', formatAmount(mc.totalSettledINR, 'INR')],
+                        ].map(([l, v]) => (
+                          <div key={l} className="p-2.5 rounded-xl bg-secondary/50">
+                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{l}</p>
+                            <p className="text-sm font-extrabold mt-0.5">{v}</p>
                           </div>
-                          <p className="text-xs text-muted-foreground mt-0.5">
-                            {formatAmount(grandTotal, 'INR')} total · {formatAmount(mc.totalSettledINR, 'INR')} settled
-                          </p>
-                        </div>
-                        {expanded ? <ChevronUp size={15} className="text-muted-foreground shrink-0" /> : <ChevronDown size={15} className="text-muted-foreground shrink-0" />}
-                      </button>
-
-                      {expanded && (
-                        <div className="px-4 pb-4 border-t border-border/40 pt-3 space-y-3">
-                          <div className="grid grid-cols-3 gap-2">
-                            {[
-                              ['Recurring Bills', formatAmount(mc.totalBillsINR, 'INR')],
-                              ['Expenses', formatAmount(mc.totalExpensesINR, 'INR')],
-                              ['Settled', formatAmount(mc.totalSettledINR, 'INR')],
-                            ].map(([l, v]) => (
-                              <div key={l} className="p-2.5 rounded-xl bg-secondary/50">
-                                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{l}</p>
-                                <p className="text-sm font-extrabold mt-0.5">{v}</p>
-                              </div>
-                            ))}
+                        ))}
+                      </div>
+                      {hasCf && (
+                        <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
+                          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1">Carried to {monthLabelUtil(mc.carryForwardOut!.toMonth)}</p>
+                          <div className="flex flex-wrap gap-x-3">
+                            {Object.entries(mc.carryForwardOut!.balances).map(([uid, amt]) => {
+                              const m = members.find(x => x.uid === uid)
+                              return (
+                                <span key={uid} className={`text-xs font-semibold ${amt > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
+                                  {m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                                </span>
+                              )
+                            })}
                           </div>
-                          {hasCf && (
-                            <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-                              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1">Carried to {monthLabelUtil(mc.carryForwardOut!.toMonth)}</p>
-                              <div className="flex flex-wrap gap-x-3">
-                                {Object.entries(mc.carryForwardOut!.balances).map(([uid, amt]) => {
-                                  const m = members.find(x => x.uid === uid)
-                                  return (
-                                    <span key={uid} className={`text-xs font-semibold ${amt > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                      {m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
-                                    </span>
-                                  )
-                                })}
-                              </div>
-                            </div>
-                          )}
                         </div>
                       )}
                     </div>
-                  )
-                })}
-              </div>
-            </section>
-          )}
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
+      {/* ── Shared Expenses ───────────────────────────────────────────────── */}
+      <section>
+        <div className="flex items-center gap-2 mb-3">
+          <Receipt size={15} className="text-muted-foreground" />
+          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Shared Expenses</h2>
+          {sortedExpenses.length > 0 && (
+            <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sortedExpenses.length}</span>
+          )}
+          {thisMonthTotal > 0 && (
+            <span className="ml-auto text-xs font-bold text-muted-foreground">{formatAmount(thisMonthTotal, 'INR')} this month</span>
+          )}
         </div>
-      )}
+
+        {sortedExpenses.length === 0 ? (
+          <Card className="border-dashed border-2">
+            <CardContent className="flex flex-col items-center justify-center p-14 text-center">
+              <Inbox size={40} className="text-muted-foreground/25 mb-3" />
+              <p className="font-bold text-base text-muted-foreground">No shared expenses yet</p>
+              <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
+                Record groceries, takeout, or any shared cost and split it automatically.
+              </p>
+              <Button onClick={() => setShowAddExpense(true)} className="font-bold">
+                <Plus size={14} className="mr-1.5" /> Add Expense
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <div className="space-y-6">
+            {grouped.map(([monthKey, monthExpenses]) => {
+              const monthTotal = monthExpenses.reduce((s, e) => s + (e.currency === 'INR' ? e.amount : 0), 0)
+              return (
+                <div key={monthKey}>
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">{monthLabel(monthKey)}</p>
+                    {monthTotal > 0 && <p className="text-xs font-bold text-muted-foreground">{formatAmount(monthTotal, 'INR')}</p>}
+                  </div>
+                  <div className="space-y-2">
+                    {monthExpenses.map(exp => (
+                      <ExpenseRow key={exp.id} expense={exp} members={members} currentUserId={currentUserId}
+                        canDelete={exp.createdBy === currentUserId || isAdmin} onDelete={deleteExpense} />
+                    ))}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </section>
 
       {/* ── Modals ────────────────────────────────────────────────────────── */}
       {showAddExpense && (

@@ -1,6 +1,11 @@
 @import "tailwindcss";
+@import "tw-animate-css";
 
 @custom-variant dark (&:is(.dark *));
+
+.dark {
+  --muted-foreground: oklch(0.72 0.02 264);
+}
 
 /* ─────────────────────────────────────────────────────────────────────────────
    HABITIQ DESIGN SYSTEM — globals.css

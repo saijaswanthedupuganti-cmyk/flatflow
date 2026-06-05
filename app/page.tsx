@@ -10,8 +10,9 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { hasKeys } from '@/lib/firebase'
 import {
   RotateCcw, Zap, Receipt, ArrowLeftRight, ClipboardList, Globe,
-  Check, ArrowRight, Star, Shield, Users, BarChart2, X,
+  Check, ArrowRight, Shield, Users, BarChart2, X, Star,
 } from 'lucide-react'
+import TestimonialSlider, { type Testimonial } from '@/components/ui/testimonial-slider'
 
 const HeroCanvas = dynamic(() => import('@/components/HeroCanvas'), {
   ssr: false,
@@ -725,40 +726,71 @@ function Stats() {
 }
 
 // ── Testimonials ──────────────────────────────────────────────────────────────
-const TESTI = [
-  { q:"Finally something that doesn't need one person to run it. Set up in 5 minutes, haven't argued about chores since.", w:'Flat of 4, Koramangala', initials:'KO', color:'#7c3aed' },
-  { q:"The expense splitting is the best part. Everyone can see exactly what they owe. No more awkward money conversations.", w:'PG residents, Banjara Hills', initials:'BH', color:'#4f46e5' },
-  { q:"The swap request feature saved my life during exam week. Just tap, flatmate accepts, done.", w:'Student flat, Pune', initials:'PU', color:'#6366f1' },
+const HABITIQ_TESTIMONIALS: Testimonial[] = [
+  {
+    id: 1,
+    quote: "Finally something that doesn't need one person to run it. Set up in 5 minutes, haven't argued about chores since.",
+    name: 'Koramangala Flat',
+    username: 'Flat of 4 · Bengaluru',
+    avatar: '',
+    avatarColor: '#7c3aed',
+    avatarInitial: 'K',
+  },
+  {
+    id: 2,
+    quote: "The expense splitting is the best part. Everyone can see exactly what they owe. No more awkward money conversations.",
+    name: 'Banjara Hills PG',
+    username: 'PG residents · Hyderabad',
+    avatar: '',
+    avatarColor: '#4f46e5',
+    avatarInitial: 'B',
+  },
+  {
+    id: 3,
+    quote: "The swap request feature saved my life during exam week. Just tap, flatmate accepts, done. Zero drama.",
+    name: 'Student Flat',
+    username: 'Flat of 3 · Pune',
+    avatar: '',
+    avatarColor: '#6366f1',
+    avatarInitial: 'P',
+  },
+  {
+    id: 4,
+    quote: "Rotation engine is genius. My flatmates stopped fighting about who does dishes. It just works.",
+    name: 'Indiranagar House',
+    username: 'House of 5 · Bengaluru',
+    avatar: '',
+    avatarColor: '#8b5cf6',
+    avatarInitial: 'I',
+  },
+  {
+    id: 5,
+    quote: "Added our electricity and WiFi bills. Now everyone pays on time because they can see it clearly.",
+    name: 'HSR Layout Flat',
+    username: 'Flat of 4 · Bengaluru',
+    avatar: '',
+    avatarColor: '#a78bfa',
+    avatarInitial: 'H',
+  },
 ]
 
 function Testimonials() {
   return (
-    <section className="py-28 px-6 bg-[#050510]">
-      <div className="max-w-[1120px] mx-auto">
-        <Reveal className="text-center mb-16">
+    <section className="py-20 bg-[#050510] relative overflow-hidden">
+      {/* Subtle glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] pointer-events-none opacity-[0.05]"
+        style={{ background: 'radial-gradient(ellipse, #7c3aed, transparent)', filter: 'blur(60px)' }} />
+
+      <div className="relative z-10">
+        <Reveal className="text-center mb-14 px-6">
           <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/30 text-[11px] font-bold uppercase tracking-[0.12em]">Early users</span>
           <h2 className="text-4xl font-extrabold text-white tracking-tighter">Real flats. Real results.</h2>
+          <p className="text-white/35 text-lg mt-3 font-medium">From Bengaluru to Pune — flatmates who stopped arguing.</p>
         </Reveal>
-        <div className="grid md:grid-cols-3 gap-4">
-          {TESTI.map((t, i) => (
-            <Reveal key={t.w} delay={i * 90}>
-              <Card3D className="h-full" intensity={8} glowColor="rgba(167,139,250,0.1)">
-                <div className="h-full bg-white/[0.025] border border-white/[0.07] rounded-2xl p-7" style={{ borderLeft: `3px solid ${t.color}40` }}>
-                  <div className="flex gap-0.5 mb-4">
-                    {[...Array(5)].map((_, j) => <Star key={j} size={12} fill="#7c3aed" className="text-violet-500" />)}
-                  </div>
-                  <p className="text-white/65 text-sm leading-relaxed mb-6 font-medium">&ldquo;{t.q}&rdquo;</p>
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: t.color }}>
-                      {t.initials}
-                    </div>
-                    <p className="text-white/28 text-[11px] font-bold uppercase tracking-wider">{t.w}</p>
-                  </div>
-                </div>
-              </Card3D>
-            </Reveal>
-          ))}
-        </div>
+        <TestimonialSlider
+          testimonials={HABITIQ_TESTIMONIALS}
+          className="bg-transparent"
+        />
       </div>
     </section>
   )

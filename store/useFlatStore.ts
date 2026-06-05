@@ -1001,7 +1001,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   updateRecurringBill: async (billId, changes) => {
     if (hasKeys && get().flatId) {
-      await updateDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`), changes)
+      await updateDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`), fs(changes))
     } else {
       set(s => ({ recurringBills: s.recurringBills.map(b => b.id === billId ? { ...b, ...changes } : b) }))
     }

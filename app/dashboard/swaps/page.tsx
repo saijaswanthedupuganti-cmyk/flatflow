@@ -32,14 +32,14 @@ export default function SwapsPage() {
   }
 
   return (
-    <div className="space-y-8 max-w-3xl">
+    <div className="space-y-6 max-w-5xl">
 
       {/* ── Header ────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div>
           <h1 className="text-2xl font-extrabold tracking-tight">Swap Requests</h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Full history of coverage requests you&apos;ve sent and received.
+            Coverage requests you&apos;ve sent and received, newest first.
           </p>
         </div>
         {/* Summary chips */}
@@ -73,127 +73,149 @@ export default function SwapsPage() {
         </Card>
       )}
 
-      {/* ── Received ─────────────────────────────────────────────────── */}
-      {received.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <ArrowDownLeft size={16} className="text-violet-500" />
-            <h2 className="text-base font-bold">Received</h2>
-            <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{received.length}</span>
-          </div>
+      {/* ── Side-by-side grid: Received | Sent ───────────────────────── */}
+      {hasAny && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
 
-          <div className="space-y-2">
-            {received.map(req => {
-              const task     = tasks.find(t => t.taskId === req.taskId)
-              const fromUser = members.find(m => m.uid === req.fromUserId)
-              const isPending = req.status === 'pending'
+          {/* ── Received ──────────────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowDownLeft size={16} className="text-violet-500" />
+              <h2 className="text-base font-bold">Received</h2>
+              <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{received.length}</span>
+              {pendingReceivedCount > 0 && (
+                <span className="text-[10px] font-extrabold bg-violet-500 text-white px-1.5 py-0.5 rounded-full">{pendingReceivedCount} pending</span>
+              )}
+            </div>
 
-              return (
-                <div
-                  key={req.id}
-                  className={`flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border transition-all ${
-                    isPending
-                      ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30'
-                      : 'border-border bg-card'
-                  }`}
-                >
-                  {/* Icon */}
-                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
-                    isPending ? 'bg-violet-100 dark:bg-violet-900/50' : 'bg-secondary'
-                  }`}>
-                    {isPending
-                      ? <Bell size={15} className="text-violet-600 dark:text-violet-400" />
-                      : req.status === 'accepted'
-                        ? <CheckCircle2 size={15} className="text-green-600" />
-                        : <XCircle size={15} className="text-red-500" />}
-                  </div>
+            {received.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed border-border text-center">
+                <Inbox size={28} className="text-muted-foreground/25 mb-2" />
+                <p className="text-sm text-muted-foreground">No requests received yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {received.map(req => {
+                  const task     = tasks.find(t => t.taskId === req.taskId)
+                  const fromUser = members.find(m => m.uid === req.fromUserId)
+                  const isPending = req.status === 'pending'
 
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold leading-snug">
-                      {req.isAutomatic ? (
-                        <>
-                          <span className="font-extrabold">{fromUser?.nickname ?? 'Someone'}</span>
-                          {' '}is out of station — you&apos;re next in queue for{' '}
-                          <span className="font-extrabold">{task?.name ?? 'a task'}</span>
-                        </>
-                      ) : (
-                        <>
-                          <span className="font-extrabold">{fromUser?.nickname ?? 'Someone'}</span>
-                          {' '}asked you to cover{' '}
-                          <span className="font-extrabold">{task?.name ?? 'a task'}</span>
-                        </>
+                  return (
+                    <div
+                      key={req.id}
+                      className={`flex flex-col gap-3 p-4 rounded-xl border transition-all ${
+                        isPending
+                          ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30'
+                          : 'border-border bg-card'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className={`w-9 h-9 rounded-lg flex items-center justify-center shrink-0 ${
+                          isPending ? 'bg-violet-100 dark:bg-violet-900/50' : 'bg-secondary'
+                        }`}>
+                          {isPending
+                            ? <Bell size={15} className="text-violet-600 dark:text-violet-400" />
+                            : req.status === 'accepted'
+                              ? <CheckCircle2 size={15} className="text-green-600" />
+                              : <XCircle size={15} className="text-red-500" />}
+                        </div>
+
+                        {/* Text */}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-semibold leading-snug">
+                            {req.isAutomatic ? (
+                              <>
+                                <span className="font-extrabold">{fromUser?.nickname ?? 'Someone'}</span>
+                                {' '}is out of station — you&apos;re next for{' '}
+                                <span className="font-extrabold">{task?.name ?? 'a task'}</span>
+                              </>
+                            ) : (
+                              <>
+                                <span className="font-extrabold">{fromUser?.nickname ?? 'Someone'}</span>
+                                {' '}asked you to cover{' '}
+                                <span className="font-extrabold">{task?.name ?? 'a task'}</span>
+                              </>
+                            )}
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
+                        </div>
+
+                        {!isPending && <StatusBadge status={req.status} />}
+                      </div>
+
+                      {/* Action buttons on their own row when pending */}
+                      {isPending && (
+                        <div className="flex gap-2">
+                          <Button size="sm" className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold"
+                            onClick={() => resolveSwapRequest(req.id, 'accepted')}>
+                            <Check size={13} className="mr-1" /> Accept
+                          </Button>
+                          <Button size="sm" variant="outline"
+                            className="flex-1 border-violet-300 text-violet-700 dark:text-violet-300 font-bold"
+                            onClick={() => resolveSwapRequest(req.id, 'rejected')}>
+                            <X size={13} className="mr-1" /> Decline
+                          </Button>
+                        </div>
                       )}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
-                  </div>
-
-                  {/* Action or status */}
-                  {isPending ? (
-                    <div className="flex gap-2 shrink-0">
-                      <Button size="sm" className="bg-green-600 hover:bg-green-700 text-white font-bold px-4"
-                        onClick={() => resolveSwapRequest(req.id, 'accepted')}>
-                        <Check size={13} className="mr-1" /> Accept
-                      </Button>
-                      <Button size="sm" variant="outline"
-                        className="border-violet-300 text-violet-700 dark:text-violet-300 font-bold px-4"
-                        onClick={() => resolveSwapRequest(req.id, 'rejected')}>
-                        <X size={13} className="mr-1" /> Decline
-                      </Button>
                     </div>
-                  ) : (
-                    <StatusBadge status={req.status} />
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </section>
-      )}
+                  )
+                })}
+              </div>
+            )}
+          </section>
 
-      {/* ── Sent ─────────────────────────────────────────────────────── */}
-      {sent.length > 0 && (
-        <section>
-          <div className="flex items-center gap-2 mb-3">
-            <ArrowUpRight size={16} className="text-blue-500" />
-            <h2 className="text-base font-bold">Sent</h2>
-            <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sent.length}</span>
-          </div>
+          {/* ── Sent ──────────────────────────────────────────────────── */}
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <ArrowUpRight size={16} className="text-blue-500" />
+              <h2 className="text-base font-bold">Sent</h2>
+              <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sent.length}</span>
+            </div>
 
-          <div className="space-y-2">
-            {sent.map(req => {
-              const task   = tasks.find(t => t.taskId === req.taskId)
-              const toUser = members.find(m => m.uid === req.toUserId)
+            {sent.length === 0 ? (
+              <div className="flex flex-col items-center justify-center p-8 rounded-xl border border-dashed border-border text-center">
+                <Inbox size={28} className="text-muted-foreground/25 mb-2" />
+                <p className="text-sm text-muted-foreground">No requests sent yet</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {sent.map(req => {
+                  const task   = tasks.find(t => t.taskId === req.taskId)
+                  const toUser = members.find(m => m.uid === req.toUserId)
 
-              return (
-                <div
-                  key={req.id}
-                  className="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-xl border border-border bg-card"
-                >
-                  {/* Icon */}
-                  <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                    {req.status === 'pending'
-                      ? <Clock size={15} className="text-blue-500" />
-                      : req.status === 'accepted'
-                        ? <CheckCircle2 size={15} className="text-green-600" />
-                        : <XCircle size={15} className="text-red-500" />}
-                  </div>
+                  return (
+                    <div
+                      key={req.id}
+                      className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card"
+                    >
+                      {/* Icon */}
+                      <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                        {req.status === 'pending'
+                          ? <Clock size={15} className="text-blue-500" />
+                          : req.status === 'accepted'
+                            ? <CheckCircle2 size={15} className="text-green-600" />
+                            : <XCircle size={15} className="text-red-500" />}
+                      </div>
 
-                  {/* Text */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold leading-snug">
-                      You asked <span className="font-extrabold">{toUser?.nickname ?? 'someone'}</span>
-                      {' '}to cover <span className="font-extrabold">{task?.name ?? 'a task'}</span>
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
-                  </div>
+                      {/* Text */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold leading-snug">
+                          You asked <span className="font-extrabold">{toUser?.nickname ?? 'someone'}</span>
+                          {' '}to cover <span className="font-extrabold">{task?.name ?? 'a task'}</span>
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
+                      </div>
 
-                  <StatusBadge status={req.status} />
-                </div>
-              )
-            })}
-          </div>
-        </section>
+                      <StatusBadge status={req.status} />
+                    </div>
+                  )
+                })}
+              </div>
+            )}
+          </section>
+
+        </div>
       )}
     </div>
   )

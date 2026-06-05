@@ -61,10 +61,16 @@ function monthLabel(yyyymm: string) {
   return new Date(Number(y), Number(m) - 1, 1).toLocaleDateString('en-IN', { month: 'long', year: 'numeric' })
 }
 
+function daysInCurrentMonth(): number {
+  const d = new Date()
+  return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+}
+
 function isBillDue(bill: RecurringBill): boolean {
   if (!bill.active) return false
   const today = new Date()
-  return bill.lastGeneratedMonth !== currentMonthKey() && today.getDate() >= bill.billingDay
+  const effectiveDay = Math.min(bill.billingDay, daysInCurrentMonth())
+  return bill.lastGeneratedMonth !== currentMonthKey() && today.getDate() >= effectiveDay
 }
 
 function ordinal(n: number): string {
@@ -641,7 +647,7 @@ function MonthlyBillModal({
       isVariable:  form.isVariable,
       amount:      form.isVariable ? null : parseFloat(form.amount),
       currency:    form.currency,
-      billingDay:  Math.min(28, Math.max(1, parseInt(form.billingDay) || 1)),
+      billingDay:  Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
       rotationQueue: form.rotationQueue,
       participants:  form.rotationQueue,
       payerMode:     form.payerMode,
@@ -720,7 +726,7 @@ function MonthlyBillModal({
         <div>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Generate on the</Label>
           <div className="flex items-center gap-2">
-            <Input type="number" min="1" max="28" className="w-20" value={form.billingDay}
+            <Input type="number" min="1" max="31" className="w-20" value={form.billingDay}
               onChange={e => setForm(f => ({ ...f, billingDay: e.target.value }))} />
             <span className="text-sm text-muted-foreground">of each month</span>
           </div>

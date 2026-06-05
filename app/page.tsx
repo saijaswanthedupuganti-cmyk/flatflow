@@ -13,6 +13,7 @@ import {
   Check, ArrowRight, Shield, Users, BarChart2, X, Star,
 } from 'lucide-react'
 import TestimonialSlider, { type Testimonial } from '@/components/ui/testimonial-slider'
+import { AnimatedTabs, type Tab } from '@/components/ui/animated-tabs'
 
 const HeroCanvas = dynamic(() => import('@/components/HeroCanvas'), {
   ssr: false,
@@ -497,6 +498,183 @@ function Problems() {
   )
 }
 
+// ── Feature Showcase (AnimatedTabs) ──────────────────────────────────────────
+const FEATURE_TABS: Tab[] = [
+  {
+    id: 'rotation',
+    label: 'Duty Rotation',
+    content: (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=2074&auto=format&fit=crop&ixlib=rb-4.0.3"
+          alt="Shared flat kitchen — duty rotation"
+          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(124,58,237,0.2)] border border-white/[0.06]"
+        />
+        <div className="flex flex-col gap-3 justify-center">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/25 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
+            <span className="text-violet-300 text-[11px] font-bold uppercase tracking-wider">Auto-assigned</span>
+          </div>
+          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
+            Duties rotate.<br />Nobody decides.
+          </h3>
+          <p className="text-sm text-white/50 leading-relaxed">
+            Every flatmate gets their turn automatically. Mark a task done and the next person in queue is assigned — instantly, fairly, with no arguments.
+          </p>
+          <ul className="space-y-1.5 mt-1">
+            {['Zero manual scheduling','Skips out-of-station members','Full history & audit trail'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
+                <span className="w-4 h-4 rounded-full bg-violet-500/20 flex items-center justify-center shrink-0">
+                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#a78bfa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'expenses',
+    label: 'Bill Splitting',
+    content: (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3"
+          alt="Expense splitting and bills"
+          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(16,185,129,0.18)] border border-white/[0.06]"
+        />
+        <div className="flex flex-col gap-3 justify-center">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
+            <span className="text-emerald-300 text-[11px] font-bold uppercase tracking-wider">Split fairly</span>
+          </div>
+          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
+            Bills split.<br />No awkwardness.
+          </h3>
+          <p className="text-sm text-white/50 leading-relaxed">
+            Log electricity, groceries, rent. Split equally, by %, or custom per person. Everyone sees exactly who owes what — settle with one tap.
+          </p>
+          <ul className="space-y-1.5 mt-1">
+            {['Equal · % · Custom splits','INR, USD, EUR + 4 more','One-tap settle-up'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
+                <span className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
+                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#34d399" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'swaps',
+    label: 'Swap System',
+    content: (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
+          alt="Flatmates using swap system"
+          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(59,130,246,0.18)] border border-white/[0.06]"
+        />
+        <div className="flex flex-col gap-3 justify-center">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/25 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+            <span className="text-blue-300 text-[11px] font-bold uppercase tracking-wider">Formal flow</span>
+          </div>
+          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
+            Can&apos;t do it today?<br />Swap, don&apos;t argue.
+          </h3>
+          <p className="text-sm text-white/50 leading-relaxed">
+            Travelling or busy? Request a duty swap. Your flatmate gets notified, accepts or declines. Task moves officially. No WhatsApp drama needed.
+          </p>
+          <ul className="space-y-1.5 mt-1">
+            {['Accept / decline notifications','Audit log records every swap','WhatsApp stays for memes'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
+                <span className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
+                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#60a5fa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+  {
+    id: 'analytics',
+    label: 'Reliability Score',
+    content: (
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
+        <img
+          src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
+          alt="Analytics and reliability scores"
+          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(245,158,11,0.18)] border border-white/[0.06]"
+        />
+        <div className="flex flex-col gap-3 justify-center">
+          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+            <span className="text-amber-300 text-[11px] font-bold uppercase tracking-wider">Data-driven</span>
+          </div>
+          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
+            Facts, not feelings.<br />Scores don&apos;t lie.
+          </h3>
+          <p className="text-sm text-white/50 leading-relaxed">
+            Every flatmate has a reliability score based on real completion data. No more "I always do more than you." The numbers settle it.
+          </p>
+          <ul className="space-y-1.5 mt-1">
+            {['Completion rate per member','On-time vs overdue breakdown','6-month history grid'].map(f => (
+              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
+                <span className="w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
+                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#fbbf24" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                </span>
+                {f}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    ),
+  },
+]
+
+function FeatureShowcase() {
+  return (
+    <section className="py-28 px-6 bg-[#050510] relative overflow-hidden">
+      {/* Background glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] pointer-events-none opacity-[0.06]"
+        style={{ background: 'radial-gradient(ellipse, #7c3aed, transparent)', filter: 'blur(80px)' }} />
+
+      <div className="max-w-[1120px] mx-auto relative z-10">
+        <Reveal className="text-center mb-14">
+          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">See it in action</span>
+          <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter leading-tight">
+            Every feature your flat needs,<br />
+            <span style={{ background: 'linear-gradient(130deg,#c4b5fd,#a78bfa,#6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+              one tap to explore.
+            </span>
+          </h2>
+          <p className="text-white/38 text-lg mt-4 max-w-lg mx-auto font-medium">
+            Switch between features — duties, bills, swaps, analytics. All built for Indian flatmates.
+          </p>
+        </Reveal>
+
+        <Reveal delay={80} className="flex justify-center">
+          <AnimatedTabs
+            tabs={FEATURE_TABS}
+            defaultTab="rotation"
+            className="w-full max-w-3xl"
+          />
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
 // ── Bridge ────────────────────────────────────────────────────────────────────
 function Bridge() {
   return (
@@ -900,6 +1078,7 @@ export default function LandingPage() {
         <Hero />
         <Marquee />
         <ProductShowcase />
+        <FeatureShowcase />
         <Problems />
         <Bridge />
         <Features />

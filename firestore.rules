@@ -117,9 +117,16 @@ service cloud.firestore {
         allow read: if isMember(flatId);
         // Any member can create a swap request
         allow create: if isMember(flatId);
-        // Only the intended recipient (toUserId) can accept or reject
+        // Only the intended recipient (toUserId) can accept or reject.
+        // The requester (fromUserId) can mark their own notification as read.
         allow update: if isMember(flatId)
-          && resource.data.toUserId == request.auth.uid;
+          && (
+            resource.data.toUserId == request.auth.uid
+            || (
+              resource.data.fromUserId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+            )
+          );
         // Admin can delete (needed for flat deletion and kick cleanup)
         allow delete: if isAdmin(flatId);
       }

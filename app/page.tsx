@@ -2,15 +2,13 @@
 
 import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, ReactNode } from 'react'
-import { useRouter } from 'next/navigation'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
 import { ContainerScroll } from '@/components/ui/container-scroll-animation'
-import { useAuthStore } from '@/store/useAuthStore'
-import { hasKeys } from '@/lib/firebase'
+import { Navbar, AuthForm } from '@/components/ui/navbar'
 import {
-  RotateCcw, Zap, Receipt, ArrowLeftRight, ClipboardList, Globe,
-  Check, ArrowRight, Shield, Users, BarChart2, X, Star,
+  ClipboardList,
+  Check, ArrowRight, Users, BarChart2, X, Star,
 } from 'lucide-react'
 import TestimonialSlider, { type Testimonial } from '@/components/ui/testimonial-slider'
 import { AnimatedTabs, type Tab } from '@/components/ui/animated-tabs'
@@ -78,130 +76,6 @@ function Card3D({ children, className = '', intensity = 12, glowColor = 'rgba(12
   )
 }
 
-// ── Google icon ───────────────────────────────────────────────────────────────
-function GIcon({ s = 16 }: { s?: number }) {
-  return (
-    <svg width={s} height={s} viewBox="0 0 48 48" fill="none">
-      <path d="M47.53 24.56c0-1.64-.15-3.22-.42-4.74H24v8.97h13.22c-.57 3.07-2.3 5.67-4.9 7.41v6.16h7.93c4.64-4.27 7.28-10.57 7.28-17.8z" fill="#4285F4"/>
-      <path d="M24 48c6.64 0 12.21-2.2 16.28-5.96l-7.93-6.16c-2.2 1.48-5.02 2.35-8.35 2.35-6.42 0-11.86-4.33-13.8-10.15H2.02v6.36C6.08 42.63 14.42 48 24 48z" fill="#34A853"/>
-      <path d="M10.2 28.08A14.93 14.93 0 0 1 9.1 24c0-1.41.24-2.79.65-4.08v-6.36H2.02A23.97 23.97 0 0 0 0 24c0 3.87.93 7.53 2.57 10.77l7.63-6.69z" fill="#FBBC05"/>
-      <path d="M24 9.55c3.62 0 6.86 1.24 9.42 3.68l7.07-7.07C36.2 2.24 30.63 0 24 0 14.42 0 6.08 5.37 2.57 13.23l8.13 6.35C12.14 13.88 17.58 9.55 24 9.55z" fill="#EA4335"/>
-    </svg>
-  )
-}
-
-// ── Auth panel ────────────────────────────────────────────────────────────────
-function AuthPanel({ compact = false }: { compact?: boolean }) {
-  const { loginWithGoogle, loginWithEmail, signUpWithEmail,
-    loginAsAdminMock, loginAsMemberMock, redirectError, clearRedirectError } = useAuthStore()
-  const [mode, setMode] = useState<'in'|'up'>('in')
-  const [email, setEmail] = useState(''); const [pw, setPw] = useState(''); const [nick, setNick] = useState('')
-  const [err, setErr] = useState(''); const [loading, setLoading] = useState(false)
-
-  useEffect(() => { if (redirectError) { setErr(redirectError); clearRedirectError?.() } }, [redirectError, clearRedirectError])
-
-  function msg(e: unknown) {
-    const c = (e as { code?: string })?.code ?? ''
-    if (c.includes('user-not-found') || c.includes('wrong-password') || c.includes('invalid-credential')) return 'Incorrect email or password.'
-    if (c.includes('email-already-in-use')) return 'Account already exists.'
-    if (c.includes('weak-password')) return 'Password must be 6+ characters.'
-    if (c.includes('popup-closed-by-user') || c.includes('cancelled-popup-request')) return ''
-    return 'Authentication failed. Try again.'
-  }
-
-  async function onEmail(e: React.FormEvent) {
-    e.preventDefault(); setErr(''); setLoading(true)
-    try {
-      if (mode === 'in') await loginWithEmail(email, pw)
-      else { if (!nick.trim()) { setErr('Nickname required.'); setLoading(false); return }; await signUpWithEmail(email, pw, nick.trim()) }
-    } catch (e) { const m = msg(e); if (m) setErr(m) } finally { setLoading(false) }
-  }
-  async function onGoogle() {
-    setErr(''); setLoading(true)
-    try { await loginWithGoogle() } catch (e) { const m = msg(e); if (m) setErr(m); setLoading(false) }
-  }
-
-  const inp = 'bg-white/[0.06] border border-white/10 text-white placeholder:text-white/25 rounded-xl px-3 outline-none focus:border-violet-500/60 focus:bg-violet-900/10 transition-all duration-200 text-sm'
-
-  if (compact) return (
-    <div className="p-5 flex flex-col gap-3">
-      {err && <p className="text-red-400 text-xs font-medium">{err}</p>}
-      <button onClick={onGoogle} disabled={loading}
-        className="flex items-center justify-center gap-2.5 bg-white text-gray-900 font-semibold h-11 px-4 rounded-xl hover:bg-gray-50 active:scale-[0.98] transition-all text-sm disabled:opacity-50 cursor-pointer">
-        <GIcon s={16} /> Continue with Google
-      </button>
-      <div className="flex items-center gap-2"><div className="flex-1 h-px bg-white/[0.07]" /><span className="text-white/25 text-[11px]">or</span><div className="flex-1 h-px bg-white/[0.07]" /></div>
-      <form onSubmit={onEmail} className="flex flex-col gap-2">
-        {mode === 'up' && <input type="text" placeholder="Your nickname" value={nick} maxLength={30} onChange={e => setNick(e.target.value)} className={`${inp} h-10`} />}
-        <input type="email" placeholder="Email address" value={email} maxLength={254} onChange={e => setEmail(e.target.value)} className={`${inp} h-10`} required />
-        <input type="password" placeholder="Password" value={pw} minLength={6} maxLength={128} onChange={e => setPw(e.target.value)} className={`${inp} h-10`} required />
-        <button type="submit" disabled={loading} className="h-11 rounded-xl bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold hover:opacity-90 active:scale-[0.98] transition-all text-sm disabled:opacity-50 mt-0.5 cursor-pointer">
-          {loading ? 'Please wait…' : mode === 'in' ? 'Sign In' : 'Create Account'}
-        </button>
-      </form>
-      <button onClick={() => { setMode(m => m === 'in' ? 'up' : 'in'); setErr('') }} className="text-white/30 text-xs text-center hover:text-white/55 transition-colors cursor-pointer">
-        {mode === 'in' ? "No account? Sign up free" : 'Already have one? Sign in'}
-      </button>
-      {!hasKeys && (
-        <div className="flex gap-2 pt-1 border-t border-white/[0.05]">
-          <button onClick={loginAsAdminMock} className="flex-1 text-[11px] bg-amber-500/15 text-amber-300 h-8 rounded-lg cursor-pointer">Mock Admin</button>
-          <button onClick={loginAsMemberMock} className="flex-1 text-[11px] bg-amber-500/15 text-amber-300 h-8 rounded-lg cursor-pointer">Mock Member</button>
-        </div>
-      )}
-    </div>
-  )
-
-  return (
-    <div className="flex items-center gap-2">
-      {err && <p className="text-red-400 text-[11px] max-w-[140px] leading-tight">{err}</p>}
-      <button onClick={onGoogle} disabled={loading}
-        className="flex items-center gap-1.5 bg-white text-gray-900 font-semibold h-8 px-3 rounded-lg hover:bg-gray-50 active:scale-[0.98] transition-all text-xs shrink-0 disabled:opacity-50 cursor-pointer">
-        <GIcon s={13} /> <span className="hidden lg:inline">Google</span>
-      </button>
-      <span className="text-white/15 shrink-0">·</span>
-      <form onSubmit={onEmail} className="flex items-center gap-1.5">
-        {mode === 'up' && <input type="text" placeholder="Nickname" value={nick} maxLength={30} onChange={e => setNick(e.target.value)} className={`${inp} h-8 w-24 text-xs`} />}
-        <input type="email" placeholder="Email" value={email} maxLength={254} onChange={e => setEmail(e.target.value)} className={`${inp} h-8 w-36 text-xs`} required />
-        <input type="password" placeholder="Password" value={pw} minLength={6} maxLength={128} onChange={e => setPw(e.target.value)} className={`${inp} h-8 w-28 text-xs`} required />
-        <button type="submit" disabled={loading} className="h-8 px-3 rounded-lg bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-xs font-semibold hover:opacity-90 active:scale-[0.98] transition-all disabled:opacity-50 shrink-0 cursor-pointer">
-          {loading ? '…' : mode === 'in' ? 'Sign In' : 'Sign Up'}
-        </button>
-      </form>
-      <button onClick={() => { setMode(m => m === 'in' ? 'up' : 'in'); setErr('') }} className="text-white/25 text-[11px] underline shrink-0 hover:text-white/45 transition-colors hidden xl:block cursor-pointer">
-        {mode === 'in' ? 'New?' : 'Sign in'}
-      </button>
-    </div>
-  )
-}
-
-// ── Header ────────────────────────────────────────────────────────────────────
-function Header() {
-  const { user } = useAuthStore()
-  const router = useRouter()
-  const [mob, setMob] = useState(false)
-  useEffect(() => { if (user) router.push('/dashboard') }, [user, router])
-  return (
-    <header className="sticky top-0 z-50 border-b border-white/[0.05] bg-[#050510]/90 backdrop-blur-xl">
-      <div className="max-w-[1300px] mx-auto px-6 h-[60px] flex items-center gap-6">
-        <a href="#" className="flex items-center gap-2.5 shrink-0">
-          <div className="w-8 h-8 rounded-[10px] bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center" style={{ transform: 'rotate(8deg)', boxShadow: '0 4px 16px rgba(124,58,237,0.5)' }}>
-            <span className="text-white font-black text-sm" style={{ transform: 'rotate(-8deg)', display: 'block' }}>H</span>
-          </div>
-          <span className="text-white font-bold text-[15px] tracking-tight">Habitiq</span>
-        </a>
-        <nav className="hidden lg:flex items-center gap-7 flex-1 justify-center">
-          {[['#features','Features'],['#compare','Compare'],['#how-it-works','How it works'],['#get-started','Get started']].map(([h,l]) => (
-            <a key={h} href={h} className="text-white/40 hover:text-white/80 text-sm font-medium transition-colors duration-200">{l}</a>
-          ))}
-        </nav>
-        <div className="hidden md:flex items-center ml-auto"><AuthPanel /></div>
-        <button className="md:hidden ml-auto bg-gradient-to-r from-violet-600 to-indigo-600 text-white text-sm font-semibold h-9 px-4 rounded-xl cursor-pointer"
-          onClick={() => setMob(o => !o)}>Sign In</button>
-      </div>
-      {mob && <div className="md:hidden border-t border-white/[0.05] bg-[#0a0a14]"><AuthPanel compact /></div>}
-    </header>
-  )
-}
 
 // ── Hero ──────────────────────────────────────────────────────────────────────
 function Hero() {
@@ -213,7 +87,7 @@ function Hero() {
   }, [])
 
   return (
-    <section className="relative w-full bg-[#050510] overflow-hidden" style={{ minHeight: 'calc(100vh - 60px)' }}>
+    <section className="relative w-full bg-[#050510] overflow-hidden" style={{ minHeight: 'calc(100vh - 84px)' }}>
       {/* Dot grid */}
       <div className="absolute inset-0 pointer-events-none" style={{
         backgroundImage: 'radial-gradient(circle, rgba(124,58,237,0.1) 1px, transparent 1px)',
@@ -508,7 +382,7 @@ const FEATURE_TABS: Tab[] = [
         <img
           src="https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=2074&auto=format&fit=crop&ixlib=rb-4.0.3"
           alt="Shared flat kitchen — duty rotation"
-          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(124,58,237,0.2)] border border-white/[0.06]"
+          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(124,58,237,0.2)] border border-white/[0.06]"
         />
         <div className="flex flex-col gap-3 justify-center">
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/25 w-fit">
@@ -543,7 +417,7 @@ const FEATURE_TABS: Tab[] = [
         <img
           src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3"
           alt="Expense splitting and bills"
-          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(16,185,129,0.18)] border border-white/[0.06]"
+          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(16,185,129,0.18)] border border-white/[0.06]"
         />
         <div className="flex flex-col gap-3 justify-center">
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 w-fit">
@@ -578,7 +452,7 @@ const FEATURE_TABS: Tab[] = [
         <img
           src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
           alt="Flatmates using swap system"
-          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(59,130,246,0.18)] border border-white/[0.06]"
+          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(59,130,246,0.18)] border border-white/[0.06]"
         />
         <div className="flex flex-col gap-3 justify-center">
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/25 w-fit">
@@ -613,7 +487,7 @@ const FEATURE_TABS: Tab[] = [
         <img
           src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
           alt="Analytics and reliability scores"
-          className="rounded-xl w-full h-52 object-cover !m-0 shadow-[0_0_32px_rgba(245,158,11,0.18)] border border-white/[0.06]"
+          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(245,158,11,0.18)] border border-white/[0.06]"
         />
         <div className="flex flex-col gap-3 justify-center">
           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 w-fit">
@@ -644,7 +518,7 @@ const FEATURE_TABS: Tab[] = [
 
 function FeatureShowcase() {
   return (
-    <section className="py-28 px-6 bg-[#050510] relative overflow-hidden">
+    <section id="features" className="py-28 px-6 bg-[#050510] relative overflow-hidden">
       {/* Background glow */}
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] pointer-events-none opacity-[0.06]"
         style={{ background: 'radial-gradient(ellipse, #7c3aed, transparent)', filter: 'blur(80px)' }} />
@@ -653,13 +527,13 @@ function FeatureShowcase() {
         <Reveal className="text-center mb-14">
           <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">See it in action</span>
           <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter leading-tight">
-            Every feature your flat needs,<br />
+            Four systems.<br />
             <span style={{ background: 'linear-gradient(130deg,#c4b5fd,#a78bfa,#6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              one tap to explore.
+              Tap to explore each one.
             </span>
           </h2>
           <p className="text-white/38 text-lg mt-4 max-w-lg mx-auto font-medium">
-            Switch between features — duties, bills, swaps, analytics. All built for Indian flatmates.
+            Duties, bills, swaps, scores — all built for Indian flatmates. Pick a tab and see how it works.
           </p>
         </Reveal>
 
@@ -692,83 +566,6 @@ function Bridge() {
         <p className="text-white/38 text-lg font-medium max-w-md mx-auto">No manager. No nagging. No whiteboard nobody updates. Just fairness, on autopilot.</p>
       </Reveal>
     </div>
-  )
-}
-
-// ── Features ──────────────────────────────────────────────────────────────────
-const FEATS = [
-  {
-    icon: <RotateCcw size={22} />, color: 'rgba(124,58,237,0.18)', border: 'rgba(124,58,237,0.25)', iconColor: '#a78bfa',
-    l:'Rotation Engine', t:'Auto-assigns every duty, every time',
-    b:'A rotation queue per task. Mark done → next person assigned instantly. Nobody decides. The system is the authority.',
-    hi:'Zero manual scheduling',
-  },
-  {
-    icon: <Zap size={22} />, color: 'rgba(234,179,8,0.14)', border: 'rgba(234,179,8,0.2)', iconColor: '#fbbf24',
-    l:'Real-Time Sync', t:'Everyone sees everything instantly',
-    b:'When Rahul marks Kitchen done at 7pm, every flatmate\'s screen updates in under a second. No refresh. No "did you do it?" texts.',
-    hi:'Firestore live updates',
-  },
-  {
-    icon: <Receipt size={22} />, color: 'rgba(16,185,129,0.14)', border: 'rgba(16,185,129,0.2)', iconColor: '#34d399',
-    l:'Expense Splitting', t:'Split bills without the awkwardness',
-    b:'Log groceries, electricity, rent. Split equally, by %, or custom per person. Everyone sees who owes whom. Settle with one tap.',
-    hi:'Equal · % · Custom split',
-  },
-  {
-    icon: <ArrowLeftRight size={22} />, color: 'rgba(59,130,246,0.14)', border: 'rgba(59,130,246,0.2)', iconColor: '#60a5fa',
-    l:'Swap System', t:'Cover duties without the drama',
-    b:'Travelling? Request a swap. Flatmate gets notified, accepts or declines. Task moves. Audit log records it. WhatsApp stays for memes.',
-    hi:'Formal request flow',
-  },
-  {
-    icon: <Shield size={22} />, color: 'rgba(236,72,153,0.14)', border: 'rgba(236,72,153,0.2)', iconColor: '#f472b6',
-    l:'Audit Trail', t:'Every action permanently recorded',
-    b:'Who did what. When. Whether it was on time. Six months later you can still check. No disputes. No "I don\'t remember." Just facts.',
-    hi:'All members can see',
-  },
-  {
-    icon: <Globe size={22} />, color: 'rgba(20,184,166,0.14)', border: 'rgba(20,184,166,0.2)', iconColor: '#2dd4bf',
-    l:'Multi-Currency', t:'Works for international flatmates',
-    b:'Log expenses in INR, USD, EUR, AED, SGD and more. Perfect for flats with people from different countries. 7 currencies supported.',
-    hi:'7 currencies supported',
-  },
-]
-
-function Features() {
-  return (
-    <section id="features" className="py-28 px-6 bg-[#050510] relative overflow-hidden">
-      <div className="absolute bottom-20 right-10 w-[500px] h-[500px] rounded-full opacity-[0.04] pointer-events-none"
-        style={{ background: 'radial-gradient(circle,#4338ca,transparent)', filter: 'blur(90px)' }} />
-      <div className="max-w-[1120px] mx-auto">
-        <Reveal className="text-center mb-20">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">Features</span>
-          <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter">Everything your flat needs.</h2>
-          <p className="text-white/35 text-lg mt-4 max-w-md mx-auto font-medium">Set it up once. Let it handle the rest, forever.</p>
-        </Reveal>
-        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {FEATS.map((f, i) => (
-            <Reveal key={f.l} delay={i * 65}>
-              <Card3D className="h-full" intensity={9} glowColor={f.color}>
-                <div className="h-full bg-white/[0.025] border border-white/[0.07] rounded-2xl p-7 group cursor-default hover:-translate-y-0.5 transition-transform duration-200">
-                  <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-5 shrink-0"
-                    style={{ background: f.color, border: `1px solid ${f.border}`, color: f.iconColor }}>
-                    {f.icon}
-                  </div>
-                  <span className="text-[11px] font-bold uppercase tracking-[0.12em]" style={{ color: f.iconColor }}>{f.l}</span>
-                  <h3 className="text-white font-bold text-[1.05rem] mt-1.5 mb-2.5 leading-snug">{f.t}</h3>
-                  <p className="text-white/38 text-sm leading-relaxed mb-5">{f.b}</p>
-                  <div className="inline-flex items-center gap-1.5 rounded-full px-3 py-1" style={{ background: f.color, border: `1px solid ${f.border}` }}>
-                    <Check size={9} style={{ color: f.iconColor }} />
-                    <span className="text-[11px] font-semibold" style={{ color: f.iconColor }}>{f.hi}</span>
-                  </div>
-                </div>
-              </Card3D>
-            </Reveal>
-          ))}
-        </div>
-      </div>
-    </section>
   )
 }
 
@@ -1009,7 +806,7 @@ function GetStarted() {
                   <p className="text-white font-bold text-lg">Create your account</p>
                   <p className="text-white/30 text-sm mt-1">Join your flatmates in under a minute.</p>
                 </div>
-                <AuthPanel compact />
+                <AuthForm inline />
               </div>
             </Card3D>
           </Reveal>
@@ -1073,7 +870,7 @@ export default function LandingPage() {
       <style>{`
         @keyframes mq { from { transform:translateX(0) } to { transform:translateX(-50%) } }
       `}</style>
-      <Header />
+      <Navbar />
       <main>
         <Hero />
         <Marquee />
@@ -1081,7 +878,6 @@ export default function LandingPage() {
         <FeatureShowcase />
         <Problems />
         <Bridge />
-        <Features />
         <Compare />
         <HowItWorks />
         <Stats />

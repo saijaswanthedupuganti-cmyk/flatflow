@@ -1,5 +1,5 @@
 "use client"
-import { useEffect, useState, useMemo } from 'react'
+import { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -53,6 +53,9 @@ export default function DashboardPage() {
   // Admin can switch between their own tasks and the org overview
   const [adminView, setAdminView] = useState<'mine' | 'org'>('mine')
   const [showNPS, setShowNPS] = useState(false)
+  // Prevent dismissed banners from reappearing when Firestore snapshots replace store state
+  const npsActedRef = useRef(false)
+  const dismissedSwapRef = useRef(new Set<string>())
   const { flatId } = useFlatStore()
 
   useEffect(() => {
@@ -75,10 +78,12 @@ export default function DashboardPage() {
 
   // NPS trigger: show after 7 days of membership, once per user
   useEffect(() => {
-    if (!currentMember || !user) return
-    const dismissed = localStorage.getItem(`nps_dismissed_${user.uid}`)
-    const submitted = localStorage.getItem(`nps_submitted_${user.uid}`)
-    if (dismissed || submitted) return
+    if (!currentMember || !user || npsActedRef.current) return
+    try {
+      const dismissed = localStorage.getItem(`nps_dismissed_${user.uid}`)
+      const submitted = localStorage.getItem(`nps_submitted_${user.uid}`)
+      if (dismissed || submitted) { npsActedRef.current = true; return }
+    } catch { return }
     const joinedAt = currentMember.joinedAt instanceof Date
       ? currentMember.joinedAt
       : new Date(currentMember.joinedAt as unknown as string)
@@ -88,7 +93,7 @@ export default function DashboardPage() {
 
   // Pending incoming requests to the current user
   const incomingRequests = swapRequests.filter(r => r.toUserId === currentUser.uid && r.status === 'pending')
-  const myResolvedRequests = swapRequests.filter(r => r.fromUserId === currentUser.uid && r.status !== 'pending' && !r.read)
+  const myResolvedRequests = swapRequests.filter(r => r.fromUserId === currentUser.uid && r.status !== 'pending' && !r.read && !dismissedSwapRef.current.has(r.id))
 
   // Available substitutes
   const availableSubstitutes = members.filter(m => 
@@ -288,7 +293,7 @@ export default function DashboardPage() {
           uid={user?.uid ?? 'u1'}
           nickname={currentMember?.nickname ?? 'User'}
           flatId={flatId}
-          onDone={() => setShowNPS(false)}
+          onDone={() => { npsActedRef.current = true; setShowNPS(false) }}
         />
       )}
 
@@ -380,7 +385,7 @@ export default function DashboardPage() {
                     variant="outline" 
                     size="sm"
                     className={`mt-3 md:mt-0 ${isAccepted ? 'border-green-500/50 hover:bg-green-500/20' : 'border-red-500/50 hover:bg-red-500/20'}`}
-                    onClick={() => markSwapRequestRead(req.id)}
+                    onClick={() => { dismissedSwapRef.current.add(req.id); markSwapRequestRead(req.id) }}
                   >
                     Dismiss
                   </Button>

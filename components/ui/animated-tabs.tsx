@@ -86,22 +86,27 @@ const AnimatedTabs = ({
   if (!tabs?.length) return null;
 
   return (
-    <div className={cn("w-full max-w-lg flex flex-col gap-y-1", className)}>
-      {/* Tab bar */}
-      <div className="flex gap-2 flex-wrap bg-[#11111198] bg-opacity-50 backdrop-blur-sm p-1 rounded-xl">
+    <div className={cn("w-full max-w-lg flex flex-col gap-y-3", className)}>
+      {/* Tab bar — pill toggle style */}
+      <div className="flex gap-1 bg-white/[0.04] border border-white/[0.08] p-1.5 rounded-2xl backdrop-blur-sm">
         {tabs.map((tab) => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
             className={cn(
-              "relative px-3 py-1.5 text-sm font-medium rounded-lg text-white outline-none transition-colors cursor-pointer"
+              "relative flex-1 px-3 py-2.5 text-sm font-semibold rounded-xl outline-none transition-colors duration-200 cursor-pointer",
+              activeTab === tab.id ? "text-white" : "text-white/35 hover:text-white/60"
             )}
           >
             {activeTab === tab.id && (
               <motion.div
                 layoutId="active-tab"
-                className="absolute inset-0 bg-[#111111d1] bg-opacity-50 shadow-[0_0_20px_rgba(0,0,0,0.2)] backdrop-blur-sm !rounded-lg"
-                transition={{ type: "spring", duration: 0.6 }}
+                className="absolute inset-0 rounded-xl"
+                style={{
+                  background: "linear-gradient(135deg, rgba(124,58,237,0.95), rgba(99,102,241,0.9))",
+                  boxShadow: "0 0 24px rgba(124,58,237,0.5), 0 4px 14px rgba(0,0,0,0.35)",
+                }}
+                transition={{ type: "spring", stiffness: 380, damping: 32 }}
               />
             )}
             <span className="relative z-10">{tab.label}</span>
@@ -110,16 +115,16 @@ const AnimatedTabs = ({
       </div>
 
       {/* Tab content */}
-      <div className="p-4 bg-[#11111198] shadow-[0_0_20px_rgba(0,0,0,0.2)] text-white bg-opacity-50 backdrop-blur-sm rounded-xl border border-white/[0.08] min-h-60 h-full">
+      <div className="p-6 bg-white/[0.04] border border-white/[0.08] shadow-[0_0_40px_rgba(0,0,0,0.25)] text-white backdrop-blur-sm rounded-2xl min-h-[360px] cursor-pointer">
         {tabs.map(
           (tab) =>
             activeTab === tab.id && (
               <motion.div
                 key={tab.id}
-                initial={{ opacity: 0, scale: 0.95, x: -10, filter: "blur(10px)" }}
+                initial={{ opacity: 0, scale: 0.96, x: -10, filter: "blur(8px)" }}
                 animate={{ opacity: 1, scale: 1, x: 0, filter: "blur(0px)" }}
-                exit={{ opacity: 0, scale: 0.95, x: -10, filter: "blur(10px)" }}
-                transition={{ duration: 0.5, ease: "circInOut", type: "spring" }}
+                exit={{ opacity: 0, scale: 0.96, x: -10, filter: "blur(8px)" }}
+                transition={{ duration: 0.45, ease: "circInOut", type: "spring" }}
               >
                 {tab.content}
               </motion.div>

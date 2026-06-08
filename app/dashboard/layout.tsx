@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users, Settings,
-  BarChart3, CalendarDays, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
+  Lightbulb, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
 } from 'lucide-react'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
@@ -14,8 +14,7 @@ import FlatSwitcher from '@/components/FlatSwitcher'
 const NAV_ITEMS = {
   main: [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard, exact: true, color: 'text-blue-500', bg: 'bg-blue-500/10' },
-    { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3, exact: false, color: 'text-purple-500', bg: 'bg-purple-500/10' },
-    { href: '/dashboard/calendar', label: 'Calendar', icon: CalendarDays, exact: false, color: 'text-green-500', bg: 'bg-green-500/10' },
+    { href: '/dashboard/insights', label: 'Insights', icon: Lightbulb, exact: false, color: 'text-purple-500', bg: 'bg-purple-500/10' },
     { href: '/dashboard/expenses', label: 'Expenses', icon: Receipt, exact: false, color: 'text-amber-500', bg: 'bg-amber-500/10' },
     { href: '/dashboard/swaps', label: 'Swaps', icon: Repeat2, exact: false, color: 'text-violet-500', bg: 'bg-violet-500/10' },
   ],

@@ -78,12 +78,17 @@ export default function DashboardPage() {
 
   // NPS trigger: show after 7 days of membership, once per user
   useEffect(() => {
-    if (!currentMember || !user || npsActedRef.current) return
+    if (!currentMember || !user) return
     try {
       const dismissed = localStorage.getItem(`nps_dismissed_${user.uid}`)
       const submitted = localStorage.getItem(`nps_submitted_${user.uid}`)
-      if (dismissed || submitted) { npsActedRef.current = true; return }
+      if (dismissed || submitted) {
+        npsActedRef.current = true
+        setShowNPS(false)
+        return
+      }
     } catch { return }
+    if (npsActedRef.current) return
     const joinedAt = currentMember.joinedAt instanceof Date
       ? currentMember.joinedAt
       : new Date(currentMember.joinedAt as unknown as string)

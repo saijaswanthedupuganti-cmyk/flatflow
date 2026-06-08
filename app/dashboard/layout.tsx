@@ -181,11 +181,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
+      {/* 5 slots: Dashboard · Expenses · Swaps · Tasks(admin)/Members · Settings */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border/60 flex justify-around items-center px-2 py-2 z-50">
+        {/* 1 — Dashboard */}
         <MobileNavLink {...NAV_ITEMS.main[0]} />
-        <MobileNavLink {...NAV_ITEMS.main[3]} />
-        {/* Swaps with badge */}
-        <Link href="/dashboard/swaps" className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative ${pathname.startsWith('/dashboard/swaps') ? 'text-primary' : 'text-muted-foreground'}`}>
+
+        {/* 2 — Expenses */}
+        <MobileNavLink {...NAV_ITEMS.main[2]} />
+
+        {/* 3 — Swaps (with pending badge) */}
+        <Link
+          href="/dashboard/swaps"
+          className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative ${pathname.startsWith('/dashboard/swaps') ? 'text-primary' : 'text-muted-foreground'}`}
+        >
           <Repeat2 size={22} />
           <span className="text-[10px] font-semibold">Swaps</span>
           {pendingSwaps > 0 && (
@@ -194,12 +202,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           )}
         </Link>
+
+        {/* 4 — Tasks (admin) | Members (member) */}
         {isAdmin
           ? <MobileNavLink {...NAV_ITEMS.admin[0]} />
           : <MobileNavLink {...NAV_ITEMS.general[0]} />}
-        {isAdmin
-          ? <MobileNavLink {...NAV_ITEMS.general[0]} />
-          : <MobileNavLink {...NAV_ITEMS.general[1]} />}
+
+        {/* 5 — Settings (logout lives here for both roles) */}
+        <MobileNavLink {...NAV_ITEMS.general[1]} />
       </nav>
     </div>
   )

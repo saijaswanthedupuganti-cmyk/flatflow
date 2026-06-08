@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { formatDateTime, timeAgo } from '@/lib/rotationEngine'
-import { Activity as ActivityIcon, CheckCircle2, RefreshCw, ArrowLeftRight, AlertTriangle, Settings, Eye, EyeOff, ChevronDown, Pencil } from 'lucide-react'
+import { Activity as ActivityIcon, CheckCircle2, RefreshCw, ArrowLeftRight, AlertTriangle, Settings, Eye, EyeOff, ChevronDown, Pencil, Receipt } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 // ── Action type groupings ────────────────────────────────────────────────
@@ -12,6 +12,7 @@ const ACTION_GROUPS = {
   tasks:    { label: 'Task Completed', actions: ['completed_task', 'skipped_task'] },
   transfer: { label: 'Transfers & Swaps', actions: ['transferred_task', 'swap_requested', 'swap_resolved'] },
   status:   { label: 'Status Changes', actions: ['status_change', 'returned_early'] },
+  bills:    { label: 'Bills',          actions: ['bill_generated', 'bill_paid', 'bill_skipped', 'bill_edited', 'bill_deleted'] },
   system:   { label: 'System',        actions: ['overdue_alert', 'task_created', 'task_deleted', 'system_override'] },
 } as const
 
@@ -23,6 +24,8 @@ function dotColour(action: string, isSystem: boolean) {
   if (action === 'skipped_task')                          return 'bg-red-500'
   if (action === 'status_change' || action === 'returned_early') return 'bg-blue-500'
   if (['transferred_task','swap_requested','swap_resolved'].includes(action)) return 'bg-purple-500'
+  if (['bill_generated','bill_paid','bill_edited'].includes(action)) return 'bg-amber-500'
+  if (action === 'bill_deleted')                          return 'bg-red-400'
   return 'bg-muted-foreground'
 }
 
@@ -34,6 +37,8 @@ function GroupIcon({ action, isSystem }: { action: string; isSystem: boolean }) 
                                return <ArrowLeftRight size={14} className={`${cls} text-purple-500`} />
   if (action === 'status_change' || action === 'returned_early')
                                return <RefreshCw      size={14} className={`${cls} text-blue-500`} />
+  if (['bill_generated','bill_paid','bill_skipped','bill_edited','bill_deleted'].includes(action))
+                               return <Receipt        size={14} className={`${cls} text-amber-500`} />
   return                              <Settings       size={14} className={`${cls} text-muted-foreground`} />
 }
 

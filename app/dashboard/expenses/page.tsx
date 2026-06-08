@@ -2428,7 +2428,11 @@ export default function ExpensesPage() {
                                     Cancel
                                   </button>
                                   <button
-                                    onClick={async () => { await deleteRecurringBill(bill.id); setConfirmDeleteBillId(null) }}
+                                    onClick={async () => {
+                                      setConfirmDeleteBillId(null)
+                                      setExpandedBillId(null)
+                                      await deleteRecurringBill(bill.id)
+                                    }}
                                     className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
                                   >
                                     Yes, Delete

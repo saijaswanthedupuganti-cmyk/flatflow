@@ -51,7 +51,7 @@ export interface Activity {
   id: string
   timestamp: string
   userId: string
-  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'task_edited' | 'returned_early' | 'expense_added' | 'expense_deleted' | 'settlement_added' | 'bill_generated' | 'bill_paid' | 'bill_skipped'
+  action: 'completed_task' | 'skipped_task' | 'status_change' | 'overdue_alert' | 'transferred_task' | 'system_override' | 'swap_requested' | 'swap_resolved' | 'task_created' | 'task_deleted' | 'task_edited' | 'returned_early' | 'expense_added' | 'expense_deleted' | 'settlement_added' | 'bill_generated' | 'bill_paid' | 'bill_skipped' | 'bill_edited' | 'bill_deleted'
   details: string
   /** Admin can soft-hide entries without deleting them */
   hidden?: boolean
@@ -1017,18 +1017,36 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   },
 
   updateRecurringBill: async (billId, changes) => {
-    if (hasKeys && get().flatId) {
-      await updateDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`), fs(changes))
+    const state = get()
+    const bill = state.recurringBills.find(b => b.id === billId)
+    const uid = useAuthStore.getState().user?.uid
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`), fs(changes))
     } else {
       set(s => ({ recurringBills: s.recurringBills.map(b => b.id === billId ? { ...b, ...changes } : b) }))
+    }
+    if (uid && bill) {
+      const parts: string[] = []
+      if (changes.amount !== undefined && changes.amount !== bill.amount)
+        parts.push(`amount ${bill.amount ?? '?'} → ${changes.amount}`)
+      if (changes.name !== undefined && changes.name !== bill.name)
+        parts.push(`renamed "${bill.name}" → "${changes.name}"`)
+      const summary = parts.length ? parts.join(', ') : 'settings updated'
+      await get().addActivity({ userId: uid, action: 'bill_edited', details: `edited fixed bill "${bill.name}" — ${summary}` })
     }
   },
 
   deleteRecurringBill: async (billId) => {
-    if (hasKeys && get().flatId) {
-      await deleteDoc(doc(db, `flats/${get().flatId}/recurringBills/${billId}`))
-    } else {
-      set(s => ({ recurringBills: s.recurringBills.filter(b => b.id !== billId) }))
+    const state = get()
+    const bill = state.recurringBills.find(b => b.id === billId)
+    const uid = useAuthStore.getState().user?.uid
+    // Optimistic update so UI clears immediately without waiting for Firestore listener
+    set(s => ({ recurringBills: s.recurringBills.filter(b => b.id !== billId) }))
+    if (hasKeys && state.flatId) {
+      await deleteDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`))
+    }
+    if (uid && bill) {
+      await get().addActivity({ userId: uid, action: 'bill_deleted', details: `deleted fixed bill "${bill.name}" (${bill.amount ? '₹' + bill.amount : 'variable'})` })
     }
   },
 

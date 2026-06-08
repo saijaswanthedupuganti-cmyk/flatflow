@@ -181,28 +181,29 @@ function ExpenseModal({
 }) {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showAdvanced, setShowAdvanced] = useState(false)
   const [form, setForm] = useState({
-    category: (initial?.category ?? 'other') as ExpenseCategory,
-    description: initial?.description ?? '',
-    amount: initial?.amount?.toString() ?? '',
-    currency: (initial?.currency ?? 'INR') as Currency,
-    date: initial?.date ?? todayStr(),
-    paidBy: initial?.paidBy ?? currentUserId,
-    splitAmong: initial?.splitAmong ?? members.map(m => m.uid),
-    splitType: (initial?.splitType ?? 'equal') as 'equal' | 'percent' | 'custom',
+    category:     (initial?.category ?? 'other') as ExpenseCategory,
+    description:  initial?.description ?? '',
+    amount:       initial?.amount?.toString() ?? '',
+    currency:     (initial?.currency ?? 'INR') as Currency,
+    date:         initial?.date ?? todayStr(),
+    paidBy:       initial?.paidBy ?? currentUserId,
+    splitAmong:   initial?.splitAmong ?? members.map(m => m.uid),
+    splitType:    (initial?.splitType ?? 'equal') as 'equal' | 'percent' | 'custom',
     customSplits: Object.fromEntries(members.map(m => [m.uid, initial?.splits?.[m.uid]?.toString() ?? ''])),
-    percentSplits: Object.fromEntries(members.map(m => [m.uid, ''])),
-    note: initial?.note ?? '',
+    percentSplits:Object.fromEntries(members.map(m => [m.uid, ''])),
+    note:         initial?.note ?? '',
     deferToNextMonth: initial?.deferToNextMonth ?? false,
   })
 
-  const totalAmount = parseFloat(form.amount) || 0
+  const totalAmount   = parseFloat(form.amount) || 0
   const selectedCount = form.splitAmong.length
-  const equalShare = selectedCount > 0 ? totalAmount / selectedCount : 0
-  const customTotal = form.splitAmong.reduce((s, uid) => s + (parseFloat(form.customSplits[uid]) || 0), 0)
-  const customOk = Math.abs(customTotal - totalAmount) <= 0.5
-  const totalPercent = form.splitAmong.reduce((s, uid) => s + (parseFloat(form.percentSplits[uid]) || 0), 0)
-  const percentOk = Math.abs(totalPercent - 100) <= 1
+  const equalShare    = selectedCount > 0 ? totalAmount / selectedCount : 0
+  const customTotal   = form.splitAmong.reduce((s, uid) => s + (parseFloat(form.customSplits[uid]) || 0), 0)
+  const customOk      = Math.abs(customTotal - totalAmount) <= 0.5
+  const totalPercent  = form.splitAmong.reduce((s, uid) => s + (parseFloat(form.percentSplits[uid]) || 0), 0)
+  const percentOk     = Math.abs(totalPercent - 100) <= 1
 
   const toggleMember = (uid: string) => setForm(f => ({
     ...f,
@@ -215,12 +216,11 @@ function ExpenseModal({
     if (!totalAmount || totalAmount <= 0) { setError('Enter a valid amount.'); return }
     if (form.splitAmong.length === 0) { setError('Select at least one person to split with.'); return }
     if (form.splitType === 'custom' && !customOk) {
-      setError(`Custom splits must add up to ${CURRENCY_SYMBOLS[form.currency]}${totalAmount}.`); return
+      setError('Custom splits must add up to the total.'); return
     }
     if (form.splitType === 'percent' && !percentOk) {
       setError('Percentages must add up to 100%.'); return
     }
-
     let splits: Record<string, number>
     if (form.splitType === 'equal') {
       splits = Object.fromEntries(form.splitAmong.map(uid => [uid, equalShare]))
@@ -231,7 +231,6 @@ function ExpenseModal({
     } else {
       splits = Object.fromEntries(form.splitAmong.map(uid => [uid, parseFloat(form.customSplits[uid]) || 0]))
     }
-
     setSaving(true)
     await onSave({
       description: form.description.trim(),
@@ -245,200 +244,329 @@ function ExpenseModal({
     onClose()
   }
 
-  return (
-    <Modal title="Add Shared Expense" onClose={onClose}>
-      <div className="space-y-5">
-        {/* Category grid */}
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Category</Label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {(Object.entries(CATEGORY_CONFIG) as [ExpenseCategory, { label: string; emoji: string }][]).map(([key, { label, emoji }]) => (
-              <button key={key}
-                onClick={() => setForm(f => ({ ...f, category: key, description: f.description || label }))}
-                className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${
-                  form.category === key
-                    ? 'border-primary bg-primary/10 text-primary'
-                    : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}>
-                <span className="text-lg leading-none">{emoji}</span>
-                <span className="text-[10px] font-semibold leading-tight">{label}</span>
-              </button>
-            ))}
-          </div>
+  const QUICK_CATS: ExpenseCategory[] = ['food', 'grocery', 'household', 'gas', 'maid', 'other']
+  const avatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500', 'bg-rose-500']
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1A202C] rounded-t-[24px] sm:rounded-[24px] w-full sm:max-w-[480px] shadow-[0px_10px_40px_-10px_rgba(0,0,0,0.20)] flex flex-col max-h-[92dvh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
+          <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">
+            {initial ? 'Edit Split' : 'Add a Split'}
+          </h2>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3ff] dark:hover:bg-white/10 transition-colors cursor-pointer">
+            <X size={14} className="text-[#777587]" />
+          </button>
         </div>
 
-        <div>
-          <Label htmlFor="desc" className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Description</Label>
-          <Input id="desc" placeholder="e.g. June Electricity Bill" value={form.description}
-            onChange={e => setForm(f => ({ ...f, description: e.target.value }))} maxLength={80} />
-        </div>
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-6 space-y-6">
 
-        <div className="grid grid-cols-3 gap-2">
-          <div className="col-span-2">
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount</Label>
-            <Input type="number" placeholder="0" min="0" value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-          </div>
-          <div>
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Currency</Label>
-            <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value as Currency }))}
-              className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring">
-              {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div className="grid grid-cols-2 gap-2">
-          <div>
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date</Label>
-            <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
-          </div>
-          <div>
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Paid by</Label>
-            <select value={form.paidBy} onChange={e => setForm(f => ({ ...f, paidBy: e.target.value }))}
-              className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring">
-              {members.map(m => <option key={m.uid} value={m.uid}>{m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}</option>)}
-            </select>
-          </div>
-        </div>
-
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Split among</Label>
-          <div className="flex flex-wrap gap-2">
-            {members.map(m => (
-              <button key={m.uid} onClick={() => toggleMember(m.uid)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                  form.splitAmong.includes(m.uid)
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-secondary text-muted-foreground border-border'
-                }`}>
-                {m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        {selectedCount > 0 && totalAmount > 0 && (
-          <div>
-            <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Split type</Label>
-            <div className="flex gap-2 mb-3">
-              {(['equal', 'percent', 'custom'] as const).map(t => (
-                <button key={t} onClick={() => setForm(f => ({ ...f, splitType: t }))}
-                  className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
-                    form.splitType === t ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'
-                  }`}>
-                  {t === 'equal' ? 'Equal' : t === 'percent' ? 'By %' : 'Custom'}
-                </button>
-              ))}
+          {/* Quick categories */}
+          <div className="space-y-2.5">
+            <label className="block text-[11px] font-semibold text-[#464555] dark:text-gray-400 uppercase tracking-[0.6px]">Category</label>
+            <div className="flex gap-2 flex-wrap">
+              {QUICK_CATS.map(cat => {
+                const cfg = CATEGORY_CONFIG[cat]
+                const sel = form.category === cat
+                return (
+                  <button
+                    key={cat}
+                    onClick={() => setForm(f => ({ ...f, category: cat, description: f.description || cfg.label }))}
+                    className={[
+                      'flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] font-medium transition-all cursor-pointer',
+                      sel ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                    ].join(' ')}
+                  >
+                    <span className="text-[15px] leading-none">{cfg.emoji}</span>
+                    {cfg.label}
+                  </button>
+                )
+              })}
             </div>
+          </div>
 
-            {form.splitType === 'equal' && (
-              <p className="text-xs text-muted-foreground bg-secondary/60 rounded-lg px-3 py-2">
-                Each person pays{' '}
-                <span className="font-bold text-foreground">
-                  {CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}
+          {/* Description */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">What was it for?</label>
+            <input
+              value={form.description}
+              onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="e.g. Dinner, Groceries, Cab…"
+              maxLength={80}
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+            />
+          </div>
+
+          {/* Amount + Currency */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Total Amount</label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#777587] text-sm font-medium pointer-events-none">
+                  {CURRENCY_SYMBOLS[form.currency]}
                 </span>
-              </p>
-            )}
+                <input
+                  type="number" min="0" placeholder="0"
+                  value={form.amount}
+                  onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                />
+              </div>
+              <select
+                value={form.currency}
+                onChange={e => setForm(f => ({ ...f, currency: e.target.value as Currency }))}
+                className="bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-[13px] text-sm font-semibold text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+              >
+                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+          </div>
 
-            {form.splitType === 'percent' && (
-              <div className="space-y-2">
-                {form.splitAmong.map(uid => {
-                  const m = members.find(x => x.uid === uid)
-                  const pct = parseFloat(form.percentSplits[uid]) || 0
-                  const share = (pct / 100) * totalAmount
-                  return (
-                    <div key={uid} className="flex items-center gap-2">
-                      <span className="text-sm font-medium w-24 truncate shrink-0">
-                        {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
+          {/* Paid by + Date */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Paid by</label>
+              <select
+                value={form.paidBy}
+                onChange={e => setForm(f => ({ ...f, paidBy: e.target.value }))}
+                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+              >
+                {members.map(m => (
+                  <option key={m.uid} value={m.uid}>
+                    {m.uid === currentUserId ? m.nickname + ' (you)' : m.nickname}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Date</label>
+              <input
+                type="date"
+                value={form.date}
+                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Split among */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">Split among</label>
+              <button
+                onClick={() => setForm(f => ({
+                  ...f,
+                  splitAmong: f.splitAmong.length === members.length ? [] : members.map(m => m.uid),
+                }))}
+                className="text-xs font-semibold text-[#3525cd] cursor-pointer hover:opacity-70 transition-opacity"
+              >
+                {form.splitAmong.length === members.length ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+            <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-4 space-y-3">
+              {members.map((m, idx) => {
+                const checked = form.splitAmong.includes(m.uid)
+                return (
+                  <button
+                    key={m.uid}
+                    onClick={() => toggleMember(m.uid)}
+                    className="flex items-center gap-3 w-full cursor-pointer"
+                  >
+                    <div className={[
+                      'w-6 h-6 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all',
+                      checked ? 'bg-[#3525cd] border-[#3525cd]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
+                    ].join(' ')}>
+                      {checked && (
+                        <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                          <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
+                    </div>
+                    <div className={['w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0', avatarColors[idx % avatarColors.length]].join(' ')}>
+                      {m.nickname.charAt(0).toUpperCase()}
+                    </div>
+                    <div className="flex-1 flex items-center justify-between min-w-0">
+                      <span className="text-[15px] text-[#141b2b] dark:text-white">
+                        {m.uid === currentUserId ? m.nickname + ' (you)' : m.nickname}
                       </span>
-                      <div className="relative flex-1">
-                        <Input type="number" placeholder="0" min="0" max="100" className="pr-7"
-                          value={form.percentSplits[uid]}
-                          onChange={e => setForm(f => ({ ...f, percentSplits: { ...f.percentSplits, [uid]: e.target.value } }))} />
-                        <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                      </div>
-                      {pct > 0 && (
-                        <span className="text-xs font-bold text-muted-foreground w-16 text-right shrink-0">
-                          {CURRENCY_SYMBOLS[form.currency]}{share.toFixed(share % 1 === 0 ? 0 : 2)}
+                      {checked && totalAmount > 0 && form.splitType === 'equal' && (
+                        <span className="text-[13px] font-bold text-[#3525cd]">
+                          {CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}
                         </span>
                       )}
                     </div>
-                  )
-                })}
-                <div className={`text-xs px-3 py-2 rounded-lg font-medium ${percentOk ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300' : 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300'}`}>
-                  {percentOk ? '✓ Percentages add up to 100%' : `Total: ${totalPercent.toFixed(0)}% of 100%`}
-                </div>
-              </div>
+                  </button>
+                )
+              })}
+            </div>
+            {selectedCount > 0 && totalAmount > 0 && (
+              <p className="text-[12px] text-[#777587] text-center">
+                Equal split &mdash; each pays <span className="font-bold text-[#3525cd]">{CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}</span>
+              </p>
             )}
+          </div>
 
-            {form.splitType === 'custom' && (
-              <div className="space-y-2">
-                {form.splitAmong.map(uid => {
-                  const m = members.find(x => x.uid === uid)
-                  return (
-                    <div key={uid} className="flex items-center gap-2">
-                      <span className="text-sm font-medium w-24 truncate shrink-0">
-                        {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
-                      </span>
-                      <div className="relative flex-1">
-                        <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[form.currency]}</span>
-                        <Input type="number" placeholder="0" min="0" className="pl-6"
-                          value={form.customSplits[uid]}
-                          onChange={e => setForm(f => ({ ...f, customSplits: { ...f.customSplits, [uid]: e.target.value } }))} />
+          {/* Advanced options toggle */}
+          <button
+            onClick={() => setShowAdvanced(a => !a)}
+            className="flex items-center gap-2 text-[13px] font-semibold text-[#777587] hover:text-[#464555] transition-colors cursor-pointer w-full"
+          >
+            <div className={['w-4 h-4 rounded border border-current flex items-center justify-center transition-transform', showAdvanced ? 'rotate-45' : ''].join(' ')}>
+              <Plus size={10} />
+            </div>
+            {showAdvanced ? 'Hide advanced options' : 'Advanced: custom splits, note, defer'}
+          </button>
+
+          {showAdvanced && (
+            <div className="space-y-5 border-t border-black/[0.06] pt-5">
+
+              {/* Split type */}
+              {selectedCount > 0 && totalAmount > 0 && (
+                <div className="space-y-3">
+                  <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Split method</label>
+                  <div className="flex gap-2">
+                    {(['equal', 'percent', 'custom'] as const).map(t => (
+                      <button
+                        key={t}
+                        onClick={() => setForm(f => ({ ...f, splitType: t }))}
+                        className={[
+                          'flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer',
+                          form.splitType === t ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                        ].join(' ')}
+                      >
+                        {t === 'equal' ? 'Equal' : t === 'percent' ? 'By %' : 'Custom'}
+                      </button>
+                    ))}
+                  </div>
+
+                  {form.splitType === 'percent' && (
+                    <div className="space-y-2">
+                      {form.splitAmong.map(uid => {
+                        const m = members.find(x => x.uid === uid)
+                        const pct = parseFloat(form.percentSplits[uid]) || 0
+                        const share = (pct / 100) * totalAmount
+                        return (
+                          <div key={uid} className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-[#141b2b] dark:text-white w-24 truncate shrink-0">
+                              {uid === currentUserId ? m?.nickname + ' (you)' : m?.nickname ?? uid}
+                            </span>
+                            <div className="relative flex-1">
+                              <input
+                                type="number" placeholder="0" min="0" max="100"
+                                value={form.percentSplits[uid]}
+                                onChange={e => setForm(f => ({ ...f, percentSplits: { ...f.percentSplits, [uid]: e.target.value } }))}
+                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 pr-7 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                              />
+                              <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#777587]">%</span>
+                            </div>
+                            {pct > 0 && (
+                              <span className="text-xs font-bold text-[#3525cd] w-16 text-right shrink-0">
+                                {CURRENCY_SYMBOLS[form.currency]}{share.toFixed(share % 1 === 0 ? 0 : 2)}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                      <div className={['text-xs px-3 py-2 rounded-lg font-medium', percentOk ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'].join(' ')}>
+                        {percentOk ? 'Percentages add up to 100%' : 'Total: ' + totalPercent.toFixed(0) + '% of 100%'}
                       </div>
                     </div>
-                  )
-                })}
-                <div className={`text-xs px-3 py-2 rounded-lg font-medium ${customOk ? 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-300' : 'bg-orange-50 dark:bg-orange-950/30 text-orange-700 dark:text-orange-300'}`}>
-                  {customOk ? '✓ Splits add up correctly' : `Total: ${CURRENCY_SYMBOLS[form.currency]}${customTotal.toFixed(2)} of ${CURRENCY_SYMBOLS[form.currency]}${totalAmount.toFixed(2)}`}
+                  )}
+
+                  {form.splitType === 'custom' && (
+                    <div className="space-y-2">
+                      {form.splitAmong.map(uid => {
+                        const m = members.find(x => x.uid === uid)
+                        return (
+                          <div key={uid} className="flex items-center gap-2">
+                            <span className="text-sm font-medium text-[#141b2b] dark:text-white w-24 truncate shrink-0">
+                              {uid === currentUserId ? m?.nickname + ' (you)' : m?.nickname ?? uid}
+                            </span>
+                            <div className="relative flex-1">
+                              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-[#777587]">{CURRENCY_SYMBOLS[form.currency]}</span>
+                              <input
+                                type="number" placeholder="0" min="0"
+                                value={form.customSplits[uid]}
+                                onChange={e => setForm(f => ({ ...f, customSplits: { ...f.customSplits, [uid]: e.target.value } }))}
+                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-7 pr-4 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                              />
+                            </div>
+                          </div>
+                        )
+                      })}
+                      <div className={['text-xs px-3 py-2 rounded-lg font-medium', customOk ? 'bg-emerald-50 text-emerald-700' : 'bg-orange-50 text-orange-700'].join(' ')}>
+                        {customOk ? 'Splits add up correctly' : 'Total: ' + CURRENCY_SYMBOLS[form.currency] + customTotal.toFixed(2) + ' of ' + CURRENCY_SYMBOLS[form.currency] + totalAmount.toFixed(2)}
+                      </div>
+                    </div>
+                  )}
                 </div>
+              )}
+
+              {/* Note */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Note (optional)</label>
+                <input
+                  placeholder="Any details…"
+                  value={form.note}
+                  onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
+                  maxLength={200}
+                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                />
               </div>
-            )}
-          </div>
-        )}
 
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Note (optional)</Label>
-          <Input placeholder="Any details…" value={form.note}
-            onChange={e => setForm(f => ({ ...f, note: e.target.value }))} maxLength={200} />
-        </div>
-
-        {/* Defer to next month — only shown to the payer */}
-        {form.paidBy === currentUserId && (
-          <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/30">
-            <button onClick={() => setForm(f => ({ ...f, deferToNextMonth: !f.deferToNextMonth }))}
-              className={`w-10 h-6 rounded-full transition-colors shrink-0 ${form.deferToNextMonth ? 'bg-primary' : 'bg-border'}`}>
-              <div className={`w-4 h-4 rounded-full bg-white shadow mx-1 transition-transform ${form.deferToNextMonth ? 'translate-x-4' : 'translate-x-0'}`} />
-            </button>
-            <div>
-              <p className="text-sm font-semibold">Add to next month&apos;s bill</p>
-              <p className="text-xs text-muted-foreground">
-                {form.deferToNextMonth
-                  ? 'Will appear with next month\'s bills, not collected immediately'
-                  : 'Collect from flatmates right away'}
-              </p>
+              {/* Defer to next month */}
+              {form.paidBy === currentUserId && (
+                <div className="bg-[#e9edff] dark:bg-[#3525cd]/15 rounded-[12px] p-4 flex gap-4">
+                  <div className="shrink-0 pt-0.5">
+                    <button
+                      onClick={() => setForm(f => ({ ...f, deferToNextMonth: !f.deferToNextMonth }))}
+                      className={['relative w-11 h-6 rounded-full transition-colors cursor-pointer', form.deferToNextMonth ? 'bg-[#3525cd]' : 'bg-gray-300 dark:bg-white/20'].join(' ')}
+                    >
+                      <span className={['absolute top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform', form.deferToNextMonth ? 'translate-x-[22px]' : 'translate-x-[2px]'].join(' ')} />
+                    </button>
+                  </div>
+                  <div>
+                    <p className="text-[15px] font-semibold text-[#141b2b] dark:text-white leading-6">Add to next month&apos;s bill</p>
+                    <p className="text-sm text-[#464555] dark:text-gray-400 mt-1 leading-[22px]">
+                      {form.deferToNextMonth ? 'Collected with next month's bills' : 'Collect from flatmates right away'}
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          )}
 
-        {error && (
-          <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
-            <AlertCircle size={14} className="text-red-600 shrink-0" />
-            <p className="text-xs font-semibold text-red-700 dark:text-red-300">{error}</p>
-          </div>
-        )}
-        <div className="flex gap-2 pt-1">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1 font-bold" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Add Expense'}
-          </Button>
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
+              <AlertCircle size={14} className="text-red-600 shrink-0" />
+              <p className="text-xs font-semibold text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+
         </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0">
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.description.trim() || totalAmount <= 0 || form.splitAmong.length === 0}
+            className="w-full flex items-center justify-center gap-2 bg-[#3525cd] hover:bg-[#2b1eb5] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full shadow-md transition-all cursor-pointer"
+          >
+            {saving
+              ? <><RefreshCw size={14} className="animate-spin" /> Saving...</>
+              : <><Check size={14} /> {initial ? 'Save Changes' : 'Add Split'}</>}
+          </button>
+        </div>
+
       </div>
-    </Modal>
+    </div>,
+    document.body,
   )
 }
-
 // ── Settle Up Modal ──────────────────────────────────────────────────────────
 
 function SettleUpModal({
@@ -511,66 +639,117 @@ function SettleUpModal({
 // ── Expense Row ──────────────────────────────────────────────────────────────
 
 function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
-  expense: Expense; members: { uid: string; nickname: string }[]
-  currentUserId: string; canDelete: boolean; onDelete: (id: string) => void
+  expense: Expense
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  canDelete: boolean
+  onDelete: (id: string) => void
 }) {
   const [expanded, setExpanded] = useState(false)
-  const cfg = CATEGORY_CONFIG[expense.category]
-  const payer = members.find(m => m.uid === expense.paidBy)
-  const isYou = expense.paidBy === currentUserId
-  const myShare = expense.splits[currentUserId]
+  const cfg         = CATEGORY_CONFIG[expense.category]
+  const payer       = members.find(m => m.uid === expense.paidBy)
+  const isYouPayer  = expense.paidBy === currentUserId
+  const myShare     = expense.splits[currentUserId] ?? 0
+  const notInSplit  = !expense.splitAmong.includes(currentUserId)
+  const getBack     = isYouPayer ? expense.amount - myShare : 0
 
   return (
-    <div className={`border rounded-xl bg-card overflow-hidden ${expense.deferToNextMonth ? 'border-blue-200 dark:border-blue-900' : 'border-border'}`}>
-      <button onClick={() => setExpanded(e => !e)}
-        className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/30 transition-colors">
-        <div className="w-10 h-10 rounded-xl bg-secondary flex items-center justify-center shrink-0 text-xl">{cfg?.emoji ?? '💰'}</div>
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <p className="text-sm font-semibold truncate">{expense.description}</p>
-            {expense.deferToNextMonth && (
-              <span className="text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full shrink-0">DEFERRED</span>
-            )}
+    <div className="rounded-[18px] bg-card border border-border/50 shadow-[0px_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
+      <button
+        onClick={() => setExpanded(e => !e)}
+        className="w-full p-4 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-3">
+          {/* Category bubble */}
+          <div className="w-11 h-11 rounded-[14px] bg-[#f1f3ff] dark:bg-white/[0.08] flex items-center justify-center text-xl shrink-0">
+            {cfg?.emoji ?? '💰'}
           </div>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {isYou ? 'You paid' : `${payer?.nickname ?? '…'} paid`}
-            {' · '}
-            {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-          </p>
-        </div>
-        <div className="text-right shrink-0">
-          <p className="text-sm font-extrabold">{formatAmount(expense.amount, expense.currency)}</p>
-          {myShare != null && (
-            <p className={`text-xs font-medium mt-0.5 ${isYou ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
-              {isYou
-                ? `you get back ${formatAmount(expense.amount - myShare, expense.currency)}`
-                : `your share: ${formatAmount(myShare, expense.currency)}`}
-            </p>
-          )}
+
+          {/* Main content */}
+          <div className="flex-1 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[#141b2b] dark:text-foreground text-[14px] font-semibold leading-tight truncate">
+                {expense.description}
+                {expense.deferToNextMonth && (
+                  <span className="ml-1.5 text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full align-middle">DEFERRED</span>
+                )}
+              </p>
+              <p className="text-[#141b2b] dark:text-foreground text-[15px] font-bold shrink-0 leading-tight">
+                {formatAmount(expense.amount, expense.currency)}
+              </p>
+            </div>
+
+            <div className="flex items-center justify-between mt-1.5 gap-2">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span className="text-[11px] font-semibold text-[#777587] dark:text-muted-foreground truncate">
+                  {isYouPayer ? 'You paid' : (payer?.nickname ?? '…') + ' paid'}
+                </span>
+                <span className="text-[#d0d2d8] shrink-0">&middot;</span>
+                <span className="text-[11px] text-[#999CA1] dark:text-muted-foreground shrink-0">
+                  {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                </span>
+              </div>
+
+              {/* Your share chip */}
+              {!notInSplit && (
+                <span className={[
+                  'text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0',
+                  isYouPayer && getBack > 0
+                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
+                    : !isYouPayer
+                    ? 'bg-[rgba(235,152,106,0.14)] text-[#c85a2a] dark:text-orange-300'
+                    : 'bg-secondary text-muted-foreground',
+                ].join(' ')}>
+                  {isYouPayer && getBack > 0
+                    ? '+' + formatAmount(getBack, expense.currency)
+                    : !isYouPayer
+                    ? '-' + formatAmount(myShare, expense.currency)
+                    : 'You paid all'}
+                </span>
+              )}
+              {notInSplit && (
+                <span className="text-[11px] text-[#999CA1] dark:text-muted-foreground shrink-0 italic">not included</span>
+              )}
+            </div>
+          </div>
         </div>
       </button>
+
+      {/* Expanded split details */}
       {expanded && (
-        <div className="px-4 pb-4 border-t border-border/50 pt-3 space-y-2">
-          {expense.deferToNextMonth && (
-            <p className="text-xs text-blue-600 dark:text-blue-400 font-semibold">Collecting with next month&apos;s bills</p>
-          )}
+        <div className="border-t border-border/40 px-4 pb-4 pt-3 space-y-2">
           {expense.splitAmong.map(uid => {
-            const m = members.find(x => x.uid === uid)
+            const m     = members.find(x => x.uid === uid)
+            const share = expense.splits[uid] ?? 0
+            const isPayer = uid === expense.paidBy
             return (
-              <div key={uid} className="flex justify-between items-center text-xs">
-                <span className="font-medium text-muted-foreground">
-                  {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
-                  {uid === expense.paidBy && ' · paid'}
+              <div key={uid} className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-6 h-6 rounded-full bg-[#e9edff] dark:bg-white/10 flex items-center justify-center text-[10px] font-bold text-[#3525cd] shrink-0">
+                    {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-[12px] font-medium text-[#464555] dark:text-gray-400">
+                    {uid === currentUserId ? (m?.nickname ?? uid) + ' (you)' : m?.nickname ?? uid}
+                    {isPayer && <span className="ml-1 text-[10px] font-bold text-[#3525cd]">paid</span>}
+                  </span>
+                </div>
+                <span className="text-[13px] font-bold text-[#141b2b] dark:text-foreground">
+                  {formatAmount(share, expense.currency)}
                 </span>
-                <span className="font-bold">{formatAmount(expense.splits[uid] ?? 0, expense.currency)}</span>
               </div>
             )
           })}
-          {expense.note && <p className="text-xs text-muted-foreground italic border-t border-border/50 pt-2">&ldquo;{expense.note}&rdquo;</p>}
+          {expense.note && (
+            <p className="text-xs text-[#777587] italic border-t border-border/40 pt-2">
+              &ldquo;{expense.note}&rdquo;
+            </p>
+          )}
           {canDelete && (
-            <button onClick={() => onDelete(expense.id)}
-              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-semibold mt-1">
-              <Trash2 size={12} /> Delete expense
+            <button
+              onClick={() => onDelete(expense.id)}
+              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-semibold mt-1 cursor-pointer transition-colors"
+            >
+              <Trash2 size={12} /> Remove
             </button>
           )}
         </div>
@@ -578,7 +757,6 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
     </div>
   )
 }
-
 // ── Monthly Bill Form Modal ───────────────────────────────────────────────────
 
 const PAYER_MODE_CONFIG: Record<PayerMode, { label: string; desc: string; icon: React.ReactNode }> = {
@@ -608,17 +786,9 @@ function MonthlyBillModal({
     category:      (initial?.category ?? 'other') as ExpenseCategory,
     isVariable:    initial?.isVariable ?? false,
     amount:        initial?.amount != null ? initial.amount.toString() : '',
-    currency:      (initial?.currency ?? 'INR') as Currency,
     billingDay:    initial?.billingDay?.toString() ?? '1',
     rotationQueue: initial?.rotationQueue ?? members.map(m => m.uid),
     active:        initial?.active ?? true,
-    // Payer config
-    payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
-    fixedPayerUid: initial?.fixedPayerUid ?? '',
-    // Split config
-    splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
-    percentSplits: Object.fromEntries(members.map(m => [m.uid, initial?.percentSplits?.[m.uid]?.toString() ?? ''])),
-    customSplits:  Object.fromEntries(members.map(m => [m.uid, initial?.customSplits?.[m.uid]?.toString() ?? ''])),
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -628,260 +798,239 @@ function MonthlyBillModal({
       : [...f.rotationQueue, uid],
   }))
 
-  const totalAmount = parseFloat(form.amount) || 0
-  const totalPercent = form.rotationQueue.reduce((s, uid) => s + (parseFloat(form.percentSplits[uid]) || 0), 0)
-  const totalCustom  = form.rotationQueue.reduce((s, uid) => s + (parseFloat(form.customSplits[uid])  || 0), 0)
-  const percentOk = Math.abs(totalPercent - 100) <= 1
-  const customOk  = !form.isVariable && totalAmount > 0 && Math.abs(totalCustom - totalAmount) <= 0.5
+  const selectAll = () => setForm(f => ({
+    ...f,
+    rotationQueue: f.rotationQueue.length === members.length ? [] : members.map(m => m.uid),
+  }))
 
   const handleSave = async () => {
     if (!form.name.trim()) return
     if (!form.isVariable && (!parseFloat(form.amount) || parseFloat(form.amount) <= 0)) return
     if (form.rotationQueue.length === 0) return
-    if (form.payerMode === 'fixed' && !form.fixedPayerUid) return
-    if (form.splitMethod === 'percent' && !percentOk) return
     setSaving(true)
     await onSave({
-      name:        form.name.trim(),
-      category:    form.category,
-      isVariable:  form.isVariable,
-      amount:      form.isVariable ? null : parseFloat(form.amount),
-      currency:    form.currency,
-      billingDay:  Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
+      name:          form.name.trim(),
+      category:      form.category,
+      isVariable:    form.isVariable,
+      amount:        form.isVariable ? null : parseFloat(form.amount),
+      currency:      (initial?.currency ?? 'INR') as Currency,
+      billingDay:    Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
       rotationQueue: form.rotationQueue,
       participants:  form.rotationQueue,
-      payerMode:     form.payerMode,
-      fixedPayerUid: form.payerMode === 'fixed' ? form.fixedPayerUid : undefined,
-      splitMethod:   form.splitMethod,
-      percentSplits: form.splitMethod === 'percent'
-        ? Object.fromEntries(form.rotationQueue.map(uid => [uid, parseFloat(form.percentSplits[uid]) || 0]))
-        : undefined,
-      customSplits: form.splitMethod === 'custom'
-        ? Object.fromEntries(form.rotationQueue.map(uid => [uid, parseFloat(form.customSplits[uid]) || 0]))
-        : undefined,
-      active:      form.active,
-      createdBy:   currentUserId,
+      payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
+      fixedPayerUid: initial?.fixedPayerUid,
+      splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
+      percentSplits: initial?.percentSplits,
+      customSplits:  initial?.customSplits,
+      active:        form.active,
+      createdBy:     currentUserId,
     })
     onClose()
   }
 
-  return (
-    <Modal title={initial ? 'Edit Monthly Bill' : 'New Monthly Bill'} onClose={onClose}>
-      <div className="space-y-5">
+  const PRESET_CATEGORIES: ExpenseCategory[] = [
+    'maid', 'rent', 'maintenance', 'electricity', 'water', 'internet', 'gas', 'grocery', 'milk',
+  ]
 
-        {/* Category */}
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Category</Label>
-          <div className="grid grid-cols-4 gap-1.5">
-            {(Object.entries(CATEGORY_CONFIG) as [ExpenseCategory, { label: string; emoji: string }][]).map(([key, { label, emoji }]) => (
-              <button key={key}
-                onClick={() => setForm(f => ({ ...f, category: key, name: f.name || label }))}
-                className={`flex flex-col items-center gap-1 p-2 rounded-xl border text-center transition-all ${
-                  form.category === key ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}>
-                <span className="text-lg leading-none">{emoji}</span>
-                <span className="text-[10px] font-semibold leading-tight">{label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+  const billingDayOptions = [1, 5, 7, 10, 15, 20, 25, 28]
 
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Bill name</Label>
-          <Input placeholder="e.g. Rent, Electricity, Water" value={form.name}
-            onChange={e => setForm(f => ({ ...f, name: e.target.value }))} maxLength={50} />
-        </div>
+  const memberAvatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500']
 
-        {/* Fixed / Variable toggle */}
-        <div className="flex items-center gap-3 p-3 rounded-xl border border-border bg-secondary/30">
-          <button onClick={() => setForm(f => ({ ...f, isVariable: !f.isVariable }))}
-            className={`w-10 h-6 rounded-full transition-colors shrink-0 ${form.isVariable ? 'bg-primary' : 'bg-border'}`}>
-            <div className={`w-4 h-4 rounded-full bg-white shadow mx-1 transition-transform ${form.isVariable ? 'translate-x-4' : 'translate-x-0'}`} />
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1A202C] rounded-t-[24px] sm:rounded-[24px] w-full sm:max-w-[440px] shadow-[0px_10px_40px_-10px_rgba(0,0,0,0.18)] flex flex-col max-h-[92dvh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
+          <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">
+            {initial ? 'Edit Fixed Bill' : 'Add New Fixed Bill'}
+          </h2>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3ff] dark:hover:bg-white/10 transition-colors cursor-pointer"
+          >
+            <X size={14} className="text-[#777587] dark:text-gray-400" />
           </button>
-          <div>
-            <p className="text-sm font-semibold">{form.isVariable ? 'Variable amount' : 'Fixed amount'}</p>
-            <p className="text-xs text-muted-foreground">
-              {form.isVariable ? 'Enter actual amount each month (electricity, water, gas)' : 'Same amount every month (rent, WiFi, maid)'}
-            </p>
-          </div>
         </div>
 
-        {!form.isVariable && (
-          <div className="grid grid-cols-3 gap-2">
-            <div className="col-span-2">
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount per month</Label>
-              <Input type="number" placeholder="0" min="0" value={form.amount}
-                onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
-            </div>
-            <div>
-              <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Currency</Label>
-              <select value={form.currency} onChange={e => setForm(f => ({ ...f, currency: e.target.value as Currency }))}
-                className="w-full h-9 rounded-md border border-input bg-background px-2 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-ring">
-                {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
-              </select>
-            </div>
-          </div>
-        )}
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-6 space-y-7">
 
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Generate on the</Label>
-          <div className="flex items-center gap-2">
-            <Input type="number" min="1" max="31" className="w-20" value={form.billingDay}
-              onChange={e => setForm(f => ({ ...f, billingDay: e.target.value }))} />
-            <span className="text-sm text-muted-foreground">of each month</span>
-          </div>
-        </div>
-
-        {/* Participants (multi-select chips) */}
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Participants — who splits this bill</Label>
-          <div className="flex flex-wrap gap-2">
-            {members.map(m => (
-              <button key={m.uid} onClick={() => toggleMember(m.uid)}
-                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                  form.rotationQueue.includes(m.uid)
-                    ? 'bg-primary text-primary-foreground border-primary'
-                    : 'bg-secondary text-muted-foreground border-border hover:border-primary/40'
-                }`}>
-                {m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}
-              </button>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground mt-1.5">
-            Select all members who share this bill. You can select multiple.
-          </p>
-        </div>
-
-        {/* Payer Mode */}
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">Who pays each month</Label>
-          <div className="grid grid-cols-3 gap-1.5 mb-2">
-            {(Object.entries(PAYER_MODE_CONFIG) as [PayerMode, typeof PAYER_MODE_CONFIG[PayerMode]][]).map(([mode, cfg]) => (
-              <button key={mode} onClick={() => setForm(f => ({ ...f, payerMode: mode }))}
-                className={`flex flex-col items-center gap-1 p-2.5 rounded-xl border text-center transition-all ${
-                  form.payerMode === mode ? 'border-primary bg-primary/10 text-primary' : 'border-border bg-secondary/30 text-muted-foreground hover:text-foreground'
-                }`}>
-                <span className={form.payerMode === mode ? 'text-primary' : 'text-muted-foreground'}>{cfg.icon}</span>
-                <span className="text-[10px] font-bold leading-tight">{cfg.label}</span>
-              </button>
-            ))}
-          </div>
-          <p className="text-[11px] text-muted-foreground">{PAYER_MODE_CONFIG[form.payerMode].desc}</p>
-
-          {/* Fixed payer: select who */}
-          {form.payerMode === 'fixed' && (
-            <div className="mt-2">
-              <Label className="text-[11px] font-bold text-muted-foreground mb-1.5 block">Select fixed payer</Label>
-              <div className="flex flex-wrap gap-2">
-                {members.filter(m => form.rotationQueue.includes(m.uid)).map(m => (
-                  <button key={m.uid} onClick={() => setForm(f => ({ ...f, fixedPayerUid: m.uid }))}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                      form.fixedPayerUid === m.uid
-                        ? 'bg-emerald-600 text-white border-emerald-600'
-                        : 'bg-secondary text-muted-foreground border-border hover:border-emerald-400'
-                    }`}>
-                    {m.uid === currentUserId ? `${m.nickname} (you)` : m.nickname}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </div>
-
-        {/* Split Method */}
-        <div>
-          <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-2 block">How to split the amount</Label>
-          <div className="flex gap-1.5 mb-3">
-            {(Object.entries(SPLIT_METHOD_CONFIG) as [SplitMethod, typeof SPLIT_METHOD_CONFIG[SplitMethod]][]).map(([method, cfg]) => (
-              <button key={method} onClick={() => setForm(f => ({ ...f, splitMethod: method }))}
-                className={`flex-1 py-2 rounded-xl border text-xs font-bold transition-all ${
-                  form.splitMethod === method ? 'bg-primary text-primary-foreground border-primary' : 'bg-secondary text-muted-foreground border-border'
-                }`}>
-                {cfg.label}
-              </button>
-            ))}
+          {/* Bill Name */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Bill Name</label>
+            <input
+              value={form.name}
+              onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Internet Bill"
+              maxLength={50}
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-4 text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+            />
           </div>
 
-          {/* Equal: show preview */}
-          {form.splitMethod === 'equal' && !form.isVariable && totalAmount > 0 && form.rotationQueue.length > 0 && (
-            <p className="text-xs text-muted-foreground bg-secondary/60 rounded-lg px-3 py-2">
-              Each person pays <span className="font-bold text-foreground">
-                {CURRENCY_SYMBOLS[form.currency]}{(totalAmount / form.rotationQueue.length).toFixed(0)}
-              </span> per month
-            </p>
-          )}
-
-          {/* Percent: per-member inputs */}
-          {form.splitMethod === 'percent' && (
-            <div className="space-y-2">
-              {form.rotationQueue.map(uid => {
-                const m = members.find(x => x.uid === uid)
-                const pct = parseFloat(form.percentSplits[uid]) || 0
-                const share = (pct / 100) * totalAmount
+          {/* Quick Presets */}
+          <div className="space-y-2.5">
+            <label className="block text-[11px] font-semibold text-[#464555] dark:text-gray-400 uppercase tracking-[0.6px]">Quick Presets</label>
+            <div className="flex flex-wrap gap-2">
+              {PRESET_CATEGORIES.map(cat => {
+                const cfg = CATEGORY_CONFIG[cat]
+                const isSelected = form.category === cat
                 return (
-                  <div key={uid} className="flex items-center gap-2">
-                    <span className="text-sm font-medium w-24 truncate shrink-0">
-                      {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
-                    </span>
-                    <div className="relative flex-1">
-                      <Input type="number" placeholder="0" min="0" max="100" className="pr-7"
-                        value={form.percentSplits[uid]}
-                        onChange={e => setForm(f => ({ ...f, percentSplits: { ...f.percentSplits, [uid]: e.target.value } }))} />
-                      <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-                    </div>
-                    {pct > 0 && !form.isVariable && totalAmount > 0 && (
-                      <span className="text-xs font-bold text-muted-foreground w-16 text-right shrink-0">
-                        {CURRENCY_SYMBOLS[form.currency]}{share.toFixed(0)}
-                      </span>
-                    )}
-                  </div>
+                  <button
+                    key={cat}
+                    onClick={() => setForm(f => ({ ...f, category: cat, name: f.name || cfg.label }))}
+                    className={[
+                      'px-[14px] py-[7px] rounded-full text-sm font-medium tracking-[0.14px] transition-all cursor-pointer',
+                      isSelected ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                    ].join(' ')}
+                  >
+                    {cfg.label}
+                  </button>
                 )
               })}
-              <p className={`text-xs px-3 py-2 rounded-lg font-medium ${percentOk ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'}`}>
-                {percentOk ? '✓ Adds up to 100%' : `Total: ${totalPercent.toFixed(0)}% of 100%`}
+            </div>
+          </div>
+
+          {/* Fixed Amount */}
+          {!form.isVariable && (
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Fixed Amount (Rs.)</label>
+              <input
+                type="number"
+                min="0"
+                value={form.amount}
+                onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                placeholder="0.00"
+                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+              />
+            </div>
+          )}
+
+          {/* Billing Cycle + Due Date */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Billing Cycle</label>
+              <div className="bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white select-none">
+                Monthly
+              </div>
+              <p className="text-[11px] font-semibold italic text-[#777587] leading-4">
+                Designed for long-term stability.
               </p>
             </div>
-          )}
+            <div className="space-y-1.5">
+              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Due Date</label>
+              <div className="relative">
+                <select
+                  value={form.billingDay}
+                  onChange={e => setForm(f => ({ ...f, billingDay: e.target.value }))}
+                  className="w-full appearance-none bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-10 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+                >
+                  {billingDayOptions.map(d => (
+                    <option key={d} value={d.toString()}>{ordinal(d)} of month</option>
+                  ))}
+                  {!billingDayOptions.includes(parseInt(form.billingDay)) && (
+                    <option value={form.billingDay}>{ordinal(parseInt(form.billingDay))} of month</option>
+                  )}
+                </select>
+                <CalendarCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#777587]" />
+              </div>
+            </div>
+          </div>
 
-          {/* Custom: per-member fixed amounts */}
-          {form.splitMethod === 'custom' && !form.isVariable && (
-            <div className="space-y-2">
-              {form.rotationQueue.map(uid => {
-                const m = members.find(x => x.uid === uid)
+          {/* Assign Roommates */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">Assign Roommates</label>
+              <button
+                onClick={selectAll}
+                className="text-xs font-semibold text-[#3525cd] cursor-pointer hover:opacity-70 transition-opacity"
+              >
+                {form.rotationQueue.length === members.length ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+            <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-4 space-y-4">
+              {members.map((m, idx) => {
+                const checked = form.rotationQueue.includes(m.uid)
                 return (
-                  <div key={uid} className="flex items-center gap-2">
-                    <span className="text-sm font-medium w-24 truncate shrink-0">
-                      {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
-                    </span>
-                    <div className="relative flex-1">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">{CURRENCY_SYMBOLS[form.currency]}</span>
-                      <Input type="number" placeholder="0" min="0" className="pl-6"
-                        value={form.customSplits[uid]}
-                        onChange={e => setForm(f => ({ ...f, customSplits: { ...f.customSplits, [uid]: e.target.value } }))} />
+                  <button
+                    key={m.uid}
+                    onClick={() => toggleMember(m.uid)}
+                    className="flex items-center gap-4 w-full cursor-pointer"
+                  >
+                    <div className={[
+                      'w-6 h-6 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all',
+                      checked ? 'bg-[#3525cd] border-[#3525cd]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
+                    ].join(' ')}>
+                      {checked && (
+                        <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
+                          <path d="M1 4L4 7L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                        </svg>
+                      )}
                     </div>
-                  </div>
+                    <div className={['w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0', memberAvatarColors[idx % memberAvatarColors.length]].join(' ')}>
+                      <span className="text-white">{m.nickname.charAt(0).toUpperCase()}</span>
+                    </div>
+                    <span className="text-base text-[#141b2b] dark:text-white">
+                      {m.uid === currentUserId ? m.nickname + ' (you)' : m.nickname}
+                    </span>
+                  </button>
                 )
               })}
-              {totalAmount > 0 && (
-                <p className={`text-xs px-3 py-2 rounded-lg font-medium ${customOk ? 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-300' : 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-300'}`}>
-                  {customOk ? '✓ Splits match total' : `Total splits: ${CURRENCY_SYMBOLS[form.currency]}${totalCustom.toFixed(0)} of ${CURRENCY_SYMBOLS[form.currency]}${totalAmount.toFixed(0)}`}
-                </p>
-              )}
             </div>
-          )}
+          </div>
+
+          {/* Confirm amount toggle */}
+          <div className="bg-[#e9edff] dark:bg-[#3525cd]/15 rounded-[12px] p-4 flex gap-4">
+            <div className="shrink-0 pt-0.5">
+              <button
+                onClick={() => setForm(f => ({ ...f, isVariable: !f.isVariable }))}
+                className={[
+                  'relative w-11 h-6 rounded-full transition-colors cursor-pointer',
+                  form.isVariable ? 'bg-[#3525cd]' : 'bg-gray-300 dark:bg-white/20',
+                ].join(' ')}
+              >
+                <span className={[
+                  'absolute top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform',
+                  form.isVariable ? 'translate-x-[22px]' : 'translate-x-[2px]',
+                ].join(' ')} />
+              </button>
+            </div>
+            <div>
+              <p className="text-[15px] font-semibold text-[#141b2b] dark:text-white leading-6">
+                Confirm amount before settlement
+              </p>
+              <p className="text-sm text-[#464555] dark:text-gray-400 mt-1 leading-[22px]">
+                Habitiq will ask you to verify the actual amount before the due date — useful for bills like electricity or water that vary monthly.
+              </p>
+            </div>
+          </div>
+
         </div>
 
-        <div className="flex gap-2 pt-1">
-          <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1 font-bold" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : initial ? 'Save Changes' : 'Create Bill'}
-          </Button>
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-4 px-6 pt-5 pb-6 border-t border-black/[0.08] shrink-0">
+          <button
+            onClick={onClose}
+            className="px-6 py-3 text-sm font-medium text-[#3525cd] hover:opacity-70 transition-opacity cursor-pointer"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={saving || !form.name.trim() || (!form.isVariable && !parseFloat(form.amount)) || form.rotationQueue.length === 0}
+            className="flex items-center gap-2 bg-[#3525cd] hover:bg-[#2b1eb5] disabled:opacity-40 text-white text-sm font-medium px-6 py-3 rounded-full shadow-md transition-all cursor-pointer disabled:cursor-not-allowed"
+          >
+            {saving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
+            <span>{saving ? 'Saving...' : initial ? 'Save Changes' : 'Add to Household Bills'}</span>
+          </button>
         </div>
+
       </div>
-    </Modal>
+    </div>,
+    document.body,
   )
 }
-
 // ── Generate Bills Modal ─────────────────────────────────────────────────────
 
 function GenerateBillsModal({
@@ -1891,10 +2040,224 @@ function BillCycleRow({
   )
 }
 
+// ── Fixed Bills Breakdown Modal ───────────────────────────────────────────────
+
+function FixedBillsBreakdownModal({
+  members,
+  currentUserId,
+  recurringBills,
+  billInstances,
+  monthKey,
+  onClose,
+}: {
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  recurringBills: RecurringBill[]
+  billInstances: BillInstance[]
+  monthKey: string
+  onClose: () => void
+}) {
+  const activeBills = recurringBills.filter(b => b.active)
+
+  const avatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500', 'bg-rose-500']
+
+  const totalCommitment = activeBills.reduce((s, b) => {
+    const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === monthKey)
+    return s + (inst?.amount ?? b.amount ?? 0)
+  }, 0)
+
+  const memberBreakdowns = members.map((m, idx) => {
+    const myBills = activeBills.filter(b => {
+      const participants = b.participants?.length ? b.participants : b.rotationQueue
+      return participants.includes(m.uid)
+    })
+    const billLines = myBills.map(b => {
+      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === monthKey)
+      const participants = b.participants?.length ? b.participants : b.rotationQueue
+      const total = inst?.amount ?? b.amount ?? 0
+      const share = participants.length > 0 ? total / participants.length : total
+      const isPaid = inst?.status === 'paid'
+      return { bill: b, inst, share, isPaid, cfg: CATEGORY_CONFIG[b.category] }
+    })
+    const totalShare = billLines.reduce((s, l) => s + l.share, 0)
+    const allPaid = billLines.length > 0 && billLines.every(l => l.isPaid)
+    const anyPaid = billLines.some(l => l.isPaid)
+    const status = allPaid ? 'paid' : 'pending'
+    const activeBillsCount = billLines.filter(l => l.inst).length
+    return { member: m, idx, billLines, totalShare, status, activeBillsCount, totalBills: myBills.length }
+  })
+
+  const nextDue = activeBills.map(b => b.billingDay).sort((a, b) => a - b)
+  const today = new Date().getDate()
+  const nextBillingDay = nextDue.find(d => d >= today) ?? nextDue[0]
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1A202C] rounded-t-[24px] sm:rounded-[24px] w-full sm:max-w-[520px] shadow-[0px_10px_40px_-10px_rgba(0,0,0,0.20)] flex flex-col max-h-[92dvh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-4 border-b border-black/[0.08] shrink-0">
+          <div>
+            <p className="text-[11px] font-semibold text-[#777587] dark:text-gray-400 uppercase tracking-widest">
+              Expenses &rsaquo; Fixed Bills
+            </p>
+            <h2 className="text-[20px] font-bold text-[#141b2b] dark:text-white leading-tight mt-0.5">
+              Resident Breakdown
+            </h2>
+          </div>
+          <button
+            onClick={onClose}
+            className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3ff] dark:hover:bg-white/10 transition-colors cursor-pointer shrink-0"
+          >
+            <X size={14} className="text-[#777587] dark:text-gray-400" />
+          </button>
+        </div>
+
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1 px-6 py-5 space-y-5">
+
+          {/* Two summary cards */}
+          <div className="grid grid-cols-2 gap-3">
+            {/* Total bills card — indigo */}
+            <div className="bg-[#3525cd] rounded-[20px] p-5 relative overflow-hidden shadow-[0px_10px_15px_-3px_rgba(53,37,205,0.25)]">
+              <div className="absolute top-[-12px] right-[-12px] w-20 h-20 rounded-full bg-white/10" />
+              <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10" />
+              <p className="text-white/75 text-[11px] font-semibold uppercase tracking-widest relative">
+                Total Bills
+              </p>
+              <p className="text-white text-[28px] font-extrabold leading-tight mt-1 relative">
+                {formatAmount(totalCommitment, 'INR')}
+              </p>
+              <div className="flex gap-2 mt-3 relative flex-wrap">
+                <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                  <RefreshCw size={9} />
+                  {activeBills.length} active
+                </span>
+                {nextBillingDay != null && (
+                  <span className="bg-white/20 backdrop-blur-sm text-white text-[10px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1">
+                    <CalendarCheck size={9} />
+                    Due {ordinal(nextBillingDay)}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Household size card — light */}
+            <div className="bg-[#f1f3ff] dark:bg-white/[0.06] rounded-[20px] p-5 flex flex-col justify-between border border-[rgba(199,196,216,0.3)]">
+              <div>
+                <p className="text-[#464555] dark:text-gray-400 text-[12px] font-medium">Household Size</p>
+                <p className="text-[#141b2b] dark:text-white text-[22px] font-bold mt-1 leading-tight">
+                  {members.length} Residents
+                </p>
+              </div>
+              <div className="flex items-center gap-1 mt-3">
+                {members.slice(0, 5).map((m, i) => (
+                  <div
+                    key={m.uid}
+                    className={['w-8 h-8 rounded-full border-2 border-white dark:border-[#1A202C] flex items-center justify-center text-[11px] font-bold text-white shrink-0', avatarColors[i % avatarColors.length]].join(' ')}
+                    style={{ marginLeft: i > 0 ? '-8px' : '0' }}
+                  >
+                    {m.nickname.charAt(0).toUpperCase()}
+                  </div>
+                ))}
+                {members.length > 5 && (
+                  <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1A202C] bg-[#e9edff] flex items-center justify-center text-[10px] font-bold text-[#3525cd] shrink-0" style={{ marginLeft: '-8px' }}>
+                    +{members.length - 5}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Per-resident breakdown */}
+          <div>
+            <p className="text-[13px] font-bold text-[#141b2b] dark:text-white mb-3">Household Contribution Breakdown</p>
+            <div className="space-y-3">
+              {memberBreakdowns.map(({ member, idx, billLines, totalShare, status, activeBillsCount, totalBills }) => (
+                <div key={member.uid} className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[20px] border border-[rgba(199,196,216,0.25)] overflow-hidden">
+                  {/* Person header */}
+                  <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[rgba(199,196,216,0.3)]">
+                    <div className="flex items-center gap-3">
+                      <div className={['w-11 h-11 rounded-full flex items-center justify-center text-base font-bold text-white shrink-0', avatarColors[idx % avatarColors.length]].join(' ')}>
+                        {member.nickname.charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-[#141b2b] dark:text-white text-[16px] font-semibold leading-tight">
+                          {member.uid === currentUserId ? member.nickname + ' (you)' : member.nickname}
+                        </p>
+                        <p className="text-[#464555] dark:text-gray-400 text-[12px] font-medium mt-0.5">
+                          {activeBillsCount}/{totalBills} bills active
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[#141b2b] dark:text-white text-[22px] font-bold leading-tight">
+                        {totalShare > 0 ? formatAmount(totalShare, 'INR') : '--'}
+                      </p>
+                      <span className={[
+                        'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-1',
+                        status === 'paid'
+                          ? 'bg-[rgba(53,37,205,0.1)] text-[#3525cd]'
+                          : 'bg-[rgba(186,26,26,0.08)] text-[#ba1a1a]',
+                      ].join(' ')}>
+                        {status === 'paid' ? <Check size={9} /> : <AlertCircle size={9} />}
+                        {status === 'paid' ? 'Paid' : 'Pending'}
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Bill lines */}
+                  {billLines.length > 0 && (
+                    <div className="px-5 py-3 space-y-0">
+                      {billLines.map(({ bill, share, isPaid, cfg }) => (
+                        <div key={bill.id} className={['flex items-center justify-between py-2.5', isPaid ? '' : ''].join(' ')}>
+                          <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-[#dce2f7] dark:bg-white/10 flex items-center justify-center text-sm shrink-0">
+                              {cfg?.emoji}
+                            </div>
+                            <p className="text-[#141b2b] dark:text-white text-[14px]">{bill.name}</p>
+                          </div>
+                          <p className="text-[#141b2b] dark:text-white text-[14px] font-medium">
+                            {share > 0 ? formatAmount(share, 'INR') : 'Variable'}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {billLines.length === 0 && (
+                    <div className="px-5 py-4">
+                      <p className="text-[#777587] dark:text-gray-500 text-[13px] italic">Not assigned to any active bills</p>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0">
+          <button
+            onClick={onClose}
+            className="w-full bg-[#3525cd] hover:bg-[#2b1eb5] text-white text-sm font-semibold py-3 rounded-full transition-colors cursor-pointer"
+          >
+            Done
+          </button>
+        </div>
+
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 export default function ExpensesPage() {
   const {
+    name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, addSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
@@ -1911,6 +2274,7 @@ export default function ExpensesPage() {
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
   const [expandedHistory, setExpandedHistory] = useState<Set<string>>(new Set())
+  const [showBreakdown, setShowBreakdown] = useState(false)
   const hasAutoOpened = useRef(false)
 
   // Month cycle helpers
@@ -1968,330 +2332,578 @@ export default function ExpensesPage() {
   }, [grouped])
 
 
-  return (
-    <div className="space-y-8 max-w-3xl">
+  // Derived balance totals for the two stat cards
+  const totalYouOwe = balances
+    .filter(b => b.amount < 0 && b.currency === 'INR')
+    .reduce((s, b) => s + Math.abs(b.amount), 0)
+  const totalOwedToYou = balances
+    .filter(b => b.amount > 0 && b.currency === 'INR')
+    .reduce((s, b) => s + b.amount, 0)
 
-      {/* ── Header ────────────────────────────────────────────────────────── */}
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight">Bills & Expenses</h1>
-          <p className="text-muted-foreground mt-1 text-sm">{monthLabel(currentMonthKey())}</p>
+  const netUnsettled = useMemo(() => {
+    return balances.reduce((sum, b) => sum + (b.amount < 0 && b.currency === 'INR' ? Math.abs(b.amount) : 0), 0)
+  }, [balances])
+
+  const [activeTab, setActiveTab] = useState<'daily' | 'bills'>('daily')
+
+  const nick = (uid: string) => members.find(m => m.uid === uid)?.nickname ?? uid
+
+  const thisMonthExpensesTotal = useMemo(() => {
+    const key = currentMonthKey()
+    return sortedExpenses
+      .filter(e => e.date.startsWith(key) && e.currency === 'INR')
+      .reduce((s, e) => s + e.amount, 0)
+  }, [sortedExpenses])
+
+  const sevenDayBars = useMemo(() => {
+    const today = new Date()
+    return Array.from({ length: 7 }, (_, i) => {
+      const d = new Date(today)
+      d.setDate(today.getDate() - (6 - i))
+      const dayStr = d.toISOString().slice(0, 10)
+      const total = sortedExpenses
+        .filter(e => e.date === dayStr && e.currency === 'INR')
+        .reduce((s, e) => s + e.amount, 0)
+      const dayLabel = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()]
+      return { dayStr, total, dayLabel }
+    })
+  }, [sortedExpenses])
+
+  const maxBar = useMemo(() => Math.max(1, ...sevenDayBars.map(b => b.total)), [sevenDayBars])
+
+  const totalMonthlyCommitment = useMemo(
+    () => recurringBills.filter(b => b.active && b.amount).reduce((s, b) => s + (b.amount ?? 0), 0),
+    [recurringBills],
+  )
+
+  const nextBillingDay = useMemo(() => {
+    const days = recurringBills
+      .filter(b => b.active)
+      .map(b => b.billingDay)
+      .sort((a, b) => a - b)
+    if (!days.length) return null
+    const today = new Date().getDate()
+    return days.find(d => d >= today) ?? days[0]
+  }, [recurringBills])
+
+  return (
+    <div className="space-y-4 max-w-2xl">
+
+      {/* Header */}
+      <div className="pt-1">
+        <p className="text-xs font-medium text-[#999CA1] dark:text-muted-foreground">
+          {flatName || 'My Flat'} &middot; {monthLabel(currentMonthKey())}
+        </p>
+        <h1 className="text-[22px] font-bold text-[#021328] dark:text-foreground tracking-tight mt-0.5 leading-tight">
+          Expenses Hub
+        </h1>
+      </div>
+
+      {/* Alerts */}
+      {dueBills.length > 0 && isAdmin && (
+        <div className="flex items-center gap-3 p-3 rounded-2xl border border-amber-200 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
+          <Zap size={14} className="text-amber-600 shrink-0" />
+          <p className="text-xs font-bold text-amber-800 dark:text-amber-200 flex-1 min-w-0 truncate">
+            {dueBills.length} bill{dueBills.length > 1 ? 's' : ''} due &mdash; {dueBills.map(b => b.name).join(', ')}
+          </p>
+          <button
+            onClick={() => setShowGenerate(true)}
+            className="shrink-0 bg-[#3786FB] hover:bg-[#2672e6] text-white text-[11px] font-bold px-3 py-1 rounded-lg transition-colors cursor-pointer"
+          >
+            Generate
+          </button>
         </div>
-        <div className="flex gap-2 shrink-0">
-          <Button variant="outline" onClick={() => setShowAddExpense(true)} className="font-bold">
-            <Plus size={15} className="mr-1.5" /> Add Expense
-          </Button>
+      )}
+      {isNearMonthEnd && pendingVariableBills.length > 0 && (
+        <div className="flex items-center gap-3 p-3 rounded-2xl border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
+          <AlertCircle size={14} className="text-blue-600 shrink-0" />
+          <p className="text-xs font-bold text-blue-800 dark:text-blue-200 flex-1 min-w-0 truncate">
+            Month ending &mdash; confirm {pendingVariableBills.map(b => b.name).join(', ')}
+          </p>
           {isAdmin && (
-            <Button onClick={() => setShowAddBill(true)} className="font-bold">
-              <Plus size={15} className="mr-1.5" /> Add Bill
-            </Button>
+            <button
+              onClick={() => setShowGenerate(true)}
+              className="shrink-0 text-[#3786FB] text-[11px] font-bold px-3 py-1 rounded-lg border border-[#3786FB] hover:bg-blue-50 transition-colors cursor-pointer"
+            >
+              Enter
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Hero settlement card */}
+      <div
+        className="rounded-[20px] overflow-hidden shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)]"
+        style={{ background: isCurrentMonthClosed ? '#4CAF82' : netUnsettled > 0 ? '#EB986A' : '#4CAF82' }}
+      >
+        <div className="p-5 pb-4">
+          <div className="flex items-start justify-between">
+            <div className="flex-1 min-w-0">
+              <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
+                {isCurrentMonthClosed ? 'Month Closed' : netUnsettled > 0 ? 'Settlement Pending' : 'All Settled'}
+              </p>
+              <p className="text-white text-3xl font-extrabold mt-2 leading-none">
+                {formatAmount(netUnsettled, 'INR')}
+              </p>
+              <p className="text-white/75 text-xs mt-1.5">
+                {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey())).length} transactions this month
+              </p>
+            </div>
+            <div className="shrink-0 flex flex-col items-end gap-2">
+              {isCurrentMonthClosed && (
+                <span className="text-[10px] font-bold bg-white/25 text-white px-2.5 py-1 rounded-lg">Closed</span>
+              )}
+              {isAdmin && !isCurrentMonthClosed && (
+                <button
+                  onClick={() => setShowMonthEnd(true)}
+                  className="bg-white/25 hover:bg-white/35 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  <CalendarCheck size={11} />
+                  {netUnsettled > 0 ? 'Finalize' : 'Close month'}
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="bg-[rgba(26,32,44,0.75)] backdrop-blur-sm px-5 py-4">
+          <div className="flex items-center justify-between mb-3">
+            <p className="text-[#CCCDD0] text-xs font-medium">Your balance</p>
+            {balances.length === 0 && (
+              <span className="text-[10px] font-bold text-emerald-400">All squared up</span>
+            )}
+          </div>
+          {balances.length > 0 ? (
+            <div className="space-y-2.5">
+              {balances.map(b => {
+                const m = members.find(x => x.uid === b.userId)
+                const isOwed = b.amount > 0
+                return (
+                  <div key={b.userId + b.currency} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
+                        {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                      </div>
+                      <div>
+                        <p className="text-white text-xs font-semibold leading-none">{m?.nickname ?? '...'}</p>
+                        <p className="text-[#999CA1] text-[10px] mt-0.5">{isOwed ? 'owes you' : 'you owe'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className={['text-sm font-extrabold', isOwed ? 'text-emerald-400' : 'text-[#FF8C69]'].join(' ')}>
+                        {formatAmount(Math.abs(b.amount), b.currency)}
+                      </span>
+                      {!isOwed && (
+                        <button
+                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                          className="bg-[#3786FB] hover:bg-[#2672e6] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
+                        >
+                          Settle
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )
+              })}
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Check size={13} className="text-emerald-400" />
+              <p className="text-white text-xs font-semibold">No pending balances this month</p>
+            </div>
           )}
         </div>
       </div>
 
-      {/* ── Alerts ────────────────────────────────────────────────────────── */}
-      {(dueBills.length > 0 && isAdmin) && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30">
-          <Zap size={18} className="text-amber-600 dark:text-amber-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-amber-800 dark:text-amber-200">
-              {dueBills.length} bill{dueBills.length > 1 ? 's' : ''} due — {dueBills.map(b => b.name).join(', ')}
-            </p>
+      {/* Two dark navy stat cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-4 min-h-[110px]">
+          <div className="flex items-start justify-between">
+            <p className="text-[#999CA1] text-sm font-medium">You owe</p>
+            <ArrowUpRight size={14} className={totalYouOwe > 0 ? 'text-[#FF8C69]' : 'text-[#4D515B]'} />
           </div>
-          <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white font-bold shrink-0"
-            onClick={() => setShowGenerate(true)}>
-            Generate
-          </Button>
+          <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
+          <p className="text-[#4D515B] text-[11px] mt-2">
+            {balances.filter(b => b.amount < 0).length} {balances.filter(b => b.amount < 0).length === 1 ? 'person' : 'people'}
+          </p>
         </div>
-      )}
-
-      {isNearMonthEnd && pendingVariableBills.length > 0 && (
-        <div className="flex items-center gap-3 p-4 rounded-xl border border-blue-300 dark:border-blue-700 bg-blue-50 dark:bg-blue-950/30">
-          <AlertCircle size={18} className="text-blue-600 dark:text-blue-400 shrink-0" />
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-blue-800 dark:text-blue-200">
-              Month ending soon — confirm {pendingVariableBills.map(b => b.name).join(', ')}
-            </p>
+        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-4 min-h-[110px]">
+          <div className="flex items-start justify-between">
+            <p className="text-[#999CA1] text-sm font-medium">Owed to you</p>
+            <ArrowDownLeft size={14} className={totalOwedToYou > 0 ? 'text-emerald-400' : 'text-[#4D515B]'} />
           </div>
-          {isAdmin && (
-            <Button size="sm" variant="outline" className="shrink-0 font-bold border-blue-300 text-blue-700 hover:bg-blue-50"
-              onClick={() => setShowGenerate(true)}>
-              Enter
-            </Button>
-          )}
+          <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
+          <p className="text-[#4D515B] text-[11px] mt-2">
+            {balances.filter(b => b.amount > 0).length} {balances.filter(b => b.amount > 0).length === 1 ? 'person' : 'people'}
+          </p>
         </div>
-      )}
+      </div>
 
-      {/* ── Balance ───────────────────────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Wallet size={15} className="text-muted-foreground" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Your Balance</h2>
-        </div>
+      {/* Tab switcher */}
+      <div className="flex gap-1 p-1 bg-secondary/70 dark:bg-secondary/50 rounded-xl">
+        <button
+          onClick={() => setActiveTab('daily')}
+          className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer',
+            activeTab === 'daily' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
+          ].join(' ')}
+        >
+          Daily Splits
+          {netUnsettled > 0 && activeTab !== 'daily' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />}
+        </button>
+        <button
+          onClick={() => setActiveTab('bills')}
+          className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-lg text-sm font-bold transition-all cursor-pointer',
+            activeTab === 'bills' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
+          ].join(' ')}
+        >
+          Fixed Bills
+          {dueBills.length > 0 && activeTab !== 'bills' && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0" />}
+        </button>
+      </div>
 
-        {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
-          <div className="flex items-center gap-2 p-3 rounded-xl border border-border bg-secondary/30 mb-3">
-            <RotateCcw size={13} className="text-muted-foreground shrink-0" />
-            <p className="text-xs text-muted-foreground">
-              Carry-forward from {monthLabelUtil(prevMonthKey(currentMonthKey()))} included
-              {Object.entries(carryForwardIn).map(([uid, amt]) => {
-                const m = members.find(x => x.uid === uid)
-                return (
-                  <span key={uid} className={`ml-2 font-semibold ${amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'}`}>
-                    {uid === currentUserId ? 'You' : m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+      {/* DAILY SPLITS TAB */}
+      {activeTab === 'daily' && (
+        <div className="space-y-4">
+          {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
+            <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-border bg-secondary/30">
+              <RotateCcw size={13} className="text-muted-foreground shrink-0" />
+              <p className="text-xs text-muted-foreground">
+                Carry-forward from {monthLabelUtil(prevMonthKey(currentMonthKey()))} included &mdash;{' '}
+                {Object.entries(carryForwardIn).map(([uid, amt]) => (
+                  <span key={uid} className={['font-semibold', amt > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-500'].join(' ')}>
+                    {nick(uid)}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}{' '}
                   </span>
-                )
-              })}
-            </p>
-          </div>
-        )}
+                ))}
+              </p>
+            </div>
+          )}
 
-        <BalanceSummary balances={balances} members={members}
-          onSettle={(uid, amt, cur) => setSettleTarget({ userId: uid, amount: amt, currency: cur })} />
-
-        {isAdmin && (
-          <div className="mt-3">
-            {isCurrentMonthClosed ? (
-              <div className="flex items-center gap-2.5 p-3.5 rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/20">
-                <Check size={15} className="text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-300">
-                  {monthLabelUtil(currentMonthKey())} closed
-                  {currentCycle?.carryForwardOut ? ` · balance carried to ${monthLabelUtil(nextMonthKey(currentMonthKey()))}` : ' · all settled'}
-                </p>
+          {sortedExpenses.length > 0 && (
+            <div className="p-4 rounded-[20px] border border-border bg-card shadow-sm">
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">7-Day Activity</p>
+                {thisMonthExpensesTotal > 0 && (
+                  <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(thisMonthExpensesTotal, 'INR')} this month</p>
+                )}
               </div>
-            ) : (
-              <button
-                onClick={() => setShowMonthEnd(true)}
-                className="w-full flex items-center justify-between p-3.5 rounded-xl border border-border bg-secondary/30 hover:bg-secondary/60 transition-colors cursor-pointer">
-                <div className="flex items-center gap-2.5">
-                  <CalendarCheck size={15} className="text-muted-foreground" />
-                  <p className="text-sm font-semibold">Close {monthLabelUtil(currentMonthKey())}</p>
-                </div>
-                <ChevronRight size={15} className="text-muted-foreground" />
-              </button>
-            )}
-          </div>
-        )}
-      </section>
+              <div className="flex items-end gap-1" style={{ height: '48px' }}>
+                {sevenDayBars.map((bar, i) => (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
+                    <div
+                      className="w-full rounded-sm transition-all"
+                      style={{
+                        height: Math.max(3, Math.round((bar.total / maxBar) * 36)) + 'px',
+                        backgroundColor: bar.total > 0 ? '#3786FB' : 'hsl(var(--secondary))',
+                        opacity: bar.total > 0 ? 1 : 0.5,
+                      }}
+                    />
+                    <span className="text-[9px] text-[#999CA1] dark:text-muted-foreground font-medium leading-none">{bar.dayLabel}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-      {/* ── Monthly Bills ─────────────────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <RefreshCw size={15} className="text-muted-foreground" />
-            <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Monthly Bills</h2>
-            {recurringBills.filter(b => b.active).length > 0 && (
-              <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">
-                {recurringBills.filter(b => b.active).length}
-              </span>
+          <section>
+            <div className="flex items-center gap-2 mb-3">
+              <Receipt size={14} className="text-muted-foreground" />
+              <h2 className="text-sm font-bold text-[#021328] dark:text-foreground">Shared Expenses</h2>
+              {sortedExpenses.length > 0 && (
+                <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{sortedExpenses.length}</span>
+              )}
+              <button
+                onClick={() => setShowAddExpense(true)}
+                className="ml-auto flex items-center gap-1 text-xs font-bold text-[#3786FB] hover:opacity-75 transition-opacity cursor-pointer"
+              >
+                <Plus size={12} /> Add
+              </button>
+            </div>
+
+            {sortedExpenses.length === 0 ? (
+              <Card className="border-dashed border-2">
+                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                  <Inbox size={36} className="text-muted-foreground/25 mb-3" />
+                  <p className="font-bold text-base text-muted-foreground">No shared expenses yet</p>
+                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
+                    Record groceries, takeout, or any shared cost and split it automatically.
+                  </p>
+                  <Button onClick={() => setShowAddExpense(true)} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
+                    <Plus size={14} className="mr-1.5" /> Add Expense
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              <div className="space-y-6">
+                {grouped.map(([monthKey, monthExpenses]) => {
+                  const monthTotal = monthExpenses.reduce((s, e) => s + (e.currency === 'INR' ? e.amount : 0), 0)
+                  return (
+                    <div key={monthKey}>
+                      <div className="flex items-center justify-between mb-2">
+                        <p className="text-xs font-extrabold text-[#999CA1] dark:text-muted-foreground uppercase tracking-widest">{monthLabel(monthKey)}</p>
+                        {monthTotal > 0 && <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
+                      </div>
+                      <div className="space-y-2">
+                        {monthExpenses.map(exp => (
+                          <ExpenseRow key={exp.id} expense={exp} members={members} currentUserId={currentUserId}
+                            canDelete={exp.createdBy === currentUserId || !!isAdmin} onDelete={deleteExpense} />
+                        ))}
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
             )}
+          </section>
+        </div>
+      )}
+
+      {/* FIXED BILLS TAB */}
+      {activeTab === 'bills' && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-2">
+            {[
+              { label: 'Total Monthly', value: totalMonthlyCommitment > 0 ? formatAmount(totalMonthlyCommitment, 'INR') : '--', sub: recurringBills.filter(b => b.active).length + ' active', dark: true },
+              { label: 'Per Person', value: totalMonthlyCommitment > 0 && members.length > 0 ? formatAmount(totalMonthlyCommitment / members.length, 'INR') : '--', sub: 'equal split', dark: true },
+              { label: 'Next Due', value: nextBillingDay != null ? ordinal(nextBillingDay) : '--', sub: 'billing day', dark: false },
+            ].map(({ label, value, sub, dark }) => (
+              <div key={label} className={['p-3 rounded-[16px] shadow-sm', dark ? 'bg-[#1A202C]' : 'bg-card border border-border'].join(' ')}>
+                <p className={['text-[10px] font-bold uppercase tracking-wider', dark ? 'text-[#999CA1]' : 'text-muted-foreground'].join(' ')}>{label}</p>
+                <p className={['text-sm font-extrabold mt-1 leading-none', dark ? 'text-white' : 'text-[#021328] dark:text-foreground'].join(' ')}>{value}</p>
+                <p className={['text-[10px] mt-0.5', dark ? 'text-[#4D515B]' : 'text-muted-foreground'].join(' ')}>{sub}</p>
+              </div>
+            ))}
           </div>
+
+          {/* View Resident Breakdown button — visible to everyone */}
+          {recurringBills.filter(b => b.active).length > 0 && (
+            <button
+              onClick={() => setShowBreakdown(true)}
+              className="w-full flex items-center justify-between bg-[#f1f3ff] dark:bg-white/[0.05] hover:bg-[#e9edff] dark:hover:bg-white/[0.08] border border-[rgba(199,196,216,0.4)] rounded-[16px] px-4 py-3.5 transition-colors cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
+                  <LayoutList size={13} className="text-white" />
+                </div>
+                <div className="text-left">
+                  <p className="text-[#141b2b] dark:text-white text-[13px] font-bold">View Resident Breakdown</p>
+                  <p className="text-[#777587] dark:text-gray-400 text-[11px] mt-0.5">See how bills are split per person</p>
+                </div>
+              </div>
+              <ChevronRight size={16} className="text-[#3525cd] shrink-0" />
+            </button>
+          )}
+
           {isAdmin && (
             <div className="flex gap-2">
               {recurringBills.length === 0 && (
-                <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                <Button size="sm" variant="outline" className="font-semibold flex-1" onClick={() => setShowQuickSetup(true)}>
                   <Sparkles size={13} className="mr-1" /> Quick Setup
                 </Button>
               )}
-              {isAdmin && dueBills.filter(b => b.payerMode !== 'manual' && !b.isVariable).length > 0 && (
-                <Button size="sm" variant="outline" className="font-semibold"
-                  onClick={() => generateAllDueBills(currentMonthKey())}>
+              {dueBills.filter(b => b.payerMode !== 'manual' && !b.isVariable).length > 0 && (
+                <Button size="sm" className="font-semibold flex-1 bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => generateAllDueBills(currentMonthKey())}>
                   <Zap size={13} className="mr-1" /> Generate All
                 </Button>
               )}
+              <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowAddBill(true)}>
+                <Plus size={13} className="mr-1" /> Add Bill
+              </Button>
             </div>
           )}
-        </div>
 
-        {recurringBills.filter(b => b.active).length === 0 ? (
-          <Card className="border-dashed border-2">
-            <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-              <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
-              <p className="font-bold text-base text-muted-foreground">No monthly bills yet</p>
-              <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
-                Add rent, electricity, WiFi — they rotate automatically each month.
-              </p>
-              {isAdmin && (
-                <div className="flex gap-2">
-                  <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
-                    <Sparkles size={14} className="mr-1.5" /> Quick Setup
-                  </Button>
-                  <Button className="font-bold" onClick={() => setShowAddBill(true)}>
-                    <Plus size={14} className="mr-1.5" /> Add Bill
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-2">
-            {recurringBills.filter(b => b.active).map(bill => {
-              const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
-              return (
-                <BillCycleRow
-                  key={bill.id}
-                  bill={bill}
-                  instance={instance}
-                  members={members}
-                  currentUserId={currentUserId}
-                  isAdmin={!!isAdmin}
-                  onGenerate={() => {
-                    if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                    else generateBill(bill.id)
-                  }}
-                  onConfirmAmount={confirmBillAmount}
-                  onMarkPaid={markBillPaid}
-                />
-              )
-            })}
-          </div>
-        )}
+          {recurringBills.filter(b => b.active).length === 0 ? (
+            <Card className="border-dashed border-2">
+              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
+                <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
+                <p className="font-bold text-base text-muted-foreground">No monthly bills yet</p>
+                <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
+                  Add rent, electricity, WiFi - they rotate automatically each month.
+                </p>
+                {isAdmin && (
+                  <div className="flex gap-2">
+                    <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
+                      <Sparkles size={14} className="mr-1.5" /> Quick Setup
+                    </Button>
+                    <Button className="font-bold bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => setShowAddBill(true)}>
+                      <Plus size={14} className="mr-1.5" /> Add Bill
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="space-y-3">
+              {recurringBills.filter(b => b.active).map(bill => {
+                const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
+                const cfg = CATEGORY_CONFIG[bill.category]
+                const isSettled = instance?.status === 'paid'
+                const payerUid = bill.payerMode === 'fixed' && bill.fixedPayerUid
+                  ? bill.fixedPayerUid
+                  : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+                const isYouPayer = payerUid === currentUserId
+                const billParticipants = bill.participants?.length ? bill.participants : bill.rotationQueue
+                const perPersonAmt = (instance?.amount ?? bill.amount)
+                  ? (instance?.amount ?? bill.amount ?? 0) / Math.max(billParticipants.length, 1)
+                  : null
 
-        {/* Bill templates section — collapsed under "Manage Bills" for admins */}
-        {isAdmin && recurringBills.length > 0 && (
-          <div className="mt-3 space-y-2">
-            {recurringBills.map(bill => {
-              const currentInstance = billInstances.find(b => b.templateId === bill.id && b.month === currentMonthKey()) ?? null
-              return (
-                <MonthlyBillRow
-                  key={bill.id} bill={bill} members={members}
-                  currentUserId={currentUserId} isAdmin={!!isAdmin}
-                  currentInstance={currentInstance}
-                  onEdit={() => setEditBill(bill)}
-                  onDelete={() => deleteRecurringBill(bill.id)}
-                  onGenerate={() => {
-                    if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                    else generateBill(bill.id)
-                  }}
-                  onConfirmAmount={confirmBillAmount}
-                  onEditAmount={editBillInstanceAmount}
-                  onMarkPaid={markBillPaid}
-                  onSkip={skipBillInstance}
-                  onDeleteInstance={deleteBillInstance}
-                />
-              )
-            })}
-          </div>
-        )}
-
-        {/* Closed month history */}
-        {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
-          <div className="mt-4 space-y-2">
-            <div className="flex items-center gap-2 mb-2">
-              <History size={13} className="text-muted-foreground" />
-              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Past Months</p>
-            </div>
-            {monthCycles.filter(mc => mc.status === 'closed').map(mc => {
-              const expanded = expandedHistory.has(mc.month)
-              const grandTotal = mc.totalBillsINR + mc.totalExpensesINR
-              const hasCf = mc.carryForwardOut && Object.keys(mc.carryForwardOut.balances).length > 0
-              return (
-                <div key={mc.month} className="rounded-xl border border-border bg-card overflow-hidden">
-                  <button
-                    onClick={() => setExpandedHistory(s => {
-                      const n = new Set(s); n.has(mc.month) ? n.delete(mc.month) : n.add(mc.month); return n
-                    })}
-                    className="w-full flex items-center gap-3 p-3.5 hover:bg-secondary/30 transition-colors text-left cursor-pointer">
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="text-sm font-bold">{monthLabelUtil(mc.month)}</p>
-                        <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-0.5 rounded-full">Closed</span>
-                        {hasCf && <span className="text-[10px] font-extrabold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 px-2 py-0.5 rounded-full">Carry-fwd</span>}
+                return (
+                  <div key={bill.id} className="rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.10)] overflow-hidden bg-card border border-border/50">
+                    <div className="flex items-center gap-3 p-4">
+                      <div className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0',
+                        isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-[#EEF5FF] dark:bg-secondary',
+                      ].join(' ')}>
+                        {cfg?.emoji}
                       </div>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {formatAmount(grandTotal, 'INR')} total · {formatAmount(mc.totalSettledINR, 'INR')} settled
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-[#021328] dark:text-foreground">{bill.name}</p>
+                          <span className={['text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0',
+                            isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                            : !instance ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
+                            : instance.status === 'split_generated' ? 'bg-[#EEF5FF] text-[#3786FB]'
+                            : 'bg-secondary text-muted-foreground',
+                          ].join(' ')}>
+                            {isSettled ? 'Fully Settled' : !instance ? 'Due' : instance.status === 'split_generated' ? 'Split Ready' : instance.status === 'overdue' ? 'Overdue' : instance.status === 'skipped' ? 'Skipped' : 'Pending'}
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-[#999CA1] dark:text-muted-foreground mt-0.5">
+                          {bill.payerMode === 'rotation' ? 'Rotating - ' : bill.payerMode === 'fixed' ? 'Fixed - ' : 'Manual - '}
+                          {isYouPayer ? 'You pay this month' : (members.find(m => m.uid === payerUid)?.nickname ?? '...') + ' pays'}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        {instance?.amount ? (
+                          <p className="text-base font-extrabold text-[#021328] dark:text-foreground">{formatAmount(instance.amount, instance.currency)}</p>
+                        ) : bill.amount ? (
+                          <p className="text-base font-extrabold text-[#021328] dark:text-foreground">{formatAmount(bill.amount, bill.currency)}</p>
+                        ) : (
+                          <p className="text-xs text-[#999CA1] italic">Variable</p>
+                        )}
+                      </div>
                     </div>
-                    {expanded ? <ChevronUp size={14} className="text-muted-foreground shrink-0" /> : <ChevronDown size={14} className="text-muted-foreground shrink-0" />}
-                  </button>
-                  {expanded && (
-                    <div className="px-4 pb-4 border-t border-border/40 pt-3 space-y-3">
-                      <div className="grid grid-cols-3 gap-2">
-                        {[
-                          ['Bills', formatAmount(mc.totalBillsINR, 'INR')],
-                          ['Expenses', formatAmount(mc.totalExpensesINR, 'INR')],
-                          ['Settled', formatAmount(mc.totalSettledINR, 'INR')],
-                        ].map(([l, v]) => (
-                          <div key={l} className="p-2.5 rounded-xl bg-secondary/50">
-                            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">{l}</p>
-                            <p className="text-sm font-extrabold mt-0.5">{v}</p>
+
+                    {billParticipants.length > 0 && (
+                      <div className={['grid border-t border-border/60', billParticipants.length === 1 ? 'grid-cols-1' : 'grid-cols-2'].join(' ')}>
+                        {billParticipants.map((uid, idx) => (
+                          <div key={uid} className={['flex items-center gap-2 px-4 py-2.5 bg-card',
+                            idx % 2 === 0 && idx === billParticipants.length - 1 && billParticipants.length > 1 ? 'col-span-2' : '',
+                            idx > 1 ? 'border-t border-border/40' : '',
+                          ].join(' ')}>
+                            <div className="w-6 h-6 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-bold text-[#3786FB] shrink-0">
+                              {nick(uid).charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-[#021328] dark:text-foreground truncate">{nick(uid)}</p>
+                              {perPersonAmt != null && (
+                                <p className="text-[10px] text-[#999CA1]">{formatAmount(perPersonAmt, instance?.currency ?? bill.currency)}</p>
+                              )}
+                            </div>
+                            <span className={['text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0',
+                              isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' : 'bg-[#EEF5FF] dark:bg-secondary text-[#999CA1]',
+                            ].join(' ')}>
+                              {isSettled ? 'Settled' : 'Unpaid'}
+                            </span>
                           </div>
                         ))}
                       </div>
-                      {hasCf && (
-                        <div className="p-3 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50/50 dark:bg-amber-950/20">
-                          <p className="text-[11px] font-bold text-amber-700 dark:text-amber-400 mb-1">Carried to {monthLabelUtil(mc.carryForwardOut!.toMonth)}</p>
-                          <div className="flex flex-wrap gap-x-3">
-                            {Object.entries(mc.carryForwardOut!.balances).map(([uid, amt]) => {
-                              const m = members.find(x => x.uid === uid)
-                              return (
-                                <span key={uid} className={`text-xs font-semibold ${amt > 0 ? 'text-emerald-600' : 'text-red-500'}`}>
-                                  {m?.nickname ?? uid}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
-                                </span>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
+                    )}
 
-      {/* ── Shared Expenses ───────────────────────────────────────────────── */}
-      <section>
-        <div className="flex items-center gap-2 mb-3">
-          <Receipt size={15} className="text-muted-foreground" />
-          <h2 className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Shared Expenses</h2>
-          {sortedExpenses.length > 0 && (
-            <span className="text-xs font-bold text-muted-foreground bg-secondary px-2 py-0.5 rounded-full">{sortedExpenses.length}</span>
+                    {isAdmin && (
+                      <div className="flex border-t border-border/60">
+                        {!instance && bill.active && (
+                          <button
+                            onClick={() => {
+                              if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                              else generateBill(bill.id)
+                            }}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer"
+                          >
+                            <Play size={11} /> Generate
+                          </button>
+                        )}
+                        {instance?.status === 'split_generated' && isYouPayer && (
+                          <button
+                            onClick={() => markBillPaid(instance.id)}
+                            className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#3786FB] hover:bg-[#EEF5FF] dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
+                          >
+                            <Check size={11} /> Mark Paid
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setEditBill(bill)}
+                          className="px-4 flex items-center justify-center text-xs text-[#999CA1] hover:bg-secondary transition-colors border-l border-border/60 cursor-pointer"
+                        >
+                          <Pencil size={11} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
-          {thisMonthTotal > 0 && (
-            <span className="ml-auto text-xs font-bold text-muted-foreground">{formatAmount(thisMonthTotal, 'INR')} this month</span>
+
+          {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
+            <div className="space-y-2 pt-2">
+              <div className="flex items-center gap-2">
+                <History size={13} className="text-muted-foreground" />
+                <p className="text-xs font-bold uppercase tracking-wider text-[#999CA1] dark:text-muted-foreground">Past Months</p>
+              </div>
+              {monthCycles.filter(mc => mc.status === 'closed').map(mc => {
+                const expanded = expandedHistory.has(mc.month)
+                const grandTotal = mc.totalBillsINR + mc.totalExpensesINR
+                const hasCf = mc.carryForwardOut && Object.keys(mc.carryForwardOut.balances).length > 0
+                return (
+                  <div key={mc.month} className="rounded-[16px] shadow-sm overflow-hidden bg-card border border-border/50">
+                    <button
+                      onClick={() => setExpandedHistory(s => {
+                        const n = new Set(s); n.has(mc.month) ? n.delete(mc.month) : n.add(mc.month); return n
+                      })}
+                      className="w-full flex items-center gap-3 p-3.5 hover:bg-secondary/30 transition-colors text-left cursor-pointer">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <p className="text-sm font-bold text-[#021328] dark:text-foreground">{monthLabelUtil(mc.month)}</p>
+                          <span className="text-[10px] font-extrabold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">Closed</span>
+                          {hasCf && <span className="text-[10px] font-extrabold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full">Carry-fwd</span>}
+                        </div>
+                        <p className="text-xs text-[#999CA1] dark:text-muted-foreground mt-0.5">
+                          {formatAmount(grandTotal, 'INR')} total &middot; {formatAmount(mc.totalSettledINR, 'INR')} settled
+                        </p>
+                      </div>
+                      {expanded ? <ChevronUp size={14} className="text-[#999CA1] shrink-0" /> : <ChevronDown size={14} className="text-[#999CA1] shrink-0" />}
+                    </button>
+                    {expanded && (
+                      <div className="px-4 pb-4 border-t border-border/40 pt-3 space-y-3">
+                        <div className="grid grid-cols-3 gap-2">
+                          {[['Bills', formatAmount(mc.totalBillsINR, 'INR')], ['Expenses', formatAmount(mc.totalExpensesINR, 'INR')], ['Settled', formatAmount(mc.totalSettledINR, 'INR')]].map(([l, v]) => (
+                            <div key={l} className="p-2.5 rounded-[12px] bg-secondary/50">
+                              <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider">{l}</p>
+                              <p className="text-sm font-extrabold text-[#021328] dark:text-foreground mt-0.5">{v}</p>
+                            </div>
+                          ))}
+                        </div>
+                        {hasCf && (
+                          <div className="p-3 rounded-[12px] border border-amber-200 bg-amber-50/50">
+                            <p className="text-[11px] font-bold text-amber-700 mb-1">Carried to {monthLabelUtil(mc.carryForwardOut!.toMonth)}</p>
+                            <div className="flex flex-wrap gap-x-3">
+                              {Object.entries(mc.carryForwardOut!.balances).map(([uid, amt]) => (
+                                <span key={uid} className={['text-xs font-semibold', amt > 0 ? 'text-emerald-600' : 'text-red-500'].join(' ')}>
+                                  {nick(uid)}: {amt > 0 ? '+' : ''}{formatAmount(amt, 'INR')}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
           )}
         </div>
+      )}
 
-        {sortedExpenses.length === 0 ? (
-          <Card className="border-dashed border-2">
-            <CardContent className="flex flex-col items-center justify-center p-14 text-center">
-              <Inbox size={40} className="text-muted-foreground/25 mb-3" />
-              <p className="font-bold text-base text-muted-foreground">No shared expenses yet</p>
-              <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
-                Record groceries, takeout, or any shared cost and split it automatically.
-              </p>
-              <Button onClick={() => setShowAddExpense(true)} className="font-bold">
-                <Plus size={14} className="mr-1.5" /> Add Expense
-              </Button>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="space-y-6">
-            {grouped.map(([monthKey, monthExpenses]) => {
-              const monthTotal = monthExpenses.reduce((s, e) => s + (e.currency === 'INR' ? e.amount : 0), 0)
-              return (
-                <div key={monthKey}>
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="text-xs font-extrabold text-muted-foreground uppercase tracking-widest">{monthLabel(monthKey)}</p>
-                    {monthTotal > 0 && <p className="text-xs font-bold text-muted-foreground">{formatAmount(monthTotal, 'INR')}</p>}
-                  </div>
-                  <div className="space-y-2">
-                    {monthExpenses.map(exp => (
-                      <ExpenseRow key={exp.id} expense={exp} members={members} currentUserId={currentUserId}
-                        canDelete={exp.createdBy === currentUserId || isAdmin} onDelete={deleteExpense} />
-                    ))}
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        )}
-      </section>
-
-      {/* ── Modals ────────────────────────────────────────────────────────── */}
+      {/* Modals */}
       {showAddExpense && (
         <ExpenseModal members={members} currentUserId={currentUserId} onSave={addExpense} onClose={() => setShowAddExpense(false)} />
       )}
@@ -2325,9 +2937,19 @@ export default function ExpensesPage() {
           billInstances={billInstances}
           settlements={settlements}
           onClose={() => setShowMonthEnd(false)}
-          onConfirm={async (confirmed, summary, cfOut) => {
-            await closeMonth(currentMonthKey(), confirmed, summary, cfOut)
+          onConfirm={async (confirmed, summaryData, cfOut) => {
+            await closeMonth(currentMonthKey(), confirmed, summaryData, cfOut)
           }}
+        />
+      )}
+      {showBreakdown && (
+        <FixedBillsBreakdownModal
+          members={members}
+          currentUserId={currentUserId}
+          recurringBills={recurringBills}
+          billInstances={billInstances}
+          monthKey={currentMonthKey()}
+          onClose={() => setShowBreakdown(false)}
         />
       )}
     </div>

@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { formatDateTime, timeAgo } from '@/lib/rotationEngine'
-import { Activity as ActivityIcon, CheckCircle2, RefreshCw, ArrowLeftRight, AlertTriangle, Settings, Eye, EyeOff, ChevronDown } from 'lucide-react'
+import { Activity as ActivityIcon, CheckCircle2, RefreshCw, ArrowLeftRight, AlertTriangle, Settings, Eye, EyeOff, ChevronDown, Pencil } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 
 // ── Action type groupings ────────────────────────────────────────────────
@@ -38,7 +38,7 @@ function GroupIcon({ action, isSystem }: { action: string; isSystem: boolean }) 
 }
 
 export default function ActivityPage() {
-  const { activityLog, members, toggleActivityHidden } = useFlatStore()
+  const { activityLog, members, toggleActivityHidden, editCompletionDate } = useFlatStore()
   const { user } = useAuthStore()
 
   const currentMember = members.find(m => m.uid === (user?.uid || 'u1'))
@@ -47,6 +47,26 @@ export default function ActivityPage() {
   const [group,          setGroup]          = useState<GroupKey>('all')
   const [memberFilter,   setMemberFilter]   = useState<string>('all')
   const [showHidden,     setShowHidden]     = useState(false)
+  const [editingId,      setEditingId]      = useState<string | null>(null)
+  const [editDate,       setEditDate]       = useState('')
+  const [editSaving,     setEditSaving]     = useState(false)
+
+  function startEdit(id: string, timestamp: string) {
+    const ts = new Date(timestamp)
+    const yyyy = ts.getFullYear()
+    const mm   = String(ts.getMonth() + 1).padStart(2, '0')
+    const dd   = String(ts.getDate()).padStart(2, '0')
+    setEditDate(`${yyyy}-${mm}-${dd}`)
+    setEditingId(id)
+  }
+
+  async function saveEdit(activityId: string) {
+    if (!editDate) return
+    setEditSaving(true)
+    await editCompletionDate(activityId, editDate)
+    setEditSaving(false)
+    setEditingId(null)
+  }
 
   const filtered = useMemo(() => {
     const groupDef = ACTION_GROUPS[group]
@@ -161,19 +181,57 @@ export default function ActivityPage() {
                           <p className="text-xs text-muted-foreground mt-0.5" title={formatDateTime(actDate)}>
                             {timeAgo(activity.timestamp)} · {actDate.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} at {actDate.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}
                           </p>
+                          {/* Inline date editor */}
+                          {activity.action === 'completed_task' && editingId === activity.id && (
+                            <div className="flex items-center gap-2 mt-2">
+                              <input
+                                type="date"
+                                value={editDate}
+                                max={new Date().toISOString().slice(0, 10)}
+                                onChange={e => setEditDate(e.target.value)}
+                                className="text-xs border border-border rounded-lg px-2 py-1 bg-background focus:outline-none focus:ring-1 focus:ring-primary/30"
+                              />
+                              <button
+                                onClick={() => saveEdit(activity.id)}
+                                disabled={editSaving || !editDate}
+                                className="text-xs font-semibold text-primary hover:text-primary/80 disabled:opacity-40 transition-colors"
+                              >
+                                {editSaving ? 'Saving…' : 'Save'}
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors"
+                              >
+                                Cancel
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      {/* Admin hide toggle */}
-                      {isAdmin && (
-                        <button
-                          onClick={() => toggleActivityHidden(activity.id)}
-                          className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity shrink-0 mt-0.5"
-                          title={activity.hidden ? 'Unhide' : 'Hide'}
-                        >
-                          {activity.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
-                        </button>
-                      )}
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                        {/* Edit completion date — own entries or admin */}
+                        {activity.action === 'completed_task' && (activity.userId === user?.uid || isAdmin) && editingId !== activity.id && (
+                          <button
+                            onClick={() => startEdit(activity.id, activity.timestamp)}
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity"
+                            title="Edit completion date"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        )}
+                        {/* Admin hide toggle */}
+                        {isAdmin && (
+                          <button
+                            onClick={() => toggleActivityHidden(activity.id)}
+                            className="opacity-0 group-hover:opacity-100 text-muted-foreground/50 hover:text-muted-foreground transition-opacity"
+                            title={activity.hidden ? 'Unhide' : 'Hide'}
+                          >
+                            {activity.hidden ? <Eye size={13} /> : <EyeOff size={13} />}
+                          </button>
+                        )}
+                      </div>
                     </div>
                   </div>
                 )

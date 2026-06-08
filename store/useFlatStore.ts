@@ -271,6 +271,7 @@ interface FlatState {
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
   toggleActivityHidden: (id: string) => Promise<void>
+  editCompletionDate: (activityId: string, newDate: string) => Promise<void>
 
   // Flat Settings
   renameFlatAction: (newName: string) => Promise<void>
@@ -661,6 +662,22 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       await updateDoc(doc(db, `flats/${state.flatId}/activityLog/${id}`), { hidden: newHidden })
     } else {
       set(s => ({ activityLog: s.activityLog.map(a => a.id === id ? { ...a, hidden: newHidden } : a) }))
+    }
+  },
+
+  editCompletionDate: async (activityId, newDate) => {
+    const state = get()
+    const activity = state.activityLog.find(a => a.id === activityId)
+    if (!activity) return
+    const taskName = activity.details.replace(/^completed /, '').replace(/ on .+$/, '')
+    const dateLabel = new Date(newDate + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+    const newDetails = `completed ${taskName} on ${dateLabel}`
+    const newTimestamp = new Date(newDate + 'T12:00:00').toISOString()
+    const updates = { details: newDetails, timestamp: newTimestamp }
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/activityLog/${activityId}`), updates)
+    } else {
+      set(s => ({ activityLog: s.activityLog.map(a => a.id === activityId ? { ...a, ...updates } : a) }))
     }
   },
 

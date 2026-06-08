@@ -30,6 +30,16 @@ const FREQ_COLOR: Record<string, string> = {
   one_time: 'bg-teal-100   text-teal-700   dark:bg-teal-900/30   dark:text-teal-400',
 }
 
+function getExpectedDate(dueDate: string, frequency: string, idx: number): string {
+  const cycleDays =
+    frequency === 'daily' ? 1 :
+    frequency === 'monthly' ? 30 :
+    frequency === 'fortnightly' ? 14 : 7
+  const base = new Date(dueDate)
+  const target = new Date(base.getTime() + idx * cycleDays * 86_400_000)
+  return target.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+}
+
 function currentMonthKey() {
   const d = new Date()
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -882,12 +892,21 @@ export default function DashboardPage() {
                               }`}>
                                 {m.nickname.charAt(0).toUpperCase()}
                               </div>
-                              {/* Name */}
-                              <span className={`flex-1 text-sm font-semibold truncate min-w-0 ${
-                                isOOS ? 'text-muted-foreground line-through' : isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
-                              }`}>
-                                {m.nickname}
-                              </span>
+                              {/* Name + expected date */}
+                              <div className="flex-1 min-w-0">
+                                <span className={`text-sm font-semibold truncate block ${
+                                  isOOS ? 'text-muted-foreground line-through' : isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
+                                }`}>
+                                  {m.nickname}
+                                </span>
+                                {!isOneTime && (
+                                  <span className={`text-[10px] font-medium ${
+                                    isOOS ? 'text-muted-foreground/40' : isNow ? 'text-white/65' : 'text-muted-foreground/55'
+                                  }`}>
+                                    {isOOS ? '—' : getExpectedDate(task.dueDate, task.frequency, idx)}
+                                  </span>
+                                )}
+                              </div>
                               {/* Badge */}
                               <span className={`ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
                                 isOOS  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
@@ -972,6 +991,14 @@ export default function DashboardPage() {
                               }`}>
                                 {isOOS ? 'OUT' : isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
                               </span>
+                              {/* Expected date */}
+                              {!isOneTime && (
+                                <span className={`text-[9px] font-medium leading-tight text-center px-0.5 ${
+                                  isOOS ? 'text-muted-foreground/30' : isNow ? 'text-white/60' : 'text-muted-foreground/50'
+                                }`}>
+                                  {isOOS ? '—' : getExpectedDate(task.dueDate, task.frequency, idx)}
+                                </span>
+                              )}
                             </div>
 
                             {/* ── Connector ── */}

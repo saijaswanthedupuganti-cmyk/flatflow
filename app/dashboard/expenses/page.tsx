@@ -29,19 +29,21 @@ import {
 // ── Config ───────────────────────────────────────────────────────────────────
 
 export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string }> = {
-  rent:        { label: 'Rent',         emoji: '🏠' },
-  electricity: { label: 'Electricity',  emoji: '⚡' },
-  water:       { label: 'Water',        emoji: '💧' },
-  internet:    { label: 'WiFi / Net',   emoji: '📶' },
-  gas:         { label: 'Gas / LPG',    emoji: '🔥' },
-  maid:        { label: 'Maid / Help',  emoji: '🧹' },
-  grocery:     { label: 'Groceries',    emoji: '🛒' },
-  milk:        { label: 'Milk',         emoji: '🥛' },
-  ac:          { label: 'AC / Cooling', emoji: '❄️' },
-  maintenance: { label: 'Maintenance',  emoji: '🔧' },
-  food:        { label: 'Food',         emoji: '🍽️' },
-  household:   { label: 'Household',    emoji: '📦' },
-  other:       { label: 'Other',        emoji: '💰' },
+  rent:        { label: 'Rent',               emoji: '🏠' },
+  electricity: { label: 'Electricity',        emoji: '⚡' },
+  water:       { label: 'Water',              emoji: '💧' },
+  internet:    { label: 'Internet',           emoji: '📶' },
+  gas:         { label: 'Gas / LPG',          emoji: '🔥' },
+  maid:        { label: 'Maid / Housekeeping', emoji: '🧹' },
+  cook:        { label: 'Cook',               emoji: '👨‍🍳' },
+  gym:         { label: 'Gym',                emoji: '🏋️' },
+  grocery:     { label: 'Groceries',          emoji: '🛒' },
+  milk:        { label: 'Milk',               emoji: '🥛' },
+  ac:          { label: 'AC / Cooling',       emoji: '❄️' },
+  maintenance: { label: 'Maintenance',        emoji: '🔧' },
+  food:        { label: 'Food',               emoji: '🍽️' },
+  household:   { label: 'Household',          emoji: '📦' },
+  other:       { label: 'Other',              emoji: '💰' },
 }
 
 const CURRENCIES: Currency[] = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD']
@@ -769,7 +771,7 @@ function MonthlyBillModal({
   }
 
   const PRESET_CATEGORIES: ExpenseCategory[] = [
-    'maid', 'rent', 'maintenance', 'electricity', 'water', 'internet', 'gas', 'grocery', 'milk',
+    'maid', 'cook', 'maintenance', 'electricity', 'water', 'internet', 'gym',
   ]
 
   const billingDayOptions = [1, 5, 7, 10, 15, 20, 25, 28]
@@ -941,7 +943,7 @@ function MonthlyBillModal({
                 Confirm amount before settlement
               </p>
               <p className="text-sm text-[#464555] dark:text-gray-400 mt-1 leading-[22px]">
-                Habitiq will ask you to verify the actual amount before the due date — useful for bills like electricity or water that vary monthly.
+                Habitiq will ask you to verify the amount 2 days before the due date to handle minor fluctuations (like electricity) while keeping the base cost fixed.
               </p>
             </div>
           </div>
@@ -2237,8 +2239,8 @@ export default function ExpensesPage() {
                   <Zap size={13} className="mr-1" /> Generate All
                 </Button>
               )}
-              <Button size="sm" variant="outline" className="font-semibold" onClick={() => setShowAddBill(true)}>
-                <Plus size={13} className="mr-1" /> Add Bill
+              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={() => setShowAddBill(true)}>
+                <Plus size={13} className="mr-1" /> Add Fixed Bill
               </Button>
             </div>
           )}
@@ -2256,8 +2258,8 @@ export default function ExpensesPage() {
                     <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
                       <Sparkles size={14} className="mr-1.5" /> Quick Setup
                     </Button>
-                    <Button className="font-bold bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => setShowAddBill(true)}>
-                      <Plus size={14} className="mr-1.5" /> Add Bill
+                    <Button className="font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={() => setShowAddBill(true)}>
+                      <Plus size={14} className="mr-1.5" /> Add Fixed Bill
                     </Button>
                   </div>
                 )}

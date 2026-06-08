@@ -80,7 +80,7 @@ export interface SwapRequest {
 
 export type ExpenseCategory =
   | 'rent' | 'electricity' | 'water' | 'internet' | 'gas'
-  | 'maid' | 'grocery' | 'milk' | 'ac'
+  | 'maid' | 'cook' | 'gym' | 'grocery' | 'milk' | 'ac'
   | 'maintenance' | 'food' | 'household' | 'other'
 
 export type Currency = 'INR' | 'USD' | 'EUR' | 'GBP' | 'AED' | 'SGD' | 'AUD'

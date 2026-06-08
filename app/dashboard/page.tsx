@@ -169,10 +169,11 @@ export default function DashboardPage() {
   )
   const thisMonthBillsTotal = useMemo(() => {
     const m = currentMonthKey()
-    return billInstances
-      .filter(b => b.month === m && b.status !== 'skipped' && b.currency === 'INR' && b.amount)
-      .reduce((s, b) => s + (b.amount ?? 0), 0)
-  }, [billInstances])
+    return recurringBills.filter(b => b.active && b.amount).reduce((s, b) => {
+      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === m && bi.status !== 'skipped')
+      return s + (inst?.amount ?? b.amount ?? 0)
+    }, 0)
+  }, [recurringBills, billInstances])
   const pendingBills = useMemo(
     () => recurringBills.filter(b => b.active && b.lastGeneratedMonth !== currentMonthKey()).length,
     [recurringBills],

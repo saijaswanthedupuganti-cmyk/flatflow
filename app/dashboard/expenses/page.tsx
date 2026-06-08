@@ -1881,6 +1881,7 @@ export default function ExpensesPage() {
 
   const [activeTab, setActiveTab] = useState<'daily' | 'bills'>('daily')
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null)
+  const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null)
 
   const nick = (uid: string) => members.find(m => m.uid === uid)?.nickname ?? uid
 
@@ -2415,32 +2416,61 @@ export default function ExpensesPage() {
 
                         {/* Admin actions */}
                         {isAdmin && (
-                          <div className="flex border-t border-border/60">
-                            {!instance && bill.active && (
-                              <button
-                                onClick={() => {
-                                  if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                                  else generateBill(bill.id)
-                                }}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer"
-                              >
-                                <Play size={11} /> Generate
-                              </button>
+                          <div className="border-t border-border/60">
+                            {confirmDeleteBillId === bill.id ? (
+                              <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 dark:bg-red-950/20">
+                                <p className="text-xs font-semibold text-red-700 dark:text-red-400">Delete &ldquo;{bill.name}&rdquo;? Cannot be undone.</p>
+                                <div className="flex items-center gap-3">
+                                  <button
+                                    onClick={() => setConfirmDeleteBillId(null)}
+                                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={async () => { await deleteRecurringBill(bill.id); setConfirmDeleteBillId(null) }}
+                                    className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
+                                  >
+                                    Yes, Delete
+                                  </button>
+                                </div>
+                              </div>
+                            ) : (
+                              <div className="flex">
+                                {!instance && bill.active && (
+                                  <button
+                                    onClick={() => {
+                                      if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
+                                      else generateBill(bill.id)
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer"
+                                  >
+                                    <Play size={11} /> Generate
+                                  </button>
+                                )}
+                                {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
+                                  <button
+                                    onClick={() => markBillPaid(instance.id)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#3786FB] hover:bg-[#EEF5FF] dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
+                                  >
+                                    <Check size={11} /> Mark Paid
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => setEditBill(bill)}
+                                  className="flex items-center justify-center gap-1 px-4 py-2.5 text-xs font-semibold text-[#999CA1] hover:text-foreground hover:bg-secondary transition-colors border-l border-border/60 cursor-pointer"
+                                >
+                                  <Pencil size={11} /> Edit
+                                </button>
+                                <button
+                                  onClick={() => setConfirmDeleteBillId(bill.id)}
+                                  className="flex items-center justify-center px-4 py-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors border-l border-border/60 cursor-pointer"
+                                  title="Delete bill"
+                                >
+                                  <Trash2 size={11} />
+                                </button>
+                              </div>
                             )}
-                            {instance?.status === 'split_generated' && isYouPayer && (
-                              <button
-                                onClick={() => markBillPaid(instance.id)}
-                                className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#3786FB] hover:bg-[#EEF5FF] dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
-                              >
-                                <Check size={11} /> Mark Paid
-                              </button>
-                            )}
-                            <button
-                              onClick={() => setEditBill(bill)}
-                              className="px-4 flex items-center justify-center text-xs text-[#999CA1] hover:bg-secondary transition-colors border-l border-border/60 cursor-pointer"
-                            >
-                              <Pencil size={11} />
-                            </button>
                           </div>
                         )}
                       </>

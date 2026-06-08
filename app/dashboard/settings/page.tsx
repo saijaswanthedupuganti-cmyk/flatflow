@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button'
 import {
   Sun, Moon, Shield, User, Info,
   LogOut, AlertTriangle, DoorOpen, ShieldCheck, X,
+  Download, Smartphone, Share, CheckCircle2,
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
+import { usePWA } from '@/contexts/PWAContext'
 
 interface DialogProps {
   open: boolean
@@ -61,6 +63,8 @@ export default function SettingsPage() {
   const otherMembers = members.filter(m => m.uid !== user?.uid)
   const hasOtherMembers = otherMembers.length > 0
 
+  const { canInstall, isInstalled, isIOS, triggerInstall } = usePWA()
+  const [showIOSSteps, setShowIOSSteps] = useState(false)
   const [isDark, setIsDark] = useState(false)
   const [showLeaveConfirm, setShowLeaveConfirm] = useState(false)
   const [showTransferAdmin, setShowTransferAdmin] = useState(false)
@@ -320,6 +324,85 @@ export default function SettingsPage() {
                 </div>
               </button>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* ── Install App ──────────────────────────────────────────────── */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Smartphone size={18} />
+              Install App
+            </CardTitle>
+            <CardDescription>
+              {isInstalled
+                ? 'Habitiq is installed on your device.'
+                : 'Add Habitiq to your home screen for the best experience.'}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {isInstalled ? (
+              <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-900">
+                <CheckCircle2 size={16} className="text-green-600 dark:text-green-400 shrink-0" />
+                <p className="text-sm font-semibold text-green-700 dark:text-green-400">App installed ✓</p>
+              </div>
+            ) : isIOS ? (
+              <div className="space-y-3">
+                {!showIOSSteps ? (
+                  <button
+                    onClick={() => setShowIOSSteps(true)}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer"
+                  >
+                    <Download size={15} />
+                    Add to Home Screen
+                  </button>
+                ) : (
+                  <div className="space-y-3">
+                    <ol className="space-y-3 list-none">
+                      <li className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">1</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Tap the <Share size={13} className="inline mx-0.5 -mt-0.5" /> <strong>Share</strong> button at the bottom of Safari
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">2</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Scroll down and tap <strong>&ldquo;Add to Home Screen&rdquo;</strong>
+                        </p>
+                      </li>
+                      <li className="flex items-start gap-2.5">
+                        <span className="w-5 h-5 rounded-full bg-primary text-white text-[10px] font-extrabold flex items-center justify-center shrink-0 mt-0.5">3</span>
+                        <p className="text-sm text-muted-foreground leading-relaxed">
+                          Tap <strong>&ldquo;Add&rdquo;</strong> in the top-right corner
+                        </p>
+                      </li>
+                    </ol>
+                    <button
+                      onClick={() => setShowIOSSteps(false)}
+                      className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                    >
+                      Close instructions
+                    </button>
+                  </div>
+                )}
+              </div>
+            ) : canInstall ? (
+              <button
+                onClick={() => triggerInstall()}
+                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold hover:opacity-90 transition-opacity cursor-pointer"
+              >
+                <Download size={15} />
+                Install Habitiq
+              </button>
+            ) : (
+              <div className="flex items-center gap-2.5 px-4 py-3 rounded-xl bg-secondary/60 border border-border">
+                <Smartphone size={15} className="text-muted-foreground shrink-0" />
+                <p className="text-xs text-muted-foreground">
+                  Open in Chrome (Android) or Safari (iOS) to install.
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

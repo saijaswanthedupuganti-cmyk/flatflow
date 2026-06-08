@@ -39,6 +39,7 @@ export const metadata: Metadata = {
 import AuthProvider from "@/components/AuthProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { PWAProvider } from '@/contexts/PWAContext';
 
 export default function RootLayout({
   children,
@@ -72,9 +73,11 @@ export default function RootLayout({
         <link rel="apple-touch-icon" href="/api/pwa-icon/180" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
-        <AuthProvider>{children}</AuthProvider>
-        <ServiceWorkerRegistration />
-        <PWAInstallPrompt />
+        <PWAProvider>
+          <AuthProvider>{children}</AuthProvider>
+          <ServiceWorkerRegistration />
+          <PWAInstallPrompt />
+        </PWAProvider>
       </body>
     </html>
   );

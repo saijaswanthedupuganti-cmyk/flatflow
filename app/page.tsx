@@ -824,11 +824,12 @@ function Footer() {
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
           {/* Brand */}
           <div className="lg:col-span-2">
-            <div className="flex items-center gap-2.5 mb-4">
-              <div className="w-7 h-7 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center" style={{ transform:'rotate(8deg)', boxShadow:'0 4px 12px rgba(124,58,237,0.4)' }}>
-                <span className="text-white font-black text-xs" style={{ transform:'rotate(-8deg)', display:'block' }}>H</span>
-              </div>
-              <span className="text-white font-bold text-[15px] tracking-tight">Habitiq</span>
+            <div className="mb-4">
+              <img
+                src="/habitiq-logo.svg"
+                alt="Habitiq"
+                className="h-7 w-auto object-contain brightness-0 invert"
+              />
             </div>
             <p className="text-white/28 text-sm leading-relaxed max-w-xs font-medium">
               The operating system for shared flats in India. Duties rotate. Bills split. Flatmates stay happy.

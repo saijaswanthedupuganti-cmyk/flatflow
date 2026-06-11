@@ -102,14 +102,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         {/* Logo */}
         <div className="px-4 pt-4 pb-3 border-b border-border/60">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center shadow-sm">
-              <span className="text-sm font-extrabold text-white">H</span>
-            </div>
-            <div>
-              <h2 className="text-base font-extrabold text-foreground tracking-tight leading-none">Habitiq</h2>
-              <p className="text-[10px] text-muted-foreground font-medium mt-0.5">{flatName || authFlatId || 'Loading…'}</p>
-            </div>
+          <div className="flex flex-col gap-1">
+            <img
+              src="/habitiq-logo.svg"
+              alt="Habitiq"
+              className="h-7 w-auto object-contain object-left dark:brightness-0 dark:invert"
+            />
+            <p className="text-[10px] text-muted-foreground font-medium">{flatName || authFlatId || 'Loading…'}</p>
           </div>
           {overdueTasks > 0 && (
             <div className="mt-3 flex items-center gap-2 bg-red-50 dark:bg-red-950/40 border border-red-200 dark:border-red-900 rounded-lg px-3 py-1.5">

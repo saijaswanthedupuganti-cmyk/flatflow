@@ -517,11 +517,12 @@ function ExpenseModal({
 // ── Settle Up Modal ──────────────────────────────────────────────────────────
 
 function SettleUpModal({
-  preToUserId, preAmount, preCurrency, members, currentUserId, onSettle, onClose,
+  preToUserId, preAmount, preCurrency, members, currentUserId, onSettle, onClose, reversed,
 }: {
   preToUserId: string; preAmount: number; preCurrency: Currency
   members: { uid: string; nickname: string }[]
   currentUserId: string
+  reversed?: boolean
   onSettle: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
   onClose: () => void
 }) {
@@ -547,30 +548,40 @@ function SettleUpModal({
     if (!typedAmt || typedAmt <= 0) return
     setSaving(true)
     try {
-      await onSettle({ fromUserId: currentUserId, toUserId: form.toUserId, amount: typedAmt, currency: form.currency, note: form.note.trim() || undefined, date: form.date })
+      const fromId = reversed ? preToUserId : currentUserId
+      const toId   = reversed ? currentUserId : form.toUserId
+      await onSettle({ fromUserId: fromId, toUserId: toId, amount: typedAmt, currency: form.currency, note: form.note.trim() || undefined, date: form.date })
       onClose()
     } catch {
       setSaving(false)
     }
   }
 
+  const accentClass = reversed
+    ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+    : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40'
+  const avatarClass = reversed
+    ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+    : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'
+  const amtClass = reversed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'
+
   return (
-    <Modal title="Settle Up" onClose={onClose}>
+    <Modal title={reversed ? 'Mark Received' : 'Settle Up'} onClose={onClose}>
       <div className="space-y-4">
 
-        {/* Who you're paying */}
-        <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40">
-          <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-orange-700 dark:text-orange-300 text-sm shrink-0">
+        {/* Who you're paying / receiving from */}
+        <div className={`flex items-center gap-3 p-3.5 rounded-2xl border ${accentClass}`}>
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0 ${avatarClass}`}>
             {(toMember?.nickname ?? '?').charAt(0).toUpperCase()}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground font-medium">Paying</p>
+            <p className="text-xs text-muted-foreground font-medium">{reversed ? 'Received from' : 'Paying'}</p>
             <p className="text-base font-extrabold leading-tight">{toMember?.nickname ?? '…'}</p>
           </div>
           {preAmount > 0 && (
             <div className="text-right shrink-0">
-              <p className="text-[10px] text-muted-foreground font-medium">You owe</p>
-              <p className="text-base font-extrabold text-orange-600 dark:text-orange-400">{formatAmount(preAmount, preCurrency)}</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{reversed ? 'They owe' : 'You owe'}</p>
+              <p className={`text-base font-extrabold ${amtClass}`}>{formatAmount(preAmount, preCurrency)}</p>
             </div>
           )}
         </div>
@@ -580,11 +591,11 @@ function SettleUpModal({
           <div className="grid grid-cols-2 gap-2">
             <button onClick={() => fill(preAmount)}
               className="text-[12px] font-bold border border-border rounded-xl py-2 hover:bg-secondary active:scale-95 transition-all cursor-pointer text-foreground">
-              Pay full · {formatAmount(preAmount, preCurrency)}
+              {reversed ? 'Full amount' : 'Pay full'} · {formatAmount(preAmount, preCurrency)}
             </button>
             <button onClick={() => fill(preAmount / 2)}
               className="text-[12px] font-bold border border-border rounded-xl py-2 hover:bg-secondary active:scale-95 transition-all cursor-pointer text-foreground">
-              Pay half · {formatAmount(preAmount / 2, preCurrency)}
+              {reversed ? 'Half amount' : 'Pay half'} · {formatAmount(preAmount / 2, preCurrency)}
             </button>
           </div>
         )}
@@ -629,7 +640,7 @@ function SettleUpModal({
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
           <Button className="flex-1 font-bold bg-green-600 hover:bg-green-700 text-white" onClick={handleSave}
             disabled={saving || exceedsMax || !typedAmt || typedAmt <= 0}>
-            {saving ? 'Saving…' : isPartial ? `Pay ${formatAmount(typedAmt, preCurrency)}` : 'Mark as Paid'}
+            {saving ? 'Saving…' : reversed ? `Mark ${isPartial ? formatAmount(typedAmt, preCurrency) + ' ' : ''}Received` : isPartial ? `Pay ${formatAmount(typedAmt, preCurrency)}` : 'Mark as Paid'}
           </Button>
         </div>
       </div>
@@ -1938,7 +1949,7 @@ export default function ExpensesPage() {
   const {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
-    addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement, addActivity,
+    addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1963,8 +1974,9 @@ export default function ExpensesPage() {
   }, [])
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
-  const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
-  const [remindedUsers, setRemindedUsers]   = useState<Set<string>>(new Set())
+  const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency; reversed?: boolean } | null>(null)
+  const [expandedBalances, setExpandedBalances] = useState<Set<string>>(new Set())
+  const [personFilter, setPersonFilter]         = useState<string | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
@@ -2016,14 +2028,28 @@ export default function ExpensesPage() {
   }, [expenses, settlements])
 
   const visibleTx = useMemo((): TxEntry[] => {
-    if (splitView === 'all') return combinedTx
-    return combinedTx.filter(item => {
+    let items = splitView === 'all' ? combinedTx : combinedTx.filter(item => {
       if (item.kind === 'expense') {
         return item.data.splitAmong.includes(currentUserId) || item.data.paidBy === currentUserId
       }
       return item.data.fromUserId === currentUserId || item.data.toUserId === currentUserId
     })
-  }, [combinedTx, splitView, currentUserId])
+    if (personFilter) {
+      items = items.filter(item => {
+        if (item.kind === 'expense') {
+          return (
+            (item.data.paidBy === personFilter && item.data.splitAmong.includes(currentUserId)) ||
+            (item.data.paidBy === currentUserId && item.data.splitAmong.includes(personFilter))
+          )
+        }
+        return (
+          (item.data.fromUserId === personFilter && item.data.toUserId === currentUserId) ||
+          (item.data.fromUserId === currentUserId && item.data.toUserId === personFilter)
+        )
+      })
+    }
+    return items
+  }, [combinedTx, splitView, currentUserId, personFilter])
 
   const groupedCombined = useMemo(() => {
     const groups: Record<string, TxEntry[]> = {}
@@ -2212,40 +2238,51 @@ export default function ExpensesPage() {
         <div className="space-y-2.5">
           <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground px-0.5">Balances</p>
           {balances.map(b => {
-            const m      = members.find(x => x.uid === b.userId)
-            const isOwed = b.amount > 0  // they owe you
+            const m        = members.find(x => x.uid === b.userId)
+            const isOwed   = b.amount > 0  // they owe you
+            const cardKey  = b.userId + b.currency
+            const isExpanded = expandedBalances.has(cardKey)
+            const isFiltered = personFilter === b.userId
 
-            // Count real transactions behind this balance
-            const txCount =
-              expenses.filter(e => !e.deferToNextMonth && (
-                (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
-                (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
-              )).length +
-              billInstances.filter(bi =>
-                (bi.status === 'split_generated' || bi.status === 'paid') && !!bi.splits && (
-                  (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
-                  (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
-                )
-              ).length
-
-            const wasReminded = remindedUsers.has(b.userId)
+            // Transactions that make up this balance
+            const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
+              (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
+              (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
+            ))
+            const relatedBills = billInstances.filter(bi =>
+              (bi.status === 'split_generated' || bi.status === 'paid') && !!bi.splits && (
+                (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
+                (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
+              )
+            )
+            const txCount = relatedExpenses.length + relatedBills.length
 
             return (
-              <div key={b.userId + b.currency}
+              <div key={cardKey}
                 className={['rounded-[18px] border shadow-sm overflow-hidden',
                   isOwed
                     ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
                     : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
                 ].join(' ')}
               >
-                {/* Main row */}
-                <div className="flex items-center gap-3 px-4 py-3.5">
-                  {/* Avatar */}
-                  <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0',
-                    isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                           : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                  ].join(' ')}>
-                    {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                {/* Main row — click to expand breakdown */}
+                <button
+                  onClick={() => setExpandedBalances(s => {
+                    const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
+                  })}
+                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer"
+                >
+                  {/* Avatar + filter dot */}
+                  <div className="relative shrink-0">
+                    <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm',
+                      isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                             : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                    ].join(' ')}>
+                      {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                    </div>
+                    {isFiltered && (
+                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-card" />
+                    )}
                   </div>
 
                   {/* Name + context */}
@@ -2259,38 +2296,101 @@ export default function ExpensesPage() {
                     </p>
                   </div>
 
-                  {/* Amount + CTA */}
-                  <div className="flex items-center gap-2.5 shrink-0">
+                  {/* Amount + chevron */}
+                  <div className="flex items-center gap-1.5 shrink-0">
                     <p className={['text-[17px] font-extrabold leading-none',
                       isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
                     ].join(' ')}>
                       {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
                     </p>
-                    {isOwed ? (
+                    <ChevronDown size={14} className={['text-muted-foreground transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                  </div>
+                </button>
+
+                {/* Expense breakdown (expandable) */}
+                {isExpanded && (
+                  <div className="border-t border-black/5 dark:border-white/5 px-4 pb-3 pt-2.5 space-y-1.5">
+                    {[
+                      ...relatedExpenses.map(e => {
+                        const isBPayer = e.paidBy === b.userId
+                        const net      = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
+                        const cat      = CATEGORY_CONFIG[e.category]
+                        return { key: e.id, emoji: cat?.emoji ?? '💰', label: e.description, date: e.date, net }
+                      }),
+                      ...relatedBills.map(bi => {
+                        const isBPayer = bi.paidBy === b.userId
+                        const net      = isBPayer ? -(bi.splits![currentUserId] ?? 0) : (bi.splits![b.userId] ?? 0)
+                        return { key: bi.id, emoji: '🧾', label: bi.name, date: bi.dueDate, net }
+                      }),
+                    ]
+                      .sort((a, z) => z.date.localeCompare(a.date))
+                      .map(row => (
+                        <div key={row.key} className="flex items-center gap-2.5">
+                          <span className="text-base shrink-0">{row.emoji}</span>
+                          <p className="flex-1 text-[12px] font-semibold truncate text-foreground/80">{row.label}</p>
+                          <p className="text-[11px] text-muted-foreground shrink-0">
+                            {new Date(row.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                          </p>
+                          <p className={['text-[12px] font-extrabold shrink-0 w-16 text-right', row.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
+                            {row.net >= 0 ? '+' : ''}{formatAmount(Math.abs(row.net), b.currency)}
+                          </p>
+                        </div>
+                      ))
+                    }
+
+                    {/* Action row */}
+                    <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                      {/* Filter toggle */}
                       <button
-                        onClick={async () => {
-                          setRemindedUsers(s => new Set([...s, b.userId]))
-                          await addActivity({ userId: currentUserId, action: 'system_override', details: `reminded ${m?.nickname ?? 'flatmate'} about ₹${Math.abs(b.amount)} balance` })
-                        }}
-                        disabled={wasReminded}
-                        className={['text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer',
-                          wasReminded
-                            ? 'text-emerald-600 border-emerald-300 bg-emerald-100 dark:bg-emerald-900/20 cursor-default'
-                            : 'text-muted-foreground border-border hover:border-foreground hover:bg-white dark:hover:bg-white/5',
+                        onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
+                        className={['flex-1 text-[11px] font-bold py-1.5 rounded-xl border transition-all cursor-pointer',
+                          isFiltered
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground',
                         ].join(' ')}
                       >
-                        {wasReminded ? '✓ Reminded' : 'Remind'}
+                        {isFiltered ? '✓ Filtering list' : 'Filter list by person'}
+                      </button>
+
+                      {isOwed ? (
+                        <button
+                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
+                          className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer"
+                        >
+                          Mark Received
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                          className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-[#3786FB] hover:bg-blue-600 text-white transition-all cursor-pointer"
+                        >
+                          Settle
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Compact CTA (when collapsed) */}
+                {!isExpanded && (
+                  <div className="flex gap-2 px-4 pb-3">
+                    {isOwed ? (
+                      <button
+                        onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
+                        className="text-[11px] font-bold px-3.5 py-1.5 rounded-full border border-emerald-400 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                      >
+                        Mark Received
                       </button>
                     ) : (
                       <button
                         onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                        className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-sm"
+                        className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
                       >
                         Settle
                       </button>
                     )}
                   </div>
-                </div>
+                )}
               </div>
             )
           })}
@@ -2327,6 +2427,27 @@ export default function ExpensesPage() {
           </p>
         </div>
       </div>
+
+      {/* Person filter active banner */}
+      {personFilter && (() => {
+        const fm = members.find(m => m.uid === personFilter)
+        return (
+          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[14px] bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40">
+            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[10px] font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
+              {(fm?.nickname ?? '?').charAt(0).toUpperCase()}
+            </div>
+            <p className="text-[12px] font-semibold text-blue-700 dark:text-blue-300 flex-1">
+              Showing transactions with <span className="font-extrabold">{fm?.nickname ?? '…'}</span>
+            </p>
+            <button
+              onClick={() => setPersonFilter(null)}
+              className="text-[10px] font-extrabold text-blue-500 hover:text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+            >
+              Clear
+            </button>
+          </div>
+        )
+      })()}
 
       {/* Tab switcher */}
       <div className="flex gap-1 p-1 bg-secondary/70 dark:bg-secondary/50 rounded-xl">
@@ -2940,7 +3061,7 @@ export default function ExpensesPage() {
       )}
       {settleTarget && (
         <SettleUpModal preToUserId={settleTarget.userId} preAmount={settleTarget.amount} preCurrency={settleTarget.currency}
-          members={members} currentUserId={currentUserId} onSettle={addSettlement} onClose={() => setSettleTarget(null)} />
+          reversed={settleTarget.reversed} members={members} currentUserId={currentUserId} onSettle={addSettlement} onClose={() => setSettleTarget(null)} />
       )}
       {showQuickSetup && (
         <QuickSetupModal members={members} currentUserId={currentUserId}

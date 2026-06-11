@@ -304,10 +304,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        {/* 4 — Tasks (admin) | Swaps (member) */}
-        {isAdmin
-          ? <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
-          : <MobileNavLink {...NAV_ITEMS.main[3]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />}
+        {/* 4 — Tasks (admin + member) */}
+        <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
 
         {/* 5 — Settings */}
         <MobileNavLink {...NAV_ITEMS.general[1]} />

@@ -2118,105 +2118,118 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* Hero settlement card */}
+      {/* ── Summary bar ── */}
       <div
-        className="rounded-[20px] overflow-hidden shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)]"
+        className="rounded-[20px] overflow-hidden shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-5"
         style={{ background: isCurrentMonthClosed ? '#4CAF82' : netUnsettled > 0 ? '#EB986A' : '#4CAF82' }}
       >
-        <div className="p-5 pb-4">
-          <div className="flex items-start justify-between">
-            <div className="flex-1 min-w-0">
-              <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
-                {isCurrentMonthClosed ? 'Month Closed' : netUnsettled > 0 ? 'Settlement Pending' : 'All Settled'}
-              </p>
-              <p className="text-white text-3xl font-extrabold mt-2 leading-none">
-                {formatAmount(netUnsettled, 'INR')}
-              </p>
-              <p className="text-white/75 text-xs mt-1.5">
-                {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey())).length} transactions this month
-              </p>
-            </div>
-            <div className="shrink-0 flex flex-col items-end gap-2">
-              {isCurrentMonthClosed && (
-                <span className="text-[10px] font-bold bg-white/25 text-white px-2.5 py-1 rounded-lg">Closed</span>
-              )}
-              {isAdmin && !isCurrentMonthClosed && (
-                <button
-                  onClick={() => setShowMonthEnd(true)}
-                  className="bg-white/25 hover:bg-white/35 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-                >
-                  <CalendarCheck size={11} />
-                  {netUnsettled > 0 ? 'Finalize' : 'Close month'}
-                </button>
-              )}
-            </div>
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
+              {isCurrentMonthClosed ? 'Month Closed' : netUnsettled > 0 ? 'You owe in total' : 'All Settled'}
+            </p>
+            <p className="text-white text-3xl font-extrabold mt-1 leading-none">
+              {formatAmount(netUnsettled, 'INR')}
+            </p>
+            <p className="text-white/70 text-[11px] mt-1.5">
+              {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey())).length} transactions this month
+            </p>
           </div>
-        </div>
-        <div className="bg-[rgba(26,32,44,0.75)] backdrop-blur-sm px-5 py-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-[#CCCDD0] text-xs font-medium">Your balance</p>
-            {balances.length === 0 && (
-              <span className="text-[10px] font-bold text-emerald-400">All squared up</span>
+          <div className="flex flex-col items-end gap-2">
+            {isCurrentMonthClosed && (
+              <span className="text-[10px] font-bold bg-white/25 text-white px-2.5 py-1 rounded-lg">Closed</span>
+            )}
+            {isAdmin && !isCurrentMonthClosed && (
+              <button
+                onClick={() => setShowMonthEnd(true)}
+                className="bg-white/25 hover:bg-white/35 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
+              >
+                <CalendarCheck size={11} />
+                {netUnsettled > 0 ? 'Finalize' : 'Close month'}
+              </button>
             )}
           </div>
-          {balances.length > 0 ? (
-            <div className="space-y-2.5">
-              {balances.map(b => {
-                const m = members.find(x => x.uid === b.userId)
-                const isOwed = b.amount > 0
-                return (
-                  <div key={b.userId + b.currency} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-white/15 flex items-center justify-center text-[11px] font-bold text-white shrink-0">
-                        {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <p className="text-white text-xs font-semibold leading-none">{m?.nickname ?? '...'}</p>
-                        <p className="text-[#999CA1] text-[10px] mt-0.5">{isOwed ? 'owes you' : 'you owe'}</p>
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className={['text-sm font-extrabold', isOwed ? 'text-emerald-400' : 'text-[#FF8C69]'].join(' ')}>
-                        {formatAmount(Math.abs(b.amount), b.currency)}
-                      </span>
-                      {!isOwed && (
-                        <button
-                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                          className="bg-[#3786FB] hover:bg-[#2672e6] text-white text-[10px] font-bold px-2.5 py-0.5 rounded-full transition-colors cursor-pointer"
-                        >
-                          Settle
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Check size={13} className="text-emerald-400" />
-              <p className="text-white text-xs font-semibold">No pending balances this month</p>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* Two dark navy stat cards */}
+      {/* ── Who owes whom — the most important section ── */}
+      {balances.length > 0 ? (
+        <div className="space-y-2.5">
+          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground px-0.5">Balances</p>
+          {balances.map(b => {
+            const m      = members.find(x => x.uid === b.userId)
+            const isOwed = b.amount > 0  // they owe you
+            return (
+              <div key={b.userId + b.currency}
+                className={['flex items-center gap-3 px-4 py-3.5 rounded-[18px] border shadow-sm',
+                  isOwed
+                    ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                    : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
+                ].join(' ')}
+              >
+                {/* Avatar */}
+                <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0',
+                  isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                         : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                ].join(' ')}>
+                  {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                </div>
+
+                {/* Name + label */}
+                <div className="flex-1 min-w-0">
+                  <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
+                    {m?.nickname ?? '…'}
+                  </p>
+                  <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
+                    {isOwed ? 'owes you' : 'you owe them'}
+                  </p>
+                </div>
+
+                {/* Amount + action */}
+                <div className="flex items-center gap-2.5 shrink-0">
+                  <p className={['text-[17px] font-extrabold leading-none',
+                    isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                  ].join(' ')}>
+                    {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
+                  </p>
+                  {!isOwed && (
+                    <button
+                      onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                      className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-sm"
+                    >
+                      Settle
+                    </button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      ) : (
+        <div className="flex items-center gap-3 px-4 py-3.5 rounded-[18px] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40">
+          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+            <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
+          </div>
+          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">All balances settled — you&apos;re square!</p>
+        </div>
+      )}
+
+      {/* ── Two stat cards ── */}
       <div className="grid grid-cols-2 gap-3">
-        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-4 min-h-[110px]">
+        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_4px_14px_0px_rgba(0,0,0,0.14)] p-4">
           <div className="flex items-start justify-between">
-            <p className="text-[#999CA1] text-sm font-medium">You owe</p>
-            <ArrowUpRight size={14} className={totalYouOwe > 0 ? 'text-[#FF8C69]' : 'text-[#4D515B]'} />
+            <p className="text-[#999CA1] text-xs font-medium">You owe</p>
+            <ArrowUpRight size={13} className={totalYouOwe > 0 ? 'text-[#FF8C69]' : 'text-[#4D515B]'} />
           </div>
           <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
           <p className="text-[#4D515B] text-[11px] mt-2">
             {balances.filter(b => b.amount < 0).length} {balances.filter(b => b.amount < 0).length === 1 ? 'person' : 'people'}
           </p>
         </div>
-        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-4 min-h-[110px]">
+        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_4px_14px_0px_rgba(0,0,0,0.14)] p-4">
           <div className="flex items-start justify-between">
-            <p className="text-[#999CA1] text-sm font-medium">Owed to you</p>
-            <ArrowDownLeft size={14} className={totalOwedToYou > 0 ? 'text-emerald-400' : 'text-[#4D515B]'} />
+            <p className="text-[#999CA1] text-xs font-medium">Owed to you</p>
+            <ArrowDownLeft size={13} className={totalOwedToYou > 0 ? 'text-emerald-400' : 'text-[#4D515B]'} />
           </div>
           <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
           <p className="text-[#4D515B] text-[11px] mt-2">

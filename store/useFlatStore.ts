@@ -961,10 +961,10 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   deleteExpense: async (expenseId) => {
     const expense = get().expenses.find(e => e.id === expenseId)
+    // Optimistic update — remove immediately so balance recomputes at once
+    set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))
     if (hasKeys && get().flatId) {
       await deleteDoc(doc(db, `flats/${get().flatId}/expenses/${expenseId}`))
-    } else {
-      set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))
     }
     if (expense) {
       await get().addActivity({

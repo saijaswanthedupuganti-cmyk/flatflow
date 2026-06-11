@@ -2101,7 +2101,8 @@ export default function ExpensesPage() {
     return balances.reduce((sum, b) => sum + (b.amount < 0 && b.currency === 'INR' ? Math.abs(b.amount) : 0), 0)
   }, [balances])
 
-  const [activeTab, setActiveTab] = useState<'daily' | 'bills'>('daily')
+  const [activeTab, setActiveTab]     = useState<'daily' | 'bills'>('daily')
+  const [showBalances, setShowBalances] = useState(false)
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null)
   const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null)
 
@@ -2110,9 +2111,16 @@ export default function ExpensesPage() {
   const thisMonthExpensesTotal = useMemo(() => {
     const key = currentMonthKey()
     return sortedExpenses
-      .filter(e => e.date.startsWith(key) && e.currency === 'INR')
+      .filter(e => e.date.startsWith(key) && e.currency === 'INR' && !e.deferToNextMonth)
       .reduce((s, e) => s + e.amount, 0)
   }, [sortedExpenses])
+
+  const fixedBillsThisMonth = useMemo(() => {
+    const key = currentMonthKey()
+    return billInstances
+      .filter(bi => bi.currency === 'INR' && bi.dueDate?.startsWith(key) && (bi.status === 'split_generated' || bi.status === 'paid'))
+      .reduce((s, bi) => s + (bi.amount ?? 0), 0)
+  }, [billInstances])
 
   const sevenDayBars = useMemo(() => {
     const today = new Date()
@@ -2199,44 +2207,112 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ── Summary bar ── */}
-      <div
-        className="rounded-[20px] overflow-hidden shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-5"
-        style={{ background: isCurrentMonthClosed ? '#4CAF82' : netUnsettled > 0 ? '#EB986A' : '#4CAF82' }}
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/80 text-[11px] font-semibold uppercase tracking-widest">
-              {isCurrentMonthClosed ? 'Month Closed' : netUnsettled > 0 ? 'You owe in total' : 'All Settled'}
-            </p>
-            <p className="text-white text-3xl font-extrabold mt-1 leading-none">
-              {formatAmount(netUnsettled, 'INR')}
-            </p>
-            <p className="text-white/70 text-[11px] mt-1.5">
-              {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey())).length} transactions this month
-            </p>
-          </div>
-          <div className="flex flex-col items-end gap-2">
-            {isCurrentMonthClosed && (
-              <span className="text-[10px] font-bold bg-white/25 text-white px-2.5 py-1 rounded-lg">Closed</span>
-            )}
-            {isAdmin && !isCurrentMonthClosed && (
-              <button
-                onClick={() => setShowMonthEnd(true)}
-                className="bg-white/25 hover:bg-white/35 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1"
-              >
-                <CalendarCheck size={11} />
-                {netUnsettled > 0 ? 'Finalize' : 'Close month'}
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
+      {/* ── Monthly breakdown card ── */}
+      {(() => {
+        const grand    = fixedBillsThisMonth + thisMonthExpensesTotal
+        const fixedPct = grand > 0 ? Math.round((fixedBillsThisMonth / grand) * 100) : 0
+        const dailyPct = grand > 0 ? 100 - fixedPct : 0
+        return (
+          <div className="rounded-[20px] bg-[#1A202C] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-5 space-y-4">
+            {/* Top row */}
+            <div className="flex items-start justify-between">
+              <div>
+                <p className="text-[#999CA1] text-[11px] font-semibold uppercase tracking-widest">
+                  {monthLabel(currentMonthKey())}{isCurrentMonthClosed ? ' · Closed' : ''}
+                </p>
+                <p className="text-white text-3xl font-extrabold mt-1 leading-none">
+                  {formatAmount(grand, 'INR')}
+                </p>
+                <p className="text-[#4D515B] text-[11px] mt-1.5">
+                  {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey()) && !e.deferToNextMonth).length} expenses this month
+                </p>
+              </div>
+              {isAdmin && !isCurrentMonthClosed && (
+                <button
+                  onClick={() => setShowMonthEnd(true)}
+                  className="bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shrink-0 mt-1"
+                >
+                  <CalendarCheck size={11} />
+                  Close month
+                </button>
+              )}
+            </div>
 
-      {/* ── Who owes whom — the most important section ── */}
-      {balances.length > 0 ? (
+            {/* Split bar */}
+            {grand > 0 && (
+              <div className="space-y-2">
+                <div className="flex h-2 rounded-full overflow-hidden gap-px">
+                  {fixedPct > 0 && <div className="bg-amber-400 rounded-l-full transition-all" style={{ width: `${fixedPct}%` }} />}
+                  {dailyPct > 0 && <div className="bg-[#3786FB] rounded-r-full transition-all" style={{ width: `${dailyPct}%` }} />}
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="bg-white/5 rounded-[14px] px-3.5 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+                      <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Fixed Bills</p>
+                    </div>
+                    <p className="text-white text-[17px] font-extrabold leading-none">{formatAmount(fixedBillsThisMonth, 'INR')}</p>
+                    <p className="text-[#4D515B] text-[10px] mt-1">{fixedPct}% of total</p>
+                  </div>
+                  <div className="bg-white/5 rounded-[14px] px-3.5 py-2.5">
+                    <div className="flex items-center gap-1.5 mb-1">
+                      <span className="w-2 h-2 rounded-full bg-[#3786FB] shrink-0" />
+                      <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Daily Splits</p>
+                    </div>
+                    <p className="text-white text-[17px] font-extrabold leading-none">{formatAmount(thisMonthExpensesTotal, 'INR')}</p>
+                    <p className="text-[#4D515B] text-[10px] mt-1">{dailyPct}% of total</p>
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      })()}
+
+      {/* ── Balance strip (compact, expandable) ── */}
+      <button
+        onClick={() => setShowBalances(v => !v)}
+        className={['w-full flex items-center gap-3 px-4 py-3 rounded-[16px] border transition-all cursor-pointer text-left',
+          balances.length === 0
+            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+            : netUnsettled > 0
+              ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40'
+              : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40',
+        ].join(' ')}
+      >
+        <div className={['w-7 h-7 rounded-full flex items-center justify-center shrink-0',
+          balances.length === 0 || netUnsettled === 0
+            ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-orange-100 dark:bg-orange-900/30',
+        ].join(' ')}>
+          {balances.length === 0 || netUnsettled === 0
+            ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+            : <ArrowUpRight size={13} className="text-orange-600 dark:text-orange-400" />}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className={['text-[13px] font-bold',
+            balances.length === 0 || netUnsettled === 0
+              ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400',
+          ].join(' ')}>
+            {balances.length === 0
+              ? 'All balances settled'
+              : netUnsettled > 0
+                ? `You owe ${formatAmount(netUnsettled, 'INR')} · ${balances.filter(b => b.amount < 0).length} ${balances.filter(b => b.amount < 0).length === 1 ? 'person' : 'people'}`
+                : `You're owed ${formatAmount(totalOwedToYou, 'INR')}`}
+          </p>
+          {balances.length > 0 && (
+            <p className="text-[11px] text-muted-foreground">
+              {showBalances ? 'Tap to collapse' : 'Tap to view & settle'}
+            </p>
+          )}
+        </div>
+        {balances.length > 0 && (
+          <ChevronDown size={15} className={['text-muted-foreground transition-transform shrink-0', showBalances ? 'rotate-180' : ''].join(' ')} />
+        )}
+      </button>
+
+      {/* ── Balance detail (expanded) ── */}
+      {showBalances && balances.length > 0 && (
         <div className="space-y-2.5">
-          <p className="text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground px-0.5">Balances</p>
           {balances.map(b => {
             const m        = members.find(x => x.uid === b.userId)
             const isOwed   = b.amount > 0  // they owe you
@@ -2395,38 +2471,7 @@ export default function ExpensesPage() {
             )
           })}
         </div>
-      ) : (
-        <div className="flex items-center gap-3 px-4 py-3.5 rounded-[18px] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40">
-          <div className="w-8 h-8 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-            <Check size={14} className="text-emerald-600 dark:text-emerald-400" />
-          </div>
-          <p className="text-sm font-semibold text-emerald-700 dark:text-emerald-400">All balances settled — you&apos;re square!</p>
-        </div>
       )}
-
-      {/* ── Two stat cards ── */}
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_4px_14px_0px_rgba(0,0,0,0.14)] p-4">
-          <div className="flex items-start justify-between">
-            <p className="text-[#999CA1] text-xs font-medium">You owe</p>
-            <ArrowUpRight size={13} className={totalYouOwe > 0 ? 'text-[#FF8C69]' : 'text-[#4D515B]'} />
-          </div>
-          <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
-          <p className="text-[#4D515B] text-[11px] mt-2">
-            {balances.filter(b => b.amount < 0).length} {balances.filter(b => b.amount < 0).length === 1 ? 'person' : 'people'}
-          </p>
-        </div>
-        <div className="bg-[#1A202C] rounded-[20px] shadow-[0px_4px_14px_0px_rgba(0,0,0,0.14)] p-4">
-          <div className="flex items-start justify-between">
-            <p className="text-[#999CA1] text-xs font-medium">Owed to you</p>
-            <ArrowDownLeft size={13} className={totalOwedToYou > 0 ? 'text-emerald-400' : 'text-[#4D515B]'} />
-          </div>
-          <p className="text-white text-2xl font-bold mt-2 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
-          <p className="text-[#4D515B] text-[11px] mt-2">
-            {balances.filter(b => b.amount > 0).length} {balances.filter(b => b.amount > 0).length === 1 ? 'person' : 'people'}
-          </p>
-        </div>
-      </div>
 
       {/* Person filter active banner */}
       {personFilter && (() => {

@@ -48,7 +48,7 @@ function HabitiqLoadingScreen() {
           animation: 'ff-ring-pulse 2.4s ease-in-out infinite',
         }} />
 
-        {/* Logo — centred in the orbit stage */}
+        {/* Icon mark — centred in the orbit stage */}
         <div style={{
           position: 'absolute',
           top: '50%', left: '50%',
@@ -56,16 +56,16 @@ function HabitiqLoadingScreen() {
           animation: 'ff-logo-reveal 0.75s cubic-bezier(0.34,1.56,0.64,1) both',
         }}>
           <div style={{
-            background: 'white',
-            borderRadius: 14,
-            padding: '8px 14px',
-            boxShadow: '0 4px 20px rgba(109,40,217,0.28), 0 1px 6px rgba(0,0,0,0.10)',
+            width: 68, height: 68,
+            borderRadius: 18,
+            background: 'linear-gradient(135deg, #7c3aed, #4338ca)',
+            boxShadow: '0 8px 32px rgba(109,40,217,0.42), 0 2px 8px rgba(0,0,0,0.12)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
           }}>
             <img
-              src="/habitiq-logo.svg"
-              alt="Habitiq"
-              style={{ height: 22, width: 'auto' }}
+              src="/habitiq-icon-mark.png"
+              alt=""
+              style={{ width: 44, height: 44, objectFit: 'contain' }}
             />
           </div>
         </div>

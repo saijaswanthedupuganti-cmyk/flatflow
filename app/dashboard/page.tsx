@@ -7,7 +7,7 @@ import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo
 import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, Flame, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 import NPSBanner from '@/components/NPSBanner'
 
@@ -65,7 +65,13 @@ export default function DashboardPage() {
   const [showNPS, setShowNPS] = useState(false)
   // Prevent dismissed banners from reappearing when Firestore snapshots replace store state
   const npsActedRef = useRef(false)
-  const dismissedSwapRef = useRef(new Set<string>())
+  const dismissedSwapRef = useRef<Set<string>>(null!)
+  if (!dismissedSwapRef.current) {
+    try {
+      const stored = typeof window !== 'undefined' ? sessionStorage.getItem('dismissed_swap_ids') : null
+      dismissedSwapRef.current = stored ? new Set<string>(JSON.parse(stored)) : new Set<string>()
+    } catch { dismissedSwapRef.current = new Set<string>() }
+  }
   const { flatId } = useFlatStore()
 
   useEffect(() => {
@@ -466,7 +472,11 @@ export default function DashboardPage() {
                     variant="outline" 
                     size="sm"
                     className={`mt-3 md:mt-0 ${isAccepted ? 'border-green-500/50 hover:bg-green-500/20' : 'border-red-500/50 hover:bg-red-500/20'}`}
-                    onClick={() => { dismissedSwapRef.current.add(req.id); markSwapRequestRead(req.id) }}
+                    onClick={() => {
+                      dismissedSwapRef.current.add(req.id)
+                      try { sessionStorage.setItem('dismissed_swap_ids', JSON.stringify([...dismissedSwapRef.current])) } catch {}
+                      markSwapRequestRead(req.id)
+                    }}
                   >
                     Dismiss
                   </Button>
@@ -758,20 +768,6 @@ export default function DashboardPage() {
       
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/60">
-        {(!isAdmin || adminView === 'mine') && (
-          <Card className="shadow-sm border-border/60 col-span-1">
-            <CardContent className="p-3">
-              <div className="flex items-center gap-1.5 mb-1">
-                <Flame size={13} className="text-orange-500" />
-                <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Reliability</span>
-              </div>
-              <div className="text-2xl font-extrabold">{currentMember?.reliabilityScore ?? 100}</div>
-              <div className="w-full bg-secondary rounded-full h-1 mt-1.5">
-                <div className="h-1 rounded-full bg-orange-400 transition-all" style={{ width: `${currentMember?.reliabilityScore ?? 100}%` }} />
-              </div>
-            </CardContent>
-          </Card>
-        )}
         <Card className="shadow-sm border-border/60 col-span-1">
           <CardContent className="p-3">
             <div className="flex items-center gap-1.5 mb-1">

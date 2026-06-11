@@ -298,6 +298,32 @@ Fix: Nickname 30, Flat name 50, Email 254, Password 128.
 
 ---
 
+## 6d. Bug Fixes & UX Improvements — June 2026 (Session 2)
+
+### FIX — Dismiss banner reappears on Dashboard tab navigation
+File: app/dashboard/page.tsx
+Problem: `dismissedSwapRef` was `useRef(new Set())` — resets to empty on every component remount. Navigating away from Dashboard and back caused dismissed swap banners to reappear even though `markSwapRequestRead` had been called.
+Fix: Lazy-initialize the ref from `sessionStorage` on each mount. Persist dismissed IDs to `sessionStorage` when user clicks dismiss. State survives tab navigation for the duration of the browser session.
+
+### FIX — Editing an expense did not save
+Files: store/useFlatStore.ts, firestore.rules, app/dashboard/expenses/page.tsx
+Problem 1: No `updateExpense` function existed in the store — only `addExpense` and `deleteExpense`.
+Problem 2: Firestore rules had `allow update: if false` for the expenses subcollection.
+Problem 3: No edit button existed in the `ExpenseRow` expanded view — no way to trigger editing.
+Problem 4: No try/catch in `ExpenseModal.handleSave` or `MonthlyBillModal.handleSave` — any error froze the modal permanently (saving state stuck true).
+Fix: Added `updateExpense` to `useFlatStore` (writes to Firestore when flatId exists, optimistic update otherwise). Updated Firestore rule to `allow update: if isMember(flatId) && (resource.data.createdBy == request.auth.uid || isAdmin(flatId))`. Added `Edit` (Pencil) button to `ExpenseRow` expanded view (only shown to creator). Added `editExpense` state and wired the edit modal. Added try/catch to both modal `handleSave` functions with `setSaving(false)` on error. Deployed updated Firestore rules.
+
+### REMOVED — Reliability Score card
+File: app/dashboard/page.tsx
+The Reliability Score stat card was removed from the Dashboard stats row (it was visible to members and in admin "mine" view). Feature deemed unnecessary for the current trial phase.
+
+### FIX — Swaps missing from mobile navigation
+File: app/dashboard/layout.tsx
+Problem: Swaps was in the desktop sidebar but absent from the 5-slot mobile bottom nav. Members had no mobile access to the Swaps page.
+Fix: For members, slot 4 now shows Swaps (replacing Members). For admins, slot 4 still shows Tasks. Swaps badge (pending swap count) shown in mobile nav when applicable.
+
+---
+
 ## 6c. Expense Module Bug Fixes — June 2026 (All Fixed)
 
 ### CRITICAL — Firestore rules for expenses/settlements/recurringBills not deployed

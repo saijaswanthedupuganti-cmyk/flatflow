@@ -247,6 +247,7 @@ interface FlatState {
   deleteTask: (taskId: string, adminId: string) => Promise<void>
   createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean, isOOSRequest?: boolean) => Promise<void>
   addExpense: (data: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>
+  updateExpense: (expenseId: string, data: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>
   deleteExpense: (expenseId: string) => Promise<void>
   addSettlement: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
   deleteSettlement: (settlementId: string) => Promise<void>
@@ -949,6 +950,15 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     })
   },
 
+  updateExpense: async (expenseId, data) => {
+    const { flatId } = get()
+    if (hasKeys && flatId) {
+      await updateDoc(doc(db, `flats/${flatId}/expenses/${expenseId}`), fs(data))
+    } else {
+      set(s => ({ expenses: s.expenses.map(e => e.id === expenseId ? { ...e, ...data } : e) }))
+    }
+  },
+
   deleteExpense: async (expenseId) => {
     const expense = get().expenses.find(e => e.id === expenseId)
     if (hasKeys && get().flatId) {
@@ -1206,10 +1216,27 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     } else {
       set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
     }
+
+    // Auto-create an expense so the payment appears in the transaction list
+    if (instance.amount && instance.splits && instance.participants.length > 0) {
+      await get().addExpense({
+        description: instance.name,
+        amount: instance.amount,
+        currency: instance.currency,
+        paidBy: instance.paidBy,
+        splitAmong: instance.participants,
+        splitType: 'custom',
+        splits: instance.splits,
+        category: instance.category,
+        date: new Date().toISOString().split('T')[0],
+        createdBy: uid,
+      })
+    }
+
     await get().addActivity({
       userId: uid,
       action: 'bill_paid',
-      details: `marked ${instance.name} as paid to landlord/provider`,
+      details: `marked ${instance.name} as paid`,
     })
   },
 

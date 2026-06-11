@@ -83,11 +83,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     )
   }
 
-  const MobileNavLink = ({ href, icon: Icon, label, exact }: typeof NAV_ITEMS.main[0]) => {
+  const MobileNavLink = ({ href, icon: Icon, label, exact, badge }: typeof NAV_ITEMS.main[0] & { badge?: number }) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href)
     return (
       <Link href={href} className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-        <Icon size={22} />
+        <div className="relative">
+          <Icon size={22} />
+          {badge ? (
+            <span className="absolute -top-1 -right-1.5 bg-violet-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center leading-none">
+              {badge}
+            </span>
+          ) : null}
+        </div>
         <span className="text-[10px] font-semibold">{label}</span>
       </Link>
     )
@@ -297,10 +304,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        {/* 4 — Tasks (admin) | Members (member) */}
+        {/* 4 — Tasks (admin) | Swaps (member) */}
         {isAdmin
-          ? <MobileNavLink {...NAV_ITEMS.admin[0]} />
-          : <MobileNavLink {...NAV_ITEMS.general[0]} />}
+          ? <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
+          : <MobileNavLink {...NAV_ITEMS.main[3]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />}
 
         {/* 5 — Settings */}
         <MobileNavLink {...NAV_ITEMS.general[1]} />

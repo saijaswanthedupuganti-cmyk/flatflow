@@ -174,16 +174,21 @@ function ExpenseModal({
       splits = Object.fromEntries(form.splitAmong.map(uid => [uid, parseFloat(form.customSplits[uid]) || 0]))
     }
     setSaving(true)
-    await onSave({
-      description: form.description.trim(),
-      amount: totalAmount, currency: form.currency,
-      paidBy: form.paidBy, splitAmong: form.splitAmong,
-      splitType: form.splitType, splits, category: form.category,
-      date: form.date, note: form.note.trim() || undefined,
-      deferToNextMonth: form.deferToNextMonth ? true : undefined,
-      createdBy: currentUserId,
-    })
-    onClose()
+    try {
+      await onSave({
+        description: form.description.trim(),
+        amount: totalAmount, currency: form.currency,
+        paidBy: form.paidBy, splitAmong: form.splitAmong,
+        splitType: form.splitType, splits, category: form.category,
+        date: form.date, note: form.note.trim() || undefined,
+        deferToNextMonth: form.deferToNextMonth ? true : undefined,
+        createdBy: currentUserId,
+      })
+      onClose()
+    } catch {
+      setSaving(false)
+      setError('Failed to save. Please try again.')
+    }
   }
 
   const QUICK_CATS: ExpenseCategory[] = ['food', 'grocery', 'household', 'gas', 'maid', 'other']
@@ -580,134 +585,147 @@ function SettleUpModal({
 
 // ── Expense Row ──────────────────────────────────────────────────────────────
 
-function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, showDivider = false }: {
+function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, onEdit, showDivider = false }: {
   expense: Expense
   members: { uid: string; nickname: string }[]
   currentUserId: string
   canDelete: boolean
   onDelete: (id: string) => void
+  onEdit?: (expense: Expense) => void
   showDivider?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
-  const cfg         = CATEGORY_CONFIG[expense.category]
-  const payer       = members.find(m => m.uid === expense.paidBy)
-  const isYouPayer  = expense.paidBy === currentUserId
-  const myShare     = expense.splits[currentUserId] ?? 0
-  const notInSplit  = !expense.splitAmong.includes(currentUserId)
-  const getBack     = isYouPayer ? expense.amount - myShare : 0
+  const cfg        = CATEGORY_CONFIG[expense.category]
+  const payer      = members.find(m => m.uid === expense.paidBy)
+  const isYouPayer = expense.paidBy === currentUserId
+  const myShare    = expense.splits[currentUserId] ?? 0
+  const notInSplit = !expense.splitAmong.includes(currentUserId)
+  const getBack    = isYouPayer ? expense.amount - myShare : 0
+
+  // Net amount from user's perspective
+  const netAmount  = notInSplit ? null : isYouPayer ? getBack : -myShare
+  const isPositive = netAmount !== null && netAmount > 0
+  const isNeutral  = netAmount === 0
+
+  const dateStr = new Date(expense.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
 
   return (
     <div>
-      {showDivider && <div className="border-t border-border/30 mx-3" />}
+      {showDivider && <div className="border-t border-border/30 mx-4" />}
+
+      {/* ── Transaction row ── */}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
+        className="w-full px-4 py-3 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-2.5">
-          {/* Category bubble */}
-          <div className="w-9 h-9 rounded-[12px] bg-[#f1f3ff] dark:bg-white/[0.08] flex items-center justify-center text-lg shrink-0">
+        <div className="flex items-center gap-3">
+          {/* Category icon */}
+          <div className="w-10 h-10 rounded-[14px] bg-[#f1f3ff] dark:bg-white/[0.07] flex items-center justify-center text-[18px] shrink-0">
             {cfg?.emoji ?? '💰'}
           </div>
 
-          {/* Main content */}
+          {/* Description + subtitle */}
           <div className="flex-1 min-w-0">
-            <div className="flex items-start justify-between gap-2">
-              <p className="text-[#141b2b] dark:text-foreground text-[13.5px] font-semibold leading-tight truncate">
+            <div className="flex items-center gap-1.5">
+              <p className="text-[13.5px] font-bold text-[#141b2b] dark:text-foreground leading-tight truncate">
                 {expense.description}
-                {expense.deferToNextMonth && (
-                  <span className="ml-1.5 text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full align-middle">DEFERRED</span>
-                )}
               </p>
-              <p className="text-[#141b2b] dark:text-foreground text-[14px] font-bold shrink-0 leading-tight">
-                {formatAmount(expense.amount, expense.currency)}
-              </p>
-            </div>
-
-            <div className="flex items-center justify-between mt-1 gap-2">
-              <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[10.5px] font-semibold text-[#777587] dark:text-muted-foreground truncate">
-                  {isYouPayer ? 'You paid' : (payer?.nickname ?? '…') + ' paid'}
-                </span>
-                <span className="text-[#d0d2d8] shrink-0">&middot;</span>
-                <span className="text-[10.5px] text-[#999CA1] dark:text-muted-foreground shrink-0">
-                  {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                </span>
-              </div>
-
-              {/* Your share chip */}
-              {!notInSplit && (
-                <span className={[
-                  'text-[10.5px] font-bold px-2 py-0.5 rounded-full shrink-0',
-                  isYouPayer && getBack > 0
-                    ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
-                    : !isYouPayer
-                    ? 'bg-[rgba(235,152,106,0.14)] text-[#c85a2a] dark:text-orange-300'
-                    : 'bg-secondary text-muted-foreground',
-                ].join(' ')}>
-                  {isYouPayer && getBack > 0
-                    ? '+' + formatAmount(getBack, expense.currency)
-                    : !isYouPayer
-                    ? '-' + formatAmount(myShare, expense.currency)
-                    : 'You paid all'}
-                </span>
-              )}
-              {notInSplit && (
-                <span className="text-[10.5px] text-[#999CA1] dark:text-muted-foreground shrink-0 italic">not included</span>
+              {expense.deferToNextMonth && (
+                <span className="text-[9px] font-extrabold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full shrink-0">DEF</span>
               )}
             </div>
+            <p className="text-[11px] text-[#999CA1] dark:text-muted-foreground mt-0.5 truncate">
+              {isYouPayer ? 'You paid' : (payer?.nickname ?? '…') + ' paid'}
+              <span className="mx-1 text-[#d8d9dd]">·</span>
+              {dateStr}
+            </p>
+          </div>
+
+          {/* Net amount */}
+          <div className="text-right shrink-0">
+            {netAmount !== null ? (
+              <p className={['text-[14.5px] font-extrabold leading-tight',
+                isNeutral ? 'text-[#999CA1]'
+                : isPositive ? 'text-emerald-500 dark:text-emerald-400'
+                : 'text-[#e05c2a] dark:text-orange-400',
+              ].join(' ')}>
+                {isPositive ? '+' : ''}{formatAmount(Math.abs(netAmount), expense.currency)}
+              </p>
+            ) : (
+              <p className="text-[11px] text-[#999CA1] italic">observer</p>
+            )}
+            <p className="text-[10px] text-[#bdbfc4] dark:text-muted-foreground/50 mt-0.5">
+              {formatAmount(expense.amount, expense.currency)} total
+            </p>
           </div>
         </div>
       </button>
 
-      {/* Expanded split details */}
+      {/* ── Expanded split breakdown ── */}
       {expanded && (
-        <div className="border-t border-border/30 px-3 pb-3 pt-2.5 space-y-2 bg-secondary/10">
-          {expense.splitAmong.map(uid => {
-            const m     = members.find(x => x.uid === uid)
-            const share = expense.splits[uid] ?? 0
-            const isPayer = uid === expense.paidBy
-            return (
-              <div key={uid} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <div className="w-6 h-6 rounded-full bg-[#e9edff] dark:bg-white/10 flex items-center justify-center text-[10px] font-bold text-[#3525cd] shrink-0">
+        <div className="mx-4 mb-3 rounded-[14px] border border-border/40 bg-secondary/20 dark:bg-secondary/10 overflow-hidden">
+          {/* Split rows */}
+          <div className="divide-y divide-border/30">
+            {expense.splitAmong.map(uid => {
+              const m       = members.find(x => x.uid === uid)
+              const share   = expense.splits[uid] ?? 0
+              const isPayer = uid === expense.paidBy
+              const isYou   = uid === currentUserId
+              return (
+                <div key={uid} className="flex items-center gap-2.5 px-3 py-2">
+                  <div className="w-6 h-6 rounded-full bg-[#e9edff] dark:bg-white/10 flex items-center justify-center text-[10px] font-extrabold text-[#3525cd] shrink-0">
                     {(m?.nickname ?? '?').charAt(0).toUpperCase()}
                   </div>
-                  <span className="text-[12px] font-medium text-[#464555] dark:text-gray-400">
-                    {uid === currentUserId ? (m?.nickname ?? uid) + ' (you)' : m?.nickname ?? uid}
-                    {isPayer && <span className="ml-1 text-[10px] font-bold text-[#3525cd]">paid</span>}
+                  <div className="flex-1 flex items-center gap-1.5 min-w-0">
+                    <span className="text-[12px] font-semibold text-[#464555] dark:text-gray-300 truncate">
+                      {isYou ? (m?.nickname ?? uid) + ' (you)' : m?.nickname ?? uid}
+                    </span>
+                    {isPayer && (
+                      <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAID</span>
+                    )}
+                  </div>
+                  <span className="text-[12.5px] font-bold text-[#141b2b] dark:text-foreground">
+                    {formatAmount(share, expense.currency)}
                   </span>
                 </div>
-                <span className="text-[13px] font-bold text-[#141b2b] dark:text-foreground">
-                  {formatAmount(share, expense.currency)}
-                </span>
-              </div>
-            )
-          })}
-          {expense.note && (
-            <p className="text-xs text-[#777587] italic border-t border-border/40 pt-2">
-              &ldquo;{expense.note}&rdquo;
-            </p>
+              )
+            })}
+          </div>
+
+          {/* Note + meta */}
+          {(expense.note || expense.createdAt) && (
+            <div className="border-t border-border/30 px-3 py-2 space-y-1">
+              {expense.note && (
+                <p className="text-[11px] text-[#777587] italic">&ldquo;{expense.note}&rdquo;</p>
+              )}
+              {(() => {
+                const creator     = members.find(m => m.uid === expense.createdBy)
+                const creatorName = expense.createdBy === currentUserId ? 'you' : (creator?.nickname ?? '…')
+                const ts          = expense.createdAt ? new Date(expense.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : null
+                return (
+                  <div className="flex items-center gap-1 text-[10px] text-[#999CA1]">
+                    <UserCircle size={10} className="shrink-0" />
+                    <span>Added by <span className="font-semibold">{creatorName}</span>{ts ? ` · ${ts}` : ''}</span>
+                  </div>
+                )
+              })()}
+            </div>
           )}
-          {(() => {
-            const creator = members.find(m => m.uid === expense.createdBy)
-            const creatorName = expense.createdBy === currentUserId ? 'you' : (creator?.nickname ?? '…')
-            const ts = expense.createdAt
-              ? new Date(expense.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
-              : null
-            return (
-              <div className="flex items-center gap-1.5 text-[10px] text-[#999CA1] border-t border-border/40 pt-2">
-                <UserCircle size={11} className="shrink-0" />
-                <span>Added by <span className="font-semibold">{creatorName}</span>{ts ? ` · ${ts}` : ''}</span>
-              </div>
-            )
-          })()}
-          {canDelete && (
-            <button
-              onClick={() => onDelete(expense.id)}
-              className="flex items-center gap-1.5 text-xs text-red-500 hover:text-red-600 font-semibold mt-1 cursor-pointer transition-colors"
-            >
-              <Trash2 size={12} /> Remove
-            </button>
+
+          {/* Actions */}
+          {(onEdit || canDelete) && (
+            <div className="border-t border-border/30 px-3 py-2 flex items-center gap-3">
+              {onEdit && expense.createdBy === currentUserId && (
+                <button onClick={() => onEdit(expense)} className="flex items-center gap-1 text-[11px] font-semibold text-blue-500 hover:text-blue-600 transition-colors cursor-pointer">
+                  <Pencil size={11} /> Edit
+                </button>
+              )}
+              {canDelete && (
+                <button onClick={() => onDelete(expense.id)} className="flex items-center gap-1 text-[11px] font-semibold text-red-500 hover:text-red-600 transition-colors cursor-pointer">
+                  <Trash2 size={11} /> Remove
+                </button>
+              )}
+            </div>
           )}
         </div>
       )}
@@ -818,24 +836,28 @@ function MonthlyBillModal({
     if (!form.isVariable && (!parseFloat(form.amount) || parseFloat(form.amount) <= 0)) return
     if (form.rotationQueue.length === 0) return
     setSaving(true)
-    await onSave({
-      name:          form.name.trim(),
-      category:      form.category,
-      isVariable:    form.isVariable,
-      amount:        form.isVariable ? null : parseFloat(form.amount),
-      currency:      (initial?.currency ?? 'INR') as Currency,
-      billingDay:    Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
-      rotationQueue: form.rotationQueue,
-      participants:  form.rotationQueue,
-      payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
-      fixedPayerUid: initial?.fixedPayerUid,
-      splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
-      percentSplits: initial?.percentSplits,
-      customSplits:  initial?.customSplits,
-      active:        form.active,
-      createdBy:     currentUserId,
-    })
-    onClose()
+    try {
+      await onSave({
+        name:          form.name.trim(),
+        category:      form.category,
+        isVariable:    form.isVariable,
+        amount:        form.isVariable ? null : parseFloat(form.amount),
+        currency:      (initial?.currency ?? 'INR') as Currency,
+        billingDay:    Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
+        rotationQueue: form.rotationQueue,
+        participants:  form.rotationQueue,
+        payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
+        fixedPayerUid: initial?.fixedPayerUid,
+        splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
+        percentSplits: initial?.percentSplits,
+        customSplits:  initial?.customSplits,
+        active:        form.active,
+        createdBy:     currentUserId,
+      })
+      onClose()
+    } catch {
+      setSaving(false)
+    }
   }
 
   const PRESET_CATEGORIES: ExpenseCategory[] = [
@@ -1862,7 +1884,7 @@ export default function ExpensesPage() {
   const {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
-    addExpense, deleteExpense, addSettlement, deleteSettlement,
+    addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1885,6 +1907,7 @@ export default function ExpensesPage() {
       }
     }
   }, [])
+  const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
@@ -2366,13 +2389,14 @@ export default function ExpensesPage() {
                         {monthTotal > 0 && <p className="text-[10px] font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
                       </div>
 
-                      {/* Expenses — all in one card */}
+                      {/* Expenses — transaction list */}
                       {expenseItems.length > 0 && (
                         <div className="rounded-[18px] bg-card border border-border/50 shadow-[0px_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
                           {expenseItems.map((item, i) =>
                             item.kind === 'expense' && (
                               <ExpenseRow key={item.data.id} expense={item.data} members={members} currentUserId={currentUserId}
                                 canDelete={item.data.createdBy === currentUserId || !!isAdmin} onDelete={deleteExpense}
+                                onEdit={setEditExpense}
                                 showDivider={i > 0} />
                             )
                           )}
@@ -2497,12 +2521,21 @@ export default function ExpensesPage() {
 
                 const isExpanded = expandedBillId === bill.id
 
-                return (
-                  <div key={bill.id} className="rounded-[20px] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.10)] overflow-hidden bg-card border border-border/50">
+                const statusAccent = isSettled
+                  ? 'border-l-emerald-400'
+                  : !instance ? 'border-l-amber-400'
+                  : instance.status === 'split_generated' ? 'border-l-[#3786FB]'
+                  : instance.status === 'overdue' ? 'border-l-red-400'
+                  : 'border-l-transparent'
+                const payerNickname = members.find(m => m.uid === payerUid)?.nickname ?? '...'
+                const myBillShare = instance?.splits?.[currentUserId]
 
-                    {/* ── Clickable header row ─────────────────────── */}
+                return (
+                  <div key={bill.id} className={['rounded-[20px] shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] overflow-hidden bg-card border border-border/50 border-l-4', statusAccent].join(' ')}>
+
+                    {/* ── Header ────────────────────────────────────── */}
                     <button
-                      className="w-full flex items-center gap-3 p-4 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
                       onClick={() => setExpandedBillId(isExpanded ? null : bill.id)}
                     >
                       <div className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0',
@@ -2511,32 +2544,36 @@ export default function ExpensesPage() {
                         {cfg?.emoji}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-sm font-bold text-[#021328] dark:text-foreground">{bill.name}</p>
-                          <span className={['text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0',
+                        <div className="flex items-center gap-2">
+                          <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{bill.name}</p>
+                          <span className={['text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide',
                             isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                             : !instance ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                            : instance.status === 'split_generated' ? 'bg-[#EEF5FF] text-[#3786FB]'
+                            : instance.status === 'split_generated' ? 'bg-[#EEF5FF] dark:bg-blue-950/20 text-[#3786FB]'
+                            : instance.status === 'overdue' ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
                             : 'bg-secondary text-muted-foreground',
                           ].join(' ')}>
-                            {isSettled ? 'Fully Settled' : !instance ? 'Due' : instance.status === 'split_generated' ? 'Split Ready' : instance.status === 'overdue' ? 'Overdue' : instance.status === 'skipped' ? 'Skipped' : 'Pending'}
+                            {isSettled ? '✓ Paid' : !instance ? 'Due' : instance.status === 'split_generated' ? 'Ready' : instance.status === 'overdue' ? 'Overdue' : instance.status === 'skipped' ? 'Skipped' : 'Pending'}
                           </span>
                         </div>
-                        <p className="text-[11px] text-[#999CA1] dark:text-muted-foreground mt-0.5">
-                          {bill.payerMode === 'rotation' ? 'Rotating · ' : bill.payerMode === 'fixed' ? 'Fixed · ' : 'Manual · '}
-                          {isYouPayer ? 'You pay this month' : (members.find(m => m.uid === payerUid)?.nickname ?? '...') + ' pays'}
-                          {' · '}{ordinal(bill.billingDay)} every month
-                        </p>
+                        <div className="flex items-center gap-1 mt-0.5">
+                          {isYouPayer
+                            ? <span className="text-[10.5px] font-extrabold text-[#3525cd] dark:text-violet-400">You pay</span>
+                            : <span className="text-[10.5px] text-[#999CA1]">{payerNickname} pays</span>
+                          }
+                          <span className="text-[#d0d2d8]">&middot;</span>
+                          <span className="text-[10.5px] text-[#999CA1]">{ordinal(bill.billingDay)} monthly</span>
+                        </div>
                       </div>
-                      <div className="flex items-center gap-2 shrink-0">
-                        <div className="text-right">
-                          {instance?.amount ? (
-                            <p className="text-base font-extrabold text-[#021328] dark:text-foreground">{formatAmount(instance.amount, instance.currency)}</p>
-                          ) : bill.amount ? (
-                            <p className="text-base font-extrabold text-[#021328] dark:text-foreground">{formatAmount(bill.amount, bill.currency)}</p>
-                          ) : (
-                            <p className="text-xs text-[#999CA1] italic">Variable</p>
-                          )}
+                      <div className="text-right shrink-0 flex items-center gap-2">
+                        <div>
+                          <p className="text-[15px] font-extrabold text-[#021328] dark:text-foreground leading-tight">
+                            {instance?.amount
+                              ? formatAmount(instance.amount, instance.currency)
+                              : bill.amount
+                              ? formatAmount(bill.amount, bill.currency)
+                              : <span className="text-xs text-[#999CA1] italic font-medium">Variable</span>}
+                          </p>
                           {perPersonAmt != null && billParticipants.length > 1 && (
                             <p className="text-[10px] text-[#999CA1]">{formatAmount(perPersonAmt, instance?.currency ?? bill.currency)}/person</p>
                           )}
@@ -2545,120 +2582,140 @@ export default function ExpensesPage() {
                       </div>
                     </button>
 
-                    {/* ── Expanded details ─────────────────────────── */}
+                    {/* ── Expanded ──────────────────────────────────── */}
                     {isExpanded && (
                       <>
-                        {/* Billing details strip */}
-                        <div className="grid grid-cols-3 gap-0 border-t border-border/60 bg-secondary/20">
-                          <div className="px-4 py-3 border-r border-border/40">
-                            <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider">Amount</p>
-                            <p className="text-sm font-extrabold text-[#021328] dark:text-foreground mt-0.5">
-                              {instance?.amount ? formatAmount(instance.amount, instance.currency)
-                                : bill.amount ? formatAmount(bill.amount, bill.currency)
-                                : 'Variable'}
-                            </p>
-                            {perPersonAmt != null && billParticipants.length > 1 && (
-                              <p className="text-[10px] text-[#999CA1]">{formatAmount(perPersonAmt, instance?.currency ?? bill.currency)} each</p>
-                            )}
-                          </div>
-                          <div className="px-4 py-3 border-r border-border/40">
-                            <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider">Billing</p>
-                            <p className="text-sm font-extrabold text-[#021328] dark:text-foreground mt-0.5">{ordinal(bill.billingDay)}</p>
-                            <p className="text-[10px] text-[#999CA1]">every month</p>
-                          </div>
-                          <div className="px-4 py-3">
-                            <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider">Payer</p>
-                            <p className="text-sm font-extrabold text-[#021328] dark:text-foreground mt-0.5 truncate">
-                              {bill.payerMode === 'fixed' ? (members.find(m => m.uid === bill.fixedPayerUid)?.nickname ?? 'Fixed') : bill.payerMode === 'rotation' ? 'Rotating' : 'Manual'}
-                            </p>
-                            <p className="text-[10px] text-[#999CA1]">
-                              {bill.payerMode !== 'fixed' ? 'Now: ' + (members.find(m => m.uid === payerUid)?.nickname ?? '...') : bill.isVariable ? 'variable amt' : 'fixed amt'}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Participants grid */}
-                        {billParticipants.length > 0 && (
-                          <div className={['grid border-t border-border/60', billParticipants.length === 1 ? 'grid-cols-1' : 'grid-cols-2'].join(' ')}>
-                            {billParticipants.map((uid, idx) => (
-                              <div key={uid} className={['flex items-center gap-2 px-4 py-2.5 bg-card',
-                                idx % 2 === 0 && idx === billParticipants.length - 1 && billParticipants.length > 1 ? 'col-span-2' : '',
-                                idx > 1 ? 'border-t border-border/40' : '',
-                              ].join(' ')}>
-                                <div className="w-6 h-6 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-bold text-[#3786FB] shrink-0">
-                                  {nick(uid).charAt(0).toUpperCase()}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className="text-xs font-semibold text-[#021328] dark:text-foreground truncate">{nick(uid)}</p>
-                                  {perPersonAmt != null && (
-                                    <p className="text-[10px] text-[#999CA1]">{formatAmount(perPersonAmt, instance?.currency ?? bill.currency)}</p>
-                                  )}
-                                </div>
-                                <span className={['text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0',
-                                  isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300' : 'bg-[#EEF5FF] dark:bg-secondary text-[#999CA1]',
-                                ].join(' ')}>
-                                  {isSettled ? 'Settled' : 'Unpaid'}
-                                </span>
+                        {/* Your share callout */}
+                        {myBillShare != null && !isSettled && (
+                          <div className="mx-4 mb-3 mt-1 flex items-center justify-between bg-[#F6F8FF] dark:bg-secondary/40 rounded-[12px] px-3.5 py-2.5">
+                            <div>
+                              <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wide">Your share</p>
+                              <p className="text-sm font-extrabold text-[#021328] dark:text-foreground">{formatAmount(myBillShare, instance?.currency ?? bill.currency)}</p>
+                            </div>
+                            {isYouPayer && instance?.amount && (
+                              <div className="text-right">
+                                <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wide">You front</p>
+                                <p className="text-sm font-extrabold text-[#3525cd] dark:text-violet-400">{formatAmount(instance.amount, instance.currency)}</p>
                               </div>
-                            ))}
+                            )}
                           </div>
                         )}
 
-                        {/* Admin actions */}
+                        {/* Details strip */}
+                        <div className="grid grid-cols-3 gap-0 border-t border-border/40 bg-secondary/10">
+                          <div className="px-4 py-2.5 border-r border-border/40">
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-0.5">Payer mode</p>
+                            <p className="text-xs font-bold text-[#021328] dark:text-foreground">
+                              {bill.payerMode === 'fixed' ? 'Fixed' : bill.payerMode === 'rotation' ? 'Rotating' : 'Manual'}
+                            </p>
+                            <p className="text-[9.5px] text-[#999CA1] truncate">
+                              {bill.payerMode !== 'fixed' ? `Now: ${payerNickname}` : (bill.isVariable ? 'variable amt' : 'fixed amt')}
+                            </p>
+                          </div>
+                          <div className="px-4 py-2.5 border-r border-border/40">
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-0.5">Due date</p>
+                            <p className="text-xs font-bold text-[#021328] dark:text-foreground">{ordinal(bill.billingDay)}</p>
+                            <p className="text-[9.5px] text-[#999CA1]">every month</p>
+                          </div>
+                          <div className="px-4 py-2.5">
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-0.5">Split</p>
+                            <p className="text-xs font-bold text-[#021328] dark:text-foreground">{billParticipants.length} people</p>
+                            {perPersonAmt != null && (
+                              <p className="text-[9.5px] text-[#999CA1]">{formatAmount(perPersonAmt, instance?.currency ?? bill.currency)} each</p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Participants */}
+                        {billParticipants.length > 0 && (
+                          <div className="border-t border-border/40 divide-y divide-border/30">
+                            {billParticipants.map((uid) => {
+                              const share = instance?.splits?.[uid] ?? perPersonAmt
+                              const isPayer = uid === payerUid
+                              const isYou = uid === currentUserId
+                              return (
+                                <div key={uid} className="flex items-center gap-2.5 px-4 py-2.5 bg-card">
+                                  <div className="w-7 h-7 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-extrabold text-[#3525cd] shrink-0">
+                                    {nick(uid).charAt(0).toUpperCase()}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <div className="flex items-center gap-1.5">
+                                      <p className="text-xs font-semibold text-[#021328] dark:text-foreground truncate">{isYou ? 'You' : nick(uid)}</p>
+                                      {isPayer && (
+                                        <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAYS</span>
+                                      )}
+                                    </div>
+                                  </div>
+                                  <div className="text-right">
+                                    {share != null && (
+                                      <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(share, instance?.currency ?? bill.currency)}</p>
+                                    )}
+                                    <p className={['text-[9px] font-semibold', isSettled ? 'text-emerald-500' : 'text-[#999CA1]'].join(' ')}>
+                                      {isSettled ? '✓ settled' : 'pending'}
+                                    </p>
+                                  </div>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+
+                        {/* Mark Paid CTA — visible to the payer (admin or member) */}
+                        {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
+                          <div className="border-t border-[#3786FB]/20 bg-[#F0F6FF] dark:bg-blue-950/15 px-4 py-3 flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5">
+                              <div className="w-8 h-8 rounded-full bg-[#3786FB]/15 flex items-center justify-center shrink-0">
+                                <Check size={14} className="text-[#3786FB]" />
+                              </div>
+                              <div>
+                                <p className="text-xs font-bold text-[#021328] dark:text-foreground">
+                                  {isYouPayer ? "You're the payer this month" : `${payerNickname} is the payer`}
+                                </p>
+                                <p className="text-[10px] text-[#999CA1]">Confirm payment was made · auto-adds to transactions</p>
+                              </div>
+                            </div>
+                            <button
+                              onClick={() => markBillPaid(instance.id)}
+                              className="px-4 py-2 bg-[#3786FB] text-white text-[11px] font-extrabold rounded-full hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
+                            >
+                              Mark Paid
+                            </button>
+                          </div>
+                        )}
+
+                        {/* Admin tools */}
                         {isAdmin && (
-                          <div className="border-t border-border/60">
+                          <div className="border-t border-border/40">
                             {confirmDeleteBillId === bill.id ? (
                               <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 dark:bg-red-950/20">
                                 <p className="text-xs font-semibold text-red-700 dark:text-red-400">Delete &ldquo;{bill.name}&rdquo;? Cannot be undone.</p>
                                 <div className="flex items-center gap-3">
+                                  <button onClick={() => setConfirmDeleteBillId(null)} className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Cancel</button>
                                   <button
-                                    onClick={() => setConfirmDeleteBillId(null)}
-                                    className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    onClick={async () => {
-                                      setConfirmDeleteBillId(null)
-                                      setExpandedBillId(null)
-                                      await deleteRecurringBill(bill.id)
-                                    }}
+                                    onClick={async () => { setConfirmDeleteBillId(null); setExpandedBillId(null); await deleteRecurringBill(bill.id) }}
                                     className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
-                                  >
-                                    Yes, Delete
-                                  </button>
+                                  >Yes, Delete</button>
                                 </div>
                               </div>
                             ) : (
-                              <div className="flex">
+                              <div className="flex bg-secondary/20">
                                 {!instance && bill.active && (
                                   <button
-                                    onClick={() => {
-                                      if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true)
-                                      else generateBill(bill.id)
-                                    }}
+                                    onClick={() => { if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true); else generateBill(bill.id) }}
                                     className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer"
                                   >
-                                    <Play size={11} /> Generate
-                                  </button>
-                                )}
-                                {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
-                                  <button
-                                    onClick={() => markBillPaid(instance.id)}
-                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#3786FB] hover:bg-[#EEF5FF] dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
-                                  >
-                                    <Check size={11} /> Mark Paid
+                                    <Play size={11} /> Generate Split
                                   </button>
                                 )}
                                 <button
                                   onClick={() => setEditBill(bill)}
-                                  className="flex items-center justify-center gap-1 px-4 py-2.5 text-xs font-semibold text-[#999CA1] hover:text-foreground hover:bg-secondary transition-colors border-l border-border/60 cursor-pointer"
+                                  className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-[#999CA1] hover:text-foreground hover:bg-secondary transition-colors border-l border-border/40 cursor-pointer"
                                 >
                                   <Pencil size={11} /> Edit
                                 </button>
                                 <button
                                   onClick={() => setConfirmDeleteBillId(bill.id)}
-                                  className="flex items-center justify-center px-4 py-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors border-l border-border/60 cursor-pointer"
+                                  className="flex items-center justify-center px-4 py-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors border-l border-border/40 cursor-pointer"
                                   title="Delete bill"
                                 >
                                   <Trash2 size={11} />
@@ -2764,6 +2821,11 @@ export default function ExpensesPage() {
       {/* Modals */}
       {showAddExpense && (
         <ExpenseModal members={members} currentUserId={currentUserId} onSave={addExpense} onClose={() => setShowAddExpense(false)} />
+      )}
+      {editExpense && (
+        <ExpenseModal members={members} currentUserId={currentUserId} initial={editExpense}
+          onSave={async (data) => { await updateExpense(editExpense.id, data) }}
+          onClose={() => setEditExpense(null)} />
       )}
       {showAddBill && (
         <MonthlyBillModal members={members} currentUserId={currentUserId} onSave={_createSingle} onClose={() => setShowAddBill(false)} />

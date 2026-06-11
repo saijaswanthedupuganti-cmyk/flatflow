@@ -53,43 +53,20 @@ function HabitiqLoadingScreen() {
           position: 'absolute',
           top: '50%', left: '50%',
           transform: 'translate(-50%, -50%)',
+          animation: 'ff-logo-reveal 0.75s cubic-bezier(0.34,1.56,0.64,1) both',
         }}>
-          <div
-            style={{
-              width: 72, height: 72,
-              borderRadius: 18,
-              background: 'linear-gradient(135deg, #7c3aed, #4338ca)',
-              boxShadow: '0 8px 32px rgba(109,40,217,0.42), 0 2px 8px rgba(0,0,0,0.12)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              animation: 'ff-logo-reveal 0.75s cubic-bezier(0.34,1.56,0.64,1) both',
-            }}
-          >
-            {/* Inline logo SVG — no network round-trip during load */}
-            <svg viewBox="0 0 100 100" width="50" height="50" fill="none" aria-hidden="true">
-              {/* House outline */}
-              <path
-                d="M50 24 L78 47 L71 47 L71 76 L29 76 L29 47 L22 47 Z"
-                stroke="white" strokeWidth="5" strokeLinejoin="round" strokeLinecap="round"
-              />
-              {/* Arched door */}
-              <path
-                d="M42 76 L42 62 Q42 57 50 57 Q58 57 58 62 L58 76"
-                stroke="white" strokeWidth="4.5" strokeLinecap="round"
-              />
-              {/* Left window */}
-              <rect x="31" y="51" width="11" height="9" rx="2"
-                stroke="white" strokeWidth="4"/>
-              {/* Rotation arrow ↻ */}
-              <path
-                d="M89 22 A9 9 0 1 1 80 31"
-                stroke="rgba(255,255,255,0.80)" strokeWidth="3.5" strokeLinecap="round"
-              />
-              <path
-                d="M83 28 L80 31 L83 34"
-                stroke="rgba(255,255,255,0.80)" strokeWidth="3.5"
-                strokeLinecap="round" strokeLinejoin="round"
-              />
-            </svg>
+          <div style={{
+            background: 'white',
+            borderRadius: 14,
+            padding: '8px 14px',
+            boxShadow: '0 4px 20px rgba(109,40,217,0.28), 0 1px 6px rgba(0,0,0,0.10)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <img
+              src="/habitiq-logo.svg"
+              alt="Habitiq"
+              style={{ height: 22, width: 'auto' }}
+            />
           </div>
         </div>
 
@@ -119,16 +96,6 @@ function HabitiqLoadingScreen() {
             }} />
           </div>
         ))}
-      </div>
-
-      {/* ── Brand name ── */}
-      <div style={{ animation: 'ff-fade-up 0.6s ease-out 0.45s both', textAlign: 'center' }}>
-        <p
-          className="text-2xl font-bold tracking-tight text-violet-700 dark:text-violet-300"
-          style={{ letterSpacing: '-0.02em' }}
-        >
-          Habitiq
-        </p>
       </div>
 
       {/* ── Tagline ── */}

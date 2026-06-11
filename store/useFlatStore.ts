@@ -945,15 +945,23 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({
       userId: data.createdBy,
       action: 'expense_added',
-      details: `added expense: ${data.description}`,
+      details: `added ₹${data.amount} for "${data.description}"${data.splitAmong.length > 1 ? `, split ${data.splitAmong.length} ways` : ''}`,
     })
   },
 
   deleteExpense: async (expenseId) => {
+    const expense = get().expenses.find(e => e.id === expenseId)
     if (hasKeys && get().flatId) {
       await deleteDoc(doc(db, `flats/${get().flatId}/expenses/${expenseId}`))
     } else {
       set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))
+    }
+    if (expense) {
+      await get().addActivity({
+        userId: expense.createdBy,
+        action: 'expense_deleted',
+        details: `deleted ₹${expense.amount} expense: "${expense.description}"`,
+      })
     }
   },
 

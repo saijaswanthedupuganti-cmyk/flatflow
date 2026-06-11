@@ -1,5 +1,5 @@
 "use client"
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -77,6 +77,13 @@ export default function TasksPage() {
   const [newTaskStartDate, setNewTaskStartDate]       = useState(
     new Date().toISOString().split('T')[0]   // today yyyy-MM-dd
   )
+
+  // Auto-open task creation when navigated here from the Quick Add FAB
+  useEffect(() => {
+    if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('add') === '1') {
+      setShowTypeSelector(true)
+    }
+  }, [])
 
   const adminId       = user?.uid || 'u1'
   const activeMembers = members.filter(m => m.status !== 'inactive')

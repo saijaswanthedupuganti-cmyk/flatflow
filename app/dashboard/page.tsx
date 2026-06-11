@@ -169,7 +169,18 @@ export default function DashboardPage() {
   }
 
   const now = new Date()
-  const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening'
+  const hour = now.getHours()
+  const tod: 'morning' | 'afternoon' | 'evening' | 'night' =
+    hour < 6 ? 'night' : hour < 12 ? 'morning' : hour < 17 ? 'afternoon' : hour < 21 ? 'evening' : 'night'
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+  const TOD_THEME = {
+    morning:   { grad: 'from-[#f59e0b] via-[#fb923c] to-[#fbbf24]', emoji: '🌅', accent: 'bg-amber-200/15',  label: 'Morning',   sub: 'text-amber-100/60' },
+    afternoon: { grad: 'from-[#0ea5e9] via-[#3b82f6] to-[#818cf8]', emoji: '☀️',  accent: 'bg-sky-200/15',   label: 'Afternoon', sub: 'text-sky-100/60'   },
+    evening:   { grad: 'from-[#7c3aed] via-[#db2777] to-[#f97316]', emoji: '🌆', accent: 'bg-rose-300/10',   label: 'Evening',   sub: 'text-rose-100/60'  },
+    night:     { grad: 'from-[#1e1b4b] via-[#312e81] to-[#0f172a]', emoji: '🌙', accent: 'bg-indigo-300/10', label: 'Night',     sub: 'text-indigo-200/55'},
+  }
+  const th = TOD_THEME[tod]
 
   // Bills & Expenses summary for the widget
   const currentUserId = user?.uid ?? 'u1'
@@ -193,52 +204,65 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* ── Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-extrabold tracking-tight leading-tight">
-            {isAdmin
-              ? adminView === 'org' ? 'Flat Overview' : currentUser.displayName
-              : currentUser.displayName}
+      {/* ── Hero Banner ── */}
+      <div className={`rounded-[24px] overflow-hidden bg-gradient-to-br ${th.grad} relative shadow-lg`} style={{ minHeight: 130 }}>
+
+        {/* ── Ambient background layers — no box, bleed into gradient ── */}
+        {/* Large circle bleeds off top-right corner */}
+        <div className="absolute -top-10 -right-10 w-52 h-52 rounded-full bg-white/[0.09] blur-[2px] pointer-events-none" />
+        {/* Mid accent ring */}
+        <div className={`absolute top-6 right-8 w-24 h-24 rounded-full ${th.accent} blur-[1px] pointer-events-none`} />
+        {/* Small orb — lower left */}
+        <div className="absolute -bottom-6 -left-6 w-28 h-28 rounded-full bg-white/[0.06] pointer-events-none" />
+        {/* Tiny sparkle dots */}
+        <div className="absolute top-5 right-36 w-1.5 h-1.5 rounded-full bg-white/35 pointer-events-none" />
+        <div className="absolute top-11 right-28 w-1 h-1 rounded-full bg-white/25 pointer-events-none" />
+        <div className="absolute top-3 right-52 w-1 h-1 rounded-full bg-white/20 pointer-events-none" />
+        {tod === 'night' && (
+          <>
+            <div className="absolute top-7 right-44 w-1.5 h-1.5 rounded-full bg-white/45 pointer-events-none" />
+            <div className="absolute top-14 right-56 w-1 h-1 rounded-full bg-white/30 pointer-events-none" />
+            <div className="absolute top-2 right-20 w-1 h-1 rounded-full bg-white/35 pointer-events-none" />
+          </>
+        )}
+        {/* Large ambient emoji — right side, low opacity, bleeds off edge */}
+        <div
+          className="absolute right-2 bottom-0 leading-none select-none pointer-events-none"
+          style={{ fontSize: 88, opacity: tod === 'night' ? 0.13 : 0.16, transform: 'translateY(10px)' }}
+          aria-hidden
+        >
+          {th.emoji}
+        </div>
+
+        {/* ── Content — sits above ambient layers ── */}
+        <div className="relative z-10 px-5 pt-5 pb-4">
+          <p className={`text-[9px] font-extrabold uppercase tracking-[0.22em] ${th.sub} mb-1.5`}>{th.label}</p>
+          <h1 className="text-[22px] font-extrabold text-white leading-tight">
+            {greeting}, <span className="opacity-90">{currentUser.displayName?.split(' ')[0] ?? 'there'}</span>
           </h1>
-          <p className="text-muted-foreground text-xs mt-0.5">
-            {greeting} 👋 · {isAdmin
+          <p className="text-white/55 text-[11.5px] mt-1">
+            {isAdmin
               ? adminView === 'org' ? 'Global duty roster' : 'Your personal duties'
               : 'Your duties for today'}
           </p>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap shrink-0">
+
           {isAdmin && (
-            <div className="flex items-center bg-secondary/80 border border-border/60 rounded-xl p-1 gap-0.5">
-              <button
-                onClick={() => setAdminView('mine')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  adminView === 'mine' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                My Tasks
-              </button>
-              <button
-                onClick={() => setAdminView('org')}
-                className={`px-3 py-1.5 rounded-lg text-sm font-semibold transition-all ${
-                  adminView === 'org' ? 'bg-primary text-white shadow-sm' : 'text-muted-foreground hover:text-foreground'
-                }`}
-              >
-                Org View
-              </button>
+            <div className="flex items-center bg-black/20 backdrop-blur-sm rounded-[10px] p-0.5 gap-0.5 mt-3 w-fit">
+              <button onClick={() => setAdminView('mine')} className={`px-3 py-1 rounded-[8px] text-[11px] font-bold transition-all ${adminView === 'mine' ? 'bg-white/25 text-white shadow-sm' : 'text-white/45 hover:text-white/75'}`}>My Tasks</button>
+              <button onClick={() => setAdminView('org')}  className={`px-3 py-1 rounded-[8px] text-[11px] font-bold transition-all ${adminView === 'org'  ? 'bg-white/25 text-white shadow-sm' : 'text-white/45 hover:text-white/75'}`}>Org View</button>
             </div>
           )}
-          {isAdmin && !isOutOfStation && (
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-border/60 font-semibold"
-              onClick={() => setShowInvite(!showInvite)}
-            >
-              <Share2 size={14} className="mr-1.5" /> Invite
-            </Button>
-          )}
         </div>
+
+        {/* Invite pill — top-right, blends into card */}
+        {isAdmin && !isOutOfStation && (
+          <button
+            onClick={() => setShowInvite(v => !v)}
+            className="absolute top-3.5 right-3.5 z-20 bg-white/15 hover:bg-white/22 text-white border border-white/18 rounded-full px-3 py-1 text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-sm"
+          >
+            <Share2 size={10} /> Invite
+          </button>
+        )}
       </div>
 
       {/* Invite Panel */}
@@ -262,7 +286,7 @@ export default function DashboardPage() {
       )}
 
       {/* ── Bills & Expenses Summary ────────────────────────────────── */}
-      {(thisMonthBillsTotal > 0 || pendingBills > 0 || myBalances.length > 0) && (
+      {(thisMonthBillsTotal > 0 || pendingBills > 0 || myBalances.length > 0 || expenses.length > 0 || recurringBills.length > 0) && (
         <Link href="/dashboard/expenses" className="block group">
           <div className="rounded-xl border border-border/60 bg-card hover:border-primary/30 hover:shadow-sm transition-all p-4">
             <div className="flex items-center justify-between mb-3">
@@ -281,10 +305,11 @@ export default function DashboardPage() {
                 <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
               </div>
             </div>
+            {/* Stat row */}
             <div className="grid grid-cols-3 gap-2">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bills this month</p>
-                <p className="text-base font-extrabold mt-0.5">{formatAmount(thisMonthBillsTotal, 'INR')}</p>
+                <p className="text-base font-extrabold mt-0.5">{thisMonthBillsTotal > 0 ? formatAmount(thisMonthBillsTotal, 'INR') : '—'}</p>
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">You owe</p>
@@ -299,6 +324,46 @@ export default function DashboardPage() {
                 </p>
               </div>
             </div>
+
+            {/* Recent expenses — context for the numbers above */}
+            {expenses.length > 0 && (() => {
+              const recent = [...expenses]
+                .sort((a, b) => b.date.localeCompare(a.date))
+                .slice(0, 3)
+              return (
+                <div className="mt-3 pt-3 border-t border-border/40 space-y-2">
+                  {recent.map(exp => {
+                    const payer = members.find(m => m.uid === exp.paidBy)
+                    const iPaid = exp.paidBy === currentUserId
+                    const myShare = exp.splits?.[currentUserId]
+                    return (
+                      <div key={exp.id} className="flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-semibold text-foreground truncate">{exp.description}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {iPaid ? 'You paid' : `${payer?.nickname ?? '…'} paid`}
+                            {exp.splitAmong.length > 1 ? ` · split ${exp.splitAmong.length} ways` : ''}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-xs font-extrabold">{formatAmount(exp.amount, exp.currency)}</p>
+                          {!iPaid && myShare && myShare > 0 ? (
+                            <p className="text-[10px] font-bold text-red-500">you owe {formatAmount(myShare, exp.currency)}</p>
+                          ) : iPaid && exp.splitAmong.length > 1 ? (
+                            <p className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">you're owed</p>
+                          ) : null}
+                        </div>
+                      </div>
+                    )
+                  })}
+                  {expenses.length > 3 && (
+                    <p className="text-[10px] text-muted-foreground text-center pt-0.5">
+                      +{expenses.length - 3} more · tap to view all
+                    </p>
+                  )}
+                </div>
+              )
+            })()}
           </div>
         </Link>
       )}
@@ -1044,6 +1109,7 @@ export default function DashboardPage() {
                 const isStatus    = activity.action === 'status_change'
                 const isSkipped   = activity.action === 'skipped_task'
                 const isTransfer  = activity.action === 'transferred_task' || activity.action === 'swap_resolved'
+                const isExpense   = activity.action === 'expense_added' || activity.action === 'expense_deleted' || activity.action === 'settlement_added'
                 const isSystem    = activity.userId === 'system'
                 const userObj     = members.find(m => m.uid === activity.userId)
                 const actDate     = new Date(activity.timestamp)
@@ -1054,7 +1120,8 @@ export default function DashboardPage() {
                       isCompleted ? 'bg-green-500' :
                       isStatus ? 'bg-blue-500' :
                       isSkipped ? 'bg-red-500' :
-                      isTransfer ? 'bg-purple-500' : 'bg-green-500'
+                      isTransfer ? 'bg-purple-500' :
+                      isExpense ? 'bg-teal-500' : 'bg-green-500'
                     }`} />
                     <p className="text-sm">
                       <span className="font-semibold">{isSystem ? 'System' : userObj?.nickname || 'Someone'}</span>{' '}

@@ -580,12 +580,13 @@ function SettleUpModal({
 
 // ── Expense Row ──────────────────────────────────────────────────────────────
 
-function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
+function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, showDivider = false }: {
   expense: Expense
   members: { uid: string; nickname: string }[]
   currentUserId: string
   canDelete: boolean
   onDelete: (id: string) => void
+  showDivider?: boolean
 }) {
   const [expanded, setExpanded] = useState(false)
   const cfg         = CATEGORY_CONFIG[expense.category]
@@ -596,38 +597,39 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
   const getBack     = isYouPayer ? expense.amount - myShare : 0
 
   return (
-    <div className="rounded-[18px] bg-card border border-border/50 shadow-[0px_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
+    <div>
+      {showDivider && <div className="border-t border-border/30 mx-3" />}
       <button
         onClick={() => setExpanded(e => !e)}
-        className="w-full p-4 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
+        className="w-full px-3 py-2.5 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2.5">
           {/* Category bubble */}
-          <div className="w-11 h-11 rounded-[14px] bg-[#f1f3ff] dark:bg-white/[0.08] flex items-center justify-center text-xl shrink-0">
+          <div className="w-9 h-9 rounded-[12px] bg-[#f1f3ff] dark:bg-white/[0.08] flex items-center justify-center text-lg shrink-0">
             {cfg?.emoji ?? '💰'}
           </div>
 
           {/* Main content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <p className="text-[#141b2b] dark:text-foreground text-[14px] font-semibold leading-tight truncate">
+              <p className="text-[#141b2b] dark:text-foreground text-[13.5px] font-semibold leading-tight truncate">
                 {expense.description}
                 {expense.deferToNextMonth && (
                   <span className="ml-1.5 text-[10px] font-extrabold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 px-1.5 py-0.5 rounded-full align-middle">DEFERRED</span>
                 )}
               </p>
-              <p className="text-[#141b2b] dark:text-foreground text-[15px] font-bold shrink-0 leading-tight">
+              <p className="text-[#141b2b] dark:text-foreground text-[14px] font-bold shrink-0 leading-tight">
                 {formatAmount(expense.amount, expense.currency)}
               </p>
             </div>
 
-            <div className="flex items-center justify-between mt-1.5 gap-2">
+            <div className="flex items-center justify-between mt-1 gap-2">
               <div className="flex items-center gap-1.5 min-w-0">
-                <span className="text-[11px] font-semibold text-[#777587] dark:text-muted-foreground truncate">
+                <span className="text-[10.5px] font-semibold text-[#777587] dark:text-muted-foreground truncate">
                   {isYouPayer ? 'You paid' : (payer?.nickname ?? '…') + ' paid'}
                 </span>
                 <span className="text-[#d0d2d8] shrink-0">&middot;</span>
-                <span className="text-[11px] text-[#999CA1] dark:text-muted-foreground shrink-0">
+                <span className="text-[10.5px] text-[#999CA1] dark:text-muted-foreground shrink-0">
                   {new Date(expense.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
                 </span>
               </div>
@@ -635,7 +637,7 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
               {/* Your share chip */}
               {!notInSplit && (
                 <span className={[
-                  'text-[11px] font-bold px-2.5 py-0.5 rounded-full shrink-0',
+                  'text-[10.5px] font-bold px-2 py-0.5 rounded-full shrink-0',
                   isYouPayer && getBack > 0
                     ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400'
                     : !isYouPayer
@@ -650,7 +652,7 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
                 </span>
               )}
               {notInSplit && (
-                <span className="text-[11px] text-[#999CA1] dark:text-muted-foreground shrink-0 italic">not included</span>
+                <span className="text-[10.5px] text-[#999CA1] dark:text-muted-foreground shrink-0 italic">not included</span>
               )}
             </div>
           </div>
@@ -659,7 +661,7 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
 
       {/* Expanded split details */}
       {expanded && (
-        <div className="border-t border-border/40 px-4 pb-4 pt-3 space-y-2">
+        <div className="border-t border-border/30 px-3 pb-3 pt-2.5 space-y-2 bg-secondary/10">
           {expense.splitAmong.map(uid => {
             const m     = members.find(x => x.uid === uid)
             const share = expense.splits[uid] ?? 0
@@ -686,6 +688,19 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
               &ldquo;{expense.note}&rdquo;
             </p>
           )}
+          {(() => {
+            const creator = members.find(m => m.uid === expense.createdBy)
+            const creatorName = expense.createdBy === currentUserId ? 'you' : (creator?.nickname ?? '…')
+            const ts = expense.createdAt
+              ? new Date(expense.createdAt).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+              : null
+            return (
+              <div className="flex items-center gap-1.5 text-[10px] text-[#999CA1] border-t border-border/40 pt-2">
+                <UserCircle size={11} className="shrink-0" />
+                <span>Added by <span className="font-semibold">{creatorName}</span>{ts ? ` · ${ts}` : ''}</span>
+              </div>
+            )
+          })()}
           {canDelete && (
             <button
               onClick={() => onDelete(expense.id)}
@@ -699,6 +714,59 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete }: {
     </div>
   )
 }
+// ── Settlement Row ───────────────────────────────────────────────────────────
+
+function SettlementRow({ settlement, members, currentUserId, canDelete, onDelete }: {
+  settlement: Settlement
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  canDelete: boolean
+  onDelete: (id: string) => void
+}) {
+  const from = members.find(m => m.uid === settlement.fromUserId)
+  const to   = members.find(m => m.uid === settlement.toUserId)
+  const isFromYou = settlement.fromUserId === currentUserId
+  const isToYou   = settlement.toUserId   === currentUserId
+
+  const fromName = isFromYou ? 'You' : (from?.nickname ?? '…')
+  const toName   = isToYou   ? 'you' : (to?.nickname   ?? '…')
+
+  return (
+    <div className="rounded-[14px] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200/70 dark:border-emerald-800/40 px-3 py-2.5 flex items-center gap-2.5">
+      <div className="w-8 h-8 rounded-[10px] bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-base shrink-0 select-none">
+        ✅
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-[12.5px] font-semibold text-emerald-900 dark:text-emerald-100 leading-tight">
+          <span className="font-extrabold">{fromName}</span>{' '}
+          paid {formatAmount(settlement.amount, settlement.currency)} to{' '}
+          <span className="font-extrabold">{toName}</span>
+        </p>
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <span className="text-[10px] text-emerald-600 dark:text-emerald-400">
+            {new Date(settlement.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+          </span>
+          {settlement.note && (
+            <>
+              <span className="text-emerald-400">&middot;</span>
+              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 italic truncate">&ldquo;{settlement.note}&rdquo;</span>
+            </>
+          )}
+        </div>
+      </div>
+      {canDelete && (
+        <button
+          onClick={() => onDelete(settlement.id)}
+          className="text-emerald-300 hover:text-red-500 transition-colors cursor-pointer shrink-0"
+          title="Remove settlement"
+        >
+          <Trash2 size={12} />
+        </button>
+      )}
+    </div>
+  )
+}
+
 // ── Monthly Bill Form Modal ───────────────────────────────────────────────────
 
 const PAYER_MODE_CONFIG: Record<PayerMode, { label: string; desc: string; icon: React.ReactNode }> = {
@@ -1794,7 +1862,7 @@ export default function ExpensesPage() {
   const {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
-    addExpense, deleteExpense, addSettlement,
+    addExpense, deleteExpense, addSettlement, deleteSettlement,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1803,6 +1871,20 @@ export default function ExpensesPage() {
 
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [showAddBill, setShowAddBill] = useState(false)
+  const [splitView, setSplitView] = useState<'mine' | 'all'>('mine')
+
+  // Auto-open correct modal when navigated here from the Quick Add FAB
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search)
+      if (params.get('tab') === 'bills') {
+        setActiveTab('bills')
+        if (params.get('add') === '1') setShowAddBill(true)
+      } else if (params.get('add') === '1') {
+        setShowAddExpense(true)
+      }
+    }
+  }, [])
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
   const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
@@ -1838,6 +1920,42 @@ export default function ExpensesPage() {
     }
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
   }, [sortedExpenses])
+
+  type TxEntry =
+    | { kind: 'expense'; data: Expense }
+    | { kind: 'settlement'; data: Settlement }
+
+  const combinedTx = useMemo((): TxEntry[] => {
+    const items: TxEntry[] = [
+      ...expenses.map(e => ({ kind: 'expense' as const, data: e })),
+      ...settlements.map(s => ({ kind: 'settlement' as const, data: s })),
+    ]
+    return items.sort((a, b) => {
+      const aKey = a.data.date + 'T' + (a.data.createdAt ?? '')
+      const bKey = b.data.date + 'T' + (b.data.createdAt ?? '')
+      return bKey.localeCompare(aKey)
+    })
+  }, [expenses, settlements])
+
+  const visibleTx = useMemo((): TxEntry[] => {
+    if (splitView === 'all') return combinedTx
+    return combinedTx.filter(item => {
+      if (item.kind === 'expense') {
+        return item.data.splitAmong.includes(currentUserId) || item.data.paidBy === currentUserId
+      }
+      return item.data.fromUserId === currentUserId || item.data.toUserId === currentUserId
+    })
+  }, [combinedTx, splitView, currentUserId])
+
+  const groupedCombined = useMemo(() => {
+    const groups: Record<string, TxEntry[]> = {}
+    for (const item of visibleTx) {
+      const key = item.data.date.substring(0, 7)
+      if (!groups[key]) groups[key] = []
+      groups[key].push(item)
+    }
+    return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
+  }, [visibleTx])
 
   const dueBills = useMemo(() => recurringBills.filter(isBillDue), [recurringBills])
 
@@ -2166,47 +2284,119 @@ export default function ExpensesPage() {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Receipt size={14} className="text-muted-foreground" />
-              <h2 className="text-sm font-bold text-[#021328] dark:text-foreground">Shared Expenses</h2>
-              {sortedExpenses.length > 0 && (
-                <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{sortedExpenses.length}</span>
+              <h2 className="text-sm font-bold text-[#021328] dark:text-foreground">Splits</h2>
+              {visibleTx.length > 0 && (
+                <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
               <button
                 onClick={() => setShowAddExpense(true)}
-                className="ml-auto flex items-center gap-1 text-xs font-bold text-[#3786FB] hover:opacity-75 transition-opacity cursor-pointer"
+                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
               >
-                <Plus size={12} /> Add
+                <Plus size={11} /> Add Split
               </button>
             </div>
 
-            {sortedExpenses.length === 0 ? (
+            {/* My Splits / All Splits toggle */}
+            <div className="flex items-center gap-1.5 mb-3">
+              <button
+                onClick={() => setSplitView('mine')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                  splitView === 'mine'
+                    ? 'bg-[#3786FB] text-white border-[#3786FB] shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:border-[#3786FB]/40'
+                }`}
+              >
+                <UserCircle size={12} />
+                My Splits
+                {splitView === 'mine' && visibleTx.filter(i => i.kind === 'expense').length > 0 && (
+                  <span className="bg-white/25 text-white text-[10px] font-extrabold px-1.5 rounded-full">
+                    {visibleTx.filter(i => i.kind === 'expense').length}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setSplitView('all')}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all cursor-pointer ${
+                  splitView === 'all'
+                    ? 'bg-[#3786FB] text-white border-[#3786FB] shadow-sm'
+                    : 'bg-background text-muted-foreground border-border hover:border-[#3786FB]/40'
+                }`}
+              >
+                <Receipt size={12} />
+                All Splits
+                {splitView === 'all' && combinedTx.length > 0 && (
+                  <span className="bg-white/25 text-white text-[10px] font-extrabold px-1.5 rounded-full">
+                    {combinedTx.length}
+                  </span>
+                )}
+              </button>
+            </div>
+
+            {visibleTx.length === 0 ? (
               <Card className="border-dashed border-2">
                 <CardContent className="flex flex-col items-center justify-center p-12 text-center">
                   <Inbox size={36} className="text-muted-foreground/25 mb-3" />
-                  <p className="font-bold text-base text-muted-foreground">No shared expenses yet</p>
-                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
-                    Record groceries, takeout, or any shared cost and split it automatically.
+                  <p className="font-bold text-base text-muted-foreground">
+                    {splitView === 'mine' ? "You're not in any splits yet" : 'No shared expenses yet'}
                   </p>
-                  <Button onClick={() => setShowAddExpense(true)} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
-                    <Plus size={14} className="mr-1.5" /> Add Expense
-                  </Button>
+                  <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
+                    {splitView === 'mine'
+                      ? 'Splits you are added to will appear here.'
+                      : 'Record groceries, takeout, or any shared cost and split it automatically.'}
+                  </p>
+                  {splitView === 'all' && (
+                    <Button onClick={() => setShowAddExpense(true)} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
+                      <Plus size={14} className="mr-1.5" /> Add Expense
+                    </Button>
+                  )}
                 </CardContent>
               </Card>
             ) : (
-              <div className="space-y-6">
-                {grouped.map(([monthKey, monthExpenses]) => {
-                  const monthTotal = monthExpenses.reduce((s, e) => s + (e.currency === 'INR' ? e.amount : 0), 0)
+              <div className="space-y-5">
+                {groupedCombined.map(([key, items]) => {
+                  const expenseItems = items.filter(i => i.kind === 'expense')
+                  const settlementItems = items.filter(i => i.kind === 'settlement')
+                  const monthTotal = expenseItems.reduce(
+                    (s, i) => s + (i.kind === 'expense' && i.data.currency === 'INR' ? i.data.amount : 0), 0
+                  )
                   return (
-                    <div key={monthKey}>
-                      <div className="flex items-center justify-between mb-2">
-                        <p className="text-xs font-extrabold text-[#999CA1] dark:text-muted-foreground uppercase tracking-widest">{monthLabel(monthKey)}</p>
-                        {monthTotal > 0 && <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
+                    <div key={key}>
+                      <div className="flex items-center justify-between mb-2 px-0.5">
+                        <p className="text-[10px] font-extrabold text-[#999CA1] dark:text-muted-foreground uppercase tracking-widest">{monthLabel(key)}</p>
+                        {monthTotal > 0 && <p className="text-[10px] font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
                       </div>
-                      <div className="space-y-2">
-                        {monthExpenses.map(exp => (
-                          <ExpenseRow key={exp.id} expense={exp} members={members} currentUserId={currentUserId}
-                            canDelete={exp.createdBy === currentUserId || !!isAdmin} onDelete={deleteExpense} />
-                        ))}
-                      </div>
+
+                      {/* Expenses — all in one card */}
+                      {expenseItems.length > 0 && (
+                        <div className="rounded-[18px] bg-card border border-border/50 shadow-[0px_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
+                          {expenseItems.map((item, i) =>
+                            item.kind === 'expense' && (
+                              <ExpenseRow key={item.data.id} expense={item.data} members={members} currentUserId={currentUserId}
+                                canDelete={item.data.createdBy === currentUserId || !!isAdmin} onDelete={deleteExpense}
+                                showDivider={i > 0} />
+                            )
+                          )}
+                        </div>
+                      )}
+
+                      {/* Settlements — sub-section with divider label */}
+                      {settlementItems.length > 0 && (
+                        <div className="mt-2">
+                          <div className="flex items-center gap-2 mb-1.5 px-0.5">
+                            <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
+                            <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Settled Up</span>
+                            <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
+                          </div>
+                          <div className="space-y-1.5">
+                            {settlementItems.map(item =>
+                              item.kind === 'settlement' && (
+                                <SettlementRow key={item.data.id} settlement={item.data} members={members} currentUserId={currentUserId}
+                                  canDelete={!!isAdmin} onDelete={deleteSettlement} />
+                              )
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )
                 })}
@@ -2482,6 +2672,31 @@ export default function ExpensesPage() {
                   </div>
                 )
               })}
+            </div>
+          )}
+
+          {/* Admin cleanup — inactive bills */}
+          {isAdmin && recurringBills.filter(b => !b.active).length > 0 && (
+            <div className="rounded-[16px] border border-dashed border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 px-4 py-3">
+              <div className="flex items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="text-[12px] font-bold text-red-700 dark:text-red-400">
+                    {recurringBills.filter(b => !b.active).length} inactive bill{recurringBills.filter(b => !b.active).length > 1 ? 's' : ''} stored
+                  </p>
+                  <p className="text-[10px] text-red-500/70 dark:text-red-400/60 mt-0.5 truncate">
+                    {recurringBills.filter(b => !b.active).map(b => b.name).join(', ')}
+                  </p>
+                </div>
+                <button
+                  onClick={async () => {
+                    const inactive = recurringBills.filter(b => !b.active)
+                    for (const b of inactive) await deleteRecurringBill(b.id)
+                  }}
+                  className="shrink-0 text-[11px] font-bold text-red-600 hover:text-red-700 border border-red-300 dark:border-red-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
+                >
+                  Delete all
+                </button>
+              </div>
             </div>
           )}
 

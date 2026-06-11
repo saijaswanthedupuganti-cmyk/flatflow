@@ -1,11 +1,13 @@
 "use client"
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users, Settings,
   Lightbulb, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
+  Plus, X, RefreshCw,
 } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 import NotificationToast from '@/components/NotificationToast'
@@ -37,11 +39,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const currentUser = members.find(m => m.uid === user?.uid)
   const isAdmin = currentUser?.role === 'admin'
 
+  const [showQuickAdd, setShowQuickAdd] = useState(false)
+
   useEffect(() => {
     if (user && authFlatId && !isSynced) {
       initFirestoreListeners(authFlatId)
     }
   }, [user, authFlatId, isSynced, initFirestoreListeners])
+
+  useEffect(() => { setShowQuickAdd(false) }, [pathname])
 
   if (!user) return null
 
@@ -181,7 +187,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </main>
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
-      {/* 5 slots: Dashboard · Expenses · Swaps · Tasks(admin)/Members · Settings */}
+      {/* 5 slots: Dashboard · Expenses · [+] FAB · Tasks(admin)/Members · Settings */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border/60 flex justify-around items-center px-2 py-2 z-50">
         {/* 1 — Dashboard */}
         <MobileNavLink {...NAV_ITEMS.main[0]} />
@@ -189,26 +195,115 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* 2 — Expenses */}
         <MobileNavLink {...NAV_ITEMS.main[2]} />
 
-        {/* 3 — Swaps (with pending badge) */}
-        <Link
-          href="/dashboard/swaps"
-          className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors relative ${pathname.startsWith('/dashboard/swaps') ? 'text-primary' : 'text-muted-foreground'}`}
-        >
-          <Repeat2 size={22} />
-          <span className="text-[10px] font-semibold">Swaps</span>
-          {pendingSwaps > 0 && (
-            <span className="absolute -top-0.5 right-1 bg-violet-500 text-white text-[9px] font-extrabold px-1 py-0.5 rounded-full min-w-[16px] text-center leading-none">
-              {pendingSwaps}
-            </span>
-          )}
-        </Link>
+        {/* 3 — Radial FAB (center) */}
+        {(() => {
+          const adminPetals = [
+            { id: 'task',  label: 'Task',  Icon: ClipboardList, bg: 'bg-violet-600', glow: 'rgba(124,58,237,0.55)', href: '/dashboard/tasks?add=1',                   x: -58, y: -70 },
+            { id: 'split', label: 'Split', Icon: Receipt,        bg: 'bg-[#3786FB]', glow: 'rgba(55,134,251,0.55)', href: '/dashboard/expenses?add=1',                x:   0, y: -90 },
+            { id: 'bill',  label: 'Bill',  Icon: RefreshCw,      bg: 'bg-amber-500', glow: 'rgba(245,158,11,0.55)', href: '/dashboard/expenses?tab=bills&add=1',       x:  58, y: -70 },
+          ]
+          const memberPetals = [
+            { id: 'split', label: 'Split', Icon: Receipt, bg: 'bg-[#3786FB]', glow: 'rgba(55,134,251,0.55)', href: '/dashboard/expenses?add=1', x: 0, y: -90 },
+          ]
+          const petals = isAdmin ? adminPetals : memberPetals
+
+          return (
+            <div className="relative flex flex-col items-center" style={{ zIndex: 51 }}>
+
+              {/* Backdrop */}
+              <AnimatePresence>
+                {showQuickAdd && (
+                  <motion.div
+                    key="backdrop"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.18 }}
+                    className="fixed inset-0 z-40 bg-black/40 backdrop-blur-[3px]"
+                    onClick={() => setShowQuickAdd(false)}
+                  />
+                )}
+              </AnimatePresence>
+
+              {/* Petal items — all start at FAB center, animate outward */}
+              <AnimatePresence>
+                {showQuickAdd && petals.map((petal, i) => (
+                  <motion.div
+                    key={petal.id}
+                    className="absolute z-50 flex flex-col items-center gap-1 pointer-events-auto"
+                    style={{ bottom: 28, left: '50%', marginLeft: -22 }}
+                    initial={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                    animate={{ x: petal.x, y: petal.y, scale: 1, opacity: 1 }}
+                    exit={{ x: 0, y: 0, scale: 0, opacity: 0 }}
+                    transition={{ type: 'spring', stiffness: 420, damping: 22, delay: i * 0.06 }}
+                  >
+                    <Link href={petal.href} onClick={() => setShowQuickAdd(false)}>
+                      <motion.div
+                        whileTap={{ scale: 0.88 }}
+                        className={`w-11 h-11 rounded-full ${petal.bg} flex items-center justify-center`}
+                        style={{ boxShadow: `0 6px 22px ${petal.glow}` }}
+                      >
+                        <petal.Icon size={18} className="text-white" />
+                      </motion.div>
+                    </Link>
+                    <motion.span
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: i * 0.06 + 0.12 }}
+                      className="text-[9px] font-extrabold text-white drop-shadow-md whitespace-nowrap px-1.5 py-0.5 rounded-full bg-black/50 backdrop-blur-sm"
+                    >
+                      {petal.label}
+                    </motion.span>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+
+              {/* FAB button */}
+              <motion.button
+                onClick={() => setShowQuickAdd(v => !v)}
+                whileTap={{ scale: 0.9 }}
+                className="relative w-14 h-14 rounded-full flex items-center justify-center -mt-6 border-4 border-card z-50"
+                style={{
+                  background: showQuickAdd
+                    ? 'linear-gradient(135deg, #374151, #1f2937)'
+                    : 'linear-gradient(135deg, #7c3aed, #4f46e5)',
+                  boxShadow: showQuickAdd
+                    ? '0 4px 16px rgba(0,0,0,0.4)'
+                    : '0 4px 24px rgba(124,58,237,0.55), 0 0 0 0 rgba(124,58,237,0)',
+                }}
+              >
+                {/* Pulse ring — only when closed */}
+                {!showQuickAdd && (
+                  <motion.span
+                    className="absolute inset-0 rounded-full bg-primary"
+                    animate={{ scale: [1, 1.6, 1.6], opacity: [0.5, 0, 0] }}
+                    transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
+                  />
+                )}
+                <motion.div
+                  animate={{ rotate: showQuickAdd ? 45 : 0 }}
+                  transition={{ type: 'spring', stiffness: 340, damping: 22 }}
+                >
+                  <Plus size={24} className="text-white" />
+                </motion.div>
+                {pendingSwaps > 0 && !showQuickAdd && (
+                  <span className="absolute -top-0.5 -right-0.5 bg-violet-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center leading-none z-10">
+                    {pendingSwaps}
+                  </span>
+                )}
+              </motion.button>
+
+              <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">Quick Add</span>
+            </div>
+          )
+        })()}
 
         {/* 4 — Tasks (admin) | Members (member) */}
         {isAdmin
           ? <MobileNavLink {...NAV_ITEMS.admin[0]} />
           : <MobileNavLink {...NAV_ITEMS.general[0]} />}
 
-        {/* 5 — Settings (logout lives here for both roles) */}
+        {/* 5 — Settings */}
         <MobileNavLink {...NAV_ITEMS.general[1]} />
       </nav>
     </div>

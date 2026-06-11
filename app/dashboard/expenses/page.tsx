@@ -534,26 +534,68 @@ function SettleUpModal({
   })
   const toMember = members.find(m => m.uid === form.toUserId)
 
+  const typedAmt   = parseFloat(form.amount)
+  const remaining  = preAmount > 0 ? Math.max(0, preAmount - typedAmt) : 0
+  const isPartial  = typedAmt > 0 && typedAmt < preAmount
+  const exceedsMax = preAmount > 0 && typedAmt > preAmount
+
+  const fill = (v: number) => setForm(f => ({
+    ...f, amount: v.toFixed(preCurrency === 'INR' ? 0 : 2)
+  }))
+
   const handleSave = async () => {
-    const amt = parseFloat(form.amount)
-    if (!amt || amt <= 0) return
+    if (!typedAmt || typedAmt <= 0) return
     setSaving(true)
-    await onSettle({ fromUserId: currentUserId, toUserId: form.toUserId, amount: amt, currency: form.currency, note: form.note.trim() || undefined, date: form.date })
-    onClose()
+    try {
+      await onSettle({ fromUserId: currentUserId, toUserId: form.toUserId, amount: typedAmt, currency: form.currency, note: form.note.trim() || undefined, date: form.date })
+      onClose()
+    } catch {
+      setSaving(false)
+    }
   }
 
   return (
     <Modal title="Settle Up" onClose={onClose}>
-      <div className="space-y-5">
-        <div className="p-4 rounded-xl bg-secondary/50 text-center">
-          <p className="text-sm text-muted-foreground">You&apos;re paying</p>
-          <p className="text-2xl font-extrabold mt-1">{toMember?.nickname ?? '…'}</p>
+      <div className="space-y-4">
+
+        {/* Who you're paying */}
+        <div className="flex items-center gap-3 p-3.5 rounded-2xl bg-orange-50 dark:bg-orange-950/20 border border-orange-200 dark:border-orange-900/40">
+          <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-orange-700 dark:text-orange-300 text-sm shrink-0">
+            {(toMember?.nickname ?? '?').charAt(0).toUpperCase()}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-muted-foreground font-medium">Paying</p>
+            <p className="text-base font-extrabold leading-tight">{toMember?.nickname ?? '…'}</p>
+          </div>
+          {preAmount > 0 && (
+            <div className="text-right shrink-0">
+              <p className="text-[10px] text-muted-foreground font-medium">You owe</p>
+              <p className="text-base font-extrabold text-orange-600 dark:text-orange-400">{formatAmount(preAmount, preCurrency)}</p>
+            </div>
+          )}
         </div>
+
+        {/* Quick-fill chips */}
+        {preAmount > 0 && (
+          <div className="grid grid-cols-2 gap-2">
+            <button onClick={() => fill(preAmount)}
+              className="text-[12px] font-bold border border-border rounded-xl py-2 hover:bg-secondary active:scale-95 transition-all cursor-pointer text-foreground">
+              Pay full · {formatAmount(preAmount, preCurrency)}
+            </button>
+            <button onClick={() => fill(preAmount / 2)}
+              className="text-[12px] font-bold border border-border rounded-xl py-2 hover:bg-secondary active:scale-95 transition-all cursor-pointer text-foreground">
+              Pay half · {formatAmount(preAmount / 2, preCurrency)}
+            </button>
+          </div>
+        )}
+
+        {/* Amount + currency */}
         <div className="grid grid-cols-3 gap-2">
           <div className="col-span-2">
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Amount</Label>
             <Input type="number" placeholder="0" min="0" value={form.amount}
-              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))} />
+              onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+              className={exceedsMax ? 'border-red-400 focus:ring-red-400' : ''} />
           </div>
           <div>
             <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Currency</Label>
@@ -563,19 +605,31 @@ function SettleUpModal({
             </select>
           </div>
         </div>
+
+        {/* Remaining preview */}
+        {exceedsMax && (
+          <p className="text-[11px] text-red-500 font-semibold -mt-1">Amount exceeds balance owed ({formatAmount(preAmount, preCurrency)})</p>
+        )}
+        {isPartial && !exceedsMax && (
+          <p className="text-[11px] text-muted-foreground -mt-1">
+            Remaining after this payment: <span className="font-bold text-foreground">{formatAmount(remaining, preCurrency)}</span>
+          </p>
+        )}
+
         <div>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Date</Label>
           <Input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} />
         </div>
         <div>
           <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-1.5 block">Note (optional)</Label>
-          <Input placeholder="e.g. Paid via UPI" value={form.note}
+          <Input placeholder="e.g. Paid via UPI, GPay, cash" value={form.note}
             onChange={e => setForm(f => ({ ...f, note: e.target.value }))} maxLength={100} />
         </div>
         <div className="flex gap-2 pt-1">
           <Button variant="outline" className="flex-1" onClick={onClose}>Cancel</Button>
-          <Button className="flex-1 font-bold bg-green-600 hover:bg-green-700 text-white" onClick={handleSave} disabled={saving}>
-            {saving ? 'Saving…' : 'Mark as Paid'}
+          <Button className="flex-1 font-bold bg-green-600 hover:bg-green-700 text-white" onClick={handleSave}
+            disabled={saving || exceedsMax || !typedAmt || typedAmt <= 0}>
+            {saving ? 'Saving…' : isPartial ? `Pay ${formatAmount(typedAmt, preCurrency)}` : 'Mark as Paid'}
           </Button>
         </div>
       </div>
@@ -1884,7 +1938,7 @@ export default function ExpensesPage() {
   const {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
-    addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
+    addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement, addActivity,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1909,7 +1963,8 @@ export default function ExpensesPage() {
   }, [])
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
-  const [settleTarget, setSettleTarget] = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
+  const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency } | null>(null)
+  const [remindedUsers, setRemindedUsers]   = useState<Set<string>>(new Set())
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
@@ -2159,47 +2214,82 @@ export default function ExpensesPage() {
           {balances.map(b => {
             const m      = members.find(x => x.uid === b.userId)
             const isOwed = b.amount > 0  // they owe you
+
+            // Count real transactions behind this balance
+            const txCount =
+              expenses.filter(e => !e.deferToNextMonth && (
+                (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
+                (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
+              )).length +
+              billInstances.filter(bi =>
+                (bi.status === 'split_generated' || bi.status === 'paid') && !!bi.splits && (
+                  (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
+                  (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
+                )
+              ).length
+
+            const wasReminded = remindedUsers.has(b.userId)
+
             return (
               <div key={b.userId + b.currency}
-                className={['flex items-center gap-3 px-4 py-3.5 rounded-[18px] border shadow-sm',
+                className={['rounded-[18px] border shadow-sm overflow-hidden',
                   isOwed
                     ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
                     : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
                 ].join(' ')}
               >
-                {/* Avatar */}
-                <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0',
-                  isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                         : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                ].join(' ')}>
-                  {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                </div>
-
-                {/* Name + label */}
-                <div className="flex-1 min-w-0">
-                  <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
-                    {m?.nickname ?? '…'}
-                  </p>
-                  <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
-                    {isOwed ? 'owes you' : 'you owe them'}
-                  </p>
-                </div>
-
-                {/* Amount + action */}
-                <div className="flex items-center gap-2.5 shrink-0">
-                  <p className={['text-[17px] font-extrabold leading-none',
-                    isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                {/* Main row */}
+                <div className="flex items-center gap-3 px-4 py-3.5">
+                  {/* Avatar */}
+                  <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm shrink-0',
+                    isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                           : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
                   ].join(' ')}>
-                    {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
-                  </p>
-                  {!isOwed && (
-                    <button
-                      onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                      className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-sm"
-                    >
-                      Settle
-                    </button>
-                  )}
+                    {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                  </div>
+
+                  {/* Name + context */}
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
+                      {m?.nickname ?? '…'}
+                    </p>
+                    <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
+                      {isOwed ? 'owes you' : 'you owe them'}
+                      {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} transaction{txCount !== 1 ? 's' : ''}</span>}
+                    </p>
+                  </div>
+
+                  {/* Amount + CTA */}
+                  <div className="flex items-center gap-2.5 shrink-0">
+                    <p className={['text-[17px] font-extrabold leading-none',
+                      isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                    ].join(' ')}>
+                      {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
+                    </p>
+                    {isOwed ? (
+                      <button
+                        onClick={async () => {
+                          setRemindedUsers(s => new Set([...s, b.userId]))
+                          await addActivity({ userId: currentUserId, action: 'system_override', details: `reminded ${m?.nickname ?? 'flatmate'} about ₹${Math.abs(b.amount)} balance` })
+                        }}
+                        disabled={wasReminded}
+                        className={['text-[11px] font-bold px-3 py-1.5 rounded-full border transition-all cursor-pointer',
+                          wasReminded
+                            ? 'text-emerald-600 border-emerald-300 bg-emerald-100 dark:bg-emerald-900/20 cursor-default'
+                            : 'text-muted-foreground border-border hover:border-foreground hover:bg-white dark:hover:bg-white/5',
+                        ].join(' ')}
+                      >
+                        {wasReminded ? '✓ Reminded' : 'Remind'}
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                        className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-2 rounded-full transition-all cursor-pointer shadow-sm"
+                      >
+                        Settle
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
             )

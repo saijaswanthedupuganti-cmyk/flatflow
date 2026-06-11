@@ -52,7 +52,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!user) return null
 
   const overdueTasks    = tasks.filter(t => t.status === 'overdue').length
-  const pendingSwaps    = swapRequests.filter(r => r.toUserId === user?.uid && r.status === 'pending').length
+  const pendingSwaps    = swapRequests.filter(r => r.status === 'pending').length
   const pendingJoins    = isAdmin ? joinRequests.filter(r => r.status === 'pending').length : 0
 
   const NavLink = ({ href, label, icon: Icon, exact, color, bg, badge }: typeof NAV_ITEMS.main[0] & { badge?: number }) => {

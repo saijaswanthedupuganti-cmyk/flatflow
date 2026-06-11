@@ -1,5 +1,6 @@
 "use client"
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -29,7 +30,7 @@ const FREQ_CONFIG = {
 }
 
 export default function TasksPage() {
-  const { tasks, members, manuallyAssignTask, createTask, editTask, deleteTask } = useFlatStore()
+  const { tasks, members, swapRequests, manuallyAssignTask, createTask, editTask, deleteTask } = useFlatStore()
   const { user } = useAuthStore()
 
   const [selectedAssigneeId, setSelectedAssigneeId]   = useState<string>('')
@@ -208,7 +209,8 @@ export default function TasksPage() {
     setTempTaskType('other')
   }
 
-  const overdueCount = tasks.filter(t => t.status === 'overdue').length
+  const overdueCount     = tasks.filter(t => t.status === 'overdue').length
+  const pendingSwapCount = swapRequests.filter(r => r.status === 'pending').length
   const sortedTasks  = [...tasks].sort((a, b) => {
     if (a.status === 'overdue' && b.status !== 'overdue') return -1
     if (b.status === 'overdue' && a.status !== 'overdue') return 1
@@ -260,6 +262,30 @@ export default function TasksPage() {
           </Button>
         </div>
       </div>
+
+      {/* ── Mobile-only: Swap Requests shortcut ──────────────────────────── */}
+      <Link
+        href="/dashboard/swaps"
+        className="md:hidden flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98] bg-violet-50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-900/40"
+      >
+        <div className="w-9 h-9 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+          <Repeat2 size={18} className="text-violet-600 dark:text-violet-400" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-bold text-foreground">Swap Requests</p>
+          <p className="text-[11px] text-muted-foreground">
+            {pendingSwapCount > 0
+              ? `${pendingSwapCount} pending swap${pendingSwapCount > 1 ? 's' : ''} — tap to view`
+              : 'No pending swaps right now'}
+          </p>
+        </div>
+        {pendingSwapCount > 0 && (
+          <span className="bg-violet-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0">
+            {pendingSwapCount}
+          </span>
+        )}
+        <ArrowRight size={15} className="text-muted-foreground shrink-0" />
+      </Link>
 
       {/* ── Create form ───────────────────────────────────────────────── */}
       {isCreating && (

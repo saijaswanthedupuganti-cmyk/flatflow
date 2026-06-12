@@ -216,8 +216,8 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-4">
-      {/* ── Hero Banner ── */}
-      <div className={`rounded-[24px] overflow-hidden bg-gradient-to-br ${th.grad} relative shadow-lg`} style={{ minHeight: 130 }}>
+      {/* ── Hero Banner — full-bleed wallpaper, no card shape ── */}
+      <div className={`-mx-6 -mt-6 lg:-mx-8 lg:-mt-8 overflow-hidden bg-gradient-to-br ${th.grad} relative`} style={{ minHeight: 220 }}>
 
         {/* ── Ambient background layers — no box, bleed into gradient ── */}
         {/* Large circle bleeds off top-right corner */}
@@ -246,8 +246,11 @@ export default function DashboardPage() {
           {th.emoji}
         </div>
 
+        {/* Bottom scrim — smooth visual edge into cards below */}
+        <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/20 to-transparent pointer-events-none" />
+
         {/* ── Content — sits above ambient layers ── */}
-        <div className="relative z-10 px-5 pt-5 pb-4">
+        <div className="relative z-10 px-6 lg:px-8 pt-10 pb-10">
           <p className={`text-[9px] font-extrabold uppercase tracking-[0.22em] ${th.sub} mb-1.5`}>{th.label}</p>
           <h1 className="text-[22px] font-extrabold text-white leading-tight">
             {greeting}, <span className="opacity-90">{currentUser.displayName?.split(' ')[0] ?? 'there'}</span>
@@ -270,7 +273,7 @@ export default function DashboardPage() {
         {isAdmin && !isOutOfStation && (
           <button
             onClick={() => setShowInvite(v => !v)}
-            className="absolute top-3.5 right-3.5 z-20 bg-white/15 hover:bg-white/22 text-white border border-white/18 rounded-full px-3 py-1 text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-sm"
+            className="absolute top-4 right-6 lg:right-8 z-20 bg-white/15 hover:bg-white/22 text-white border border-white/18 rounded-full px-3 py-1 text-[10px] font-bold flex items-center gap-1.5 transition-all cursor-pointer backdrop-blur-sm"
           >
             <Share2 size={10} /> Invite
           </button>

@@ -56,7 +56,7 @@ function ConfirmDialog({ open, onClose, title, description, confirmLabel, confir
 export default function SettingsPage() {
   const router = useRouter()
   const { name, members, leaveFlat, transferAdmin, deleteFlat } = useFlatStore()
-  const { user, logout } = useAuthStore()
+  const { user, logout, flatId: authFlatId } = useAuthStore()
 
   const currentMember = members.find(m => m.uid === user?.uid)
   const isAdmin = currentMember?.role === 'admin'
@@ -106,12 +106,18 @@ export default function SettingsPage() {
     setLeaveLoading(true)
     setLeaveError('')
     try {
+      // Save exit record so onboarding page can show the inactive-flat card
+      try {
+        const exits = JSON.parse(localStorage.getItem('habitiq_flat_exits') ?? '[]')
+        exits.push({ flatId: authFlatId, flatName: name ?? 'Your Flat', exitedAt: new Date().toISOString(), reason: 'left' })
+        localStorage.setItem('habitiq_flat_exits', JSON.stringify(exits))
+      } catch { /* ignore */ }
       const { nextFlatId } = await leaveFlat(user.uid)
       if (nextFlatId) {
         router.push('/dashboard')
       } else {
         await logout()
-        router.push('/onboarding')
+        router.push('/onboarding?left=1')
       }
     } catch (e: unknown) {
       setLeaveError(e instanceof Error ? e.message : 'Failed to leave flat. Please try again.')
@@ -125,6 +131,11 @@ export default function SettingsPage() {
     setLeaveLoading(true)
     setLeaveError('')
     try {
+      try {
+        const exits = JSON.parse(localStorage.getItem('habitiq_flat_exits') ?? '[]')
+        exits.push({ flatId: authFlatId, flatName: name ?? 'Your Flat', exitedAt: new Date().toISOString(), reason: 'left' })
+        localStorage.setItem('habitiq_flat_exits', JSON.stringify(exits))
+      } catch { /* ignore */ }
       await transferAdmin(selectedNewAdmin, user.uid)
       const { nextFlatId } = await leaveFlat(user.uid)
       setShowTransferAdmin(false)
@@ -132,7 +143,7 @@ export default function SettingsPage() {
         router.push('/dashboard')
       } else {
         await logout()
-        router.push('/onboarding')
+        router.push('/onboarding?left=1')
       }
     } catch (e: unknown) {
       setLeaveError(e instanceof Error ? e.message : 'Failed to transfer admin. Please try again.')

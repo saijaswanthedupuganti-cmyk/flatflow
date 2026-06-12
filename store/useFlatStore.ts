@@ -229,10 +229,12 @@ interface FlatState {
   billInstances: BillInstance[]
   monthCycles: MonthCycle[]
   isSynced: boolean
+  wasKicked: boolean
 
   // Initialization
   initFirestoreListeners: (flatId: string) => void
   resetFlatData: () => void
+  clearWasKicked: () => void
   /** Mock mode: add a new member directly to local state */
   addMemberMock: (uid: string, nickname: string, email: string, role: 'admin' | 'member') => void
 
@@ -485,6 +487,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   billInstances: hasKeys ? [] : MOCK_BILL_INSTANCES,
   monthCycles: hasKeys ? [] : MOCK_MONTH_CYCLES,
   isSynced: false,
+  wasKicked: false,
+
+  clearWasKicked: () => set({ wasKicked: false }),
 
   resetFlatData: () => {
     // Unsubscribe all active Firestore listeners
@@ -557,10 +562,22 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({ tasks })
     }, (err) => console.warn('Tasks listener error:', err))
 
-    // MEMBERS LISTENER
+    // MEMBERS LISTENER — also detects real-time kick
+    let membersSnapFired = false
     const unsub2 = onSnapshot(collection(db, `flats/${flatId}/members`), (snapshot) => {
       const members: Member[] = []
       snapshot.forEach((doc) => members.push(doc.data() as Member))
+      const uid = useAuthStore.getState().user?.uid
+      if (membersSnapFired && uid && !members.find(m => m.uid === uid)) {
+        try {
+          const exits = JSON.parse(localStorage.getItem('habitiq_flat_exits') ?? '[]')
+          exits.push({ flatId, flatName: get().name ?? 'Your Flat', exitedAt: new Date().toISOString(), reason: 'removed' })
+          localStorage.setItem('habitiq_flat_exits', JSON.stringify(exits))
+        } catch { /* ignore storage errors */ }
+        set({ wasKicked: true })
+        return
+      }
+      membersSnapFired = true
       set({ members })
     }, (err) => console.warn('Members listener error:', err))
 

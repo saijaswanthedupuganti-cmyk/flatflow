@@ -34,7 +34,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter()
   const pathname = usePathname()
   const { user, allFlats, flatId: authFlatId, logout } = useAuthStore()
-  const { members, tasks, swapRequests, joinRequests, initFirestoreListeners, isSynced, name: flatName, resetFlatData } = useFlatStore()
+  const { members, tasks, swapRequests, joinRequests, initFirestoreListeners, isSynced, name: flatName, resetFlatData, wasKicked, clearWasKicked } = useFlatStore()
 
   const currentUser = members.find(m => m.uid === user?.uid)
   const isAdmin = currentUser?.role === 'admin'
@@ -48,6 +48,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, authFlatId, isSynced, initFirestoreListeners])
 
   useEffect(() => { setShowQuickAdd(false) }, [pathname])
+
+  useEffect(() => {
+    if (wasKicked) {
+      clearWasKicked()
+      router.push('/onboarding?kicked=1')
+    }
+  }, [wasKicked, clearWasKicked, router])
 
   if (!user) return null
 

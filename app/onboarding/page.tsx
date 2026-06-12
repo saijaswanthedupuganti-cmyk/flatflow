@@ -1,14 +1,16 @@
 "use client"
-import { useState, Suspense } from 'react'
+import { useState, Suspense, useEffect } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 import { createFlat, joinFlat, getFlatJoinMode, requestToJoinFlat } from '@/lib/flatService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X, Clock } from 'lucide-react'
+import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X, Clock, AlertTriangle } from 'lucide-react'
 
 type Step = 'choose' | 'create' | 'join' | 'pending'
+
+type ExitRecord = { flatId: string; flatName: string; exitedAt: string; reason: 'left' | 'removed' }
 
 function OnboardingContent() {
   const router = useRouter()
@@ -29,6 +31,22 @@ function OnboardingContent() {
     return 'choose'
   })
   const [flatName, setFlatName] = useState('')
+  const [exitRecords, setExitRecords] = useState<ExitRecord[]>([])
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem('habitiq_flat_exits')
+      if (raw) setExitRecords(JSON.parse(raw))
+    } catch { /* ignore */ }
+  }, [])
+
+  const dismissExit = (flatId: string) => {
+    const updated = exitRecords.filter(e => e.flatId !== flatId)
+    setExitRecords(updated)
+    try {
+      localStorage.setItem('habitiq_flat_exits', JSON.stringify(updated))
+    } catch { /* ignore */ }
+  }
   const [nickname, setNickname] = useState(user?.displayName || '')
   const [inviteCode, setInviteCode] = useState(prefillCode.toUpperCase())
   const [loading, setLoading] = useState(false)
@@ -109,6 +127,32 @@ function OnboardingContent() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-secondary/30 p-4">
       <div className="w-full max-w-md space-y-4">
+
+        {/* Inactive Flat notifications */}
+        {exitRecords.map(exit => (
+          <div key={exit.flatId} className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/40 rounded-2xl p-4">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0 mt-0.5">
+                <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-bold text-amber-800 dark:text-amber-300">
+                  {exit.reason === 'removed' ? 'You were removed from' : 'You left'}{' '}
+                  <span className="italic">{exit.flatName}</span>
+                </p>
+                <p className="text-xs text-amber-700/70 dark:text-amber-400/70 mt-0.5">
+                  Contact your flatmates to settle any outstanding amounts before joining a new flat.
+                </p>
+              </div>
+              <button
+                onClick={() => dismissExit(exit.flatId)}
+                className="shrink-0 p-1 rounded-lg hover:bg-amber-100 dark:hover:bg-amber-900/40 text-amber-500 transition-colors cursor-pointer"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </div>
+        ))}
 
         {/* Header */}
         <div className="text-center mb-6">

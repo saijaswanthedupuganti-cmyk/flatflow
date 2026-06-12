@@ -9,7 +9,7 @@ import { db, hasKeys } from '@/lib/firebase'
 import { useAuthStore } from './useAuthStore'
 import {
   collection, doc, onSnapshot, updateDoc, setDoc, deleteDoc, getDoc, getDocs,
-  query, orderBy, limit,
+  query, orderBy, limit, writeBatch,
 } from 'firebase/firestore'
 import {
   leaveFlatService,
@@ -249,7 +249,7 @@ interface FlatState {
   createSwapRequest: (taskId: string, fromUserId: string, toUserId: string, isAutomatic?: boolean, isOOSRequest?: boolean) => Promise<void>
   addExpense: (data: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>
   updateExpense: (expenseId: string, data: Omit<Expense, 'id' | 'createdAt'>) => Promise<void>
-  deleteExpense: (expenseId: string) => Promise<void>
+  deleteExpense: (expenseId: string, actorId?: string) => Promise<void>
   addSettlement: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
   deleteSettlement: (settlementId: string) => Promise<void>
   createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
@@ -961,7 +961,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
   },
 
-  deleteExpense: async (expenseId) => {
+  deleteExpense: async (expenseId, actorId) => {
     const expense = get().expenses.find(e => e.id === expenseId)
     // Optimistic update — remove immediately so balance recomputes at once
     set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))
@@ -983,7 +983,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
     if (expense) {
       await get().addActivity({
-        userId: expense.createdBy,
+        userId: actorId ?? expense.createdBy,
         action: 'expense_deleted',
         details: `deleted ₹${expense.amount} expense: "${expense.description}"`,
       })
@@ -1133,14 +1133,19 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }))
 
     if (hasKeys && state.flatId) {
-      await deleteDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`))
-      // Cascade: delete all instances and their auto-created expenses
+      // Use a single batch so all deletes commit atomically — one onSnapshot fires
+      // with everything gone. Sequential individual deleteDoc calls each trigger
+      // onSnapshot which does set({ billInstances }) and re-adds remaining instances,
+      // causing dashboard amounts to flash back until the loop finishes.
+      const batch = writeBatch(db)
+      batch.delete(doc(db, `flats/${state.flatId}/recurringBills/${billId}`))
       for (const inst of linkedInstances) {
-        await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${inst.id}`))
+        batch.delete(doc(db, `flats/${state.flatId}/billInstances/${inst.id}`))
       }
       for (const exp of linkedExpenses) {
-        await deleteDoc(doc(db, `flats/${state.flatId}/expenses/${exp.id}`))
+        batch.delete(doc(db, `flats/${state.flatId}/expenses/${exp.id}`))
       }
+      await batch.commit()
     }
     if (uid && bill) {
       await get().addActivity({ userId: uid, action: 'bill_deleted', details: `deleted fixed bill "${bill.name}" (${bill.amount ? '₹' + bill.amount : 'variable'})` })

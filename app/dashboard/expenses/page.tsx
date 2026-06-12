@@ -1976,8 +1976,9 @@ export default function ExpensesPage() {
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
   const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency; reversed?: boolean } | null>(null)
-  const [expandedBalances, setExpandedBalances] = useState<Set<string>>(new Set())
-  const [personFilter, setPersonFilter]         = useState<string | null>(null)
+  const [expandedBalances, setExpandedBalances]       = useState<Set<string>>(new Set())
+  const [expandedSettlements, setExpandedSettlements] = useState<Set<string>>(new Set())
+  const [personFilter, setPersonFilter]               = useState<string | null>(null)
   const [pendingAmounts, setPendingAmounts]      = useState<Record<string, string>>({})
   const [confirmingAmount, setConfirmingAmount]  = useState<string | null>(null)
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
@@ -2124,10 +2125,16 @@ export default function ExpensesPage() {
 
   const fixedBillsThisMonth = useMemo(() => {
     const key = currentMonthKey()
+    const activeTemplateIds = new Set(recurringBills.map(b => b.id))
     return billInstances
-      .filter(bi => bi.currency === 'INR' && bi.dueDate?.startsWith(key) && (bi.status === 'split_generated' || bi.status === 'paid'))
+      .filter(bi =>
+        bi.currency === 'INR' &&
+        bi.dueDate?.startsWith(key) &&
+        (bi.status === 'split_generated' || bi.status === 'paid') &&
+        activeTemplateIds.has(bi.templateId)
+      )
       .reduce((s, bi) => s + (bi.amount ?? 0), 0)
-  }, [billInstances])
+  }, [billInstances, recurringBills])
 
   const sevenDayBars = useMemo(() => {
     const today = new Date()
@@ -2644,7 +2651,8 @@ export default function ExpensesPage() {
                           {expenseItems.map((item, i) =>
                             item.kind === 'expense' && (
                               <ExpenseRow key={item.data.id} expense={item.data} members={members} currentUserId={currentUserId}
-                                canDelete={false} onDelete={deleteExpense}
+                                canDelete={item.data.createdBy === currentUserId || !!isAdmin}
+                                onDelete={(id) => deleteExpense(id, currentUserId)}
                                 onEdit={setEditExpense}
                                 showDivider={i > 0} />
                             )
@@ -2652,24 +2660,45 @@ export default function ExpensesPage() {
                         </div>
                       )}
 
-                      {/* Settlements — sub-section with divider label */}
-                      {settlementItems.length > 0 && (
-                        <div className="mt-2">
-                          <div className="flex items-center gap-2 mb-1.5 px-0.5">
-                            <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
-                            <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">Settled Up</span>
-                            <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
-                          </div>
-                          <div className="space-y-1.5">
-                            {settlementItems.map(item =>
-                              item.kind === 'settlement' && (
-                                <SettlementRow key={item.data.id} settlement={item.data} members={members} currentUserId={currentUserId}
-                                  canDelete={!!isAdmin} onDelete={deleteSettlement} />
-                              )
+                      {/* Settlements — collapsed by default, tap to expand */}
+                      {settlementItems.length > 0 && (() => {
+                        const settledTotal = settlementItems.reduce((s, i) =>
+                          i.kind === 'settlement' && i.data.currency === 'INR' ? s + i.data.amount : s, 0)
+                        const isSettlementsOpen = expandedSettlements.has(key)
+                        return (
+                          <div className="mt-2">
+                            <button
+                              onClick={() => setExpandedSettlements(prev => {
+                                const next = new Set(prev)
+                                next.has(key) ? next.delete(key) : next.add(key)
+                                return next
+                              })}
+                              className="w-full flex items-center gap-2 px-0.5 py-1 cursor-pointer group"
+                            >
+                              <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
+                              <div className="flex items-center gap-1.5 shrink-0">
+                                <Check size={9} className="text-emerald-500" />
+                                <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                  Settled{settledTotal > 0 ? ` · ${formatAmount(settledTotal, 'INR')}` : ''}
+                                  {settlementItems.length > 1 ? ` · ${settlementItems.length} payments` : ''}
+                                </span>
+                                <ChevronDown size={9} className={['text-emerald-500 transition-transform duration-200', isSettlementsOpen ? 'rotate-180' : ''].join(' ')} />
+                              </div>
+                              <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
+                            </button>
+                            {isSettlementsOpen && (
+                              <div className="space-y-1.5 mt-1.5">
+                                {settlementItems.map(item =>
+                                  item.kind === 'settlement' && (
+                                    <SettlementRow key={item.data.id} settlement={item.data} members={members} currentUserId={currentUserId}
+                                      canDelete={!!isAdmin} onDelete={deleteSettlement} />
+                                  )
+                                )}
+                              </div>
                             )}
                           </div>
-                        </div>
-                      )}
+                        )
+                      })()}
                     </div>
                   )
                 })}

@@ -1977,6 +1977,9 @@ export default function ExpensesPage() {
   const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency; reversed?: boolean } | null>(null)
   const [expandedBalances, setExpandedBalances] = useState<Set<string>>(new Set())
   const [personFilter, setPersonFilter]         = useState<string | null>(null)
+  const [pendingAmounts, setPendingAmounts]      = useState<Record<string, string>>({})
+  const [confirmingAmount, setConfirmingAmount]  = useState<string | null>(null)
+  const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
@@ -2893,6 +2896,43 @@ export default function ExpensesPage() {
                           </div>
                         )}
 
+                        {/* Pending amount entry — admin enters actual amount for this month */}
+                        {instance?.status === 'pending' && isAdmin && (
+                          <div className="border-t border-amber-200 dark:border-amber-800/40 bg-amber-50 dark:bg-amber-950/15 px-4 py-3 space-y-2.5">
+                            <div className="flex items-center gap-2">
+                              <AlertCircle size={13} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                              <p className="text-xs font-bold text-amber-800 dark:text-amber-300">Enter the actual amount to generate splits</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <div className="relative flex-1">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                                  {CURRENCY_SYMBOLS[instance.currency]}
+                                </span>
+                                <input
+                                  type="number" min="0" placeholder="0"
+                                  value={pendingAmounts[instance.id] ?? ''}
+                                  onChange={e => setPendingAmounts(p => ({ ...p, [instance.id]: e.target.value }))}
+                                  className="w-full bg-white dark:bg-white/10 rounded-lg pl-7 pr-3 py-2 text-sm border border-amber-200 dark:border-amber-700 outline-none focus:ring-2 focus:ring-amber-400/40"
+                                />
+                              </div>
+                              <button
+                                disabled={!(parseFloat(pendingAmounts[instance.id]) > 0) || confirmingAmount === instance.id}
+                                onClick={async () => {
+                                  const amt = parseFloat(pendingAmounts[instance.id])
+                                  if (!amt || amt <= 0) return
+                                  setConfirmingAmount(instance.id)
+                                  await confirmBillAmount(instance.id, amt)
+                                  setPendingAmounts(p => { const n = { ...p }; delete n[instance.id]; return n })
+                                  setConfirmingAmount(null)
+                                }}
+                                className="px-4 py-2 bg-amber-500 hover:bg-amber-600 disabled:opacity-40 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                              >
+                                {confirmingAmount === instance.id ? 'Saving…' : 'Confirm'}
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
                         {/* Mark Paid CTA — visible to the payer (admin or member) */}
                         {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
                           <div className="border-t border-[#3786FB]/20 bg-[#F0F6FF] dark:bg-blue-950/15 px-4 py-3 flex items-center justify-between gap-3">
@@ -2931,6 +2971,7 @@ export default function ExpensesPage() {
                                 </div>
                               </div>
                             ) : (
+                              <>
                               <div className="flex bg-secondary/20">
                                 {!instance && bill.active && (
                                   <button
@@ -2940,11 +2981,22 @@ export default function ExpensesPage() {
                                     <Play size={11} /> Generate Split
                                   </button>
                                 )}
+                                {instance?.status === 'split_generated' && (
+                                  <button
+                                    onClick={() => {
+                                      setEditingInstanceId(prev => prev === instance.id ? null : instance.id)
+                                      setPendingAmounts(p => ({ ...p, [instance.id]: instance.amount?.toString() ?? '' }))
+                                    }}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
+                                  >
+                                    <Pencil size={11} /> Edit Amount
+                                  </button>
+                                )}
                                 <button
                                   onClick={() => setEditBill(bill)}
                                   className="flex-1 flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-[#999CA1] hover:text-foreground hover:bg-secondary transition-colors border-l border-border/40 cursor-pointer"
                                 >
-                                  <Pencil size={11} /> Edit
+                                  <Pencil size={11} /> Edit Bill
                                 </button>
                                 <button
                                   onClick={() => setConfirmDeleteBillId(bill.id)}
@@ -2954,6 +3006,44 @@ export default function ExpensesPage() {
                                   <Trash2 size={11} />
                                 </button>
                               </div>
+                              {/* Inline amount editor for split_generated instances */}
+                              {instance && editingInstanceId === instance.id && (
+                                <div className="flex gap-2 px-3 py-2.5 border-t border-border/40 bg-blue-50/50 dark:bg-blue-950/10">
+                                  <div className="relative flex-1">
+                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
+                                      {CURRENCY_SYMBOLS[instance.currency]}
+                                    </span>
+                                    <input
+                                      type="number" min="0" placeholder="0"
+                                      value={pendingAmounts[instance.id] ?? ''}
+                                      onChange={e => setPendingAmounts(p => ({ ...p, [instance.id]: e.target.value }))}
+                                      className="w-full bg-white dark:bg-white/10 rounded-lg pl-7 pr-3 py-2 text-sm border border-blue-200 dark:border-blue-700 outline-none focus:ring-2 focus:ring-blue-400/40"
+                                    />
+                                  </div>
+                                  <button
+                                    disabled={!(parseFloat(pendingAmounts[instance.id]) > 0) || confirmingAmount === instance.id}
+                                    onClick={async () => {
+                                      const amt = parseFloat(pendingAmounts[instance.id])
+                                      if (!amt || amt <= 0) return
+                                      setConfirmingAmount(instance.id)
+                                      await editBillInstanceAmount(instance.id, amt)
+                                      setEditingInstanceId(null)
+                                      setPendingAmounts(p => { const n = { ...p }; delete n[instance.id]; return n })
+                                      setConfirmingAmount(null)
+                                    }}
+                                    className="px-4 py-2 bg-[#3786FB] hover:bg-blue-600 disabled:opacity-40 text-white text-xs font-extrabold rounded-lg transition-all cursor-pointer whitespace-nowrap"
+                                  >
+                                    {confirmingAmount === instance.id ? 'Saving…' : 'Update'}
+                                  </button>
+                                  <button
+                                    onClick={() => { setEditingInstanceId(null); setPendingAmounts(p => { const n = { ...p }; delete n[instance.id!]; return n }) }}
+                                    className="px-3 py-2 bg-secondary hover:bg-secondary/80 text-xs font-semibold rounded-lg transition-all cursor-pointer"
+                                  >
+                                    Cancel
+                                  </button>
+                                </div>
+                              )}
+                              </>
                             )}
                           </div>
                         )}

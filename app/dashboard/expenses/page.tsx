@@ -23,7 +23,7 @@ import {
   Wallet, Inbox, Check, AlertCircle, RefreshCw, Pencil,
   Zap, Play, PauseCircle, LayoutList, CircleDollarSign, Clock,
   CalendarCheck, ArrowRight, ChevronRight, ChevronLeft, RotateCcw,
-  UserCircle, Repeat2, HelpCircle, Sparkles, History, ChevronDown, ChevronUp,
+  UserCircle, Repeat2, HelpCircle, Sparkles, History, ChevronDown, ChevronUp, MoreVertical,
 } from 'lucide-react'
 
 // ── Config ───────────────────────────────────────────────────────────────────
@@ -1999,6 +1999,7 @@ export default function ExpensesPage() {
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [showSplitsMenu, setShowSplitsMenu] = useState(false)
   const [showResetAllConfirm, setShowResetAllConfirm] = useState(false)
   const [resettingAll, setResettingAll] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
@@ -2352,7 +2353,7 @@ export default function ExpensesPage() {
           ) : (
             <div className="space-y-2.5">
               <div className="flex items-center justify-between px-1">
-                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Balances</p>
+                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Who Owes Whom</p>
                 <p className={['text-[11px] font-semibold', netUnsettled > 0 ? 'text-orange-500 dark:text-orange-400' : 'text-emerald-500 dark:text-emerald-400'].join(' ')}>
                   {netUnsettled > 0
                     ? `You owe ${formatAmount(netUnsettled, 'INR')} total`
@@ -2384,11 +2385,12 @@ export default function ExpensesPage() {
                         : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
                     ].join(' ')}
                   >
-                    <button
+                    {/* Main row — tap to expand breakdown */}
+                    <div
                       onClick={() => setExpandedBalances(s => {
                         const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
                       })}
-                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer"
+                      className="flex items-center gap-3 px-4 pt-3.5 pb-2 cursor-pointer"
                     >
                       <div className="relative shrink-0">
                         <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm',
@@ -2406,21 +2408,48 @@ export default function ExpensesPage() {
                           {m?.nickname ?? '…'}
                         </p>
                         <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
-                          {isOwed ? 'owes you' : 'you owe them'}
-                          {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} transaction{txCount !== 1 ? 's' : ''}</span>}
+                          {isOwed ? 'owes you' : 'you owe'}
+                          {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} tx</span>}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <p className={['text-[17px] font-extrabold leading-none',
-                          isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
-                        ].join(' ')}>
-                          {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
-                        </p>
-                        <ChevronDown size={14} className={['text-muted-foreground transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
-                      </div>
-                    </button>
+                      <p className={['text-[17px] font-extrabold leading-none shrink-0',
+                        isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                      ].join(' ')}>
+                        {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
+                      </p>
+                      <ChevronDown size={14} className={['text-muted-foreground transition-transform shrink-0', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                    </div>
 
-                    {/* Breakdown (expanded) */}
+                    {/* Action row — always visible */}
+                    <div className="flex gap-2 px-4 pb-3.5">
+                      <button
+                        onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
+                        className={['shrink-0 text-[10px] font-bold px-2.5 py-1.5 rounded-full border transition-all cursor-pointer',
+                          isFiltered
+                            ? 'bg-blue-500 text-white border-blue-500'
+                            : 'border-border text-muted-foreground hover:text-foreground',
+                        ].join(' ')}
+                      >
+                        {isFiltered ? '✓ Filter on' : 'Filter'}
+                      </button>
+                      {isOwed ? (
+                        <button
+                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
+                          className="flex-1 text-[11px] font-bold py-1.5 rounded-full border border-emerald-400 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                        >
+                          Mark Received
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                          className="flex-1 bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
+                        >
+                          Settle Up
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Breakdown — only when expanded */}
                     {isExpanded && (
                       <div className="border-t border-black/5 dark:border-white/5 px-4 pb-3 pt-2.5 space-y-1.5">
                         {[
@@ -2450,54 +2479,6 @@ export default function ExpensesPage() {
                             </div>
                           ))
                         }
-                        <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                          <button
-                            onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
-                            className={['flex-1 text-[11px] font-bold py-1.5 rounded-xl border transition-all cursor-pointer',
-                              isFiltered
-                                ? 'bg-blue-500 text-white border-blue-500'
-                                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground',
-                            ].join(' ')}
-                          >
-                            {isFiltered ? '✓ Filtering list' : 'Filter list'}
-                          </button>
-                          {isOwed ? (
-                            <button
-                              onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                              className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer"
-                            >
-                              Mark Received
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                              className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-[#3786FB] hover:bg-blue-600 text-white transition-all cursor-pointer"
-                            >
-                              Settle Up
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Compact CTA (collapsed) */}
-                    {!isExpanded && (
-                      <div className="flex gap-2 px-4 pb-3">
-                        {isOwed ? (
-                          <button
-                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                            className="text-[11px] font-bold px-3.5 py-1.5 rounded-full border border-emerald-400 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
-                          >
-                            Mark Received
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                            className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
-                          >
-                            Settle Up
-                          </button>
-                        )}
                       </div>
                     )}
                   </div>
@@ -2575,13 +2556,40 @@ export default function ExpensesPage() {
                 <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
               <div className="ml-auto flex items-center gap-2">
-                {isAdmin && expenses.some(e => e.date.startsWith(currentMonthKey()) && !e.billInstanceId) && (
-                  <button
-                    onClick={() => setShowResetConfirm(true)}
-                    className="flex items-center gap-1.5 text-xs font-bold text-red-500 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
-                  >
-                    <RotateCcw size={11} /> Reset
-                  </button>
+                {/* 3-dot overflow — admin-only dangerous actions */}
+                {isAdmin && (
+                  <div className="relative">
+                    <button
+                      onClick={() => setShowSplitsMenu(v => !v)}
+                      className="w-7 h-7 flex items-center justify-center rounded-full hover:bg-secondary text-muted-foreground transition-colors cursor-pointer"
+                    >
+                      <MoreVertical size={15} />
+                    </button>
+                    {showSplitsMenu && (
+                      <>
+                        <div className="fixed inset-0 z-10" onClick={() => setShowSplitsMenu(false)} />
+                        <div className="absolute right-0 top-full mt-1 z-20 bg-card border border-border rounded-[14px] shadow-xl overflow-hidden min-w-[200px]">
+                          <p className="text-[9px] font-extrabold uppercase tracking-widest text-muted-foreground px-4 pt-3 pb-1">Admin Actions</p>
+                          <button
+                            onClick={() => { setShowSplitsMenu(false); setShowResetConfirm(true) }}
+                            disabled={!expenses.some(e => e.date.startsWith(currentMonthKey()) && !e.billInstanceId)}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-default"
+                          >
+                            <RotateCcw size={13} />
+                            Reset month splits
+                          </button>
+                          <div className="border-t border-border/50 mx-3" />
+                          <button
+                            onClick={() => { setShowSplitsMenu(false); setShowResetAllConfirm(true) }}
+                            className="w-full flex items-center gap-2.5 px-4 py-2.5 pb-3 text-sm font-semibold text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                          >
+                            <Trash2 size={13} />
+                            Erase all expense data
+                          </button>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 )}
                 <button
                   onClick={() => setShowAddExpense(true)}
@@ -3286,32 +3294,6 @@ export default function ExpensesPage() {
               })}
             </div>
           )}
-        </div>
-      )}
-
-      {/* ── Danger Zone ──────────────────────────────────────────────── */}
-      {isAdmin && (
-        <div className="px-4 pb-6 mt-2">
-          <div className="border border-red-200 dark:border-red-900/40 rounded-[20px] overflow-hidden">
-            <div className="px-4 py-3 bg-red-50/60 dark:bg-red-950/10 border-b border-red-200/60 dark:border-red-900/30">
-              <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Danger Zone</p>
-            </div>
-            <div className="p-4">
-              <button
-                onClick={() => setShowResetAllConfirm(true)}
-                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-red-200 dark:border-red-900/40 bg-white dark:bg-card hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
-              >
-                <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
-                  <Trash2 size={16} className="text-red-500" />
-                </div>
-                <div className="flex-1 text-left min-w-0">
-                  <p className="text-sm font-bold text-red-600 dark:text-red-400">Erase All Expense Data</p>
-                  <p className="text-[11px] text-red-400/70 dark:text-red-500/70 mt-0.5">Permanently deletes all splits, bills, settlements &amp; history</p>
-                </div>
-                <ChevronRight size={16} className="text-red-400/50 shrink-0" />
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

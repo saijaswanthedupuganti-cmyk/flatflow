@@ -273,31 +273,46 @@ function ExpenseModal({
             </div>
           </div>
 
-          {/* Paid by + Date */}
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Paid by</label>
-              <select
-                value={form.paidBy}
-                onChange={e => setForm(f => ({ ...f, paidBy: e.target.value }))}
-                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
-              >
-                {members.map(m => (
-                  <option key={m.uid} value={m.uid}>
-                    {m.uid === currentUserId ? m.nickname + ' (you)' : m.nickname}
-                  </option>
-                ))}
-              </select>
+          {/* Paid by */}
+          <div className="space-y-2">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Paid by</label>
+            <div className="flex flex-wrap gap-2">
+              {members.map((m, idx) => {
+                const sel = form.paidBy === m.uid
+                return (
+                  <button
+                    key={m.uid}
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, paidBy: m.uid }))}
+                    className={[
+                      'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer border',
+                      sel
+                        ? 'bg-[#3525cd] border-[#3525cd] text-white shadow-sm'
+                        : 'bg-[#f1f3ff] dark:bg-white/[0.08] border-transparent text-[#464555] dark:text-white/70 hover:bg-[#e4e8ff] dark:hover:bg-white/[0.12]',
+                    ].join(' ')}
+                  >
+                    <div className={[
+                      'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white',
+                      sel ? 'bg-white/25' : avatarColors[idx % avatarColors.length],
+                    ].join(' ')}>
+                      {m.nickname.charAt(0).toUpperCase()}
+                    </div>
+                    {m.uid === currentUserId ? 'You' : m.nickname}
+                  </button>
+                )
+              })}
             </div>
-            <div className="space-y-1.5">
-              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Date</label>
-              <input
-                type="date"
-                value={form.date}
-                onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
-              />
-            </div>
+          </div>
+
+          {/* Date */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Date</label>
+            <input
+              type="date"
+              value={form.date}
+              onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+            />
           </div>
 
           {/* Split among */}
@@ -1950,7 +1965,7 @@ export default function ExpensesPage() {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
-    resetMonthSplits,
+    resetMonthSplits, resetAllExpensesData,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1984,6 +1999,8 @@ export default function ExpensesPage() {
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
+  const [showResetAllConfirm, setShowResetAllConfirm] = useState(false)
+  const [resettingAll, setResettingAll] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
@@ -3272,6 +3289,32 @@ export default function ExpensesPage() {
         </div>
       )}
 
+      {/* ── Danger Zone ──────────────────────────────────────────────── */}
+      {isAdmin && (
+        <div className="px-4 pb-6 mt-2">
+          <div className="border border-red-200 dark:border-red-900/40 rounded-[20px] overflow-hidden">
+            <div className="px-4 py-3 bg-red-50/60 dark:bg-red-950/10 border-b border-red-200/60 dark:border-red-900/30">
+              <p className="text-[10px] font-bold uppercase tracking-widest text-red-400">Danger Zone</p>
+            </div>
+            <div className="p-4">
+              <button
+                onClick={() => setShowResetAllConfirm(true)}
+                className="w-full flex items-center gap-3 px-4 py-3.5 rounded-[14px] border border-red-200 dark:border-red-900/40 bg-white dark:bg-card hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+              >
+                <div className="w-9 h-9 rounded-xl bg-red-100 dark:bg-red-900/30 flex items-center justify-center shrink-0">
+                  <Trash2 size={16} className="text-red-500" />
+                </div>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-bold text-red-600 dark:text-red-400">Erase All Expense Data</p>
+                  <p className="text-[11px] text-red-400/70 dark:text-red-500/70 mt-0.5">Permanently deletes all splits, bills, settlements &amp; history</p>
+                </div>
+                <ChevronRight size={16} className="text-red-400/50 shrink-0" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modals */}
       {/* ── Reset Month Splits Confirmation ─────────────────────────── */}
       {showResetConfirm && (
@@ -3309,6 +3352,56 @@ export default function ExpensesPage() {
                   disabled={resetting}
                 >
                   {resetting ? 'Deleting…' : 'Yes, Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Erase All Expense Data Confirmation ──────────────────────── */}
+      {showResetAllConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!resettingAll) setShowResetAllConfirm(false) }} />
+          <div className="relative w-full max-w-sm bg-card rounded-[24px] shadow-2xl border border-border overflow-hidden">
+            <div className="p-5">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+                <Trash2 size={22} className="text-red-500" />
+              </div>
+              <h2 className="text-lg font-extrabold text-foreground">Erase All Expense Data?</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                This will permanently delete <span className="font-bold text-foreground">everything</span> — all test data will be wiped clean.
+              </p>
+              <div className="mt-3 rounded-xl bg-red-50 dark:bg-red-950/20 px-3 py-3 space-y-1.5">
+                {['Daily split expenses', 'Settlements & payments', 'Fixed monthly bills', 'Bill instances', 'Month close records'].map(item => (
+                  <p key={item} className="text-xs text-red-600 dark:text-red-400 font-semibold flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-red-400 shrink-0" />
+                    {item}
+                  </p>
+                ))}
+              </div>
+              <p className="text-[11px] text-red-500 font-bold mt-3 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-xl">
+                ⚠️ This cannot be undone. Fresh start only.
+              </p>
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setShowResetAllConfirm(false)}
+                  disabled={resettingAll}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-secondary transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setResettingAll(true)
+                    await resetAllExpensesData()
+                    setResettingAll(false)
+                    setShowResetAllConfirm(false)
+                  }}
+                  disabled={resettingAll}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-extrabold transition-colors cursor-pointer disabled:opacity-60"
+                >
+                  {resettingAll ? 'Erasing…' : 'Erase Everything'}
                 </button>
               </div>
             </div>

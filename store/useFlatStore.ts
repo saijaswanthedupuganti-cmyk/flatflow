@@ -264,6 +264,7 @@ interface FlatState {
   skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
   deleteBillInstance: (instanceId: string) => Promise<void>
   resetMonthSplits: (month: string) => Promise<void>
+  resetAllExpensesData: () => Promise<void>
   closeMonth: (
     month: string,
     confirmedSettlements: { fromUserId: string; toUserId: string; amount: number; type: 'month_end' | 'rent_adjustment'; note?: string }[],
@@ -1018,6 +1019,31 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       userId: state.members[0]?.uid ?? 'admin',
       action: 'expense_deleted',
       details: `reset all ${toDelete.length} daily split expense(s) for ${month}`,
+    })
+  },
+
+  resetAllExpensesData: async () => {
+    const state = get()
+    const uid = useAuthStore.getState().user?.uid
+    set({ expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [] })
+    if (hasKeys && state.flatId) {
+      const flatPath = `flats/${state.flatId}`
+      const subcollections = ['expenses', 'settlements', 'recurringBills', 'billInstances', 'monthCycles']
+      for (const sub of subcollections) {
+        const snap = await getDocs(collection(db, `${flatPath}/${sub}`))
+        if (snap.empty) continue
+        const refs = snap.docs.map(d => d.ref)
+        for (let i = 0; i < refs.length; i += 400) {
+          const batch = writeBatch(db)
+          refs.slice(i, i + 400).forEach(ref => batch.delete(ref))
+          await batch.commit()
+        }
+      }
+    }
+    await get().addActivity({
+      userId: uid ?? state.members[0]?.uid ?? 'admin',
+      action: 'expense_deleted',
+      details: 'erased all expense data (full reset)',
     })
   },
 

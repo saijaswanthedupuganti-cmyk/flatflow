@@ -263,6 +263,7 @@ interface FlatState {
   markBillPaid: (instanceId: string) => Promise<void>
   skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
   deleteBillInstance: (instanceId: string) => Promise<void>
+  resetMonthSplits: (month: string) => Promise<void>
   closeMonth: (
     month: string,
     confirmedSettlements: { fromUserId: string; toUserId: string; amount: number; type: 'month_end' | 'rent_adjustment'; note?: string }[],
@@ -1001,6 +1002,22 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       userId: data.fromUserId,
       action: 'settlement_added',
       details: `settled up with ${receiver?.nickname ?? '…'}`,
+    })
+  },
+
+  resetMonthSplits: async (month) => {
+    const state = get()
+    const toDelete = state.expenses.filter(e => e.date.startsWith(month) && !e.billInstanceId)
+    set(s => ({ expenses: s.expenses.filter(e => !toDelete.find(d => d.id === e.id)) }))
+    if (hasKeys && state.flatId) {
+      for (const exp of toDelete) {
+        await deleteDoc(doc(db, `flats/${state.flatId}/expenses/${exp.id}`))
+      }
+    }
+    await get().addActivity({
+      userId: state.members[0]?.uid ?? 'admin',
+      action: 'expense_deleted',
+      details: `reset all ${toDelete.length} daily split expense(s) for ${month}`,
     })
   },
 

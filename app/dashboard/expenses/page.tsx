@@ -1950,6 +1950,7 @@ export default function ExpensesPage() {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
     addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
+    resetMonthSplits,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, skipBillInstance, deleteBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
@@ -1980,6 +1981,8 @@ export default function ExpensesPage() {
   const [pendingAmounts, setPendingAmounts]      = useState<Record<string, string>>({})
   const [confirmingAmount, setConfirmingAmount]  = useState<string | null>(null)
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
+  const [showResetConfirm, setShowResetConfirm] = useState(false)
+  const [resetting, setResetting] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
   const [showMonthEnd, setShowMonthEnd] = useState(false)
   const [showQuickSetup, setShowQuickSetup] = useState(false)
@@ -2547,12 +2550,22 @@ export default function ExpensesPage() {
               {visibleTx.length > 0 && (
                 <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
-              <button
-                onClick={() => setShowAddExpense(true)}
-                className="ml-auto flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
-              >
-                <Plus size={11} /> Add Split
-              </button>
+              <div className="ml-auto flex items-center gap-2">
+                {isAdmin && expenses.some(e => e.date.startsWith(currentMonthKey()) && !e.billInstanceId) && (
+                  <button
+                    onClick={() => setShowResetConfirm(true)}
+                    className="flex items-center gap-1.5 text-xs font-bold text-red-500 border border-red-200 dark:border-red-900/50 hover:bg-red-50 dark:hover:bg-red-950/20 px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                  >
+                    <RotateCcw size={11} /> Reset
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowAddExpense(true)}
+                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                >
+                  <Plus size={11} /> Add Split
+                </button>
+              </div>
             </div>
 
             {/* My Splits / All Splits toggle */}
@@ -2631,7 +2644,7 @@ export default function ExpensesPage() {
                           {expenseItems.map((item, i) =>
                             item.kind === 'expense' && (
                               <ExpenseRow key={item.data.id} expense={item.data} members={members} currentUserId={currentUserId}
-                                canDelete={item.data.createdBy === currentUserId || !!isAdmin} onDelete={deleteExpense}
+                                canDelete={false} onDelete={deleteExpense}
                                 onEdit={setEditExpense}
                                 showDivider={i > 0} />
                             )
@@ -3231,6 +3244,49 @@ export default function ExpensesPage() {
       )}
 
       {/* Modals */}
+      {/* ── Reset Month Splits Confirmation ─────────────────────────── */}
+      {showResetConfirm && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowResetConfirm(false)} />
+          <div className="relative w-full max-w-sm bg-card rounded-[24px] shadow-2xl border border-border overflow-hidden">
+            <div className="p-5">
+              <div className="w-12 h-12 rounded-2xl bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+                <RotateCcw size={22} className="text-red-500" />
+              </div>
+              <h2 className="text-lg font-extrabold text-foreground">Reset This Month&apos;s Splits?</h2>
+              <p className="text-sm text-muted-foreground mt-2">
+                This will permanently delete <span className="font-bold text-foreground">all daily split expenses</span> recorded for{' '}
+                <span className="font-bold text-foreground">{new Date().toLocaleString('en-IN', { month: 'long', year: 'numeric' })}</span>.
+              </p>
+              <p className="text-xs text-red-500 font-semibold mt-3 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded-xl">
+                ⚠️ This cannot be undone. Fixed bill payments are not affected.
+              </p>
+              <div className="flex gap-3 mt-5">
+                <button
+                  onClick={() => setShowResetConfirm(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-muted-foreground hover:bg-secondary transition-colors cursor-pointer"
+                  disabled={resetting}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={async () => {
+                    setResetting(true)
+                    await resetMonthSplits(currentMonthKey())
+                    setResetting(false)
+                    setShowResetConfirm(false)
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-extrabold transition-colors cursor-pointer disabled:opacity-60"
+                  disabled={resetting}
+                >
+                  {resetting ? 'Deleting…' : 'Yes, Reset'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showAddExpense && (
         <ExpenseModal members={members} currentUserId={currentUserId} onSave={addExpense} onClose={() => setShowAddExpense(false)} />
       )}

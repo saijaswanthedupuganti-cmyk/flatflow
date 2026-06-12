@@ -201,6 +201,12 @@ export default function DashboardPage() {
       return s + (inst?.amount ?? b.amount ?? 0)
     }, 0)
   }, [recurringBills, billInstances])
+  const thisMonthSplitsTotal = useMemo(() => {
+    const m = currentMonthKey()
+    return expenses
+      .filter(e => e.date.startsWith(m) && e.currency === 'INR' && !e.deferToNextMonth && !e.billInstanceId)
+      .reduce((s, e) => s + e.amount, 0)
+  }, [expenses])
   const pendingBills = useMemo(
     () => recurringBills.filter(b => b.active && b.lastGeneratedMonth !== currentMonthKey()).length,
     [recurringBills],
@@ -314,8 +320,11 @@ export default function DashboardPage() {
             {/* Stat row */}
             <div className="grid grid-cols-3 gap-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Bills this month</p>
-                <p className="text-base font-extrabold mt-0.5">{thisMonthBillsTotal > 0 ? formatAmount(thisMonthBillsTotal, 'INR') : '—'}</p>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Splits</p>
+                <p className="text-base font-extrabold mt-0.5">{thisMonthSplitsTotal > 0 ? formatAmount(thisMonthSplitsTotal, 'INR') : '—'}</p>
+                {thisMonthBillsTotal > 0 && (
+                  <p className="text-[9px] text-muted-foreground/70 mt-0.5">{formatAmount(thisMonthBillsTotal, 'INR')} bills</p>
+                )}
               </div>
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">You owe</p>
@@ -334,6 +343,7 @@ export default function DashboardPage() {
             {/* Recent expenses — context for the numbers above */}
             {expenses.length > 0 && (() => {
               const recent = [...expenses]
+                .filter(e => !e.billInstanceId)
                 .sort((a, b) => b.date.localeCompare(a.date))
                 .slice(0, 3)
               return (
@@ -362,9 +372,9 @@ export default function DashboardPage() {
                       </div>
                     )
                   })}
-                  {expenses.length > 3 && (
+                  {expenses.filter(e => !e.billInstanceId).length > 3 && (
                     <p className="text-[10px] text-muted-foreground text-center pt-0.5">
-                      +{expenses.length - 3} more · tap to view all
+                      +{expenses.filter(e => !e.billInstanceId).length - 3} more · tap to view all
                     </p>
                   )}
                 </div>

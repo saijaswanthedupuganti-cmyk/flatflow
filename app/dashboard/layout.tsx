@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
-  LayoutDashboard, ClipboardList, Users, Settings,
+  LayoutDashboard, ClipboardList, Users,
   Lightbulb, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
   Plus, X, RefreshCw,
 } from 'lucide-react'
@@ -25,7 +25,6 @@ const NAV_ITEMS = {
   ],
   general: [
     { href: '/dashboard/members', label: 'Members', icon: Users, exact: false, color: 'text-pink-500', bg: 'bg-pink-500/10' },
-    { href: '/dashboard/settings', label: 'Settings', icon: Settings, exact: false, color: 'text-muted-foreground', bg: 'bg-secondary' },
     { href: '/dashboard/about', label: 'About', icon: Info, exact: false, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ],
 }
@@ -314,8 +313,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {/* 4 — Tasks (admin + member) */}
         <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
 
-        {/* 5 — Settings */}
-        <MobileNavLink {...NAV_ITEMS.general[1]} />
+        {/* 5 — Profile */}
+        {(() => {
+          const isActive = pathname.startsWith('/dashboard/profile')
+          return (
+            <Link href="/dashboard/profile" className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+              <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${isActive ? 'bg-primary text-white' : 'bg-secondary text-foreground'}`}>
+                {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
+              </div>
+              <span className="text-[10px] font-semibold">Profile</span>
+            </Link>
+          )
+        })()}
       </nav>
     </div>
   )

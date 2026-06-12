@@ -1102,10 +1102,28 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const state = get()
     const bill = state.recurringBills.find(b => b.id === billId)
     const uid = useAuthStore.getState().user?.uid
-    // Optimistic update so UI clears immediately without waiting for Firestore listener
-    set(s => ({ recurringBills: s.recurringBills.filter(b => b.id !== billId) }))
+
+    // Find all bill instances and auto-expenses linked to this template
+    const linkedInstances = state.billInstances.filter(b => b.templateId === billId)
+    const linkedInstanceIds = new Set(linkedInstances.map(b => b.id))
+    const linkedExpenses = state.expenses.filter(e => e.billInstanceId && linkedInstanceIds.has(e.billInstanceId))
+
+    // Optimistic update — remove everything immediately so dashboard clears at once
+    set(s => ({
+      recurringBills: s.recurringBills.filter(b => b.id !== billId),
+      billInstances:  s.billInstances.filter(b => b.templateId !== billId),
+      expenses:       s.expenses.filter(e => !e.billInstanceId || !linkedInstanceIds.has(e.billInstanceId)),
+    }))
+
     if (hasKeys && state.flatId) {
       await deleteDoc(doc(db, `flats/${state.flatId}/recurringBills/${billId}`))
+      // Cascade: delete all instances and their auto-created expenses
+      for (const inst of linkedInstances) {
+        await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${inst.id}`))
+      }
+      for (const exp of linkedExpenses) {
+        await deleteDoc(doc(db, `flats/${state.flatId}/expenses/${exp.id}`))
+      }
     }
     if (uid && bill) {
       await get().addActivity({ userId: uid, action: 'bill_deleted', details: `deleted fixed bill "${bill.name}" (${bill.amount ? '₹' + bill.amount : 'variable'})` })
@@ -1325,19 +1343,28 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const instance = state.billInstances.find(b => b.id === instanceId)
     const uid = useAuthStore.getState().user?.uid
     if (!instance || !uid) return
+
+    // Also find and delete the auto-expense created when this instance was marked paid
+    const linkedExpense = state.expenses.find(e => e.billInstanceId === instanceId)
+
+    // Optimistic update — clear instance + linked expense immediately
+    set(s => ({
+      billInstances: s.billInstances.filter(b => b.id !== instanceId),
+      expenses: s.expenses.filter(e => e.billInstanceId !== instanceId),
+      recurringBills: s.recurringBills.map(b =>
+        b.id === instance.templateId ? { ...b, lastGeneratedMonth: '' } : b
+      ),
+    }))
+
     if (hasKeys && state.flatId) {
       await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`))
+      if (linkedExpense) {
+        await deleteDoc(doc(db, `flats/${state.flatId}/expenses/${linkedExpense.id}`))
+      }
       // Reset so the bill shows as DUE again and can be re-generated
       await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${instance.templateId}`), {
         lastGeneratedMonth: '',
       })
-    } else {
-      set(s => ({
-        billInstances: s.billInstances.filter(b => b.id !== instanceId),
-        recurringBills: s.recurringBills.map(b =>
-          b.id === instance.templateId ? { ...b, lastGeneratedMonth: '' } : b
-        ),
-      }))
     }
     await get().addActivity({ userId: uid, action: 'bill_skipped', details: `deleted and reset ${instance.name} — can be regenerated` })
   },

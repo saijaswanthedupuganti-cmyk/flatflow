@@ -2960,14 +2960,16 @@ export default function ExpensesPage() {
                         {isAdmin && (
                           <div className="border-t border-border/40">
                             {confirmDeleteBillId === bill.id ? (
-                              <div className="flex items-center justify-between px-4 py-2.5 bg-red-50 dark:bg-red-950/20">
-                                <p className="text-xs font-semibold text-red-700 dark:text-red-400">Delete &ldquo;{bill.name}&rdquo;? Cannot be undone.</p>
+                              <div className="px-4 py-3 bg-red-50 dark:bg-red-950/20 space-y-2">
+                                <p className="text-xs font-bold text-red-700 dark:text-red-400">
+                                  Delete &ldquo;{bill.name}&rdquo; permanently? This removes all future occurrences and this month&apos;s entry from the dashboard.
+                                </p>
                                 <div className="flex items-center gap-3">
                                   <button onClick={() => setConfirmDeleteBillId(null)} className="text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer">Cancel</button>
                                   <button
                                     onClick={async () => { setConfirmDeleteBillId(null); setExpandedBillId(null); await deleteRecurringBill(bill.id) }}
                                     className="text-xs font-bold text-red-600 hover:text-red-700 transition-colors cursor-pointer"
-                                  >Yes, Delete</button>
+                                  >Yes, Delete Permanently</button>
                                 </div>
                               </div>
                             ) : (
@@ -2981,13 +2983,22 @@ export default function ExpensesPage() {
                                     <Play size={11} /> Generate Split
                                   </button>
                                 )}
+                                {instance && (
+                                  <button
+                                    onClick={() => deleteBillInstance(instance.id)}
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-orange-600 dark:text-orange-400 hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors cursor-pointer"
+                                    title="Remove this month's entry — bill resets to Due so it can be regenerated"
+                                  >
+                                    <RotateCcw size={11} /> Reset Month
+                                  </button>
+                                )}
                                 {instance?.status === 'split_generated' && (
                                   <button
                                     onClick={() => {
                                       setEditingInstanceId(prev => prev === instance.id ? null : instance.id)
                                       setPendingAmounts(p => ({ ...p, [instance.id]: instance.amount?.toString() ?? '' }))
                                     }}
-                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
+                                    className="flex-1 flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors border-l border-border/40 cursor-pointer"
                                   >
                                     <Pencil size={11} /> Edit Amount
                                   </button>
@@ -3001,7 +3012,7 @@ export default function ExpensesPage() {
                                 <button
                                   onClick={() => setConfirmDeleteBillId(bill.id)}
                                   className="flex items-center justify-center px-4 py-2.5 text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors border-l border-border/40 cursor-pointer"
-                                  title="Delete bill"
+                                  title="Permanently delete this recurring bill"
                                 >
                                   <Trash2 size={11} />
                                 </button>

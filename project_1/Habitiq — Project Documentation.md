@@ -1,13 +1,13 @@
 ﻿# Habitiq — Project Documentation
 
 > **Product:** Habitiq
-> **Version:** v0.1.0 (Trial Phase)
+> **Version:** v0.3.0 (Trial Phase — Expenses & Splitwise complete)
 > **Project folder:** C:\garbage
 > **Live URL:** https://garbage-liart.vercel.app
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Target Domain:** habitiq.in / habitiq.app
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** June 2026
+> **Last Updated:** 12 June 2026
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -144,6 +144,14 @@ Google OAuth on mobile (iOS Safari) fails with Firebase's default authDomain due
 | NPS banner | Net Promoter Score survey for user feedback collection |
 | Mock mode | Full app runs without Firebase keys — seeded demo data |
 | 8-member cap | Enforced at Firestore rules level |
+| Recurring Bills module | Admin configures monthly bills; payer auto-rotates; variable amount support |
+| Daily Splits (Splitwise) | Ad-hoc expense log — equal or custom split, 7 currencies, banking-style UI |
+| Balances & Settle Up | Direct pairwise balance calc; bidirectional settle (pay or mark received) |
+| Expense breakdown per person | Expand balance card to see which expenses make up the total |
+| Person filter on transactions | Filter full transaction list to show only shared history with one person |
+| Month-end close flow | Admin locks a month; carry-forward balances flow to next month |
+| Group tasks | Admin creates tasks assigned to multiple members with sub-tasks |
+| Temp tasks | One-off tasks outside the rotation queue |
 
 ---
 
@@ -198,8 +206,15 @@ C:\garbage\
 │   └── npsService.ts         — NPS logic
 ├── store/
 │   ├── useAuthStore.ts       — Auth + flat membership
-│   └── useFlatStore.ts       — Tasks, members, activity, swaps
-├── firestore.rules           — Role-based DB security
+│   └── useFlatStore.ts       — Tasks, members, activity, swaps, expenses, bills, settlements
+├── lib/
+│   ├── firebase.ts           — Init (with mock fallback)
+│   ├── flatService.ts        — Create/join flat, delete, kick, leave
+│   ├── rotationEngine.ts     — Smart rotation algorithm
+│   ├── npsService.ts         — NPS logic
+│   ├── expenseUtils.ts       — Direct pairwise balance computation
+│   └── settlementUtils.ts    — Month-end summary, suggested settlements, carry-forward
+├── firestore.rules           — Role-based DB security (expenses, bills, settlements)
 ├── next.config.ts            — HTTP headers + auth proxy rewrites
 ├── PRODUCT.md                — Business roadmap
 ├── FLATFLOW_LAUNCH_DOCUMENTATION.md — Full launch doc
@@ -233,6 +248,28 @@ C:\garbage\
 
   /npsResponses/{responseId}
     uid, score, createdAt
+
+  /expenses/{expenseId}
+    description, amount, currency, category, paidBy, splitAmong[],
+    splits{uid→amount}, date, createdBy, createdAt, deferToNextMonth?
+
+  /settlements/{settlementId}
+    fromUserId, toUserId, amount, currency, date, note?, createdAt
+
+  /recurringBills/{billId}
+    name, category, amount?, billingDay, currency, active, payerMode,
+    rotationQueue[], participants[], createdBy, createdAt
+
+  /billInstances/{instanceId}
+    billId, name, amount, dueDate, status (pending|split_generated|paid|skipped),
+    paidBy?, splits{uid→amount}?, participants[], currency, createdAt
+
+  /monthCycles/{month}   (month = 'YYYY-MM')
+    month, status (open|closed), closedAt?, totalBillsINR, totalExpensesINR,
+    totalSettledINR, carryForwardOut{balances{uid→amount}}?
+
+  /joinRequests/{requestId}
+    uid, displayName, email, requestedAt, status (pending|approved|rejected)
 ```
 
 ### Architecture Decisions
@@ -295,6 +332,90 @@ Fix: Nickname 30, Flat name 50, Email 254, Password 128.
 - Password strength UX (show "min 6 chars" hint)
 - Content Security Policy (CSP)
 - Firebase App Check for rate limiting
+
+---
+
+## 6f. Splitwise Completion & Expenses Redesign — June 2026 (Session 4)
+
+### REDESIGN — Expenses summary card
+File: app/dashboard/expenses/page.tsx
+Old: Color hero card showing net unsettled balance (balance metric, not a spending metric).
+New: Dark summary card (#1A202C) showing total monthly spend with a two-tone progress bar — amber = Fixed Bills, blue = Daily Splits. Two stat tiles show each category amount and its percentage of the total. Admin "Close month" button lives here. Correctly emphasises the two main things: Fixed Bills and Daily Splits.
+
+### REDESIGN — Balance section collapsed by default
+File: app/dashboard/expenses/page.tsx
+Old: Full per-person balance cards + two "You owe / Owed to you" stat cards always visible above the tab switcher — blocked the main view on mobile.
+New: Single compact strip showing net status at a glance ("You owe ₹2,000 · 2 people" orange, or "All balances settled" green). Tap to expand full per-person cards. Two stat cards removed. Balances accessible but no longer in the way.
+
+### FEAT — Bidirectional settlement (Mark Received)
+File: app/dashboard/expenses/page.tsx
+Previously only the debtor could settle (Settle button on "you owe them" cards only). Added "Mark Received" to "they owe you" cards — creditor can record that the other person paid them (cash/UPI). SettleUpModal handles both directions via `reversed` prop — swaps `fromUserId/toUserId`, shows green accent and "Received from" label, CTA says "Mark Received".
+
+### FEAT — Expense breakdown on balance card expand
+File: app/dashboard/expenses/page.tsx
+Tapping a balance card expands it to list every expense and bill that makes up that balance — category emoji, description, date, per-item net amount, sorted newest first. Users can now see exactly why they owe a specific amount.
+
+### FEAT — Person filter on transaction list
+File: app/dashboard/expenses/page.tsx
+"Filter list by person" button inside expanded balance card. Filters the Daily Splits transaction list to show only expenses and settlements shared with that person. Blue active-filter banner at the top of the list with one-tap Clear.
+
+### FEAT — Settle modal improvements
+File: app/dashboard/expenses/page.tsx
+- Quick-fill chips: "Pay full · ₹X" and "Pay half · ₹Y"
+- Remaining-after-payment preview when entering a partial amount
+- Input goes red and CTA disables if amount exceeds balance owed
+- CTA label changes dynamically ("Pay ₹2,000" for partial, "Mark as Paid" for full)
+- try/catch on handleSave — modal never freezes if Firestore fails
+
+### FEAT — Desktop sidebar Swaps badge counts all pending swaps
+File: app/dashboard/layout.tsx
+Old: `pendingSwaps` counted only swap requests where `toUserId === currentUser`. Showed 0 for admins who had no incoming swaps.
+New: counts all pending swaps in the flat regardless of direction. Both admin and member see the total pending count.
+
+### FEAT — Tasks page mobile Swap Requests shortcut
+File: app/dashboard/tasks/page.tsx
+Mobile-only banner (md:hidden) below the Tasks page header. Shows "Swap Requests" with live pending count badge. Tapping navigates directly to /dashboard/swaps. Replaces the need for a dedicated Swaps slot in the mobile bottom nav.
+
+---
+
+## 6e. Splitwise Overhaul & UI Redesign — June 2026 (Session 3)
+
+### FIX — Wrong people shown in balance (MCF algorithm removed)
+File: lib/expenseUtils.ts
+Problem: The Minimum Cash Flow algorithm collapsed debt chains — if A owed B and B owed C, MCF told A to pay C directly. Users saw balances with people they had never directly transacted with; the "who owes whom" table was confusing and wrong from the user's perspective.
+Fix: Replaced MCF with direct pairwise calculation. For each expense/bill/settlement, we accumulate a net amount between the current user and each counterparty. Users now only see balances with people they actually transacted with. No debt-chain simplification.
+
+### FIX — Deleted expense still visible on dashboard (optimistic delete)
+File: store/useFlatStore.ts
+Problem: `deleteExpense` only called Firestore `deleteDoc` and waited for `onSnapshot` to propagate (~1–2s lag). The deleted expense remained visible in the balance and transaction list during that window.
+Fix: Added optimistic update — `set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))` before the Firestore call. Balance recomputes immediately.
+
+### REDESIGN — Balance/Settle section (expenses page)
+File: app/dashboard/expenses/page.tsx
+Problem: The settle flow was buried inside the dark hero card's bottom section — small "Settle" button, hard to spot, no clear "you owe them" vs "they owe you" framing. Settlement was described as "not easy to find" by user.
+Fix: Extracted balances out of the hero card entirely. New dedicated section below the stat cards shows per-person balance cards:
+- Green card with avatar + "owes you" label + green amount for money owed to you
+- Orange card with avatar + "you owe them" label + orange amount + prominent Settle button
+- Empty state shows "All balances settled — you're square!"
+Hero card simplified to show only total owed / status.
+
+### FIX — Member mobile nav slot 4 → Tasks (not Swaps)
+File: app/dashboard/layout.tsx
+Problem: After the previous session changed slot 4 to Tasks, the pending-swap badge was still attached — members saw Tasks but the badge counted swap requests. Swap access was via dashboard badge link only.
+Fix: Members see Tasks in slot 4 with the pending-swap badge (so they know swaps need attention and can tap Tasks → swap button from there). Dashboard badge still links to the swaps page for direct access.
+
+### UX — Bill cards Mark Paid visible to all payers
+File: app/dashboard/expenses/page.tsx
+Problem: The "Mark Paid" CTA was inside `{isAdmin && (...)}` so members who were listed as payers couldn't mark their own bills paid.
+Fix: Extracted Mark Paid into its own block gated by `isYouPayer || isAdmin`. All payers see the CTA; non-payer members do not.
+
+### UX — Auto-create expense when bill marked paid
+File: store/useFlatStore.ts
+Fix: `markBillPaid` now creates a corresponding expense in the transactions list (category: 'bills', description from bill name, amount/splits from bill instance) so the split-wise transaction list reflects bill payments automatically.
+
+### UX — Transaction list banking-style redesign
+File: app/dashboard/expenses/page.tsx
+Fix: `ExpenseRow` redesigned to banking-style layout: category emoji icon (rounded square) on left, bold description + "payer · date" subtitle in center, net amount (green +X if owed, orange -X if you owe) on right. Expanded view shows clean split breakdown with PAID badge and action buttons.
 
 ---
 
@@ -379,34 +500,70 @@ Fix: Added explicit fortnightly handling in completeTask (14-day nextDueDate), g
 
 ---
 
-## 7. Complete Feature Set (v0.1.0)
+## 7. Complete Feature Set (v0.3.0)
 
 ### Auth
 Google Sign-In (one-tap) · Email/Password · Custom auth domain proxy (iOS Safari fix) · Session persistence · Minimal data (email + name only)
 
 ### Onboarding
-Create flat (instant invite code) · Join flat via code · One-time setup · Join/create additional flats without logout
+Create flat (instant invite code) · Join flat via code · One-time setup · Join/create additional flats without logout · Approval-mode join (admin approves requests)
 
 ### Rotation Engine
 Auto-assignment · Per-task rotation queue · Skip OOS members · Resume on return · Admin manual override · Custom start date · Frequencies: daily/weekly/fortnightly/monthly · Priority: low/medium/high
 
 ### Task Management
-Admin creates/deletes tasks · Mark done (single tap) · Overdue tracking + persistence · New member auto-added to all queues
+Admin creates/deletes/edits tasks · Mark done (single tap) · Overdue tracking + persistence · New member auto-added to all queues · Group tasks (multi-member, sub-task per person) · Temp (one-off) tasks outside rotation
 
 ### Swap System
-Request swap · Accept/Decline · Persistent dashboard banner · Activity log tracking
+Request swap · Accept/Decline · Persistent dashboard banner · Activity log tracking · Pending-swap badge on desktop sidebar and mobile Tasks nav · Swap Requests shortcut button on Tasks page (mobile)
 
 ### Rotation Card
 Full queue visibility · Position numbers · YOU badge · Due date + frequency display
 
 ### Admin Controls
-My Tasks view · Org View (flat-wide) · Invite code panel · Member management · Role transfer
+My Tasks view · Org View (flat-wide) · Invite code panel · Member management · Role transfer · Month-end close flow
 
 ### Membership Management
-Leave flat · Auto flat switch · Admin transfer requirement · Last-member flat deletion · Kick member · Kicked user redirect · Task reassignment on leave/kick
+Leave flat · Auto flat switch · Admin transfer requirement · Last-member flat deletion · Kick member · Kicked user redirect · Task reassignment on leave/kick (correct next-in-queue logic)
 
 ### Multi-Flat
 Multiple flat memberships · FlatSwitcher (Gmail-style) · Instant switch · Join/create from inside dashboard
+
+### Expenses & Splitwise (complete)
+**Recurring Bills:**
+- Admin configures monthly bills (Rent, WiFi, Water, Electricity, Gas, Maid etc.)
+- Fixed or variable amount per month
+- Payer auto-rotates through a queue each month
+- Admin generates bills on/after billing date; variable bills prompt for actual amount
+- Bill instances tracked with status: pending → split_generated → paid / skipped
+- All payers (not just admin) can mark their bills paid
+- Marking paid auto-creates a matching expense in the Daily Splits transaction list
+
+**Daily Splits:**
+- Ad-hoc expense log (like Splitwise) — anyone can add
+- Equal split or fully custom per-person amounts
+- 7 currencies: INR, USD, EUR, GBP, AED, SGD, AUD
+- Banking-style transaction list: category emoji + description + payer·date + net amount
+- Edit expense (creator or admin) · Delete (optimistic — instant UI update)
+- Deferred expenses (carry to next month)
+
+**Balances & Settlement:**
+- Direct pairwise balance calculation — only real transaction pairs shown, no MCF chains
+- Per-person balance cards: green (they owe you) · orange (you owe them)
+- Expand card to see full breakdown of which expenses make up that balance
+- **Settle** button (debtor side): opens settle modal, pay full or partial amount
+- **Mark Received** button (creditor side): record that the other person paid you
+- Settle modal: quick-fill "Pay full / Pay half" chips · remaining-after-payment preview · partial payment label on CTA · try/catch prevents freeze on error
+- Balances collapsed by default on mobile — compact strip shows net status, tap to expand
+- Person filter: filter transaction list to show only shared history with one specific person
+- Settlement history visible in the combined transaction timeline
+
+**Monthly Summary:**
+- Dark summary card showing total monthly spend
+- Progress bar: Fixed Bills (amber) vs Daily Splits (blue)
+- Two stat tiles with amounts and percentages
+- Month-end close: admin locks the month, balances carry forward to next cycle
+- Carry-forward balances shown as a notice at top of next month's list
 
 ### Analytics
 Completion grid · Reliability scores · Per-task breakdown · Flat-level aggregate
@@ -420,8 +577,8 @@ Full audit trail · Real-time · Flat-wide visibility
 ### Real-Time
 Firestore onSnapshot on all data · No refresh needed · Offline detection
 
-### UI
-Dark/light mode · Bottom nav mobile + sidebar desktop · Fully responsive · No install required · Turbopack fast loading
+### UI & Navigation
+Dark/light mode · Bottom nav mobile (5-slot with radial FAB) + sidebar desktop · Fully responsive · No install required · Turbopack fast loading · Pending badge counts on nav items · Radial Quick-Add FAB (Split expense / Bill / Task)
 
 ---
 
@@ -454,12 +611,27 @@ Members page → Remove → Confirm → Member removed → Tasks reassigned → 
 ### Flow 8 — Multi-Flat Switch
 Tap FlatSwitcher → Dropdown shows all flats → Tap target flat → All data reloads instantly → No page reload, no logout
 
+### Flow 9 — Add & Split an Expense
+Expenses Hub → Daily Splits tab → (+) FAB or Add button → Enter description, amount, category, date → Choose equal or custom split → Select who is included → Save → Appears in transaction list instantly → Balances update immediately
+
+### Flow 10 — Setting Up Recurring Bills
+Expenses Hub → Fixed Bills tab → Add Bill → Enter name, category, billing day, fixed/variable → Set rotation queue (who pays each month) → Save → Admin generates on billing date → Bill instances created with split amounts → Each payer marks their bill paid → Auto-logged in Daily Splits
+
+### Flow 11 — Settling a Balance
+Expenses Hub → Tap balance strip (compact) → Balances expand → See "You owe Rahul ₹2,000" → Tap "Settle" → Quick-fill "Pay full" or enter partial → Add note (UPI/cash) → Mark as Paid → Balance recomputes instantly
+
+### Flow 12 — Recording Cash Received (Creditor Flow)
+Expenses Hub → Balance strip → Expand → "Rahul owes you ₹3,000" → Tap "Mark Received" → Enter amount received → Save → Settlement recorded from Rahul's side → Balance updates
+
+### Flow 13 — Investigating a Balance
+Expenses Hub → Balance strip → Expand → Tap "Rahul · owes you · 3 transactions" card → Card expands → See list of 3 expenses with amounts and dates → Tap "Filter list by person" → Daily Splits tab filters to show only shared history with Rahul
+
 ---
 
 ## 9. Current Status & Known Limitations
 
 ### Live and Working
-Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audit complete ✅ · Multi-flat ✅ · Membership management ✅ · 8-member cap ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Swap system ✅ · Dark mode ✅ · NPS banner ✅ · PWA ✅ · Bills & Expenses ✅
+Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audit complete ✅ · Multi-flat ✅ · Membership management ✅ · 8-member cap ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Swap system ✅ · Dark mode ✅ · NPS banner ✅ · PWA ✅ · Recurring Bills ✅ · Daily Splits / Expenses ✅ · Balances & Settlement ✅ · Month-end close ✅
 
 ### Known Limitations
 
@@ -468,11 +640,13 @@ Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile U
 | No push notifications | Must open app to see updates | Phase 2 |
 | No offline mode | Needs internet | Phase 3 |
 | No native mobile app | Web only | Phase 3 |
-| No expense tracking | Duties only | Phase 3 |
 | No password reset UI | Firebase default email | Phase 2 |
 | No task photo proof | No visual verification | Phase 2 |
 | No flat announcements | No admin broadcast | Phase 2 |
 | No task history archive | Older than 30 days not viewable | Phase 2 |
+| Expense multi-currency balances | Cross-currency balances shown separately, no conversion | Phase 2 |
+| No settlement confirmation from recipient | Either side can record a settlement; no double-confirmation | Phase 3 |
+| Admin-only flat-wide balance view | Admin cannot see all member-to-member balances in one matrix | Phase 2 |
 
 ---
 
@@ -492,29 +666,39 @@ Goal: 100+ active flats. Add features users asked for.
 
 **Done (June 2026):**
 - ✅ PWA — manifest.json, service worker, offline fallback, Android install prompt, dynamic PNG icon route
-- ✅ Settings IA overhaul — "Your Flats" card, active flat context in heading, Danger Zone names the flat, FlatFlow branding bug fixed
-- ✅ Bills & Expenses module (Phase 3 quality) — two layers:
-  - **Recurring Bills**: admin configures monthly bills (Rent, WiFi, Water, Electricity etc.) with fixed or variable amounts; payer ROTATES each month automatically; admin triggers generation on/after the billing date; variable bills prompt for actual amount on generate; rotation queue shown with current payer highlighted; bills can be paused/edited/deleted
-  - **One-off Expenses**: ad-hoc log like Splitwise — equal or custom split, multi-currency (INR/USD/EUR/GBP/AED/SGD/AUD), per-person breakdown
-  - **Balances**: net who-owes-whom per currency, Settle Up flow
-  - Firestore: expenses + settlements + recurringBills subcollections with rules; all cleaned on flat delete
-  - Revenue model: expense category data → ad targeting in Phase 3
+- ✅ Settings IA overhaul — "Your Flats" card, active flat context in heading, Danger Zone names the flat
+- ✅ Bills & Expenses module (full Splitwise-class feature):
+  - Recurring Bills: rotation payer, fixed/variable amounts, generate flow, mark paid (all payers), auto-creates expense in transaction list on mark paid
+  - Daily Splits: ad-hoc expenses, banking-style transaction list, equal/custom split, 7 currencies, edit/delete
+  - Balances: direct pairwise algorithm (no MCF chains), per-person cards with expand to see contributing expenses
+  - Settlement: bidirectional — debtor settles, creditor marks received; partial payment with quick-fill chips and remaining preview; try/catch on all modals
+  - Person filter: filter transaction list to one person's history
+  - Monthly summary card: total spend broken into Fixed Bills vs Daily Splits with progress bar
+  - Balance strip: collapsed by default on mobile, compact net status, tap to expand full cards
+  - Month-end close: admin locks month, balances carry forward
+  - Firestore: full subcollection rules deployed; optimistic UI updates throughout
+- ✅ Group tasks and Temp tasks added to task management
+- ✅ Radial FAB in mobile nav (Quick Add: Split / Bill / Task)
+- ✅ Swap badge on desktop sidebar counts all pending flat swaps
+- ✅ Tasks page mobile: Swap Requests shortcut banner with live pending count
 
 **High Priority (remaining):**
 - Push notifications (Firebase Cloud Messaging)
 - WhatsApp integration (task reminders via WhatsApp API)
+- Admin flat-wide balance matrix view
 
 **Medium Priority:**
 - Task photo proof (upload photo on mark done — needs Firebase Storage)
 - Guest invite via shareable link (not just invite code)
 - Password reset UI (in-app flow)
 - Member nickname editing
+- Settlement confirmation from recipient ("I confirm I received this")
 
 **Low Priority:**
 - Task history archive (>30 days)
 - Flat announcements (admin pinned message)
-- Expense splitting (basic Splitwise-like)
 - Task templates (common preset tasks)
+- Expense receipt photo attachment
 
 ---
 

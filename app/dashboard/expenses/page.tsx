@@ -2102,7 +2102,7 @@ export default function ExpensesPage() {
   }, [balances])
 
   const [activeTab, setActiveTab]     = useState<'daily' | 'bills'>('daily')
-  const [showBalances, setShowBalances] = useState(false)
+
   const [expandedBillId, setExpandedBillId] = useState<string | null>(null)
   const [confirmDeleteBillId, setConfirmDeleteBillId] = useState<string | null>(null)
 
@@ -2269,230 +2269,6 @@ export default function ExpensesPage() {
         )
       })()}
 
-      {/* ── Balance strip (compact, expandable) ── */}
-      <button
-        onClick={() => setShowBalances(v => !v)}
-        className={['w-full flex items-center gap-3 px-4 py-3 rounded-[16px] border transition-all cursor-pointer text-left',
-          balances.length === 0
-            ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-            : netUnsettled > 0
-              ? 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40'
-              : 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40',
-        ].join(' ')}
-      >
-        <div className={['w-7 h-7 rounded-full flex items-center justify-center shrink-0',
-          balances.length === 0 || netUnsettled === 0
-            ? 'bg-emerald-100 dark:bg-emerald-900/30' : 'bg-orange-100 dark:bg-orange-900/30',
-        ].join(' ')}>
-          {balances.length === 0 || netUnsettled === 0
-            ? <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
-            : <ArrowUpRight size={13} className="text-orange-600 dark:text-orange-400" />}
-        </div>
-        <div className="flex-1 min-w-0">
-          <p className={['text-[13px] font-bold',
-            balances.length === 0 || netUnsettled === 0
-              ? 'text-emerald-700 dark:text-emerald-400' : 'text-orange-700 dark:text-orange-400',
-          ].join(' ')}>
-            {balances.length === 0
-              ? 'All balances settled'
-              : netUnsettled > 0
-                ? `You owe ${formatAmount(netUnsettled, 'INR')} · ${balances.filter(b => b.amount < 0).length} ${balances.filter(b => b.amount < 0).length === 1 ? 'person' : 'people'}`
-                : `You're owed ${formatAmount(totalOwedToYou, 'INR')}`}
-          </p>
-          {balances.length > 0 && (
-            <p className="text-[11px] text-muted-foreground">
-              {showBalances ? 'Tap to collapse' : 'Tap to view & settle'}
-            </p>
-          )}
-        </div>
-        {balances.length > 0 && (
-          <ChevronDown size={15} className={['text-muted-foreground transition-transform shrink-0', showBalances ? 'rotate-180' : ''].join(' ')} />
-        )}
-      </button>
-
-      {/* ── Balance detail (expanded) ── */}
-      {showBalances && balances.length > 0 && (
-        <div className="space-y-2.5">
-          {balances.map(b => {
-            const m        = members.find(x => x.uid === b.userId)
-            const isOwed   = b.amount > 0  // they owe you
-            const cardKey  = b.userId + b.currency
-            const isExpanded = expandedBalances.has(cardKey)
-            const isFiltered = personFilter === b.userId
-
-            // Transactions that make up this balance
-            const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
-              (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
-              (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
-            ))
-            const relatedBills = billInstances.filter(bi =>
-              (bi.status === 'split_generated' || bi.status === 'paid') && !!bi.splits && (
-                (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
-                (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
-              )
-            )
-            const txCount = relatedExpenses.length + relatedBills.length
-
-            return (
-              <div key={cardKey}
-                className={['rounded-[18px] border shadow-sm overflow-hidden',
-                  isOwed
-                    ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                    : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
-                ].join(' ')}
-              >
-                {/* Main row — click to expand breakdown */}
-                <button
-                  onClick={() => setExpandedBalances(s => {
-                    const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
-                  })}
-                  className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer"
-                >
-                  {/* Avatar + filter dot */}
-                  <div className="relative shrink-0">
-                    <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm',
-                      isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                             : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                    ].join(' ')}>
-                      {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                    </div>
-                    {isFiltered && (
-                      <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-card" />
-                    )}
-                  </div>
-
-                  {/* Name + context */}
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
-                      {m?.nickname ?? '…'}
-                    </p>
-                    <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
-                      {isOwed ? 'owes you' : 'you owe them'}
-                      {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} transaction{txCount !== 1 ? 's' : ''}</span>}
-                    </p>
-                  </div>
-
-                  {/* Amount + chevron */}
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <p className={['text-[17px] font-extrabold leading-none',
-                      isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
-                    ].join(' ')}>
-                      {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
-                    </p>
-                    <ChevronDown size={14} className={['text-muted-foreground transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
-                  </div>
-                </button>
-
-                {/* Expense breakdown (expandable) */}
-                {isExpanded && (
-                  <div className="border-t border-black/5 dark:border-white/5 px-4 pb-3 pt-2.5 space-y-1.5">
-                    {[
-                      ...relatedExpenses.map(e => {
-                        const isBPayer = e.paidBy === b.userId
-                        const net      = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
-                        const cat      = CATEGORY_CONFIG[e.category]
-                        return { key: e.id, emoji: cat?.emoji ?? '💰', label: e.description, date: e.date, net }
-                      }),
-                      ...relatedBills.map(bi => {
-                        const isBPayer = bi.paidBy === b.userId
-                        const net      = isBPayer ? -(bi.splits![currentUserId] ?? 0) : (bi.splits![b.userId] ?? 0)
-                        return { key: bi.id, emoji: '🧾', label: bi.name, date: bi.dueDate, net }
-                      }),
-                    ]
-                      .sort((a, z) => z.date.localeCompare(a.date))
-                      .map(row => (
-                        <div key={row.key} className="flex items-center gap-2.5">
-                          <span className="text-base shrink-0">{row.emoji}</span>
-                          <p className="flex-1 text-[12px] font-semibold truncate text-foreground/80">{row.label}</p>
-                          <p className="text-[11px] text-muted-foreground shrink-0">
-                            {new Date(row.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
-                          </p>
-                          <p className={['text-[12px] font-extrabold shrink-0 w-16 text-right', row.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
-                            {row.net >= 0 ? '+' : ''}{formatAmount(Math.abs(row.net), b.currency)}
-                          </p>
-                        </div>
-                      ))
-                    }
-
-                    {/* Action row */}
-                    <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
-                      {/* Filter toggle */}
-                      <button
-                        onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
-                        className={['flex-1 text-[11px] font-bold py-1.5 rounded-xl border transition-all cursor-pointer',
-                          isFiltered
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground',
-                        ].join(' ')}
-                      >
-                        {isFiltered ? '✓ Filtering list' : 'Filter list by person'}
-                      </button>
-
-                      {isOwed ? (
-                        <button
-                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                          className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer"
-                        >
-                          Mark Received
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                          className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-[#3786FB] hover:bg-blue-600 text-white transition-all cursor-pointer"
-                        >
-                          Settle
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {/* Compact CTA (when collapsed) */}
-                {!isExpanded && (
-                  <div className="flex gap-2 px-4 pb-3">
-                    {isOwed ? (
-                      <button
-                        onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                        className="text-[11px] font-bold px-3.5 py-1.5 rounded-full border border-emerald-400 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
-                      >
-                        Mark Received
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                        className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
-                      >
-                        Settle
-                      </button>
-                    )}
-                  </div>
-                )}
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* Person filter active banner */}
-      {personFilter && (() => {
-        const fm = members.find(m => m.uid === personFilter)
-        return (
-          <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[14px] bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40">
-            <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[10px] font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
-              {(fm?.nickname ?? '?').charAt(0).toUpperCase()}
-            </div>
-            <p className="text-[12px] font-semibold text-blue-700 dark:text-blue-300 flex-1">
-              Showing transactions with <span className="font-extrabold">{fm?.nickname ?? '…'}</span>
-            </p>
-            <button
-              onClick={() => setPersonFilter(null)}
-              className="text-[10px] font-extrabold text-blue-500 hover:text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
-            >
-              Clear
-            </button>
-          </div>
-        )
-      })()}
 
       {/* Tab switcher */}
       <div className="flex gap-1 p-1 bg-secondary/70 dark:bg-secondary/50 rounded-xl">
@@ -2533,6 +2309,193 @@ export default function ExpensesPage() {
       {/* DAILY SPLITS TAB */}
       {activeTab === 'daily' && (
         <div className="space-y-4">
+
+          {/* ── Who owes whom ────────────────────────────── */}
+          {balances.length === 0 ? (
+            <div className="flex items-center gap-2.5 px-4 py-3 rounded-[16px] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40">
+              <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
+                <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+              </div>
+              <p className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">All balances settled</p>
+            </div>
+          ) : (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between px-1">
+                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Balances</p>
+                <p className={['text-[11px] font-semibold', netUnsettled > 0 ? 'text-orange-500 dark:text-orange-400' : 'text-emerald-500 dark:text-emerald-400'].join(' ')}>
+                  {netUnsettled > 0
+                    ? `You owe ${formatAmount(netUnsettled, 'INR')} total`
+                    : `You're owed ${formatAmount(totalOwedToYou, 'INR')}`}
+                </p>
+              </div>
+              {balances.map(b => {
+                const m        = members.find(x => x.uid === b.userId)
+                const isOwed   = b.amount > 0
+                const cardKey  = b.userId + b.currency
+                const isExpanded = expandedBalances.has(cardKey)
+                const isFiltered = personFilter === b.userId
+                const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
+                  (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
+                  (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
+                ))
+                const relatedBills = billInstances.filter(bi =>
+                  bi.status === 'split_generated' && !!bi.splits && (
+                    (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
+                    (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
+                  )
+                )
+                const txCount = relatedExpenses.length + relatedBills.length
+                return (
+                  <div key={cardKey}
+                    className={['rounded-[18px] border shadow-sm overflow-hidden',
+                      isOwed
+                        ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
+                        : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
+                    ].join(' ')}
+                  >
+                    <button
+                      onClick={() => setExpandedBalances(s => {
+                        const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
+                      })}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left cursor-pointer"
+                    >
+                      <div className="relative shrink-0">
+                        <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm',
+                          isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                 : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                        ].join(' ')}>
+                          {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                        </div>
+                        {isFiltered && (
+                          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-card" />
+                        )}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
+                          {m?.nickname ?? '…'}
+                        </p>
+                        <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
+                          {isOwed ? 'owes you' : 'you owe them'}
+                          {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} transaction{txCount !== 1 ? 's' : ''}</span>}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <p className={['text-[17px] font-extrabold leading-none',
+                          isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                        ].join(' ')}>
+                          {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
+                        </p>
+                        <ChevronDown size={14} className={['text-muted-foreground transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                      </div>
+                    </button>
+
+                    {/* Breakdown (expanded) */}
+                    {isExpanded && (
+                      <div className="border-t border-black/5 dark:border-white/5 px-4 pb-3 pt-2.5 space-y-1.5">
+                        {[
+                          ...relatedExpenses.map(e => {
+                            const isBPayer = e.paidBy === b.userId
+                            const net      = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
+                            const cat      = CATEGORY_CONFIG[e.category]
+                            return { key: e.id, emoji: cat?.emoji ?? '💰', label: e.description, date: e.date, net }
+                          }),
+                          ...relatedBills.map(bi => {
+                            const isBPayer = bi.paidBy === b.userId
+                            const net      = isBPayer ? -(bi.splits![currentUserId] ?? 0) : (bi.splits![b.userId] ?? 0)
+                            return { key: bi.id, emoji: '🧾', label: bi.name, date: bi.dueDate ?? '', net }
+                          }),
+                        ]
+                          .sort((a, z) => z.date.localeCompare(a.date))
+                          .map(row => (
+                            <div key={row.key} className="flex items-center gap-2.5">
+                              <span className="text-base shrink-0">{row.emoji}</span>
+                              <p className="flex-1 text-[12px] font-semibold truncate text-foreground/80">{row.label}</p>
+                              <p className="text-[11px] text-muted-foreground shrink-0">
+                                {row.date ? new Date(row.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
+                              </p>
+                              <p className={['text-[12px] font-extrabold shrink-0 w-16 text-right', row.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
+                                {row.net >= 0 ? '+' : ''}{formatAmount(Math.abs(row.net), b.currency)}
+                              </p>
+                            </div>
+                          ))
+                        }
+                        <div className="flex gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                          <button
+                            onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
+                            className={['flex-1 text-[11px] font-bold py-1.5 rounded-xl border transition-all cursor-pointer',
+                              isFiltered
+                                ? 'bg-blue-500 text-white border-blue-500'
+                                : 'border-border text-muted-foreground hover:text-foreground hover:border-foreground',
+                            ].join(' ')}
+                          >
+                            {isFiltered ? '✓ Filtering list' : 'Filter list'}
+                          </button>
+                          {isOwed ? (
+                            <button
+                              onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
+                              className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white transition-all cursor-pointer"
+                            >
+                              Mark Received
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                              className="flex-1 text-[11px] font-bold py-1.5 rounded-xl bg-[#3786FB] hover:bg-blue-600 text-white transition-all cursor-pointer"
+                            >
+                              Settle Up
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Compact CTA (collapsed) */}
+                    {!isExpanded && (
+                      <div className="flex gap-2 px-4 pb-3">
+                        {isOwed ? (
+                          <button
+                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
+                            className="text-[11px] font-bold px-3.5 py-1.5 rounded-full border border-emerald-400 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                          >
+                            Mark Received
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                            className="bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold px-3.5 py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
+                          >
+                            Settle Up
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          )}
+
+          {/* Person filter active banner */}
+          {personFilter && (() => {
+            const fm = members.find(m => m.uid === personFilter)
+            return (
+              <div className="flex items-center gap-2.5 px-3.5 py-2.5 rounded-[14px] bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-900/40">
+                <div className="w-6 h-6 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-[10px] font-extrabold text-blue-700 dark:text-blue-300 shrink-0">
+                  {(fm?.nickname ?? '?').charAt(0).toUpperCase()}
+                </div>
+                <p className="text-[12px] font-semibold text-blue-700 dark:text-blue-300 flex-1">
+                  Showing transactions with <span className="font-extrabold">{fm?.nickname ?? '…'}</span>
+                </p>
+                <button
+                  onClick={() => setPersonFilter(null)}
+                  className="text-[10px] font-extrabold text-blue-500 hover:text-blue-700 border border-blue-300 px-2 py-0.5 rounded-full cursor-pointer transition-colors"
+                >
+                  Clear
+                </button>
+              </div>
+            )
+          })()}
+
           {carryForwardIn && Object.keys(carryForwardIn).length > 0 && (
             <div className="flex items-center gap-2.5 p-3.5 rounded-2xl border border-border bg-secondary/30">
               <RotateCcw size={13} className="text-muted-foreground shrink-0" />

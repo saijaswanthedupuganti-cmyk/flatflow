@@ -99,6 +99,7 @@ export interface Expense {
   month?: string            // yyyy-MM — which billing cycle this belongs to
   note?: string
   deferToNextMonth?: boolean
+  billInstanceId?: string
   createdAt: string
   createdBy: string
 }
@@ -966,6 +967,19 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (hasKeys && get().flatId) {
       await deleteDoc(doc(db, `flats/${get().flatId}/expenses/${expenseId}`))
     }
+    // If this expense was auto-created from a bill payment, revert the bill instance
+    // back to split_generated so other members' balances reflect it correctly again.
+    if (expense?.billInstanceId && hasKeys && get().flatId) {
+      await updateDoc(
+        doc(db, `flats/${get().flatId}/billInstances/${expense.billInstanceId}`),
+        { status: 'split_generated', paidAt: null },
+      )
+      set(s => ({
+        billInstances: s.billInstances.map(b =>
+          b.id === expense.billInstanceId ? { ...b, status: 'split_generated' as BillInstanceStatus, paidAt: null } : b
+        ),
+      }))
+    }
     if (expense) {
       await get().addActivity({
         userId: expense.createdBy,
@@ -1043,12 +1057,42 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     } else {
       set(s => ({ recurringBills: s.recurringBills.map(b => b.id === billId ? { ...b, ...changes } : b) }))
     }
+
+    // When participants change, propagate to pending/split_generated instances so removed
+    // members no longer appear in future bill splits.
+    if (changes.participants && state.flatId) {
+      const affectedInstances = state.billInstances.filter(
+        b => b.templateId === billId && (b.status === 'pending' || b.status === 'split_generated')
+      )
+      for (const inst of affectedInstances) {
+        const newParticipants = changes.participants
+        // Rebuild equal splits for the new participant list
+        const share = inst.amount ? Math.round(inst.amount / newParticipants.length) : 0
+        const newSplits: Record<string, number> = {}
+        newParticipants.forEach((p, i) => {
+          newSplits[p] = i === newParticipants.length - 1
+            ? (inst.amount ?? 0) - share * (newParticipants.length - 1)
+            : share
+        })
+        const instChanges = { participants: newParticipants, splits: newSplits }
+        if (hasKeys && state.flatId) {
+          await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${inst.id}`), instChanges)
+        } else {
+          set(s => ({
+            billInstances: s.billInstances.map(b => b.id === inst.id ? { ...b, ...instChanges } : b)
+          }))
+        }
+      }
+    }
+
     if (uid && bill) {
       const parts: string[] = []
       if (changes.amount !== undefined && changes.amount !== bill.amount)
         parts.push(`amount ${bill.amount ?? '?'} → ${changes.amount}`)
       if (changes.name !== undefined && changes.name !== bill.name)
         parts.push(`renamed "${bill.name}" → "${changes.name}"`)
+      if (changes.participants !== undefined)
+        parts.push(`participants updated (${changes.participants.length} members)`)
       const summary = parts.length ? parts.join(', ') : 'settings updated'
       await get().addActivity({ userId: uid, action: 'bill_edited', details: `edited fixed bill "${bill.name}" — ${summary}` })
     }
@@ -1217,7 +1261,8 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
     }
 
-    // Auto-create an expense so the payment appears in the transaction list
+    // Auto-create an expense so the payment appears in the transaction list.
+    // Store billInstanceId so deleteExpense can revert the instance back to split_generated.
     if (instance.amount && instance.splits && instance.participants.length > 0) {
       await get().addExpense({
         description: instance.name,
@@ -1230,6 +1275,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         category: instance.category,
         date: new Date().toISOString().split('T')[0],
         createdBy: uid,
+        billInstanceId: instanceId,
       })
     }
 

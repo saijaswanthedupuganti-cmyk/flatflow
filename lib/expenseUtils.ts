@@ -48,8 +48,10 @@ export function computeBalances(
   }
 
   // ── Bill instances ─────────────────────────────────────────────────────────
+  // Only count split_generated (awaiting payment). Once paid, markBillPaid auto-creates
+  // an expense which handles the balance — counting both would double the amount.
   for (const instance of billInstances) {
-    if (instance.status !== 'split_generated' && instance.status !== 'paid') continue
+    if (instance.status !== 'split_generated') continue
     if (!instance.splits) continue
     const { paidBy, participants, splits, currency } = instance
     if (paidBy === currentUserId) {

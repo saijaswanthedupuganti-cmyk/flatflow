@@ -7,7 +7,7 @@
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Target Domain:** habitiq.in / habitiq.app
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 12 June 2026
+> **Last Updated:** 13 June 2026
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -664,7 +664,13 @@ Goal: Validate with 5–20 real flats.
 ### Phase 2 — Growth (3–6 Months)
 Goal: 100+ active flats. Add features users asked for.
 
-**Done (June 2026):**
+**Done (June 2026 — Session 2026-06-13):**
+- ✅ **Expense delete enabled** — `canDelete={false}` was hardcoded in the Daily Splits transaction list (`app/dashboard/expenses/page.tsx`). Changed to `canDelete={item.data.createdBy === currentUserId || !!isAdmin}`. Creators and admins can now delete expenses via the "Remove" button in the expanded row. `deleteExpense` updated to accept optional `actorId` so the activity log records WHO deleted the expense. All monthly totals (summary card, dashboard widget) already updated reactively — the only missing piece was the button being hidden.
+- ✅ **Settlements collapsed by default** — Settlement rows in the Daily Splits transaction list now collapse into a compact tap-to-expand divider: `── ✓ Settled · ₹5,000 · 3 payments ──` with a chevron icon. Tapping expands to show individual `SettlementRow` entries. Each month group has independent open/close state via `expandedSettlements: Set<string>`. Eliminates excessive scrolling when there are many past settlements.
+- ✅ **Fixed bills dashboard persisting after delete** — Two-layer fix: (1) `deleteRecurringBill` now uses `writeBatch` to atomically delete the template + all linked bill instances + all linked expenses in a single Firestore commit, preventing intermediate `onSnapshot` re-additions (race condition). (2) `fixedBillsThisMonth` on the dashboard now cross-references against `activeTemplateIds` — orphaned bill instances from deleted templates are silently ignored.
+- ✅ **Erase All Expense Data (admin-only)** — New Danger Zone section at the bottom of the Expenses page. Admin taps "Erase All Expense Data" → confirmation modal listing all 5 data types (daily splits, settlements, fixed bills, bill instances, month close records) → "Erase Everything" button. Implemented as `resetAllExpensesData()` in `useFlatStore`: optimistic local clear first, then `getDocs` + `writeBatch` in 400-doc chunks for each subcollection (`expenses`, `settlements`, `recurringBills`, `billInstances`, `monthCycles`). For test data cleanup before production launch.
+
+**Done (June 2026 — prior sessions):**
 - ✅ PWA — manifest.json, service worker, offline fallback, Android install prompt, dynamic PNG icon route
 - ✅ Settings IA overhaul — "Your Flats" card, active flat context in heading, Danger Zone names the flat
 - ✅ Bills & Expenses module (full Splitwise-class feature):

@@ -849,7 +849,7 @@ function Footer() {
           <div>
             <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.12em] mb-4">Company</p>
             <div className="space-y-3">
-              {[['#','About'],['#','Privacy'],['#','Contact']].map(([h,l]) => (
+              {[['#','About'],['/privacy','Privacy'],['/terms','Terms'],['mailto:hello@habitiq.in','Contact']].map(([h,l]) => (
                 <a key={l} href={h} className="block text-white/28 text-sm hover:text-white/55 transition-colors">{l}</a>
               ))}
             </div>

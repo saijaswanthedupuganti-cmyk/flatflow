@@ -422,7 +422,7 @@ export default function SettingsPage() {
           <CardContent className="p-6">
             <div className="flex items-start gap-3">
               <Info size={18} className="text-muted-foreground mt-0.5 shrink-0" />
-              <div>
+              <div className="flex-1">
                 <p className="font-semibold text-sm">Habitiq v0.1.0</p>
                 <p className="text-xs text-muted-foreground mt-1">
                   Shared living, perfectly balanced. Built for flatmates who want a fair, automated chore rotation system.
@@ -432,6 +432,15 @@ export default function SettingsPage() {
                     Manage your flat — invite code, join mode, feedback — in <strong>Manage Flat</strong> (Admin section).
                   </p>
                 )}
+                <div className="flex items-center gap-3 mt-3">
+                  <a href="/privacy" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                    Privacy Policy
+                  </a>
+                  <span className="text-muted-foreground/40 text-xs">·</span>
+                  <a href="/terms" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                    Terms of Service
+                  </a>
+                </div>
               </div>
             </div>
           </CardContent>

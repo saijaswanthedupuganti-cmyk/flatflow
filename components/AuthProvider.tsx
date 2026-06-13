@@ -130,10 +130,11 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
     const isAuthPage = pathname === '/'
     const isOnboarding = pathname === '/onboarding'
     const isDashboard = pathname.startsWith('/dashboard')
+    const isPublicPage = pathname === '/privacy' || pathname === '/terms'
 
     if (!user) {
-      // Not logged in — send to login page
-      if (!isAuthPage) router.push('/')
+      // Not logged in — send to login page (public pages bypass this)
+      if (!isAuthPage && !isPublicPage) router.push('/')
     } else if (!flatId) {
       // Logged in but not in a flat yet — send to onboarding
       if (!isOnboarding) router.push('/onboarding')

@@ -631,7 +631,7 @@ Expenses Hub → Balance strip → Expand → Tap "Rahul · owes you · 3 transa
 ## 9. Current Status & Known Limitations
 
 ### Live and Working
-Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audit complete ✅ · Multi-flat ✅ · Membership management ✅ · 8-member cap ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Swap system ✅ · Dark mode ✅ · NPS banner ✅ · PWA ✅ · Recurring Bills ✅ · Daily Splits / Expenses ✅ · Balances & Settlement ✅ · Month-end close ✅
+Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audit complete ✅ · Multi-flat ✅ · Membership management ✅ · 8-member cap ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Swap system ✅ · Dark mode ✅ · NPS banner ✅ · PWA ✅ · Recurring Bills ✅ · Daily Splits / Expenses ✅ · Balances & Settlement ✅ · Month-end close ✅ · Privacy Policy ✅ · Terms of Service ✅
 
 ### Known Limitations
 
@@ -664,7 +664,15 @@ Goal: Validate with 5–20 real flats.
 ### Phase 2 — Growth (3–6 Months)
 Goal: 100+ active flats. Add features users asked for.
 
-**Done (June 2026 — Session 2026-06-13):**
+**Done (June 2026 — Session 2026-06-13, Part 2):**
+- ✅ **Privacy Policy** — `app/privacy/page.tsx`. DPDP Act 2023 compliant. Covers: data collected (email, name, photo URL, tasks, expenses, activity logs), lawful basis per DPDP, third-party processors (Firebase, Vercel, WhatsApp/FCM planned), cross-border data transfer disclosure, user rights (access, correction, erasure, grievance redressal, nomination), Grievance Officer designation. Static page, no auth required.
+- ✅ **Terms of Service** — `app/terms/page.tsx`. Covers: eligibility (18+), what Habitiq does and does not do (no payment processing), free service terms, user and admin responsibilities, flat membership/removal rules, dispute framing (Habitiq is not an arbiter), governing law (India, Hyderabad courts), liability cap (₹0 free service), 60-day discontinuation notice. Static page, no auth required.
+- ✅ **Public route bypass in AuthProvider** — `components/AuthProvider.tsx`. `/privacy` and `/terms` added to `isPublicPage` check — unauthenticated users can access both pages without being redirected to login.
+- ✅ **Landing page footer wired** — `app/page.tsx`. Footer Company links updated: Privacy → `/privacy`, Terms → `/terms`, Contact → `mailto:hello@habitiq.in` (was all `#` placeholders).
+- ✅ **Settings page legal links** — `app/dashboard/settings/page.tsx`. Privacy Policy · Terms of Service links added to the About card, visible to all logged-in users.
+- ✅ **G1 gate progress** — Privacy Policy and Terms of Service are live at `/privacy` and `/terms`. Remaining G1 items: buy habitiq.in domain, rename Vercel project, founder agreement with Bhanu.
+
+**Done (June 2026 — Session 2026-06-13, Part 1):**
 - ✅ **Expense delete enabled** — `canDelete={false}` was hardcoded in the Daily Splits transaction list (`app/dashboard/expenses/page.tsx`). Changed to `canDelete={item.data.createdBy === currentUserId || !!isAdmin}`. Creators and admins can now delete expenses via the "Remove" button in the expanded row. `deleteExpense` updated to accept optional `actorId` so the activity log records WHO deleted the expense. All monthly totals (summary card, dashboard widget) already updated reactively — the only missing piece was the button being hidden.
 - ✅ **Settlements collapsed by default** — Settlement rows in the Daily Splits transaction list now collapse into a compact tap-to-expand divider: `── ✓ Settled · ₹5,000 · 3 payments ──` with a chevron icon. Tapping expands to show individual `SettlementRow` entries. Each month group has independent open/close state via `expandedSettlements: Set<string>`. Eliminates excessive scrolling when there are many past settlements.
 - ✅ **Fixed bills dashboard persisting after delete** — Two-layer fix: (1) `deleteRecurringBill` now uses `writeBatch` to atomically delete the template + all linked bill instances + all linked expenses in a single Firestore commit, preventing intermediate `onSnapshot` re-additions (race condition). (2) `fixedBillsThisMonth` on the dashboard now cross-references against `activeTemplateIds` — orphaned bill instances from deleted templates are silently ignored.

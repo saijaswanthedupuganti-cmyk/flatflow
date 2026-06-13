@@ -2245,14 +2245,14 @@ export default function ExpensesPage() {
         const fixedPct = grand > 0 ? Math.round((fixedBillsThisMonth / grand) * 100) : 0
         const dailyPct = grand > 0 ? 100 - fixedPct : 0
         return (
-          <div className="rounded-[20px] bg-[#1A202C] shadow-[0px_7px_15px_0px_rgba(0,0,0,0.14)] p-5 space-y-4">
+          <div className="rounded-[24px] bg-gradient-to-br from-[#0A0F1C] via-[#111827] to-[#1C2744] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.50)] p-5 space-y-5 border border-white/[0.06]">
             {/* Top row */}
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-[#999CA1] text-[11px] font-semibold uppercase tracking-widest">
                   {monthLabel(currentMonthKey())}{isCurrentMonthClosed ? ' · Closed' : ''}
                 </p>
-                <p className="text-white text-3xl font-extrabold mt-1 leading-none">
+                <p className="text-white text-[40px] font-black mt-2 leading-none tracking-tight">
                   {formatAmount(grand, 'INR')}
                 </p>
                 <p className="text-[#4D515B] text-[11px] mt-1.5">
@@ -2278,7 +2278,7 @@ export default function ExpensesPage() {
                   {dailyPct > 0 && <div className="bg-[#3786FB] rounded-r-full transition-all" style={{ width: `${dailyPct}%` }} />}
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/5 rounded-[14px] px-3.5 py-2.5">
+                  <div className="bg-white/[0.07] rounded-[16px] px-3.5 py-3 border border-white/[0.05]">
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
                       <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Fixed Bills</p>
@@ -2286,7 +2286,7 @@ export default function ExpensesPage() {
                     <p className="text-white text-[17px] font-extrabold leading-none">{formatAmount(fixedBillsThisMonth, 'INR')}</p>
                     <p className="text-[#4D515B] text-[10px] mt-1">{fixedPct}% of total</p>
                   </div>
-                  <div className="bg-white/5 rounded-[14px] px-3.5 py-2.5">
+                  <div className="bg-white/[0.07] rounded-[16px] px-3.5 py-3 border border-white/[0.05]">
                     <div className="flex items-center gap-1.5 mb-1">
                       <span className="w-2 h-2 rounded-full bg-[#3786FB] shrink-0" />
                       <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Daily Splits</p>
@@ -2303,7 +2303,7 @@ export default function ExpensesPage() {
 
 
       {/* Tab switcher */}
-      <div className="flex gap-1 p-1 bg-secondary/70 dark:bg-secondary/50 rounded-xl">
+      <div className="flex gap-0 p-1 bg-[#EDEDF0] dark:bg-white/[0.06] rounded-[14px] border border-black/[0.05] dark:border-white/[0.05]">
         <button
           onClick={() => setActiveTab('daily')}
           className={['flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer',
@@ -2344,25 +2344,44 @@ export default function ExpensesPage() {
 
           {/* ── Who owes whom ────────────────────────────── */}
           {balances.length === 0 ? (
-            <div className="flex items-center gap-2.5 px-4 py-3 rounded-[16px] bg-emerald-50 dark:bg-emerald-950/20 border border-emerald-200 dark:border-emerald-900/40">
-              <div className="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                <Check size={13} className="text-emerald-600 dark:text-emerald-400" />
+            <div className="flex items-center gap-3 px-4 py-4 rounded-[18px] bg-gradient-to-r from-emerald-50 to-emerald-100/40 dark:from-emerald-950/50 dark:to-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40">
+              <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-[0px_4px_12px_rgba(16,185,129,0.30)]">
+                <Check size={15} className="text-white" />
               </div>
-              <p className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">All balances settled</p>
+              <div>
+                <p className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400">All balances settled</p>
+                <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/60 mt-0.5">No pending balances this cycle.</p>
+              </div>
             </div>
           ) : (
-            <div className="space-y-2.5">
-              <div className="flex items-center justify-between px-1">
-                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Who Owes Whom</p>
-                <span className={['text-[11px] font-extrabold px-2.5 py-1 rounded-full leading-none',
-                  netUnsettled > 0
-                    ? 'bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
-                    : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
-                ].join(' ')}>
-                  {netUnsettled > 0
-                    ? `You owe ${formatAmount(netUnsettled, 'INR')}`
-                    : totalOwedToYou > 0 ? `+${formatAmount(totalOwedToYou, 'INR')} owed to you` : 'All clear'}
-                </span>
+            <div className="space-y-3">
+              {/* Financial status hero cards */}
+              {(totalOwedToYou > 0 || totalYouOwe > 0) && (
+                <div className={['grid gap-2', totalOwedToYou > 0 && totalYouOwe > 0 ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
+                  {totalOwedToYou > 0 && (
+                    <div className="flex flex-col gap-1 px-4 py-3.5 rounded-[18px] bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/80 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-700/30">
+                      <div className="flex items-center justify-between">
+                        <p className="text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">You&apos;ll receive</p>
+                        <ArrowDownLeft size={13} className="text-emerald-600 dark:text-emerald-400 opacity-70" />
+                      </div>
+                      <p className="text-emerald-800 dark:text-emerald-300 text-[22px] font-black leading-none tracking-tight">{formatAmount(totalOwedToYou, 'INR')}</p>
+                      <p className="text-emerald-600/70 dark:text-emerald-500/70 text-[10px]">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
+                    </div>
+                  )}
+                  {totalYouOwe > 0 && (
+                    <div className="flex flex-col gap-1 px-4 py-3.5 rounded-[18px] bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/80 dark:to-orange-900/30 border border-orange-200 dark:border-orange-700/30">
+                      <div className="flex items-center justify-between">
+                        <p className="text-orange-600 dark:text-orange-400 text-[10px] font-bold uppercase tracking-wider">You need to pay</p>
+                        <ArrowUpRight size={13} className="text-orange-500 dark:text-orange-400 opacity-70" />
+                      </div>
+                      <p className="text-orange-700 dark:text-orange-300 text-[22px] font-black leading-none tracking-tight">{formatAmount(totalYouOwe, 'INR')}</p>
+                      <p className="text-orange-500/70 dark:text-orange-500/70 text-[10px]">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2 px-1">
+                <p className="text-[10px] font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Balances</p>
               </div>
               {balances.map(b => {
                 const m        = members.find(x => x.uid === b.userId)
@@ -2383,7 +2402,7 @@ export default function ExpensesPage() {
                 const txCount = relatedExpenses.length + relatedBills.length
                 return (
                   <div key={cardKey}
-                    className={['rounded-[18px] border shadow-sm overflow-hidden',
+                    className={['rounded-[22px] border shadow-[0px_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0px_4px_24px_rgba(0,0,0,0.30)] overflow-hidden',
                       isOwed
                         ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
                         : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
@@ -2394,10 +2413,10 @@ export default function ExpensesPage() {
                       onClick={() => setExpandedBalances(s => {
                         const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
                       })}
-                      className="flex items-center gap-3 px-4 pt-3.5 pb-2 cursor-pointer"
+                      className="flex items-center gap-3 px-4 pt-4 pb-2.5 cursor-pointer"
                     >
                       <div className="relative shrink-0">
-                        <div className={['w-10 h-10 rounded-full flex items-center justify-center font-extrabold text-sm',
+                        <div className={['w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-[13px]',
                           isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
                                  : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
                         ].join(' ')}>
@@ -2416,7 +2435,7 @@ export default function ExpensesPage() {
                           {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} tx</span>}
                         </p>
                       </div>
-                      <p className={['text-[17px] font-extrabold leading-none shrink-0',
+                      <p className={['text-[22px] font-black leading-none shrink-0 tracking-tight',
                         isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
                       ].join(' ')}>
                         {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
@@ -2425,7 +2444,7 @@ export default function ExpensesPage() {
                     </div>
 
                     {/* Action row — always visible */}
-                    <div className="flex gap-2 px-4 pb-3.5">
+                    <div className="flex gap-2 px-4 pb-4">
                       <button
                         onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
                         className={['shrink-0 text-[10px] font-bold px-2.5 py-1.5 rounded-full border transition-all cursor-pointer',
@@ -2439,14 +2458,14 @@ export default function ExpensesPage() {
                       {isOwed ? (
                         <button
                           onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-extrabold py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_14px_rgba(16,185,129,0.30)]"
                         >
                           Mark Received
                         </button>
                       ) : (
                         <button
                           onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                          className="flex-1 bg-[#3786FB] hover:bg-blue-600 active:scale-95 text-white text-[11px] font-extrabold py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
+                          className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_14px_rgba(55,134,251,0.35)]"
                         >
                           Settle Up
                         </button>
@@ -2527,7 +2546,7 @@ export default function ExpensesPage() {
           )}
 
           {sortedExpenses.length > 0 && (
-            <div className="p-4 rounded-[20px] border border-border bg-card shadow-sm">
+            <div className="p-4 rounded-[20px] border border-border/50 bg-card shadow-[0px_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0px_4px_16px_rgba(0,0,0,0.22)]">
               <div className="flex items-center justify-between mb-3">
                 <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">7-Day Activity</p>
                 {thisMonthExpensesTotal > 0 && (
@@ -2555,7 +2574,7 @@ export default function ExpensesPage() {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Receipt size={14} className="text-muted-foreground" />
-              <h2 className="text-sm font-bold text-[#021328] dark:text-foreground">Splits</h2>
+              <h2 className="text-[15px] font-bold text-[#021328] dark:text-foreground">Splits</h2>
               {visibleTx.length > 0 && (
                 <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
@@ -2597,7 +2616,7 @@ export default function ExpensesPage() {
                 )}
                 <button
                   onClick={() => setShowAddExpense(true)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3 py-1.5 rounded-full transition-colors cursor-pointer"
+                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3.5 py-2 rounded-full transition-colors cursor-pointer shadow-[0px_4px_12px_rgba(55,134,251,0.30)]"
                 >
                   <Plus size={11} /> Add Split
                 </button>
@@ -2642,8 +2661,8 @@ export default function ExpensesPage() {
 
             {visibleTx.length === 0 ? (
               <Card className="border-dashed border-2">
-                <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                  <Inbox size={36} className="text-muted-foreground/25 mb-3" />
+                <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                  <Inbox size={28} className="text-muted-foreground/20 mb-2.5" />
                   <p className="font-bold text-base text-muted-foreground">
                     {splitView === 'mine' ? "You're not in any splits yet" : 'No shared expenses yet'}
                   </p>
@@ -2676,7 +2695,7 @@ export default function ExpensesPage() {
 
                       {/* Expenses — transaction list */}
                       {expenseItems.length > 0 && (
-                        <div className="rounded-[18px] bg-card border border-border/50 shadow-[0px_2px_8px_rgba(0,0,0,0.05)] overflow-hidden">
+                        <div className="rounded-[20px] bg-card border border-border/40 shadow-[0px_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0px_4px_20px_rgba(0,0,0,0.25)] overflow-hidden">
                           {expenseItems.map((item, i) =>
                             item.kind === 'expense' && (
                               <ExpenseRow key={item.data.id} expense={item.data} members={members} currentUserId={currentUserId}
@@ -2746,7 +2765,7 @@ export default function ExpensesPage() {
               { label: 'Your Share', value: myMonthlyShare > 0 ? formatAmount(myMonthlyShare, 'INR') : '--', sub: 'your obligation', dark: true },
               { label: 'Next Due', value: nextBillingDay != null ? ordinal(nextBillingDay) : '--', sub: 'next billing day', dark: false },
             ].map(({ label, value, sub, dark }) => (
-              <div key={label} className={['p-3 rounded-[16px] shadow-sm', dark ? 'bg-[#1A202C]' : 'bg-card border border-border'].join(' ')}>
+              <div key={label} className={['p-3 rounded-[16px]', dark ? 'bg-gradient-to-br from-[#0D1117] to-[#1A202C] border border-white/[0.06] shadow-[0px_4px_16px_rgba(0,0,0,0.25)]' : 'bg-card border border-border shadow-sm'].join(' ')}>
                 <p className={['text-[10px] font-bold uppercase tracking-wider', dark ? 'text-[#999CA1]' : 'text-muted-foreground'].join(' ')}>{label}</p>
                 <p className={['text-sm font-extrabold mt-1 leading-none', dark ? 'text-white' : 'text-[#021328] dark:text-foreground'].join(' ')}>{value}</p>
                 <p className={['text-[10px] mt-0.5', dark ? 'text-[#4D515B]' : 'text-muted-foreground'].join(' ')}>{sub}</p>
@@ -2793,8 +2812,8 @@ export default function ExpensesPage() {
 
           {recurringBills.filter(b => b.active).length === 0 ? (
             <Card className="border-dashed border-2">
-              <CardContent className="flex flex-col items-center justify-center p-12 text-center">
-                <RefreshCw size={36} className="text-muted-foreground/25 mb-3" />
+              <CardContent className="flex flex-col items-center justify-center p-8 text-center">
+                <RefreshCw size={28} className="text-muted-foreground/20 mb-2.5" />
                 <p className="font-bold text-base text-muted-foreground">No monthly bills yet</p>
                 <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-5">
                   Add rent, electricity, WiFi - they rotate automatically each month.

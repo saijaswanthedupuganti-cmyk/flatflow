@@ -18,7 +18,8 @@ export const metadata: Metadata = {
   manifest: "/manifest.json",
   icons: {
     icon: [
-      { url: "/habitiq-logo.svg", type: "image/svg+xml" },
+      { url: "/api/pwa-icon/32", sizes: "32x32", type: "image/png" },
+      { url: "/api/pwa-icon/192", sizes: "192x192", type: "image/png" },
     ],
     apple: "/api/pwa-icon/180",
   },

@@ -864,6 +864,89 @@ function Footer() {
   )
 }
 
+// ── FAQ ───────────────────────────────────────────────────────────────────────
+const FAQS = [
+  {
+    q: 'Is Habitiq free?',
+    a: 'Yes, Habitiq is completely free. No credit card required. All features — duty rotation, bill splitting, expense tracking, and settlements — are available at no cost during our trial phase.',
+  },
+  {
+    q: 'Is Habitiq a Splitwise alternative for India?',
+    a: 'Yes. While Splitwise only handles money and expense splitting, Habitiq is a complete shared living management platform. It combines expense splitting with automated duty rotation, monthly fixed bill tracking, and settlement management — purpose-built for Indian flats, PGs, and co-living spaces.',
+  },
+  {
+    q: 'How do I split bills and expenses with my flatmates?',
+    a: 'Add an expense, choose who paid, and select how to split it — equally, by percentage, or custom amounts per person. Habitiq automatically calculates who owes what and tracks all balances in real time. When someone settles, it\'s recorded instantly and the balance updates.',
+  },
+  {
+    q: 'How is Habitiq different from Splitwise?',
+    a: 'Splitwise only tracks money. Habitiq tracks money AND manages your flat operations. On top of expense splitting and settlements, Habitiq gives you automated daily task rotation (cooking, cleaning, maid supervision), monthly fixed bill management with per-person share calculation, a swap request system, and a full activity log — all in one app.',
+  },
+  {
+    q: 'What is duty rotation and how does it work?',
+    a: 'Duty rotation automatically assigns daily household tasks — cooking, cleaning, trash, maid supervision — to flatmates on a fair rotating schedule. No one person is stuck with the same job forever. The system rotates automatically each cycle, tracks who completed what, and allows swap requests if someone needs to trade a day.',
+  },
+  {
+    q: 'Does Habitiq work for PG accommodations and co-living spaces?',
+    a: 'Yes. Habitiq works for any shared living setup — flats, PGs, hostels, student accommodations, and co-living spaces. Up to 8 residents can share a single flat. Each person gets their own view of duties, bills, and balances.',
+  },
+  {
+    q: 'Which Indian cities is Habitiq used in?',
+    a: 'Habitiq is used across India — Bengaluru, Hyderabad, Pune, Mumbai, Delhi, Chennai, Noida, and beyond. It\'s especially popular in tech cities with large student and working professional flatmate communities. It also works internationally for Indian students abroad.',
+  },
+  {
+    q: 'Do I need to download an app to use Habitiq?',
+    a: 'No. Habitiq works directly in your phone\'s browser. You can also add it to your home screen for a native app experience (it\'s a Progressive Web App). No App Store or Play Store download needed — your flatmates can join instantly from any device.',
+  },
+  {
+    q: 'How do I manage daily task management for my flat?',
+    a: 'Habitiq\'s task management system lets you define any household task, assign it to a rotation queue, and let the system handle the rest. Tasks rotate automatically, completions are logged with timestamps, and admins can edit dates retroactively. It\'s the simplest daily task management system built for shared living.',
+  },
+  {
+    q: 'Can Habitiq track monthly bills like rent, electricity, and WiFi?',
+    a: 'Yes. Habitiq has a dedicated Fixed Bills system. Add recurring monthly bills — rent, electricity, WiFi, gas, maid salary — and set how they split among flatmates. The app tracks payment status, shows each person\'s share, generates settlement splits automatically, and keeps a payment history.',
+  },
+]
+
+function FAQ() {
+  const [open, setOpen] = useState<number | null>(null)
+  return (
+    <section id="faq" className="py-28 px-6 bg-[#080815]">
+      <div className="max-w-[760px] mx-auto">
+        <Reveal className="text-center mb-16">
+          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">FAQ</span>
+          <h2 className="text-4xl sm:text-[3rem] font-extrabold text-white tracking-tighter">Questions people search for.</h2>
+          <p className="text-white/35 text-lg mt-4 max-w-md mx-auto font-medium">Everything about Habitiq, flat management, and how we compare.</p>
+        </Reveal>
+        <div className="space-y-2">
+          {FAQS.map((faq, i) => (
+            <Reveal key={i} delay={i * 40}>
+              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+                <button
+                  onClick={() => setOpen(open === i ? null : i)}
+                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer hover:bg-white/[0.03] transition-colors"
+                >
+                  <span className="text-[15px] font-semibold text-white/85 leading-snug">{faq.q}</span>
+                  <span className={`shrink-0 w-6 h-6 rounded-full border border-white/[0.15] flex items-center justify-center transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
+                      <path d="M5 1v8M1 5h8" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round"/>
+                    </svg>
+                  </span>
+                </button>
+                {open === i && (
+                  <div className="px-6 pb-5">
+                    <p className="text-white/45 text-sm leading-relaxed">{faq.a}</p>
+                  </div>
+                )}
+              </div>
+            </Reveal>
+          ))}
+        </div>
+      </div>
+    </section>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   return (
@@ -883,6 +966,7 @@ export default function LandingPage() {
         <HowItWorks />
         <Stats />
         <Testimonials />
+        <FAQ />
         <GetStarted />
       </main>
       <Footer />

@@ -125,6 +125,27 @@ export default function RootLayout({
             })
           }}
         />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{
+            __html: JSON.stringify({
+              "@context": "https://schema.org",
+              "@type": "FAQPage",
+              "mainEntity": [
+                { "@type": "Question", "name": "Is Habitiq free?", "acceptedAnswer": { "@type": "Answer", "text": "Yes, Habitiq is completely free. No credit card required. All features — duty rotation, bill splitting, expense tracking, and settlements — are available at no cost during our trial phase." } },
+                { "@type": "Question", "name": "Is Habitiq a Splitwise alternative for India?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. While Splitwise only handles money and expense splitting, Habitiq is a complete shared living management platform. It combines expense splitting with automated duty rotation, monthly fixed bill tracking, and settlement management — purpose-built for Indian flats, PGs, and co-living spaces." } },
+                { "@type": "Question", "name": "How do I split bills and expenses with my flatmates?", "acceptedAnswer": { "@type": "Answer", "text": "Add an expense, choose who paid, and select how to split it — equally, by percentage, or custom amounts per person. Habitiq automatically calculates who owes what and tracks all balances in real time. When someone settles, it's recorded instantly and the balance updates." } },
+                { "@type": "Question", "name": "How is Habitiq different from Splitwise?", "acceptedAnswer": { "@type": "Answer", "text": "Splitwise only tracks money. Habitiq tracks money AND manages your flat operations. On top of expense splitting and settlements, Habitiq gives you automated daily task rotation, monthly fixed bill management with per-person share calculation, a swap request system, and a full activity log — all in one app." } },
+                { "@type": "Question", "name": "What is duty rotation and how does it work?", "acceptedAnswer": { "@type": "Answer", "text": "Duty rotation automatically assigns daily household tasks — cooking, cleaning, trash, maid supervision — to flatmates on a fair rotating schedule. The system rotates automatically each cycle, tracks who completed what, and allows swap requests if someone needs to trade a day." } },
+                { "@type": "Question", "name": "Does Habitiq work for PG accommodations and co-living spaces?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Habitiq works for any shared living setup — flats, PGs, hostels, student accommodations, and co-living spaces. Up to 8 residents can share a single flat. Each person gets their own view of duties, bills, and balances." } },
+                { "@type": "Question", "name": "Which Indian cities is Habitiq used in?", "acceptedAnswer": { "@type": "Answer", "text": "Habitiq is used across India — Bengaluru, Hyderabad, Pune, Mumbai, Delhi, Chennai, Noida, and beyond. It's especially popular in tech cities with large student and working professional flatmate communities." } },
+                { "@type": "Question", "name": "Do I need to download an app to use Habitiq?", "acceptedAnswer": { "@type": "Answer", "text": "No. Habitiq works directly in your phone's browser. You can also add it to your home screen for a native app experience (it's a Progressive Web App). No App Store or Play Store download needed — your flatmates can join instantly from any device." } },
+                { "@type": "Question", "name": "How do I manage daily task management for my flat?", "acceptedAnswer": { "@type": "Answer", "text": "Habitiq's task management system lets you define any household task, assign it to a rotation queue, and let the system handle the rest. Tasks rotate automatically, completions are logged with timestamps, and admins can edit dates retroactively." } },
+                { "@type": "Question", "name": "Can Habitiq track monthly bills like rent, electricity, and WiFi?", "acceptedAnswer": { "@type": "Answer", "text": "Yes. Habitiq has a dedicated Fixed Bills system. Add recurring monthly bills — rent, electricity, WiFi, gas, maid salary — and set how they split among flatmates. The app tracks payment status, shows each person's share, generates settlement splits automatically, and keeps a payment history." } }
+              ]
+            })
+          }}
+        />
         <meta name="theme-color" content="#4f46e5" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />

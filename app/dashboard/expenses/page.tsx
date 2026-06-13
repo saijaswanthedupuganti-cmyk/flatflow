@@ -2354,11 +2354,15 @@ export default function ExpensesPage() {
             <div className="space-y-2.5">
               <div className="flex items-center justify-between px-1">
                 <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Who Owes Whom</p>
-                <p className={['text-[11px] font-semibold', netUnsettled > 0 ? 'text-orange-500 dark:text-orange-400' : 'text-emerald-500 dark:text-emerald-400'].join(' ')}>
+                <span className={['text-[11px] font-extrabold px-2.5 py-1 rounded-full leading-none',
+                  netUnsettled > 0
+                    ? 'bg-orange-100 dark:bg-orange-950/40 text-orange-600 dark:text-orange-400'
+                    : 'bg-emerald-100 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400',
+                ].join(' ')}>
                   {netUnsettled > 0
-                    ? `You owe ${formatAmount(netUnsettled, 'INR')} total`
-                    : `You're owed ${formatAmount(totalOwedToYou, 'INR')}`}
-                </p>
+                    ? `You owe ${formatAmount(netUnsettled, 'INR')}`
+                    : totalOwedToYou > 0 ? `+${formatAmount(totalOwedToYou, 'INR')} owed to you` : 'All clear'}
+                </span>
               </div>
               {balances.map(b => {
                 const m        = members.find(x => x.uid === b.userId)
@@ -2435,7 +2439,7 @@ export default function ExpensesPage() {
                       {isOwed ? (
                         <button
                           onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                          className="flex-1 text-[11px] font-bold py-1.5 rounded-full border border-emerald-400 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/20 transition-all cursor-pointer"
+                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-extrabold py-1.5 rounded-full transition-all cursor-pointer shadow-sm"
                         >
                           Mark Received
                         </button>
@@ -2666,8 +2670,8 @@ export default function ExpensesPage() {
                   return (
                     <div key={key}>
                       <div className="flex items-center justify-between mb-2 px-0.5">
-                        <p className="text-[10px] font-extrabold text-[#999CA1] dark:text-muted-foreground uppercase tracking-widest">{monthLabel(key)}</p>
-                        {monthTotal > 0 && <p className="text-[10px] font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
+                        <p className="text-[11px] font-extrabold text-[#999CA1] dark:text-muted-foreground uppercase tracking-widest">{monthLabel(key)}</p>
+                        {monthTotal > 0 && <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(monthTotal, 'INR')}</p>}
                       </div>
 
                       {/* Expenses — transaction list */}
@@ -2702,12 +2706,12 @@ export default function ExpensesPage() {
                             >
                               <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
                               <div className="flex items-center gap-1.5 shrink-0">
-                                <Check size={9} className="text-emerald-500" />
-                                <span className="text-[9px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-widest">
+                                <Check size={11} className="text-emerald-500" />
+                                <span className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">
                                   Settled{settledTotal > 0 ? ` · ${formatAmount(settledTotal, 'INR')}` : ''}
                                   {settlementItems.length > 1 ? ` · ${settlementItems.length} payments` : ''}
                                 </span>
-                                <ChevronDown size={9} className={['text-emerald-500 transition-transform duration-200', isSettlementsOpen ? 'rotate-180' : ''].join(' ')} />
+                                <ChevronDown size={11} className={['text-emerald-500 transition-transform duration-200', isSettlementsOpen ? 'rotate-180' : ''].join(' ')} />
                               </div>
                               <div className="flex-1 h-px bg-emerald-200 dark:bg-emerald-800/40" />
                             </button>

@@ -1,306 +1,110 @@
 'use client'
 
-import dynamic from 'next/dynamic'
 import { useEffect, useRef, useState, ReactNode } from 'react'
-import { Plus_Jakarta_Sans } from 'next/font/google'
-import { motion, useMotionValue, useSpring, useTransform } from 'framer-motion'
-import { ContainerScroll } from '@/components/ui/container-scroll-animation'
+import { motion } from 'framer-motion'
 import { Navbar, AuthForm } from '@/components/ui/navbar'
-import {
-  ClipboardList,
-  Check, ArrowRight, Users, BarChart2, X, Star,
-} from 'lucide-react'
+import { Check, ArrowRight, Star, X } from 'lucide-react'
 import TestimonialSlider, { type Testimonial } from '@/components/ui/testimonial-slider'
-import { AnimatedTabs, type Tab } from '@/components/ui/animated-tabs'
 
-const HeroCanvas = dynamic(() => import('@/components/HeroCanvas'), {
-  ssr: false,
-  loading: () => <div className="w-full h-full bg-[#050510]" />,
-})
-
-const jakarta = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700', '800'],
-  display: 'swap',
-})
-
-// ── Scroll reveal ─────────────────────────────────────────────────────────────
+// ── Scroll reveal ──────────────────────────────────────────────────────────────
 function useReveal() {
   const ref = useRef<HTMLDivElement>(null)
   const [v, setV] = useState(false)
   useEffect(() => {
     const el = ref.current; if (!el) return
-    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setV(true); obs.disconnect() } }, { threshold: 0.1 })
+    const obs = new IntersectionObserver(
+      ([e]) => { if (e.isIntersecting) { setV(true); obs.disconnect() } },
+      { threshold: 0.08 }
+    )
     obs.observe(el)
     return () => obs.disconnect()
   }, [])
   return { ref, v }
 }
 
-function Reveal({ children, delay = 0, className = '' }: { children: ReactNode; delay?: number; className?: string }) {
+function Reveal({ children, delay = 0, className = '' }: {
+  children: ReactNode; delay?: number; className?: string
+}) {
   const { ref, v } = useReveal()
   return (
     <div ref={ref} className={className} style={{
       opacity: v ? 1 : 0,
-      transform: v ? 'translateY(0)' : 'translateY(28px)',
-      transition: `opacity .7s cubic-bezier(.22,1,.36,1) ${delay}ms, transform .7s cubic-bezier(.22,1,.36,1) ${delay}ms`,
+      transform: v ? 'none' : 'translateY(20px)',
+      transition: `opacity .65s cubic-bezier(.22,1,.36,1) ${delay}ms, transform .65s cubic-bezier(.22,1,.36,1) ${delay}ms`,
     }}>{children}</div>
   )
 }
 
-// ── 3D tilt card ──────────────────────────────────────────────────────────────
-function Card3D({ children, className = '', intensity = 12, glowColor = 'rgba(124,58,237,0.2)' }: {
-  children: ReactNode; className?: string; intensity?: number; glowColor?: string
-}) {
-  const mx = useMotionValue(0)
-  const my = useMotionValue(0)
-  const rx = useSpring(useTransform(my, [-0.5, 0.5], [intensity, -intensity]), { stiffness: 350, damping: 28 })
-  const ry = useSpring(useTransform(mx, [-0.5, 0.5], [-intensity, intensity]), { stiffness: 350, damping: 28 })
-  const glow = useTransform([mx, my], ([x, y]: number[]) =>
-    `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, ${glowColor} 0%, transparent 68%)`)
-  const shine = useTransform([mx, my], ([x, y]: number[]) =>
-    `radial-gradient(circle at ${(x + 0.5) * 100}% ${(y + 0.5) * 100}%, rgba(255,255,255,0.05) 0%, transparent 55%)`)
-  const onMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    const r = e.currentTarget.getBoundingClientRect()
-    mx.set((e.clientX - r.left) / r.width - 0.5)
-    my.set((e.clientY - r.top) / r.height - 0.5)
-  }
-  return (
-    <motion.div onMouseMove={onMove} onMouseLeave={() => { mx.set(0); my.set(0) }}
-      style={{ rotateX: rx, rotateY: ry, transformStyle: 'preserve-3d', perspective: 1000 }}
-      className={`relative ${className}`}>
-      <motion.div className="absolute inset-0 rounded-2xl pointer-events-none z-10" style={{ background: glow }} />
-      <motion.div className="absolute inset-0 rounded-2xl pointer-events-none z-10" style={{ background: shine }} />
-      <div style={{ transform: 'translateZ(10px)' }} className="relative z-20">{children}</div>
-    </motion.div>
-  )
-}
+// ── Design tokens ──────────────────────────────────────────────────────────────
+const BG = '#09090B'
+const SURFACE = '#111116'
+const BORDER = 'rgba(255,255,255,0.07)'
+const BLUE = '#3b82f6'
+const BLUE_DIM = 'rgba(59,130,246,0.1)'
+const BLUE_GLOW = 'rgba(59,130,246,0.22)'
 
-
-// ── Hero ──────────────────────────────────────────────────────────────────────
-function Hero() {
-  const [scroll, setScroll] = useState(0)
-  useEffect(() => {
-    const h = () => setScroll(Math.min(window.scrollY / 500, 1))
-    window.addEventListener('scroll', h, { passive: true })
-    return () => window.removeEventListener('scroll', h)
-  }, [])
-
-  return (
-    <section className="relative w-full bg-[#050510] overflow-hidden" style={{ minHeight: 'calc(100vh - 84px)' }}>
-      {/* Dot grid */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        backgroundImage: 'radial-gradient(circle, rgba(124,58,237,0.1) 1px, transparent 1px)',
-        backgroundSize: '36px 36px',
-      }} />
-
-      {/* Aurora blobs */}
-      <div className="absolute top-[-15%] left-[-8%] w-[650px] h-[650px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(124,58,237,0.22) 0%, transparent 70%)', filter: 'blur(80px)' }} />
-      <div className="absolute bottom-[-10%] right-[5%] w-[450px] h-[450px] rounded-full pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(79,70,229,0.18) 0%, transparent 70%)', filter: 'blur(70px)' }} />
-
-      {/* Background canvas on right */}
-      <div className="absolute inset-0 pointer-events-none" style={{ opacity: 1 - scroll * 0.8 }}>
-        <HeroCanvas />
-      </div>
-
-      {/* Left gradient mask */}
-      <div className="absolute inset-0 pointer-events-none" style={{
-        background: 'linear-gradient(105deg, #050510 0%, #050510 32%, rgba(5,5,16,0.94) 50%, rgba(5,5,16,0.3) 68%, transparent 100%)',
-      }} />
-      {/* Bottom fade */}
-      <div className="absolute bottom-0 left-0 right-0 h-48 pointer-events-none" style={{ background: 'linear-gradient(to top, #050510, transparent)' }} />
-
-      {/* Content */}
-      <div className="relative z-10 max-w-[1300px] mx-auto px-6 flex flex-col lg:flex-row items-center gap-16"
-        style={{ minHeight: 'calc(100vh - 60px)', paddingTop: '72px', paddingBottom: '72px', opacity: 1 - scroll * 1.2, transform: `translateY(${scroll * 40}px)` }}>
-
-        {/* Left: Text */}
-        <div className="flex-1 max-w-[560px] text-center lg:text-left">
-          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, delay: 0.1 }}
-            className="inline-flex items-center gap-2 mb-7 px-3.5 py-1.5 rounded-full border border-violet-500/30 bg-violet-500/10">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-            <span className="text-violet-300 text-[11px] font-bold uppercase tracking-[0.13em]">Live trial · Free · Made in India</span>
-          </motion.div>
-
-          <motion.h1 initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.18 }}
-            className="font-extrabold text-white tracking-tighter leading-[1.01] mb-6"
-            style={{ fontSize: 'clamp(3.4rem, 6vw, 5.5rem)' }}>
-            Run your flat<br />
-            <span style={{ background: 'linear-gradient(130deg,#c4b5fd 0%,#a78bfa 40%,#818cf8 75%,#6366f1 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              without drama.
-            </span>
-          </motion.h1>
-
-          <motion.p initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.3 }}
-            className="text-white/52 text-xl leading-relaxed mb-9 max-w-[460px] font-medium mx-auto lg:mx-0">
-            Duties rotate automatically. Bills split fairly. No WhatsApp arguments — just a flat that runs itself.
-          </motion.p>
-
-          <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.42 }}
-            className="flex flex-wrap gap-3 mb-10 justify-center lg:justify-start">
-            <a href="#get-started"
-              className="inline-flex items-center gap-2.5 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-semibold text-sm h-12 px-7 rounded-2xl hover:opacity-92 active:scale-[0.97] transition-all cursor-pointer"
-              style={{ boxShadow: '0 8px 32px rgba(124,58,237,0.5)' }}>
-              Get Started Free <ArrowRight size={15} />
-            </a>
-            <a href="#how-it-works"
-              className="inline-flex items-center gap-2 border border-white/[0.13] text-white/60 font-medium text-sm h-12 px-6 rounded-2xl hover:border-white/28 hover:text-white/85 transition-all cursor-pointer">
-              See how it works
-            </a>
-          </motion.div>
-
-          {/* Avatar social proof */}
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.58 }}
-            className="flex items-center gap-4 justify-center lg:justify-start">
-            <div className="flex -space-x-2.5">
-              {[['S','#7c3aed'],['R','#4f46e5'],['P','#6366f1'],['A','#8b5cf6'],['M','#a78bfa']].map(([l, c], i) => (
-                <div key={i} className="w-9 h-9 rounded-full border-2 border-[#050510] flex items-center justify-center text-xs font-bold text-white"
-                  style={{ background: c }}>
-                  {l}
-                </div>
-              ))}
-            </div>
-            <div>
-              <div className="flex gap-0.5 mb-1">
-                {[...Array(5)].map((_, j) => <Star key={j} size={11} fill="#a78bfa" className="text-violet-400" />)}
-              </div>
-              <p className="text-white/32 text-xs font-medium">Trusted by 20+ flats in India</p>
-            </div>
-          </motion.div>
-        </div>
-
-        {/* Right: Floating mockup frame */}
-        <div className="flex-1 flex justify-center lg:justify-end max-w-[490px] w-full hidden lg:flex">
-          <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.35 }}
-            className="relative w-full max-w-[420px]">
-            {/* Floating card: expense */}
-            <motion.div animate={{ y: [-5, 5, -5] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
-              className="absolute -left-10 top-14 z-20 bg-[#12122a]/85 border border-white/10 rounded-2xl px-4 py-3 backdrop-blur-xl shadow-2xl min-w-[140px]">
-              <p className="text-[11px] text-white/40 font-medium">This month</p>
-              <p className="text-[1.15rem] font-extrabold text-white leading-tight">₹4,850</p>
-              <p className="text-[10px] text-emerald-400 font-bold mt-0.5 flex items-center gap-1">
-                <span>↓ 12% vs last month</span>
-              </p>
-            </motion.div>
-
-            {/* Floating card: duty */}
-            <motion.div animate={{ y: [5, -5, 5] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}
-              className="absolute -right-8 bottom-24 z-20 bg-[#12122a]/85 border border-white/10 rounded-2xl px-4 py-3 backdrop-blur-xl shadow-2xl min-w-[130px]">
-              <p className="text-[11px] text-white/40 font-medium">Rahul&apos;s turn</p>
-              <p className="text-sm font-bold text-white mt-0.5">Vacuum Living Room</p>
-              <div className="flex items-center gap-1.5 mt-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
-                <p className="text-[10px] text-amber-400 font-bold">Due today</p>
-              </div>
-            </motion.div>
-
-            {/* Browser chrome frame */}
-            <div className="rounded-2xl overflow-hidden shadow-[0_24px_80px_rgba(124,58,237,0.3),0_0_0_1px_rgba(124,58,237,0.15)]"
-              style={{ background: '#0d0d1f' }}>
-              <div className="flex items-center gap-2.5 px-4 py-3 border-b border-white/[0.06] bg-[#111126]">
-                <div className="flex gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
-                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
-                </div>
-                <div className="flex-1 h-5 rounded-md bg-white/[0.04] flex items-center px-2.5">
-                  <span className="text-white/18 text-[10px]">garbage-liart.vercel.app</span>
-                </div>
-              </div>
-              <AppMockup />
-            </div>
-          </motion.div>
-        </div>
-      </div>
-
-      {/* Scroll cue */}
-      <motion.div animate={{ opacity: [0.25, 0.75, 0.25] }} transition={{ duration: 2.5, repeat: Infinity }}
-        className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-1.5 pointer-events-none z-10">
-        <div className="w-[1.5px] h-10 rounded-full" style={{ background: 'linear-gradient(to bottom, rgba(124,58,237,0.7), transparent)' }} />
-      </motion.div>
-    </section>
-  )
-}
-
-// ── Marquee ───────────────────────────────────────────────────────────────────
-const MQ = ['Duty Rotation','Expense Splitting','Real-Time Sync','Swap Requests','Audit Trail','Fair for All','Bill Splitting','Multi-Currency','Auto-Assignment','Zero Arguments']
-function Marquee() {
-  const items = [...MQ, ...MQ]
-  return (
-    <div className="border-y border-white/[0.05] py-4 overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)' }}>
-      <div className="flex" style={{ animation: 'mq 32s linear infinite', width: 'max-content' }}>
-        {items.map((t, i) => (
-          <div key={i} className="flex items-center gap-4 shrink-0 px-5">
-            <span className="w-1 h-1 rounded-full bg-violet-500/55" />
-            <span className="text-white/28 text-[11px] font-bold uppercase tracking-[0.15em] whitespace-nowrap">{t}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  )
-}
-
-// ── App Mockup ────────────────────────────────────────────────────────────────
-function AppMockup() {
+// ── App preview (hero mockup) ──────────────────────────────────────────────────
+function AppPreview() {
   const tasks = [
-    { name: 'Bathroom Cleaning', person: 'Rahul', status: 'overdue', due: 'Overdue 1d' },
-    { name: 'Vacuum Living Room', person: 'Priya', status: 'today',   due: 'Due today' },
-    { name: 'Take out Trash',    person: 'Ankit', status: 'soon',    due: 'Tomorrow' },
-    { name: 'Kitchen Dishes',    person: 'Meera', status: 'done',    due: 'Done' },
-    { name: 'Grocery Run',       person: 'Sai',   status: 'soon',    due: 'In 2 days' },
+    { name: 'Bathroom Cleaning', person: 'Rahul', status: 'overdue', label: 'Overdue 1d' },
+    { name: 'Vacuum Living Room', person: 'Priya', status: 'today', label: 'Due today' },
+    { name: 'Take out Trash', person: 'Ankit', status: 'soon', label: 'Tomorrow' },
+    { name: 'Kitchen Dishes', person: 'Meera', status: 'done', label: 'Done ✓' },
   ]
-  const sl: Record<string, string> = {
-    overdue: 'border-l-red-500 bg-red-500/[0.04]',
-    today:   'border-l-amber-400 bg-amber-400/[0.04]',
-    soon:    'border-l-violet-500 bg-violet-500/[0.04]',
-    done:    'border-l-emerald-500 bg-emerald-500/[0.04] opacity-55',
-  }
-  const bl: Record<string, string> = {
-    overdue: 'text-red-400 bg-red-500/10',
-    today:   'text-amber-400 bg-amber-400/10',
-    soon:    'text-violet-400 bg-violet-500/10',
-    done:    'text-emerald-400 bg-emerald-500/10',
+  const s: Record<string, { bar: string; bg: string; text: string }> = {
+    overdue: { bar: '#ef4444', bg: 'rgba(239,68,68,0.08)',  text: '#f87171' },
+    today:   { bar: '#f59e0b', bg: 'rgba(245,158,11,0.08)', text: '#fbbf24' },
+    soon:    { bar: BLUE,      bg: BLUE_DIM,                text: '#60a5fa' },
+    done:    { bar: '#10b981', bg: 'rgba(16,185,129,0.08)', text: '#34d399' },
   }
   return (
-    <div className="h-full w-full bg-[#0d0d1f] flex flex-col" style={{ minHeight: '380px' }}>
-      <div className="flex items-center justify-between px-5 py-3.5 border-b border-white/[0.06] bg-[#111126]">
+    <div style={{ background: '#0c0c10', minHeight: '300px' }}>
+      <div className="flex items-center justify-between px-5 py-3 border-b" style={{ borderColor: BORDER, background: SURFACE }}>
         <div className="flex items-center gap-2.5">
-          <div className="w-6 h-6 rounded-lg bg-gradient-to-br from-violet-600 to-indigo-600 flex items-center justify-center" style={{ transform: 'rotate(8deg)' }}>
-            <span className="text-white font-black text-[10px]" style={{ transform: 'rotate(-8deg)', display: 'block' }}>H</span>
+          <div className="w-6 h-6 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#2563eb,#3b82f6)' }}>
+            <span className="text-white font-black text-[9px]">H</span>
           </div>
-          <span className="text-white font-bold text-sm">Koramangala 4BHK</span>
+          <span className="text-white font-semibold text-sm">Koramangala 4BHK</span>
         </div>
         <div className="flex -space-x-1.5">
-          {[['S','#7c3aed'],['R','#4f46e5'],['P','#6366f1'],['A','#8b5cf6']].map(([l,c], i) => (
-            <div key={i} className="w-6 h-6 rounded-full border border-[#0d0d1f] flex items-center justify-center text-[9px] font-bold text-white" style={{ background: c }}>{l}</div>
+          {[['S','#1d4ed8'],['R','#2563eb'],['P','#3b82f6'],['A','#60a5fa']].map(([l,c],i) => (
+            <div key={i} className="w-6 h-6 rounded-full border-2 flex items-center justify-center text-[9px] font-bold text-white"
+              style={{ background: c, borderColor: SURFACE }}>{l}</div>
           ))}
         </div>
       </div>
-      <div className="grid grid-cols-3 gap-2.5 px-4 py-3 border-b border-white/[0.05]">
+      <div className="grid grid-cols-3 gap-2 px-4 py-3 border-b" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
         {[['4','Active'],['1','Overdue'],['Auto','Rotating']].map(([v,l]) => (
-          <div key={l} className="bg-white/[0.04] rounded-xl px-2 py-2 text-center">
+          <div key={l} className="rounded-xl px-2 py-2.5 text-center" style={{ background: 'rgba(255,255,255,0.03)' }}>
             <p className="text-white font-bold text-sm">{v}</p>
-            <p className="text-white/30 text-[9px] font-medium mt-0.5">{l}</p>
+            <p className="text-[9px] mt-0.5 font-medium" style={{ color: 'rgba(255,255,255,0.28)' }}>{l}</p>
           </div>
         ))}
       </div>
-      <div className="flex-1 px-4 py-3 space-y-2">
-        {tasks.map(t => (
-          <div key={t.name} className={`border-l-[3px] rounded-xl px-3.5 py-2.5 flex items-center gap-3 ${sl[t.status]}`}>
-            <div className="flex-1 min-w-0">
-              <p className={`text-xs font-semibold leading-tight ${t.status === 'done' ? 'line-through text-white/30' : 'text-white'}`}>{t.name}</p>
-              <p className="text-white/30 text-[10px] mt-0.5">{t.person}&apos;s turn</p>
+      <div className="px-4 py-3 space-y-2">
+        {tasks.map(t => {
+          const c = s[t.status]
+          return (
+            <div key={t.name} className="flex items-center gap-3 rounded-xl px-3.5 py-2.5 border-l-2"
+              style={{ background: c.bg, borderLeftColor: c.bar }}>
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold leading-tight"
+                  style={{ color: t.status === 'done' ? 'rgba(255,255,255,0.28)' : 'white', textDecoration: t.status === 'done' ? 'line-through' : 'none' }}>
+                  {t.name}
+                </p>
+                <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.28)' }}>{t.person}&apos;s turn</p>
+              </div>
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0" style={{ background: c.bg, color: c.text }}>{t.label}</span>
             </div>
-            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full shrink-0 ${bl[t.status]}`}>{t.due}</span>
-          </div>
-        ))}
+          )
+        })}
       </div>
-      <div className="flex items-center justify-around px-4 py-3 border-t border-white/[0.06] bg-[#111126]">
-        {[['Home','violet'],['Stats',''],['Swaps',''],['Bills',''],['Settings','']].map(([l, a]) => (
-          <button key={l} className={`flex flex-col items-center gap-0.5 ${a ? 'text-violet-400' : 'text-white/22'} cursor-pointer`}>
-            <span className="text-[9px] font-semibold">{l}</span>
+      <div className="flex items-center justify-around px-4 py-3 border-t" style={{ borderColor: BORDER, background: SURFACE }}>
+        {[['Home', true],['Expenses', false],['Swaps', false],['Bills', false]].map(([l, active]) => (
+          <button key={l as string} className="flex flex-col items-center gap-0.5 text-[9px] font-semibold cursor-pointer"
+            style={{ color: active ? BLUE : 'rgba(255,255,255,0.2)' }}>
+            <span className="w-4 h-0.5 rounded-full mb-0.5" style={{ background: active ? BLUE : 'transparent' }} />
+            {l}
           </button>
         ))}
       </div>
@@ -308,317 +112,407 @@ function AppMockup() {
   )
 }
 
-// ── Product Showcase ──────────────────────────────────────────────────────────
-function ProductShowcase() {
+// ── Hero ──────────────────────────────────────────────────────────────────────
+function Hero() {
   return (
-    <section className="bg-[#050510] overflow-hidden">
-      <ContainerScroll
-        titleComponent={
-          <div className="mb-6">
-            <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">
-              The product
+    <section className="relative w-full overflow-hidden" style={{ background: BG, minHeight: '100svh' }}>
+      <div className="absolute inset-0 pointer-events-none" style={{
+        backgroundImage: `linear-gradient(rgba(255,255,255,0.026) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.026) 1px,transparent 1px)`,
+        backgroundSize: '52px 52px',
+      }} />
+      <div className="absolute pointer-events-none" style={{
+        top: '-25%', left: '25%', width: '800px', height: '700px',
+        background: `radial-gradient(ellipse, ${BLUE_GLOW} 0%, transparent 60%)`,
+        filter: 'blur(70px)',
+      }} />
+
+      <div className="relative z-10 max-w-[1240px] mx-auto px-6 flex flex-col lg:flex-row items-center gap-16"
+        style={{ minHeight: '100svh', paddingTop: '88px', paddingBottom: '72px' }}>
+
+        {/* Left */}
+        <div className="flex-1 max-w-[560px] text-center lg:text-left">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45 }}
+            className="inline-flex items-center gap-2 mb-7 px-3 py-1.5 rounded-full border"
+            style={{ borderColor: 'rgba(59,130,246,0.28)', background: BLUE_DIM }}>
+            <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#34d399' }} />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.11em]" style={{ color: '#60a5fa' }}>
+              Free trial · No card needed
             </span>
-            <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tighter leading-tight">
-              Everything your flat needs,<br />
-              <span style={{ background: 'linear-gradient(130deg,#c4b5fd,#a78bfa,#6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-                in one place.
-              </span>
-            </h2>
-            <p className="text-white/40 text-lg mt-4 max-w-lg mx-auto font-medium">
-              Real-time duties, expense splitting, swap requests — automated for every flatmate.
-            </p>
-          </div>
-        }
-      >
-        <AppMockup />
-      </ContainerScroll>
-    </section>
-  )
-}
+          </motion.div>
 
-// ── Problems ──────────────────────────────────────────────────────────────────
-const PROBS = [
-  { icon: <Users size={28} className="text-red-400" />, t:'"I already did it last time"', b:'No record. No accountability. Resentment builds week by week until someone moves out or stops talking.' },
-  { icon: <ClipboardList size={28} className="text-orange-400" />, t:'The WhatsApp graveyard', b:'Every duty reminder buried under 400 memes. Nobody saw it. Nobody acted. The same conversation next week.' },
-  { icon: <BarChart2 size={28} className="text-rose-400" />, t:'One person carries everyone', b:'The responsible flatmate burns out managing everything. The flat suffers. Friendships get weird.' },
-]
+          <motion.h1
+            initial={{ opacity: 0, y: 22 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, delay: 0.08 }}
+            className="font-bold text-white leading-[1.01] mb-5"
+            style={{ fontSize: 'clamp(2.8rem, 5.5vw, 5rem)', letterSpacing: '-0.03em', fontFamily: 'var(--font-inter)' }}>
+            Your flat, finally<br />
+            <span style={{
+              background: 'linear-gradient(135deg, #93c5fd 0%, #3b82f6 45%, #1d4ed8 100%)',
+              WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
+            }}>running itself.</span>
+          </motion.h1>
 
-function Problems() {
-  return (
-    <section className="py-28 px-6 bg-[#050510] relative overflow-hidden">
-      <div className="absolute top-20 left-10 w-96 h-96 rounded-full opacity-[0.045] pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #7c3aed, transparent)', filter: 'blur(80px)' }} />
-      <div className="max-w-[1120px] mx-auto">
-        <Reveal className="text-center mb-16">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-red-500/10 border border-red-500/20 text-red-400 text-[11px] font-bold uppercase tracking-[0.12em]">The problem</span>
-          <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter leading-tight">Every flat has these fights.</h2>
-          <p className="text-white/35 text-lg mt-4 max-w-md mx-auto font-medium">Not because your flatmates are bad. Because there&apos;s no system.</p>
-        </Reveal>
-        <div className="grid sm:grid-cols-3 gap-4">
-          {PROBS.map((p, i) => (
-            <Reveal key={p.t} delay={i * 100}>
-              <Card3D className="h-full" glowColor="rgba(239,68,68,0.12)">
-                <div className="h-full bg-white/[0.025] border border-white/[0.07] rounded-2xl p-7 group cursor-default">
-                  <div className="w-12 h-12 rounded-xl bg-red-500/10 border border-red-500/15 flex items-center justify-center mb-5">{p.icon}</div>
-                  <h3 className="text-white font-bold text-base mb-3 leading-snug">{p.t}</h3>
-                  <p className="text-white/38 text-sm leading-relaxed">{p.b}</p>
+          <motion.p
+            initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.65, delay: 0.2 }}
+            className="text-lg leading-relaxed mb-9 max-w-[440px] mx-auto lg:mx-0"
+            style={{ color: 'rgba(255,255,255,0.46)', fontFamily: 'var(--font-inter)' }}>
+            Duties rotate automatically. Bills split fairly. No WhatsApp arguments — just a flat that works.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}
+            className="flex flex-wrap gap-3 mb-10 justify-center lg:justify-start">
+            <a href="#get-started"
+              className="inline-flex items-center gap-2 text-white font-semibold text-sm h-11 px-6 rounded-xl active:scale-[0.97] transition-all cursor-pointer"
+              style={{ background: BLUE, boxShadow: `0 0 0 1px rgba(59,130,246,0.4), 0 8px 24px rgba(59,130,246,0.32)` }}>
+              Get Started Free <ArrowRight size={14} />
+            </a>
+            <a href="#features"
+              className="inline-flex items-center gap-2 text-sm h-11 px-5 rounded-xl border transition-all cursor-pointer"
+              style={{ borderColor: BORDER, color: 'rgba(255,255,255,0.48)', fontFamily: 'var(--font-inter)' }}>
+              See how it works
+            </a>
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.6, delay: 0.46 }}
+            className="flex items-center gap-3.5 justify-center lg:justify-start">
+            <div className="flex -space-x-2">
+              {[['S','#1d4ed8'],['R','#2563eb'],['P','#3b82f6'],['A','#60a5fa'],['M','#93c5fd']].map(([l,c],i) => (
+                <div key={i} className="w-8 h-8 rounded-full border-2 flex items-center justify-center text-[10px] font-bold text-white"
+                  style={{ background: c, borderColor: BG }}>{l}</div>
+              ))}
+            </div>
+            <div>
+              <div className="flex gap-0.5 mb-1">
+                {[...Array(5)].map((_,j) => <Star key={j} size={10} fill={BLUE} style={{ color: BLUE }} />)}
+              </div>
+              <p className="text-xs" style={{ color: 'rgba(255,255,255,0.28)' }}>Trusted by 20+ flats in India</p>
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Right: mockup */}
+        <div className="flex-1 hidden lg:flex justify-end max-w-[500px] w-full">
+          <motion.div
+            initial={{ opacity: 0, y: 32 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, delay: 0.28 }}
+            className="relative w-full max-w-[440px]">
+            <motion.div animate={{ y: [-4, 4, -4] }} transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+              className="absolute -left-10 top-12 z-20 rounded-2xl px-4 py-3 backdrop-blur-xl shadow-2xl"
+              style={{ background: 'rgba(17,17,22,0.92)', border: `1px solid ${BORDER}`, minWidth: '140px' }}>
+              <p className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>This month</p>
+              <p className="text-[1.1rem] font-bold text-white leading-tight">₹4,850</p>
+              <p className="text-[10px] font-bold mt-0.5" style={{ color: '#34d399' }}>↓ 12% vs last</p>
+            </motion.div>
+            <motion.div animate={{ y: [4, -4, 4] }} transition={{ duration: 4, repeat: Infinity, ease: 'easeInOut', delay: 1 }}
+              className="absolute -right-8 bottom-20 z-20 rounded-2xl px-4 py-3 backdrop-blur-xl shadow-2xl"
+              style={{ background: 'rgba(17,17,22,0.92)', border: `1px solid ${BORDER}`, minWidth: '130px' }}>
+              <p className="text-[10px] font-medium" style={{ color: 'rgba(255,255,255,0.35)' }}>Rahul&apos;s turn</p>
+              <p className="text-sm font-semibold text-white mt-0.5">Vacuum Living Room</p>
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <span className="w-1.5 h-1.5 rounded-full animate-pulse" style={{ background: '#f59e0b' }} />
+                <p className="text-[10px] font-bold" style={{ color: '#f59e0b' }}>Due today</p>
+              </div>
+            </motion.div>
+            <div className="rounded-2xl overflow-hidden" style={{
+              boxShadow: `0 0 0 1px ${BORDER}, 0 32px 80px rgba(0,0,0,0.7), 0 0 60px rgba(59,130,246,0.1)`,
+            }}>
+              <div className="flex items-center gap-2.5 px-4 py-3 border-b" style={{ background: SURFACE, borderColor: BORDER }}>
+                <div className="flex gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#ff5f57]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#febc2e]" />
+                  <div className="w-2.5 h-2.5 rounded-full bg-[#28c840]" />
                 </div>
-              </Card3D>
-            </Reveal>
-          ))}
+                <div className="flex-1 h-5 rounded-md flex items-center px-2.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.18)' }}>habitiq.app</span>
+                </div>
+              </div>
+              <AppPreview />
+            </div>
+          </motion.div>
         </div>
       </div>
     </section>
   )
 }
 
-// ── Feature Showcase (AnimatedTabs) ──────────────────────────────────────────
-const FEATURE_TABS: Tab[] = [
-  {
-    id: 'rotation',
-    label: 'Duty Rotation',
-    content: (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1484154218962-a197022b5858?q=80&w=2074&auto=format&fit=crop&ixlib=rb-4.0.3"
-          alt="Shared flat kitchen — duty rotation"
-          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(124,58,237,0.2)] border border-white/[0.06]"
-        />
-        <div className="flex flex-col gap-3 justify-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-violet-500/15 border border-violet-500/25 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />
-            <span className="text-violet-300 text-[11px] font-bold uppercase tracking-wider">Auto-assigned</span>
+// ── Feature strip ─────────────────────────────────────────────────────────────
+const STRIP = ['Duty Rotation','Expense Splitting','Real-Time Sync','Swap Requests','Audit Trail','Bill Splitting','Settlement Tracking','Fair Rotation','Auto-Assignment']
+
+function FeatureStrip() {
+  const items = [...STRIP, ...STRIP]
+  return (
+    <div className="overflow-hidden border-y" style={{ borderColor: 'rgba(255,255,255,0.05)', background: 'rgba(255,255,255,0.01)', padding: '12px 0' }}>
+      <div className="flex" style={{ animation: 'mq 30s linear infinite', width: 'max-content' }}>
+        {items.map((t, i) => (
+          <div key={i} className="flex items-center gap-3.5 shrink-0 px-4">
+            <span className="w-1 h-1 rounded-full" style={{ background: BLUE, opacity: 0.4 }} />
+            <span className="text-[11px] font-semibold uppercase tracking-[0.14em] whitespace-nowrap"
+              style={{ color: 'rgba(255,255,255,0.2)' }}>{t}</span>
           </div>
-          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
-            Duties rotate.<br />Nobody decides.
-          </h3>
-          <p className="text-sm text-white/50 leading-relaxed">
-            Every flatmate gets their turn automatically. Mark a task done and the next person in queue is assigned — instantly, fairly, with no arguments.
-          </p>
-          <ul className="space-y-1.5 mt-1">
-            {['Zero manual scheduling','Skips out-of-station members','Full history & audit trail'].map(f => (
-              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
-                <span className="w-4 h-4 rounded-full bg-violet-500/20 flex items-center justify-center shrink-0">
-                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#a78bfa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                {f}
-              </li>
-            ))}
-          </ul>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+// ── Feature mockups ───────────────────────────────────────────────────────────
+function DutyMockup() {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+      <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
+        <span className="text-sm font-semibold text-white">Today&apos;s Duties</span>
+        <span className="text-[11px] font-medium px-2.5 py-1 rounded-full" style={{ background: BLUE_DIM, color: '#60a5fa' }}>Auto-rotating</span>
+      </div>
+      <div className="p-4 space-y-2.5">
+        {[
+          { task: 'Clean Bathrooms',  person: 'Rahul', avatar: 'R', color: '#2563eb', done: false },
+          { task: 'Mop Kitchen Floor', person: 'Priya', avatar: 'P', color: '#3b82f6', done: true  },
+          { task: 'Take Out Trash',   person: 'Ankit', avatar: 'A', color: '#1d4ed8', done: false },
+          { task: 'Grocery Run',      person: 'Sai',   avatar: 'S', color: '#60a5fa', done: true  },
+        ].map(item => (
+          <div key={item.task} className="flex items-center gap-3 p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.03)' }}>
+            <div className="w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              style={{ background: item.color }}>{item.avatar}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-medium text-white"
+                style={{ opacity: item.done ? 0.3 : 1, textDecoration: item.done ? 'line-through' : 'none' }}>{item.task}</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.3)' }}>{item.person}&apos;s turn</p>
+            </div>
+            <div className="w-5 h-5 rounded-full border flex items-center justify-center"
+              style={{ background: item.done ? 'rgba(16,185,129,0.15)' : 'transparent', borderColor: item.done ? '#10b981' : 'rgba(255,255,255,0.15)' }}>
+              {item.done && <Check size={10} className="text-emerald-400" />}
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-3 border-t flex items-center justify-between" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+        <span className="text-xs" style={{ color: 'rgba(255,255,255,0.28)' }}>Rotates automatically tomorrow</span>
+        <span className="text-[11px] font-semibold cursor-pointer" style={{ color: BLUE }}>View history →</span>
+      </div>
+    </div>
+  )
+}
+
+function ExpenseMockup() {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+      <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: BORDER }}>
+        <span className="text-sm font-semibold text-white">Expenses · June</span>
+        <span className="text-[11px] font-semibold" style={{ color: '#34d399' }}>₹12,400 total</span>
+      </div>
+      <div className="p-4 space-y-2.5">
+        {[
+          { label: 'Electricity Bill',    paid: 'Rahul', amount: '₹3,200', split: '₹800 × 4', settled: true  },
+          { label: 'Monthly Groceries',   paid: 'Priya', amount: '₹4,100', split: '₹1,025 × 4', settled: false },
+          { label: 'WiFi Recharge',       paid: 'Sai',   amount: '₹1,200', split: '₹300 × 4', settled: false },
+        ].map(item => (
+          <div key={item.label} className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.025)' }}>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold text-white">{item.label}</p>
+              <p className="text-xs font-bold text-white">{item.amount}</p>
+            </div>
+            <div className="flex items-center justify-between">
+              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Paid by {item.paid} · {item.split}</p>
+              <button className="text-[10px] font-semibold px-2.5 py-1 rounded-full cursor-pointer"
+                style={{ background: item.settled ? 'rgba(16,185,129,0.12)' : BLUE_DIM, color: item.settled ? '#34d399' : '#60a5fa' }}>
+                {item.settled ? 'Settled ✓' : 'Settle'}
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+      <div className="px-5 py-3 border-t" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+        <div className="flex items-center gap-2">
+          <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+            <div className="h-full rounded-full" style={{ width: '33%', background: '#10b981' }} />
+          </div>
+          <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.32)' }}>1 of 3 settled</span>
         </div>
       </div>
-    ),
+    </div>
+  )
+}
+
+function SwapMockup() {
+  return (
+    <div className="rounded-2xl overflow-hidden" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+      <div className="px-5 py-4 border-b" style={{ borderColor: BORDER }}>
+        <span className="text-sm font-semibold text-white">Swap Requests</span>
+      </div>
+      <div className="p-4 space-y-3">
+        <div className="p-4 rounded-xl" style={{ background: 'rgba(59,130,246,0.06)', border: `1px solid rgba(59,130,246,0.18)` }}>
+          <div className="flex items-start gap-3 mb-3">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              style={{ background: '#2563eb' }}>R</div>
+            <div>
+              <p className="text-xs font-semibold text-white">Rahul wants to swap</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.38)' }}>Clean Bathrooms → Vacuum Living Room</p>
+              <p className="text-[10px] mt-0.5" style={{ color: 'rgba(255,255,255,0.26)' }}>Jun 15 → Jun 17</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <button className="flex-1 h-7 rounded-lg text-[11px] font-semibold text-white cursor-pointer"
+              style={{ background: BLUE }}>Accept</button>
+            <button className="h-7 px-3 rounded-lg text-[11px] font-semibold cursor-pointer border"
+              style={{ borderColor: BORDER, color: 'rgba(255,255,255,0.38)' }}>Decline</button>
+          </div>
+        </div>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(16,185,129,0.06)', border: '1px solid rgba(16,185,129,0.14)' }}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+              style={{ background: '#0d9488' }}>P</div>
+            <div className="flex-1">
+              <p className="text-[11px] font-medium text-white">Priya&apos;s swap accepted · Jun 10</p>
+              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Kitchen Dishes ↔ Grocery Run</p>
+            </div>
+            <span className="text-[10px] font-bold" style={{ color: '#34d399' }}>✓ Done</span>
+          </div>
+        </div>
+        <div className="p-3 rounded-xl" style={{ background: 'rgba(255,255,255,0.02)' }}>
+          <div className="flex items-center gap-2.5">
+            <div className="w-6 h-6 rounded-full flex items-center justify-center text-[9px] font-bold text-white shrink-0"
+              style={{ background: '#4f46e5' }}>A</div>
+            <div className="flex-1">
+              <p className="text-[11px] font-medium text-white">Ankit requested swap · Jun 8</p>
+              <p className="text-[10px]" style={{ color: 'rgba(255,255,255,0.3)' }}>Take Out Trash ↔ Cook Dinner</p>
+            </div>
+            <span className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.3)' }}>Declined</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ── Feature sections ──────────────────────────────────────────────────────────
+const FEATURES = [
+  {
+    badge: 'Duty Rotation',
+    headline: 'Nobody has to manage the rota.',
+    body: 'Add your household tasks once. Set the rotation. Habitiq handles the rest — automatically assigning the next person in queue when a task is completed. Fair, transparent, zero arguments.',
+    bullets: ['Skips out-of-town members', 'Full completion history & audit trail', 'Admin can adjust dates retroactively'],
+    color: BLUE,
+    Mockup: DutyMockup,
+    flip: false,
   },
   {
-    id: 'expenses',
-    label: 'Bill Splitting',
-    content: (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1554224155-6726b3ff858f?q=80&w=2072&auto=format&fit=crop&ixlib=rb-4.0.3"
-          alt="Expense splitting and bills"
-          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(16,185,129,0.18)] border border-white/[0.06]"
-        />
-        <div className="flex flex-col gap-3 justify-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/25 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
-            <span className="text-emerald-300 text-[11px] font-bold uppercase tracking-wider">Split fairly</span>
-          </div>
-          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
-            Bills split.<br />No awkwardness.
-          </h3>
-          <p className="text-sm text-white/50 leading-relaxed">
-            Log electricity, groceries, rent. Split equally, by %, or custom per person. Everyone sees exactly who owes what — settle with one tap.
-          </p>
-          <ul className="space-y-1.5 mt-1">
-            {['Equal · % · Custom splits','INR, USD, EUR + 4 more','One-tap settle-up'].map(f => (
-              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
-                <span className="w-4 h-4 rounded-full bg-emerald-500/20 flex items-center justify-center shrink-0">
-                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#34d399" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                {f}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    ),
+    badge: 'Expense Splitting',
+    headline: 'Bills split. Balances clear.',
+    body: 'Log any expense, pick who paid, choose your split. Habitiq calculates who owes what — and lets everyone settle with one tap. No spreadsheets. No awkward reminder texts.',
+    bullets: ['Equal, %, or custom splits', 'Multiple currencies incl. INR', 'One-tap settlement with history'],
+    color: '#10b981',
+    Mockup: ExpenseMockup,
+    flip: true,
   },
   {
-    id: 'swaps',
-    label: 'Swap System',
-    content: (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1521737711867-e3b97375f902?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
-          alt="Flatmates using swap system"
-          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(59,130,246,0.18)] border border-white/[0.06]"
-        />
-        <div className="flex flex-col gap-3 justify-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-blue-500/15 border border-blue-500/25 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
-            <span className="text-blue-300 text-[11px] font-bold uppercase tracking-wider">Formal flow</span>
-          </div>
-          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
-            Can&apos;t do it today?<br />Swap, don&apos;t argue.
-          </h3>
-          <p className="text-sm text-white/50 leading-relaxed">
-            Travelling or busy? Request a duty swap. Your flatmate gets notified, accepts or declines. Task moves officially. No WhatsApp drama needed.
-          </p>
-          <ul className="space-y-1.5 mt-1">
-            {['Accept / decline notifications','Audit log records every swap','WhatsApp stays for memes'].map(f => (
-              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
-                <span className="w-4 h-4 rounded-full bg-blue-500/20 flex items-center justify-center shrink-0">
-                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#60a5fa" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                {f}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: 'analytics',
-    label: 'Reliability Score',
-    content: (
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 w-full h-full">
-        <img
-          src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?q=80&w=2070&auto=format&fit=crop&ixlib=rb-4.0.3"
-          alt="Analytics and reliability scores"
-          className="rounded-xl w-full h-64 object-cover !m-0 shadow-[0_0_32px_rgba(245,158,11,0.18)] border border-white/[0.06]"
-        />
-        <div className="flex flex-col gap-3 justify-center">
-          <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-amber-500/15 border border-amber-500/25 w-fit">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
-            <span className="text-amber-300 text-[11px] font-bold uppercase tracking-wider">Data-driven</span>
-          </div>
-          <h3 className="text-xl font-extrabold text-white leading-snug !m-0">
-            Facts, not feelings.<br />Scores don&apos;t lie.
-          </h3>
-          <p className="text-sm text-white/50 leading-relaxed">
-            Every flatmate has a reliability score based on real completion data. No more "I always do more than you." The numbers settle it.
-          </p>
-          <ul className="space-y-1.5 mt-1">
-            {['Completion rate per member','On-time vs overdue breakdown','6-month history grid'].map(f => (
-              <li key={f} className="flex items-center gap-2 text-xs text-white/45 font-medium">
-                <span className="w-4 h-4 rounded-full bg-amber-500/20 flex items-center justify-center shrink-0">
-                  <svg width="8" height="6" viewBox="0 0 9 7" fill="none"><path d="M1 3.5L3 5.5L8 1" stroke="#fbbf24" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round"/></svg>
-                </span>
-                {f}
-              </li>
-            ))}
-          </ul>
-        </div>
-      </div>
-    ),
+    badge: 'Swap Requests',
+    headline: "Can't make it? Just swap.",
+    body: "Travelling or busy? Send a swap request. Your flatmate gets notified, accepts or declines. The system records it officially. No group-chat chaos, no misremembered promises.",
+    bullets: ['Formal accept / decline flow', 'Audit log records every swap', 'Works across time zones'],
+    color: '#a78bfa',
+    Mockup: SwapMockup,
+    flip: false,
   },
 ]
 
-function FeatureShowcase() {
+function Features() {
   return (
-    <section id="features" className="py-28 px-6 bg-[#050510] relative overflow-hidden">
-      {/* Background glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[500px] pointer-events-none opacity-[0.06]"
-        style={{ background: 'radial-gradient(ellipse, #7c3aed, transparent)', filter: 'blur(80px)' }} />
-
-      <div className="max-w-[1120px] mx-auto relative z-10">
-        <Reveal className="text-center mb-14">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">See it in action</span>
-          <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter leading-tight">
-            Four systems.<br />
-            <span style={{ background: 'linear-gradient(130deg,#c4b5fd,#a78bfa,#6366f1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-              Tap to explore each one.
-            </span>
-          </h2>
-          <p className="text-white/38 text-lg mt-4 max-w-lg mx-auto font-medium">
-            Duties, bills, swaps, scores — all built for Indian flatmates. Pick a tab and see how it works.
-          </p>
-        </Reveal>
-
-        <Reveal delay={80} className="flex justify-center">
-          <AnimatedTabs
-            tabs={FEATURE_TABS}
-            defaultTab="rotation"
-            className="w-full max-w-3xl"
-          />
-        </Reveal>
+    <section id="features" className="py-24 px-6" style={{ background: BG }}>
+      <div className="max-w-[1200px] mx-auto space-y-32">
+        {FEATURES.map((f) => (
+          <Reveal key={f.badge}>
+            <div className={`flex flex-col ${f.flip ? 'lg:flex-row-reverse' : 'lg:flex-row'} items-center gap-12 lg:gap-20`}>
+              <div className="flex-1 max-w-[480px]">
+                <span className="inline-block mb-5 text-[11px] font-bold uppercase tracking-[0.14em] px-3 py-1.5 rounded-full"
+                  style={{ color: f.color, background: `${f.color}18`, border: `1px solid ${f.color}2e` }}>
+                  {f.badge}
+                </span>
+                <h2 className="font-bold text-white leading-[1.06] mb-5"
+                  style={{ fontSize: 'clamp(1.9rem, 3.5vw, 2.75rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+                  {f.headline}
+                </h2>
+                <p className="text-base leading-relaxed mb-8" style={{ color: 'rgba(255,255,255,0.42)', fontFamily: 'var(--font-inter)' }}>
+                  {f.body}
+                </p>
+                <ul className="space-y-3">
+                  {f.bullets.map(b => (
+                    <li key={b} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                        style={{ background: `${f.color}20`, border: `1px solid ${f.color}35` }}>
+                        <Check size={10} style={{ color: f.color }} />
+                      </div>
+                      <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.48)' }}>{b}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="flex-1 w-full max-w-[500px]">
+                <f.Mockup />
+              </div>
+            </div>
+          </Reveal>
+        ))}
       </div>
     </section>
-  )
-}
-
-// ── Bridge ────────────────────────────────────────────────────────────────────
-function Bridge() {
-  return (
-    <div className="relative overflow-hidden border-y border-white/[0.04]"
-      style={{ background: 'linear-gradient(135deg,#0b0920 0%,#0f0d27 50%,#0b0920 100%)' }}>
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 70% 80% at 50% 50%,rgba(124,58,237,0.09) 0%,transparent 100%)' }} />
-      <Reveal className="max-w-3xl mx-auto text-center py-24 px-6">
-        <p className="text-3xl sm:text-[2.75rem] font-extrabold text-white tracking-tighter leading-tight mb-5">
-          There&apos;s a simpler way —{' '}
-          <span style={{ background:'linear-gradient(90deg,#c4b5fd,#818cf8)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
-            a system that runs itself.
-          </span>
-        </p>
-        <p className="text-white/38 text-lg font-medium max-w-md mx-auto">No manager. No nagging. No whiteboard nobody updates. Just fairness, on autopilot.</p>
-      </Reveal>
-    </div>
   )
 }
 
 // ── Compare ───────────────────────────────────────────────────────────────────
 const COMPARE_ROWS = [
-  { label: 'Auto duty rotation',      habitiq: true, whatsapp: false, splitwise: false },
-  { label: 'Shared expense splitting', habitiq: true, whatsapp: false, splitwise: true  },
-  { label: 'Swap request system',     habitiq: true, whatsapp: false, splitwise: false },
-  { label: 'Real-time sync',          habitiq: true, whatsapp: true,  splitwise: false },
-  { label: 'Audit trail',             habitiq: true, whatsapp: false, splitwise: false },
-  { label: 'Flat-specific context',   habitiq: true, whatsapp: false, splitwise: false },
+  { label: 'Auto duty rotation',    h: true,  w: false, s: false },
+  { label: 'Expense splitting',      h: true,  w: false, s: true  },
+  { label: 'Swap request system',   h: true,  w: false, s: false },
+  { label: 'Real-time sync',        h: true,  w: true,  s: false },
+  { label: 'Activity audit trail',  h: true,  w: false, s: false },
+  { label: 'Fixed bill management', h: true,  w: false, s: false },
 ]
 
 function Compare() {
   return (
-    <section id="compare" className="py-28 px-6 bg-[#050510] relative overflow-hidden">
+    <section id="compare" className="py-24 px-6" style={{ background: '#0c0c10' }}>
       <div className="max-w-[860px] mx-auto">
-        <Reveal className="text-center mb-16">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/35 text-[11px] font-bold uppercase tracking-[0.12em]">Why Habitiq</span>
-          <h2 className="text-4xl sm:text-[3rem] font-extrabold text-white tracking-tighter">Purpose-built for shared living.</h2>
-          <p className="text-white/35 text-lg mt-4 max-w-md mx-auto font-medium">WhatsApp is for chatting. Splitwise is for money. Neither runs your flat.</p>
+        <Reveal className="text-center mb-14">
+          <span className="inline-block mb-4 text-[11px] font-bold uppercase tracking-[0.13em] px-3 py-1.5 rounded-full"
+            style={{ color: 'rgba(255,255,255,0.28)', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}` }}>
+            Why Habitiq
+          </span>
+          <h2 className="font-bold text-white tracking-tight mb-4"
+            style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+            Purpose-built for shared living.
+          </h2>
+          <p className="text-base font-medium max-w-md mx-auto" style={{ color: 'rgba(255,255,255,0.32)' }}>
+            WhatsApp is for chatting. Splitwise is for money. Neither runs your flat.
+          </p>
         </Reveal>
-
         <Reveal delay={80}>
-          <div className="rounded-2xl border border-white/[0.08] overflow-hidden bg-white/[0.015]">
-            {/* Header row */}
-            <div className="grid grid-cols-4 border-b border-white/[0.06] bg-white/[0.03]">
+          <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: 'rgba(255,255,255,0.015)' }}>
+            <div className="grid grid-cols-4 border-b" style={{ borderColor: BORDER, background: 'rgba(255,255,255,0.02)' }}>
               <div className="px-6 py-4" />
-              {[
-                { name: 'Habitiq', highlight: true },
-                { name: 'WhatsApp', highlight: false },
-                { name: 'Splitwise', highlight: false },
-              ].map(col => (
-                <div key={col.name} className={`px-4 py-4 text-center ${col.highlight ? 'bg-violet-500/10 border-x border-violet-500/20' : ''}`}>
-                  <p className={`text-sm font-bold ${col.highlight ? 'text-violet-300' : 'text-white/40'}`}>{col.name}</p>
-                  {col.highlight && <p className="text-[10px] text-violet-400/70 font-medium mt-0.5">Built for flats</p>}
+              {[{ name: 'Habitiq', hl: true }, { name: 'WhatsApp', hl: false }, { name: 'Splitwise', hl: false }].map(col => (
+                <div key={col.name} className="px-4 py-4 text-center"
+                  style={col.hl ? { background: `${BLUE}0e`, borderLeft: `1px solid ${BLUE}22`, borderRight: `1px solid ${BLUE}22` } : {}}>
+                  <p className="text-sm font-bold" style={{ color: col.hl ? '#60a5fa' : 'rgba(255,255,255,0.32)' }}>{col.name}</p>
+                  {col.hl && <p className="text-[10px] font-medium mt-0.5" style={{ color: 'rgba(96,165,250,0.55)' }}>Built for flats</p>}
                 </div>
               ))}
             </div>
-            {/* Data rows */}
             {COMPARE_ROWS.map((row, i) => (
-              <div key={row.label} className={`grid grid-cols-4 border-b border-white/[0.04] last:border-0 ${i % 2 === 0 ? '' : 'bg-white/[0.015]'}`}>
+              <div key={row.label} className="grid grid-cols-4 border-b last:border-0"
+                style={{ borderColor: 'rgba(255,255,255,0.04)', background: i % 2 === 1 ? 'rgba(255,255,255,0.01)' : 'transparent' }}>
                 <div className="px-6 py-3.5 flex items-center">
-                  <p className="text-sm text-white/55 font-medium">{row.label}</p>
+                  <p className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.48)' }}>{row.label}</p>
                 </div>
-                {[row.habitiq, row.whatsapp, row.splitwise].map((has, j) => (
-                  <div key={j} className={`px-4 py-3.5 flex items-center justify-center ${j === 0 ? 'bg-violet-500/[0.06] border-x border-violet-500/[0.12]' : ''}`}>
-                    {has
-                      ? <div className={`w-6 h-6 rounded-full flex items-center justify-center ${j === 0 ? 'bg-violet-500/20' : 'bg-white/[0.06]'}`}>
-                          <Check size={12} className={j === 0 ? 'text-violet-400' : 'text-white/35'} />
+                {[{ has: row.h, hl: true }, { has: row.w, hl: false }, { has: row.s, hl: false }].map((cell, j) => (
+                  <div key={j} className="px-4 py-3.5 flex items-center justify-center"
+                    style={cell.hl ? { background: `${BLUE}08`, borderLeft: `1px solid ${BLUE}16`, borderRight: `1px solid ${BLUE}16` } : {}}>
+                    {cell.has
+                      ? <div className="w-6 h-6 rounded-full flex items-center justify-center"
+                          style={{ background: cell.hl ? `${BLUE}22` : 'rgba(255,255,255,0.07)' }}>
+                          <Check size={11} style={{ color: cell.hl ? BLUE : 'rgba(255,255,255,0.32)' }} />
                         </div>
-                      : <div className="w-6 h-6 rounded-full bg-white/[0.03] flex items-center justify-center">
-                          <X size={11} className="text-white/18" />
+                      : <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(255,255,255,0.025)' }}>
+                          <X size={10} style={{ color: 'rgba(255,255,255,0.15)' }} />
                         </div>
                     }
                   </div>
@@ -633,35 +527,39 @@ function Compare() {
 }
 
 // ── How it works ──────────────────────────────────────────────────────────────
-const STEPS = [
-  { n:'01', t:'Create your flat', b:'Sign up, name your flat, get a 6-digit invite code. Done in 45 seconds.', color: '#7c3aed' },
-  { n:'02', t:'Flatmates join',   b:'Share the invite code. Everyone joins with one tap. Auto-added to all queues.', color: '#4f46e5' },
-  { n:'03', t:'System runs itself', b:'Duties rotate automatically. Bills split fairly. Nobody manages anything.', color: '#6366f1' },
-]
-
 function HowItWorks() {
+  const steps = [
+    { n: '01', t: 'Create your flat', b: 'Sign up, name your flat, get a 6-digit invite code. Done in 45 seconds.' },
+    { n: '02', t: 'Flatmates join', b: 'Share the invite code. Everyone joins in one tap and auto-joins all rotation queues.' },
+    { n: '03', t: 'System takes over', b: 'Duties rotate automatically. Bills split fairly. Nobody has to manage anything.' },
+  ]
   return (
-    <section id="how-it-works" className="py-28 px-6 bg-[#080815]">
+    <section id="how-it-works" className="py-24 px-6" style={{ background: BG }}>
       <div className="max-w-[1120px] mx-auto">
-        <Reveal className="text-center mb-20">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold uppercase tracking-[0.12em]">Setup</span>
-          <h2 className="text-4xl sm:text-[3.25rem] font-extrabold text-white tracking-tighter">Up and running in 3 minutes.</h2>
+        <Reveal className="text-center mb-16">
+          <span className="inline-block mb-4 text-[11px] font-bold uppercase tracking-[0.13em] px-3 py-1.5 rounded-full"
+            style={{ color: '#34d399', background: 'rgba(52,211,153,0.1)', border: '1px solid rgba(52,211,153,0.2)' }}>
+            Setup
+          </span>
+          <h2 className="font-bold text-white tracking-tight"
+            style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+            Up and running in 3 minutes.
+          </h2>
         </Reveal>
-        <div className="grid md:grid-cols-3 gap-6 relative">
-          <div className="hidden md:block absolute top-[28px] left-[calc(16.66%+36px)] right-[calc(16.66%+36px)] h-px"
-            style={{ background: 'linear-gradient(90deg,transparent,rgba(124,58,237,0.5) 30%,rgba(124,58,237,0.5) 70%,transparent)' }} />
-          {STEPS.map((s, i) => (
-            <Reveal key={s.n} delay={i * 120}>
-              <Card3D intensity={7} className="text-center">
-                <div className="bg-white/[0.02] border border-white/[0.06] rounded-2xl p-8">
-                  <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl text-white font-black text-base mb-6"
-                    style={{ background: `linear-gradient(135deg, ${s.color}, #4338ca)`, boxShadow: `0 8px 28px ${s.color}55` }}>
-                    {s.n}
-                  </div>
-                  <h3 className="text-white font-bold text-lg mb-2.5">{s.t}</h3>
-                  <p className="text-white/38 text-sm leading-relaxed max-w-[220px] mx-auto">{s.b}</p>
+        <div className="grid md:grid-cols-3 gap-4 relative">
+          <div className="hidden md:block absolute"
+            style={{ top: '36px', left: 'calc(16.66% + 44px)', right: 'calc(16.66% + 44px)', height: '1px',
+              background: `linear-gradient(90deg, transparent, ${BLUE}45 30%, ${BLUE}45 70%, transparent)` }} />
+          {steps.map((s, i) => (
+            <Reveal key={s.n} delay={i * 90}>
+              <div className="rounded-2xl p-7 text-center" style={{ background: SURFACE, border: `1px solid ${BORDER}` }}>
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl text-white font-black text-sm mb-5"
+                  style={{ background: `linear-gradient(135deg,${BLUE},#1d4ed8)`, boxShadow: `0 8px 24px ${BLUE}40` }}>
+                  {s.n}
                 </div>
-              </Card3D>
+                <h3 className="text-white font-semibold text-base mb-2.5">{s.t}</h3>
+                <p className="text-sm leading-relaxed max-w-[210px] mx-auto" style={{ color: 'rgba(255,255,255,0.36)' }}>{s.b}</p>
+              </div>
             </Reveal>
           ))}
         </div>
@@ -670,272 +568,80 @@ function HowItWorks() {
   )
 }
 
-// ── Stats ─────────────────────────────────────────────────────────────────────
-function Stats() {
-  return (
-    <section className="py-20 px-6 relative overflow-hidden"
-      style={{ background: 'linear-gradient(135deg, #0d0b22 0%, #0f0d2a 50%, #0d0b22 100%)' }}>
-      <div className="absolute inset-0 pointer-events-none"
-        style={{ background: 'radial-gradient(ellipse 60% 80% at 50% 50%, rgba(124,58,237,0.07) 0%, transparent 100%)' }} />
-      <div className="max-w-[1120px] mx-auto relative z-10">
-        <Reveal>
-          <div className="grid grid-cols-3 gap-6 sm:gap-12 text-center">
-            {[
-              { n:'50M+', l:'People in shared accommodation in India', color: '#a78bfa' },
-              { n:'< 2 min', l:'Average flat setup time', color: '#818cf8' },
-              { n:'100%', l:'Free during trial — no card needed', color: '#c4b5fd' },
-            ].map(({ n, l, color }) => (
-              <div key={l}>
-                <p className="font-extrabold tracking-tighter mb-2"
-                  style={{ fontSize:'clamp(2rem,4vw,3.25rem)', background:`linear-gradient(135deg, ${color}, #6366f1)`, WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
-                  {n}
-                </p>
-                <p className="text-white/30 text-xs sm:text-sm font-medium max-w-[180px] mx-auto leading-snug">{l}</p>
-              </div>
-            ))}
-          </div>
-        </Reveal>
-      </div>
-    </section>
-  )
-}
-
 // ── Testimonials ──────────────────────────────────────────────────────────────
-const HABITIQ_TESTIMONIALS: Testimonial[] = [
-  {
-    id: 1,
-    quote: "Finally something that doesn't need one person to run it. Set up in 5 minutes, haven't argued about chores since.",
-    name: 'Koramangala Flat',
-    username: 'Flat of 4 · Bengaluru',
-    avatar: '',
-    avatarColor: '#7c3aed',
-    avatarInitial: 'K',
-  },
-  {
-    id: 2,
-    quote: "The expense splitting is the best part. Everyone can see exactly what they owe. No more awkward money conversations.",
-    name: 'Banjara Hills PG',
-    username: 'PG residents · Hyderabad',
-    avatar: '',
-    avatarColor: '#4f46e5',
-    avatarInitial: 'B',
-  },
-  {
-    id: 3,
-    quote: "The swap request feature saved my life during exam week. Just tap, flatmate accepts, done. Zero drama.",
-    name: 'Student Flat',
-    username: 'Flat of 3 · Pune',
-    avatar: '',
-    avatarColor: '#6366f1',
-    avatarInitial: 'P',
-  },
-  {
-    id: 4,
-    quote: "Rotation engine is genius. My flatmates stopped fighting about who does dishes. It just works.",
-    name: 'Indiranagar House',
-    username: 'House of 5 · Bengaluru',
-    avatar: '',
-    avatarColor: '#8b5cf6',
-    avatarInitial: 'I',
-  },
-  {
-    id: 5,
-    quote: "Added our electricity and WiFi bills. Now everyone pays on time because they can see it clearly.",
-    name: 'HSR Layout Flat',
-    username: 'Flat of 4 · Bengaluru',
-    avatar: '',
-    avatarColor: '#a78bfa',
-    avatarInitial: 'H',
-  },
+const TESTIMONIALS: Testimonial[] = [
+  { id: 1, quote: "Finally something that doesn't need one person to manage everything. Set up in 5 minutes, haven't argued about chores since.", name: 'Koramangala Flat', username: 'Flat of 4 · Bengaluru', avatar: '', avatarColor: '#1d4ed8', avatarInitial: 'K' },
+  { id: 2, quote: "The expense splitting is the best part. Everyone sees exactly what they owe. No more awkward money conversations.", name: 'Banjara Hills PG', username: 'PG residents · Hyderabad', avatar: '', avatarColor: '#2563eb', avatarInitial: 'B' },
+  { id: 3, quote: "The swap request feature saved my life during exam week. Just tap, flatmate accepts, done. Zero drama.", name: 'Student Flat', username: 'Flat of 3 · Pune', avatar: '', avatarColor: '#3b82f6', avatarInitial: 'P' },
+  { id: 4, quote: "Rotation engine is genius. My flatmates stopped fighting about who does dishes. It just works.", name: 'Indiranagar House', username: 'House of 5 · Bengaluru', avatar: '', avatarColor: '#60a5fa', avatarInitial: 'I' },
+  { id: 5, quote: "Added our electricity and WiFi bills. Now everyone pays on time because they can see it clearly.", name: 'HSR Layout Flat', username: 'Flat of 4 · Bengaluru', avatar: '', avatarColor: '#93c5fd', avatarInitial: 'H' },
 ]
 
 function Testimonials() {
   return (
-    <section className="py-20 bg-[#050510] relative overflow-hidden">
-      {/* Subtle glow */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[400px] pointer-events-none opacity-[0.05]"
-        style={{ background: 'radial-gradient(ellipse, #7c3aed, transparent)', filter: 'blur(60px)' }} />
-
+    <section className="py-20 relative overflow-hidden" style={{ background: '#0c0c10' }}>
+      <div className="pointer-events-none absolute inset-0"
+        style={{ background: `radial-gradient(ellipse 55% 55% at 50% 50%, ${BLUE_GLOW} 0%, transparent 80%)`, opacity: 0.3 }} />
       <div className="relative z-10">
-        <Reveal className="text-center mb-14 px-6">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-white/[0.04] border border-white/[0.08] text-white/30 text-[11px] font-bold uppercase tracking-[0.12em]">Early users</span>
-          <h2 className="text-4xl font-extrabold text-white tracking-tighter">Real flats. Real results.</h2>
-          <p className="text-white/35 text-lg mt-3 font-medium">From Bengaluru to Pune — flatmates who stopped arguing.</p>
+        <Reveal className="text-center mb-12 px-6">
+          <span className="inline-block mb-4 text-[11px] font-bold uppercase tracking-[0.13em] px-3 py-1.5 rounded-full"
+            style={{ color: 'rgba(255,255,255,0.26)', background: 'rgba(255,255,255,0.04)', border: `1px solid ${BORDER}` }}>
+            Early users
+          </span>
+          <h2 className="font-bold text-white tracking-tight"
+            style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.5rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+            Real flats. Real results.
+          </h2>
+          <p className="mt-3 text-base font-medium" style={{ color: 'rgba(255,255,255,0.3)' }}>From Bengaluru to Pune — flatmates who stopped arguing.</p>
         </Reveal>
-        <TestimonialSlider
-          testimonials={HABITIQ_TESTIMONIALS}
-          className="bg-transparent"
-        />
+        <TestimonialSlider testimonials={TESTIMONIALS} className="bg-transparent" />
       </div>
     </section>
-  )
-}
-
-// ── Get started ───────────────────────────────────────────────────────────────
-function GetStarted() {
-  return (
-    <section id="get-started" className="py-28 px-6 relative overflow-hidden" style={{ background:'linear-gradient(180deg,#0a0818 0%,#050510 100%)' }}>
-      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[400px] opacity-[0.07] pointer-events-none"
-        style={{ background:'radial-gradient(ellipse,#7c3aed,transparent)', filter:'blur(60px)' }} />
-      <div className="max-w-[1120px] mx-auto">
-        <div className="grid lg:grid-cols-2 gap-16 items-start">
-          <Reveal>
-            <span className="inline-block mb-5 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">Start free</span>
-            <h2 className="text-4xl sm:text-5xl font-extrabold text-white tracking-tighter leading-tight mb-5">
-              Your flat deserves<br />a fair system.
-            </h2>
-            <p className="text-white/38 text-lg font-medium mb-10 leading-relaxed max-w-sm">
-              Create a flat or join your flatmates. Free. No card. Under 2 minutes.
-            </p>
-            <div className="space-y-3.5">
-              {['Unlimited duty rotation & expense splitting','Real-time sync across all flatmates','Swap system, activity log, analytics','Works on any phone — no app install needed'].map(item => (
-                <div key={item} className="flex items-center gap-3">
-                  <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background:'rgba(124,58,237,0.22)', border:'1px solid rgba(124,58,237,0.3)' }}>
-                    <Check size={10} className="text-violet-400" />
-                  </div>
-                  <span className="text-white/50 text-sm font-medium">{item}</span>
-                </div>
-              ))}
-            </div>
-          </Reveal>
-          <Reveal delay={110}>
-            <Card3D intensity={5} glowColor="rgba(124,58,237,0.14)" className="w-full">
-              <div className="rounded-2xl border border-white/[0.09] overflow-hidden"
-                style={{ background:'rgba(255,255,255,0.02)', boxShadow:'0 0 0 1px rgba(124,58,237,0.1), 0 24px 72px rgba(124,58,237,0.12)' }}>
-                <div className="px-7 pt-7 pb-3 border-b border-white/[0.06]">
-                  <p className="text-white font-bold text-lg">Create your account</p>
-                  <p className="text-white/30 text-sm mt-1">Join your flatmates in under a minute.</p>
-                </div>
-                <AuthForm inline />
-              </div>
-            </Card3D>
-          </Reveal>
-        </div>
-      </div>
-    </section>
-  )
-}
-
-// ── Footer ────────────────────────────────────────────────────────────────────
-function Footer() {
-  return (
-    <footer className="border-t border-white/[0.05] bg-[#050510] pt-14 pb-8 px-6">
-      <div className="max-w-[1120px] mx-auto">
-        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
-          {/* Brand */}
-          <div className="lg:col-span-2">
-            <div className="mb-4">
-              <img
-                src="/habitiq-logo.svg"
-                alt="Habitiq"
-                className="h-7 w-auto object-contain brightness-0 invert"
-              />
-            </div>
-            <p className="text-white/28 text-sm leading-relaxed max-w-xs font-medium">
-              The operating system for shared flats in India. Duties rotate. Bills split. Flatmates stay happy.
-            </p>
-            <p className="text-white/16 text-xs mt-5 font-medium">Made with care in India 🇮🇳</p>
-          </div>
-          {/* Product */}
-          <div>
-            <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.12em] mb-4">Product</p>
-            <div className="space-y-3">
-              {[['#features','Features'],['#how-it-works','How it works'],['#compare','Compare'],['#get-started','Get started']].map(([h,l]) => (
-                <a key={h} href={h} className="block text-white/28 text-sm hover:text-white/55 transition-colors">{l}</a>
-              ))}
-            </div>
-          </div>
-          {/* Company */}
-          <div>
-            <p className="text-white/40 text-[11px] font-bold uppercase tracking-[0.12em] mb-4">Company</p>
-            <div className="space-y-3">
-              {[['#','About'],['/privacy','Privacy'],['/terms','Terms'],['mailto:hello@habitiq.in','Contact']].map(([h,l]) => (
-                <a key={l} href={h} className="block text-white/28 text-sm hover:text-white/55 transition-colors">{l}</a>
-              ))}
-            </div>
-          </div>
-        </div>
-        <div className="border-t border-white/[0.05] pt-6 flex flex-col sm:flex-row items-center justify-between gap-3">
-          <p className="text-white/15 text-xs">© 2026 Habitiq. All rights reserved.</p>
-          <p className="text-white/15 text-xs">Shared living, managed.</p>
-        </div>
-      </div>
-    </footer>
   )
 }
 
 // ── FAQ ───────────────────────────────────────────────────────────────────────
 const FAQS = [
-  {
-    q: 'Is Habitiq free?',
-    a: 'Yes, Habitiq is completely free. No credit card required. All features — duty rotation, bill splitting, expense tracking, and settlements — are available at no cost during our trial phase.',
-  },
-  {
-    q: 'Is Habitiq a Splitwise alternative for India?',
-    a: 'Yes. While Splitwise only handles money and expense splitting, Habitiq is a complete shared living management platform. It combines expense splitting with automated duty rotation, monthly fixed bill tracking, and settlement management — purpose-built for Indian flats, PGs, and co-living spaces.',
-  },
-  {
-    q: 'How do I split bills and expenses with my flatmates?',
-    a: 'Add an expense, choose who paid, and select how to split it — equally, by percentage, or custom amounts per person. Habitiq automatically calculates who owes what and tracks all balances in real time. When someone settles, it\'s recorded instantly and the balance updates.',
-  },
-  {
-    q: 'How is Habitiq different from Splitwise?',
-    a: 'Splitwise only tracks money. Habitiq tracks money AND manages your flat operations. On top of expense splitting and settlements, Habitiq gives you automated daily task rotation (cooking, cleaning, maid supervision), monthly fixed bill management with per-person share calculation, a swap request system, and a full activity log — all in one app.',
-  },
-  {
-    q: 'What is duty rotation and how does it work?',
-    a: 'Duty rotation automatically assigns daily household tasks — cooking, cleaning, trash, maid supervision — to flatmates on a fair rotating schedule. No one person is stuck with the same job forever. The system rotates automatically each cycle, tracks who completed what, and allows swap requests if someone needs to trade a day.',
-  },
-  {
-    q: 'Does Habitiq work for PG accommodations and co-living spaces?',
-    a: 'Yes. Habitiq works for any shared living setup — flats, PGs, hostels, student accommodations, and co-living spaces. Up to 8 residents can share a single flat. Each person gets their own view of duties, bills, and balances.',
-  },
-  {
-    q: 'Which Indian cities is Habitiq used in?',
-    a: 'Habitiq is used across India — Bengaluru, Hyderabad, Pune, Mumbai, Delhi, Chennai, Noida, and beyond. It\'s especially popular in tech cities with large student and working professional flatmate communities. It also works internationally for Indian students abroad.',
-  },
-  {
-    q: 'Do I need to download an app to use Habitiq?',
-    a: 'No. Habitiq works directly in your phone\'s browser. You can also add it to your home screen for a native app experience (it\'s a Progressive Web App). No App Store or Play Store download needed — your flatmates can join instantly from any device.',
-  },
-  {
-    q: 'How do I manage daily task management for my flat?',
-    a: 'Habitiq\'s task management system lets you define any household task, assign it to a rotation queue, and let the system handle the rest. Tasks rotate automatically, completions are logged with timestamps, and admins can edit dates retroactively. It\'s the simplest daily task management system built for shared living.',
-  },
-  {
-    q: 'Can Habitiq track monthly bills like rent, electricity, and WiFi?',
-    a: 'Yes. Habitiq has a dedicated Fixed Bills system. Add recurring monthly bills — rent, electricity, WiFi, gas, maid salary — and set how they split among flatmates. The app tracks payment status, shows each person\'s share, generates settlement splits automatically, and keeps a payment history.',
-  },
+  { q: 'Is Habitiq free?', a: 'Yes, completely free. No credit card required. All features — duty rotation, expense splitting, bill tracking, and settlements — are available at no cost during our trial phase.' },
+  { q: 'How is it different from Splitwise?', a: "Splitwise only tracks money. Habitiq also manages flat operations — automated duty rotation, monthly fixed bill management, and a swap request system. It's a complete shared living platform, not just an expense splitter." },
+  { q: 'How does duty rotation work?', a: 'Define household tasks (cleaning, cooking, trash), set the flatmates in queue, and Habitiq assigns them automatically. When someone marks a task done, the next person is assigned instantly. Swap requests let members trade days with an official record.' },
+  { q: 'Do I need to download an app?', a: 'No. Habitiq works directly in your phone\'s browser. You can add it to your home screen as a PWA for a native app experience. No App Store or Play Store needed — flatmates join instantly from any device.' },
+  { q: 'Which cities is Habitiq used in?', a: "Bengaluru, Hyderabad, Pune, Mumbai, Delhi, Chennai, Noida, and beyond. Especially popular in tech cities with large student and working professional communities in shared accommodation." },
 ]
 
 function FAQ() {
   const [open, setOpen] = useState<number | null>(null)
   return (
-    <section id="faq" className="py-28 px-6 bg-[#080815]">
-      <div className="max-w-[760px] mx-auto">
-        <Reveal className="text-center mb-16">
-          <span className="inline-block mb-4 px-3.5 py-1.5 rounded-full bg-violet-500/10 border border-violet-500/25 text-violet-400 text-[11px] font-bold uppercase tracking-[0.12em]">FAQ</span>
-          <h2 className="text-4xl sm:text-[3rem] font-extrabold text-white tracking-tighter">Questions people search for.</h2>
-          <p className="text-white/35 text-lg mt-4 max-w-md mx-auto font-medium">Everything about Habitiq, flat management, and how we compare.</p>
+    <section id="faq" className="py-24 px-6" style={{ background: BG }}>
+      <div className="max-w-[720px] mx-auto">
+        <Reveal className="text-center mb-14">
+          <span className="inline-block mb-4 text-[11px] font-bold uppercase tracking-[0.13em] px-3 py-1.5 rounded-full"
+            style={{ color: '#60a5fa', background: BLUE_DIM, border: `1px solid rgba(59,130,246,0.22)` }}>
+            FAQ
+          </span>
+          <h2 className="font-bold text-white tracking-tight"
+            style={{ fontSize: 'clamp(1.8rem, 3.5vw, 2.75rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+            Common questions.
+          </h2>
         </Reveal>
         <div className="space-y-2">
           {FAQS.map((faq, i) => (
-            <Reveal key={i} delay={i * 40}>
-              <div className="rounded-2xl border border-white/[0.07] bg-white/[0.02] overflow-hidden">
+            <Reveal key={i} delay={i * 30}>
+              <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}`, background: 'rgba(255,255,255,0.018)' }}>
                 <button
                   onClick={() => setOpen(open === i ? null : i)}
-                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer hover:bg-white/[0.03] transition-colors"
-                >
-                  <span className="text-[15px] font-semibold text-white/85 leading-snug">{faq.q}</span>
-                  <span className={`shrink-0 w-6 h-6 rounded-full border border-white/[0.15] flex items-center justify-center transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}>
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none">
-                      <path d="M5 1v8M1 5h8" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5" strokeLinecap="round"/>
+                  className="w-full flex items-center justify-between gap-4 px-6 py-5 text-left cursor-pointer hover:bg-white/[0.025] transition-colors">
+                  <span className="text-sm font-semibold leading-snug" style={{ color: 'rgba(255,255,255,0.8)' }}>{faq.q}</span>
+                  <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center transition-transform duration-200 ${open === i ? 'rotate-45' : ''}`}
+                    style={{ border: `1px solid ${BORDER}` }}>
+                    <svg width="9" height="9" viewBox="0 0 9 9" fill="none">
+                      <path d="M4.5 1v7M1 4.5h7" stroke="rgba(255,255,255,0.38)" strokeWidth="1.4" strokeLinecap="round"/>
                     </svg>
                   </span>
                 </button>
                 {open === i && (
                   <div className="px-6 pb-5">
-                    <p className="text-white/45 text-sm leading-relaxed">{faq.a}</p>
+                    <p className="text-sm leading-relaxed" style={{ color: 'rgba(255,255,255,0.4)' }}>{faq.a}</p>
                   </div>
                 )}
               </div>
@@ -947,24 +653,109 @@ function FAQ() {
   )
 }
 
+// ── Get started ───────────────────────────────────────────────────────────────
+function GetStarted() {
+  return (
+    <section id="get-started" className="py-24 px-6 relative overflow-hidden" style={{ background: '#0c0c10' }}>
+      <div className="absolute pointer-events-none"
+        style={{ top: '-40%', left: '50%', transform: 'translateX(-50%)', width: '800px', height: '600px',
+          background: `radial-gradient(ellipse, ${BLUE_GLOW} 0%, transparent 65%)`, filter: 'blur(50px)', opacity: 0.5 }} />
+      <div className="relative z-10 max-w-[1120px] mx-auto grid lg:grid-cols-2 gap-16 items-start">
+        <Reveal>
+          <span className="inline-block mb-5 text-[11px] font-bold uppercase tracking-[0.13em] px-3 py-1.5 rounded-full"
+            style={{ color: '#60a5fa', background: BLUE_DIM, border: `1px solid rgba(59,130,246,0.22)` }}>
+            Start free
+          </span>
+          <h2 className="font-bold text-white leading-tight mb-5"
+            style={{ fontSize: 'clamp(2rem, 4vw, 3rem)', letterSpacing: '-0.025em', fontFamily: 'var(--font-inter)' }}>
+            Your flat deserves<br />a fair system.
+          </h2>
+          <p className="text-base font-medium mb-10 leading-relaxed max-w-sm" style={{ color: 'rgba(255,255,255,0.36)' }}>
+            Create a flat or join your flatmates. Free. No card. Under 2 minutes.
+          </p>
+          <ul className="space-y-3">
+            {[
+              'Unlimited duty rotation & expense splitting',
+              'Real-time sync across all flatmates',
+              'Swap system, activity log, analytics',
+              'Works on any phone — no app install needed',
+            ].map(item => (
+              <li key={item} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                  style={{ background: `${BLUE}22`, border: `1px solid ${BLUE}35` }}>
+                  <Check size={10} style={{ color: BLUE }} />
+                </div>
+                <span className="text-sm font-medium" style={{ color: 'rgba(255,255,255,0.46)' }}>{item}</span>
+              </li>
+            ))}
+          </ul>
+        </Reveal>
+        <Reveal delay={100}>
+          <div className="rounded-2xl overflow-hidden"
+            style={{ border: `1px solid ${BORDER}`, background: 'rgba(255,255,255,0.02)', boxShadow: `0 0 0 1px ${BLUE}16, 0 24px 64px rgba(0,0,0,0.5)` }}>
+            <div className="px-7 pt-6 pb-3 border-b" style={{ borderColor: BORDER }}>
+              <p className="text-white font-semibold text-base">Create your account</p>
+              <p className="text-sm mt-0.5" style={{ color: 'rgba(255,255,255,0.28)' }}>Join your flatmates in under a minute.</p>
+            </div>
+            <AuthForm inline />
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  )
+}
+
+// ── Footer ────────────────────────────────────────────────────────────────────
+function Footer() {
+  return (
+    <footer className="pt-12 pb-8 px-6 border-t" style={{ borderColor: 'rgba(255,255,255,0.05)', background: BG }}>
+      <div className="max-w-[1120px] mx-auto">
+        <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-12">
+          <div className="lg:col-span-2">
+            <img src="/habitiq-logo.svg" alt="Habitiq" className="h-7 w-auto brightness-0 invert mb-4" />
+            <p className="text-sm leading-relaxed max-w-xs font-medium" style={{ color: 'rgba(255,255,255,0.24)' }}>
+              The operating system for shared flats in India. Duties rotate. Bills split. Flatmates stay happy.
+            </p>
+            <p className="text-xs mt-5" style={{ color: 'rgba(255,255,255,0.14)' }}>Made with care in India</p>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] mb-4" style={{ color: 'rgba(255,255,255,0.32)' }}>Product</p>
+            <div className="space-y-3">
+              {[['#features','Features'],['#how-it-works','How it works'],['#compare','Compare'],['#get-started','Get started']].map(([h,l]) => (
+                <a key={h} href={h} className="block text-sm hover:text-white/55 transition-colors" style={{ color: 'rgba(255,255,255,0.24)' }}>{l}</a>
+              ))}
+            </div>
+          </div>
+          <div>
+            <p className="text-[11px] font-bold uppercase tracking-[0.12em] mb-4" style={{ color: 'rgba(255,255,255,0.32)' }}>Company</p>
+            <div className="space-y-3">
+              {[['#','About'],['/privacy','Privacy'],['/terms','Terms'],['mailto:hello@habitiq.in','Contact']].map(([h,l]) => (
+                <a key={l} href={h} className="block text-sm hover:text-white/55 transition-colors" style={{ color: 'rgba(255,255,255,0.24)' }}>{l}</a>
+              ))}
+            </div>
+          </div>
+        </div>
+        <div className="border-t pt-6 flex flex-col sm:flex-row items-center justify-between gap-3" style={{ borderColor: 'rgba(255,255,255,0.04)' }}>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.14)' }}>© 2026 Habitiq. All rights reserved.</p>
+          <p className="text-xs" style={{ color: 'rgba(255,255,255,0.14)' }}>Shared living, managed.</p>
+        </div>
+      </div>
+    </footer>
+  )
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 export default function LandingPage() {
   return (
-    <div className={`${jakarta.className} min-h-screen bg-[#050510] antialiased`}>
-      <style>{`
-        @keyframes mq { from { transform:translateX(0) } to { transform:translateX(-50%) } }
-      `}</style>
+    <div className="min-h-screen antialiased" style={{ background: BG, fontFamily: 'var(--font-inter)' }}>
+      <style>{`@keyframes mq { from { transform: translateX(0) } to { transform: translateX(-50%) } }`}</style>
       <Navbar />
       <main>
         <Hero />
-        <Marquee />
-        <ProductShowcase />
-        <FeatureShowcase />
-        <Problems />
-        <Bridge />
+        <FeatureStrip />
+        <Features />
         <Compare />
         <HowItWorks />
-        <Stats />
         <Testimonials />
         <FAQ />
         <GetStarted />

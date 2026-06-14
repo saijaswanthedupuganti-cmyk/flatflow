@@ -2454,7 +2454,7 @@ export default function ExpensesPage() {
                     <p className="text-[20px] font-black text-orange-600 dark:text-orange-400 tracking-tight shrink-0">{formatAmount(Math.abs(b.amount), b.currency)}</p>
                   </div>
                   <div className="flex gap-2 px-4 pb-4">
-                    <button onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                    <button onClick={() => setQuickSettle({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: false })}
                       className="flex-1 text-[12px] font-bold border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 py-2.5 rounded-full hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors cursor-pointer">
                       Pay Now
                     </button>
@@ -2974,7 +2974,7 @@ export default function ExpensesPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Owes you</p>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Owes you • {formatAmount(b.amount, b.currency)}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 px-4 pb-3.5 pt-2">
@@ -3050,12 +3050,12 @@ export default function ExpensesPage() {
                           </div>
                           <div className="flex-1 min-w-0">
                             <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">You owe</p>
+                            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">You owe • {formatAmount(Math.abs(b.amount), b.currency)}</p>
                           </div>
                         </div>
                         <div className="flex gap-2 px-4 pb-3.5 pt-2">
                           <button
-                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                            onClick={() => setQuickSettle({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: false })}
                             className="flex-1 text-[12px] font-bold border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 py-2 rounded-full hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors cursor-pointer"
                           >
                             Pay Now

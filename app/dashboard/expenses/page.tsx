@@ -68,6 +68,16 @@ function daysInCurrentMonth(): number {
   return new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
 }
 
+function cycleRange(monthKey: string) {
+  const [y, m] = monthKey.split('-').map(Number)
+  const start = new Date(y, m - 1, 1)
+  const end = new Date(y, m, 0)
+  const fmt = (d: Date) => d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })
+  const today = new Date()
+  const elapsed = Math.min(today.getDate(), end.getDate())
+  return { startStr: fmt(start), endStr: fmt(end), daysTotal: end.getDate(), daysElapsed: elapsed }
+}
+
 function isBillDue(bill: RecurringBill): boolean {
   if (!bill.active) return false
   const today = new Date()
@@ -1991,6 +2001,9 @@ export default function ExpensesPage() {
   const [editExpense, setEditExpense] = useState<Expense | null>(null)
   const [editBill, setEditBill] = useState<RecurringBill | null>(null)
   const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency; reversed?: boolean } | null>(null)
+  const [quickSettle, setQuickSettle]       = useState<{ userId: string; amount: number; currency: Currency; reversed: boolean } | null>(null)
+  const [quickSettleSaving, setQuickSettleSaving] = useState(false)
+  const [showSettleHistory, setShowSettleHistory] = useState(false)
   const [expandedBalances, setExpandedBalances]       = useState<Set<string>>(new Set())
   const [expandedSettlements, setExpandedSettlements] = useState<Set<string>>(new Set())
   const [personFilter, setPersonFilter]               = useState<string | null>(null)
@@ -2198,14 +2211,29 @@ export default function ExpensesPage() {
     <div className="space-y-4 max-w-2xl">
 
       {/* Header */}
-      <div className="pt-1">
-        <p className="text-xs font-medium text-[#999CA1] dark:text-muted-foreground">
-          {flatName || 'My Flat'} &middot; {monthLabel(currentMonthKey())}
-        </p>
-        <h1 className="text-[22px] font-bold text-[#021328] dark:text-foreground tracking-tight mt-0.5 leading-tight">
-          Expenses Hub
-        </h1>
-      </div>
+      {(() => {
+        const { startStr, endStr } = cycleRange(currentMonthKey())
+        return (
+          <div className="pt-1 flex items-start justify-between gap-3">
+            <div>
+              <p className="text-xs font-medium text-[#999CA1] dark:text-muted-foreground">
+                {flatName || 'My Flat'} &middot; {startStr} – {endStr}
+              </p>
+              <h1 className="text-[22px] font-bold text-[#021328] dark:text-foreground tracking-tight mt-0.5 leading-tight">
+                Expenses Hub
+              </h1>
+            </div>
+            {isAdmin && !isCurrentMonthClosed && (
+              <button
+                onClick={() => setShowMonthEnd(true)}
+                className="shrink-0 mt-1 flex items-center gap-1.5 bg-card border border-border text-[#021328] dark:text-foreground text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-secondary transition-colors cursor-pointer"
+              >
+                <CalendarCheck size={11} /> Close Cycle
+              </button>
+            )}
+          </div>
+        )
+      })()}
 
       {/* Alerts */}
       {dueBills.length > 0 && isAdmin && (
@@ -2239,62 +2267,113 @@ export default function ExpensesPage() {
         </div>
       )}
 
-      {/* ── Monthly breakdown card ── */}
+      {/* ── Current Cycle Status card ── */}
       {(() => {
-        const grand    = fixedBillsThisMonth + thisMonthExpensesTotal
-        const fixedPct = grand > 0 ? Math.round((fixedBillsThisMonth / grand) * 100) : 0
-        const dailyPct = grand > 0 ? 100 - fixedPct : 0
+        const { startStr, endStr, daysTotal, daysElapsed } = cycleRange(currentMonthKey())
+        const progressPct = Math.round((daysElapsed / daysTotal) * 100)
+        const allSettled = balances.length === 0
+        const netPosition = totalOwedToYou - totalYouOwe
+        const nextDueBill = recurringBills.filter(b => b.active).sort((a, b) => a.billingDay - b.billingDay)
+          .find(b => {
+            const today = new Date().getDate()
+            return b.billingDay >= today
+          }) ?? recurringBills.filter(b => b.active).sort((a, b) => a.billingDay - b.billingDay)[0]
+        const nextDueDate = nextDueBill ? (() => {
+          const today = new Date()
+          const day = nextDueBill.billingDay
+          const target = new Date(today.getFullYear(), day < today.getDate() ? today.getMonth() + 1 : today.getMonth(), day)
+          const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+          return { name: nextDueBill.name, dateStr: target.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), daysAway: diff }
+        })() : null
+        const nextCycleStart = (() => {
+          const [y, m] = currentMonthKey().split('-').map(Number)
+          return new Date(y, m, 1).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+        })()
         return (
-          <div className="rounded-[24px] bg-gradient-to-br from-[#0A0F1C] via-[#111827] to-[#1C2744] shadow-[0px_20px_60px_0px_rgba(0,0,0,0.50)] p-5 space-y-5 border border-white/[0.06]">
-            {/* Top row */}
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[#999CA1] text-[11px] font-semibold uppercase tracking-widest">
-                  {monthLabel(currentMonthKey())}{isCurrentMonthClosed ? ' · Closed' : ''}
-                </p>
-                <p className="text-white text-[40px] font-black mt-2 leading-none tracking-tight">
-                  {formatAmount(grand, 'INR')}
-                </p>
-                <p className="text-[#4D515B] text-[11px] mt-1.5">
-                  {sortedExpenses.filter(e => e.date.startsWith(currentMonthKey()) && !e.deferToNextMonth && !e.billInstanceId).length} expenses this month
-                </p>
+          <div className="rounded-[20px] border border-border bg-card shadow-sm p-4 space-y-4">
+            {/* Top: status + cycle progress */}
+            <div className="flex items-start gap-3">
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider mb-1.5">Current Cycle Status</p>
+                {allSettled ? (
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                      <Check size={14} className="text-white" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-emerald-600 dark:text-emerald-400">All Settled</p>
+                      <p className="text-[11px] text-[#999CA1] mt-0.5">Great! No pending balances in this cycle.</p>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center shrink-0">
+                      <Clock size={14} className="text-amber-600 dark:text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-[13px] font-bold text-[#021328] dark:text-foreground">Pending balances</p>
+                      <p className="text-[11px] text-[#999CA1] mt-0.5">{balances.length} unsettled</p>
+                    </div>
+                  </div>
+                )}
               </div>
-              {isAdmin && !isCurrentMonthClosed && (
-                <button
-                  onClick={() => setShowMonthEnd(true)}
-                  className="bg-white/10 hover:bg-white/20 text-white text-[11px] font-bold px-3 py-1.5 rounded-lg transition-colors cursor-pointer flex items-center gap-1 shrink-0 mt-1"
-                >
-                  <CalendarCheck size={11} />
-                  Close month
-                </button>
-              )}
+              <div className="text-right shrink-0">
+                <p className="text-[10px] font-bold text-[#999CA1] uppercase tracking-wider mb-1">Cycle Progress</p>
+                <p className="text-[13px] font-bold text-[#021328] dark:text-foreground">{daysElapsed} / {daysTotal} days</p>
+                <div className="w-24 h-1.5 bg-[#EDEDF0] dark:bg-white/10 rounded-full mt-1.5 overflow-hidden">
+                  <div
+                    className={['h-full rounded-full transition-all', allSettled ? 'bg-emerald-500' : 'bg-[#3786FB]'].join(' ')}
+                    style={{ width: `${progressPct}%` }}
+                  />
+                </div>
+              </div>
             </div>
 
-            {/* Split bar */}
-            {grand > 0 && (
-              <div className="space-y-2">
-                <div className="flex h-2 rounded-full overflow-hidden gap-px">
-                  {fixedPct > 0 && <div className="bg-amber-400 rounded-l-full transition-all" style={{ width: `${fixedPct}%` }} />}
-                  {dailyPct > 0 && <div className="bg-[#3786FB] rounded-r-full transition-all" style={{ width: `${dailyPct}%` }} />}
+            {/* Three stat pills */}
+            <div className="grid grid-cols-3 gap-1.5">
+              <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-[14px] px-2.5 py-2.5">
+                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-none">You Will Receive</p>
+                <div className="flex items-center gap-0.5 mt-1.5">
+                  <p className="text-[14px] font-black text-emerald-700 dark:text-emerald-300 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
+                  <ArrowDownLeft size={11} className="text-emerald-500 shrink-0" />
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="bg-white/[0.07] rounded-[16px] px-3.5 py-3 border border-white/[0.05]">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
-                      <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Fixed Bills</p>
-                    </div>
-                    <p className="text-white text-[17px] font-extrabold leading-none">{formatAmount(fixedBillsThisMonth, 'INR')}</p>
-                    <p className="text-[#4D515B] text-[10px] mt-1">{fixedPct}% of total</p>
-                  </div>
-                  <div className="bg-white/[0.07] rounded-[16px] px-3.5 py-3 border border-white/[0.05]">
-                    <div className="flex items-center gap-1.5 mb-1">
-                      <span className="w-2 h-2 rounded-full bg-[#3786FB] shrink-0" />
-                      <p className="text-[#999CA1] text-[10px] font-bold uppercase tracking-wider">Daily Splits</p>
-                    </div>
-                    <p className="text-white text-[17px] font-extrabold leading-none">{formatAmount(thisMonthExpensesTotal, 'INR')}</p>
-                    <p className="text-[#4D515B] text-[10px] mt-1">{dailyPct}% of total</p>
-                  </div>
+                <p className="text-[9px] text-emerald-500/70 mt-1">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
+              </div>
+              <div className="bg-orange-50 dark:bg-orange-950/30 rounded-[14px] px-2.5 py-2.5">
+                <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider leading-none">You Need To Pay</p>
+                <div className="flex items-center gap-0.5 mt-1.5">
+                  <p className="text-[14px] font-black text-orange-700 dark:text-orange-300 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
+                  <ArrowUpRight size={11} className="text-orange-500 shrink-0" />
                 </div>
+                <p className="text-[9px] text-orange-500/70 mt-1">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
+              </div>
+              <div className="bg-secondary/60 rounded-[14px] px-2.5 py-2.5">
+                <p className="text-[9px] font-bold text-[#999CA1] uppercase tracking-wider leading-none">Net Position</p>
+                <p className={['text-[14px] font-black leading-none mt-1.5', netPosition >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
+                  {netPosition >= 0 ? '+' : ''}{formatAmount(Math.abs(netPosition), 'INR')}
+                </p>
+                <p className="text-[9px] text-[#999CA1] mt-1">{netPosition >= 0 ? 'In your favor' : 'You owe more'}</p>
+              </div>
+            </div>
+
+            {/* Dates row */}
+            <div className="flex items-center gap-2 text-[10.5px] text-[#999CA1]">
+              <span className="font-semibold text-[#021328] dark:text-foreground">Current Cycle</span>
+              <span>{startStr} – {endStr}, {new Date().getFullYear()}</span>
+              <span className="text-[#d0d2d8]">·</span>
+              <span className="font-semibold text-[#021328] dark:text-foreground">Next Cycle</span>
+              <span>{nextCycleStart}</span>
+            </div>
+
+            {/* Next Due */}
+            {nextDueDate && (
+              <div className="flex items-center gap-2 text-[10.5px]">
+                <span className="text-[#999CA1] font-semibold">Next Due</span>
+                <span className="text-[#021328] dark:text-foreground font-bold">{nextDueDate.name}</span>
+                <span className="text-[#999CA1]">&middot; {nextDueDate.dateStr}</span>
+                <span className="ml-auto shrink-0 bg-amber-50 dark:bg-amber-950/30 text-amber-600 dark:text-amber-400 text-[9px] font-bold px-2 py-0.5 rounded-full">
+                  In {nextDueDate.daysAway} day{nextDueDate.daysAway !== 1 ? 's' : ''}
+                </span>
               </div>
             )}
           </div>
@@ -2306,35 +2385,21 @@ export default function ExpensesPage() {
       <div className="flex gap-0 p-1 bg-[#EDEDF0] dark:bg-white/[0.06] rounded-[14px] border border-black/[0.05] dark:border-white/[0.05]">
         <button
           onClick={() => setActiveTab('daily')}
-          className={['flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer',
+          className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer',
             activeTab === 'daily' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ].join(' ')}
         >
-          <div className="flex items-center gap-1.5">
-            Daily Splits
-            {netUnsettled > 0 && activeTab !== 'daily' && <span className="w-1.5 h-1.5 bg-red-500 rounded-full shrink-0" />}
-          </div>
-          {thisMonthExpensesTotal > 0 && (
-            <span className={['text-[11px] font-semibold leading-none', activeTab === 'daily' ? 'text-white/75' : 'text-muted-foreground/60'].join(' ')}>
-              {formatAmount(thisMonthExpensesTotal, 'INR')}
-            </span>
-          )}
+          Daily Splits
+          {netUnsettled > 0 && activeTab !== 'daily' && <span className="w-1.5 h-1.5 bg-orange-400 rounded-full shrink-0" />}
         </button>
         <button
           onClick={() => setActiveTab('bills')}
-          className={['flex-1 flex flex-col items-center justify-center gap-0.5 py-2 rounded-lg text-sm font-bold transition-all cursor-pointer',
+          className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer',
             activeTab === 'bills' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ].join(' ')}
         >
-          <div className="flex items-center gap-1.5">
-            Fixed Bills
-            {dueBills.length > 0 && activeTab !== 'bills' && <span className="w-1.5 h-1.5 bg-amber-500 rounded-full shrink-0" />}
-          </div>
-          {totalMonthlyCommitment > 0 && (
-            <span className={['text-[11px] font-semibold leading-none', activeTab === 'bills' ? 'text-white/75' : 'text-muted-foreground/60'].join(' ')}>
-              {formatAmount(totalMonthlyCommitment, 'INR')}
-            </span>
-          )}
+          Fixed Bills
+          {dueBills.length > 0 && activeTab !== 'bills' && <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />}
         </button>
       </div>
 
@@ -2342,7 +2407,33 @@ export default function ExpensesPage() {
       {activeTab === 'daily' && (
         <div className="space-y-4">
 
-          {/* ── Who owes whom ────────────────────────────── */}
+          {/* ── Balances ─────────────────────────────────── */}
+          {/* Hero card */}
+          {totalOwedToYou > 0 && (
+            <div className="rounded-[18px] bg-emerald-500 px-4 py-3.5 flex items-center justify-between shadow-[0px_8px_24px_rgba(16,185,129,0.25)]">
+              <div>
+                <p className="text-emerald-50/80 text-[11px] font-semibold">You will receive</p>
+                <p className="text-white text-[28px] font-black leading-none mt-1 tracking-tight">{formatAmount(totalOwedToYou, 'INR')}</p>
+                <p className="text-emerald-100/70 text-[11px] mt-1">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <ArrowDownLeft size={18} className="text-white" />
+              </div>
+            </div>
+          )}
+          {totalYouOwe > 0 && totalOwedToYou === 0 && (
+            <div className="rounded-[18px] bg-orange-500 px-4 py-3.5 flex items-center justify-between shadow-[0px_8px_24px_rgba(249,115,22,0.25)]">
+              <div>
+                <p className="text-orange-50/80 text-[11px] font-semibold">You need to pay</p>
+                <p className="text-white text-[28px] font-black leading-none mt-1 tracking-tight">{formatAmount(totalYouOwe, 'INR')}</p>
+                <p className="text-orange-100/70 text-[11px] mt-1">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
+                <ArrowUpRight size={18} className="text-white" />
+              </div>
+            </div>
+          )}
+
           {balances.length === 0 ? (
             <div className="flex items-center gap-3 px-4 py-4 rounded-[18px] bg-gradient-to-r from-emerald-50 to-emerald-100/40 dark:from-emerald-950/50 dark:to-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40">
               <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-[0px_4px_12px_rgba(16,185,129,0.30)]">
@@ -2354,159 +2445,162 @@ export default function ExpensesPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-3">
-              {/* Financial status hero cards */}
-              {(totalOwedToYou > 0 || totalYouOwe > 0) && (
-                <div className={['grid gap-2', totalOwedToYou > 0 && totalYouOwe > 0 ? 'grid-cols-2' : 'grid-cols-1'].join(' ')}>
-                  {totalOwedToYou > 0 && (
-                    <div className="flex flex-col gap-1 px-4 py-3.5 rounded-[18px] bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/80 dark:to-emerald-900/30 border border-emerald-200 dark:border-emerald-700/30">
-                      <div className="flex items-center justify-between">
-                        <p className="text-emerald-700 dark:text-emerald-400 text-[10px] font-bold uppercase tracking-wider">You&apos;ll receive</p>
-                        <ArrowDownLeft size={13} className="text-emerald-600 dark:text-emerald-400 opacity-70" />
+            <div className="space-y-4">
+              {/* People who owe you */}
+              {balances.some(b => b.amount > 0) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">People who owe you</p>
+                    <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalOwedToYou, 'INR')}</p>
+                  </div>
+                  {balances.filter(b => b.amount > 0).map(b => {
+                    const m = members.find(x => x.uid === b.userId)
+                    const cardKey = b.userId + b.currency
+                    const isExpanded = expandedBalances.has(cardKey)
+                    const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
+                      (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
+                      (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
+                    ))
+                    const lastExpense = [...relatedExpenses].sort((a, z) => z.date.localeCompare(a.date))[0]
+                    return (
+                      <div key={cardKey} className="rounded-[18px] border border-emerald-100 dark:border-emerald-900/40 bg-card shadow-sm overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 pt-3.5 pb-1">
+                          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[13px] text-emerald-700 dark:text-emerald-300 shrink-0">
+                            {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Owes you</p>
+                          </div>
+                          <p className="text-[18px] font-black text-emerald-600 dark:text-emerald-400 shrink-0 tracking-tight">
+                            {formatAmount(b.amount, b.currency)}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 px-4 pb-3.5 pt-2">
+                          <button
+                            onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
+                            className="flex-1 text-[12px] font-bold border border-border text-[#021328] dark:text-foreground py-2 rounded-full hover:bg-secondary transition-colors cursor-pointer"
+                          >
+                            {personFilter === b.userId ? '✓ Filtered' : 'Remind'}
+                          </button>
+                          <button
+                            onClick={() => setQuickSettle({ userId: b.userId, amount: b.amount, currency: b.currency, reversed: true })}
+                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_12px_rgba(16,185,129,0.25)]"
+                          >
+                            Settle
+                          </button>
+                        </div>
+                        {/* Tap header to expand breakdown */}
+                        {relatedExpenses.length > 0 && (
+                          <button
+                            onClick={() => setExpandedBalances(s => { const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n })}
+                            className="w-full border-t border-border/40 px-4 py-2 text-[11px] font-semibold text-muted-foreground flex items-center justify-center gap-1 hover:bg-secondary/30 transition-colors cursor-pointer"
+                          >
+                            {isExpanded ? 'Hide' : `${relatedExpenses.length} expense${relatedExpenses.length > 1 ? 's' : ''}`}
+                            <ChevronDown size={12} className={['transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                          </button>
+                        )}
+                        {isExpanded && (
+                          <div className="border-t border-border/30 px-4 py-2.5 space-y-1.5 bg-secondary/10">
+                            {relatedExpenses.sort((a, z) => z.date.localeCompare(a.date)).map(e => {
+                              const isBPayer = e.paidBy === b.userId
+                              const net = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
+                              return (
+                                <div key={e.id} className="flex items-center gap-2">
+                                  <span className="text-sm shrink-0">{CATEGORY_CONFIG[e.category]?.emoji ?? '💰'}</span>
+                                  <p className="flex-1 text-[11.5px] font-semibold truncate">{e.description}</p>
+                                  <p className="text-[10.5px] text-muted-foreground shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                  <p className={['text-[11.5px] font-extrabold shrink-0', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500'].join(' ')}>
+                                    {net >= 0 ? '+' : ''}{formatAmount(Math.abs(net), b.currency)}
+                                  </p>
+                                </div>
+                              )
+                            })}
+                          </div>
+                        )}
+                        {/* Store lastExpense for quick settle sheet */}
+                        <span data-last-expense={lastExpense?.id} className="hidden" />
                       </div>
-                      <p className="text-emerald-800 dark:text-emerald-300 text-[22px] font-black leading-none tracking-tight">{formatAmount(totalOwedToYou, 'INR')}</p>
-                      <p className="text-emerald-600/70 dark:text-emerald-500/70 text-[10px]">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
-                    </div>
-                  )}
-                  {totalYouOwe > 0 && (
-                    <div className="flex flex-col gap-1 px-4 py-3.5 rounded-[18px] bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/80 dark:to-orange-900/30 border border-orange-200 dark:border-orange-700/30">
-                      <div className="flex items-center justify-between">
-                        <p className="text-orange-600 dark:text-orange-400 text-[10px] font-bold uppercase tracking-wider">You need to pay</p>
-                        <ArrowUpRight size={13} className="text-orange-500 dark:text-orange-400 opacity-70" />
-                      </div>
-                      <p className="text-orange-700 dark:text-orange-300 text-[22px] font-black leading-none tracking-tight">{formatAmount(totalYouOwe, 'INR')}</p>
-                      <p className="text-orange-500/70 dark:text-orange-500/70 text-[10px]">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
-                    </div>
-                  )}
+                    )
+                  })}
                 </div>
               )}
-              <div className="flex items-center gap-2 px-1">
-                <p className="text-[10px] font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">Balances</p>
-              </div>
-              {balances.map(b => {
-                const m        = members.find(x => x.uid === b.userId)
-                const isOwed   = b.amount > 0
-                const cardKey  = b.userId + b.currency
-                const isExpanded = expandedBalances.has(cardKey)
-                const isFiltered = personFilter === b.userId
-                const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
-                  (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
-                  (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
-                ))
-                const relatedBills = billInstances.filter(bi =>
-                  bi.status === 'split_generated' && !!bi.splits && (
-                    (bi.paidBy === b.userId && bi.participants.includes(currentUserId)) ||
-                    (bi.paidBy === currentUserId && bi.participants.includes(b.userId))
-                  )
-                )
-                const txCount = relatedExpenses.length + relatedBills.length
-                return (
-                  <div key={cardKey}
-                    className={['rounded-[22px] border shadow-[0px_4px_20px_rgba(0,0,0,0.08)] dark:shadow-[0px_4px_24px_rgba(0,0,0,0.30)] overflow-hidden',
-                      isOwed
-                        ? 'bg-emerald-50 dark:bg-emerald-950/20 border-emerald-200 dark:border-emerald-900/40'
-                        : 'bg-orange-50 dark:bg-orange-950/20 border-orange-200 dark:border-orange-900/40',
-                    ].join(' ')}
-                  >
-                    {/* Main row — tap to expand breakdown */}
-                    <div
-                      onClick={() => setExpandedBalances(s => {
-                        const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n
-                      })}
-                      className="flex items-center gap-3 px-4 pt-4 pb-2.5 cursor-pointer"
-                    >
-                      <div className="relative shrink-0">
-                        <div className={['w-11 h-11 rounded-full flex items-center justify-center font-extrabold text-[13px]',
-                          isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                                 : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                        ].join(' ')}>
-                          {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+
+              {/* People you owe */}
+              {balances.some(b => b.amount < 0) && (
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between px-0.5">
+                    <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">People you owe</p>
+                    <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalYouOwe, 'INR')}</p>
+                  </div>
+                  {balances.filter(b => b.amount < 0).map(b => {
+                    const m = members.find(x => x.uid === b.userId)
+                    const cardKey = b.userId + b.currency
+                    const isExpanded = expandedBalances.has(cardKey)
+                    const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
+                      (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
+                      (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
+                    ))
+                    return (
+                      <div key={cardKey} className="rounded-[18px] border border-orange-100 dark:border-orange-900/40 bg-card shadow-sm overflow-hidden">
+                        <div className="flex items-center gap-3 px-4 pt-3.5 pb-1">
+                          <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-[13px] text-orange-700 dark:text-orange-300 shrink-0">
+                            {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">You owe</p>
+                          </div>
+                          <p className="text-[18px] font-black text-orange-600 dark:text-orange-400 shrink-0 tracking-tight">
+                            {formatAmount(Math.abs(b.amount), b.currency)}
+                          </p>
                         </div>
-                        {isFiltered && (
-                          <span className="absolute -top-0.5 -right-0.5 w-3 h-3 bg-blue-500 rounded-full border-2 border-white dark:border-card" />
+                        <div className="flex gap-2 px-4 pb-3.5 pt-2">
+                          <button
+                            onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
+                            className="flex-1 text-[12px] font-bold border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 py-2 rounded-full hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors cursor-pointer"
+                          >
+                            Pay Now
+                          </button>
+                          <button
+                            onClick={() => setQuickSettle({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: false })}
+                            className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_12px_rgba(55,134,251,0.25)]"
+                          >
+                            Settle
+                          </button>
+                        </div>
+                        {relatedExpenses.length > 0 && (
+                          <button
+                            onClick={() => setExpandedBalances(s => { const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n })}
+                            className="w-full border-t border-border/40 px-4 py-2 text-[11px] font-semibold text-muted-foreground flex items-center justify-center gap-1 hover:bg-secondary/30 transition-colors cursor-pointer"
+                          >
+                            {isExpanded ? 'Hide' : `${relatedExpenses.length} expense${relatedExpenses.length > 1 ? 's' : ''}`}
+                            <ChevronDown size={12} className={['transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                          </button>
+                        )}
+                        {isExpanded && (
+                          <div className="border-t border-border/30 px-4 py-2.5 space-y-1.5 bg-secondary/10">
+                            {relatedExpenses.sort((a, z) => z.date.localeCompare(a.date)).map(e => {
+                              const isBPayer = e.paidBy === b.userId
+                              const net = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
+                              return (
+                                <div key={e.id} className="flex items-center gap-2">
+                                  <span className="text-sm shrink-0">{CATEGORY_CONFIG[e.category]?.emoji ?? '💰'}</span>
+                                  <p className="flex-1 text-[11.5px] font-semibold truncate">{e.description}</p>
+                                  <p className="text-[10.5px] text-muted-foreground shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
+                                  <p className={['text-[11.5px] font-extrabold shrink-0', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500'].join(' ')}>
+                                    {net >= 0 ? '+' : ''}{formatAmount(Math.abs(net), b.currency)}
+                                  </p>
+                                </div>
+                              )
+                            })}
+                          </div>
                         )}
                       </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">
-                          {m?.nickname ?? '…'}
-                        </p>
-                        <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400'].join(' ')}>
-                          {isOwed ? 'owes you' : 'you owe'}
-                          {txCount > 0 && <span className="text-muted-foreground font-normal"> · {txCount} tx</span>}
-                        </p>
-                      </div>
-                      <p className={['text-[22px] font-black leading-none shrink-0 tracking-tight',
-                        isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
-                      ].join(' ')}>
-                        {isOwed ? '+' : '-'}{formatAmount(Math.abs(b.amount), b.currency)}
-                      </p>
-                      <ChevronDown size={14} className={['text-muted-foreground transition-transform shrink-0', isExpanded ? 'rotate-180' : ''].join(' ')} />
-                    </div>
-
-                    {/* Action row — always visible */}
-                    <div className="flex gap-2 px-4 pb-4">
-                      <button
-                        onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
-                        className={['shrink-0 text-[10px] font-bold px-2.5 py-1.5 rounded-full border transition-all cursor-pointer',
-                          isFiltered
-                            ? 'bg-blue-500 text-white border-blue-500'
-                            : 'border-border text-muted-foreground hover:text-foreground',
-                        ].join(' ')}
-                      >
-                        {isFiltered ? '✓ Filter on' : 'Filter'}
-                      </button>
-                      {isOwed ? (
-                        <button
-                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: true })}
-                          className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_14px_rgba(16,185,129,0.30)]"
-                        >
-                          Mark Received
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => setSettleTarget({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency })}
-                          className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_14px_rgba(55,134,251,0.35)]"
-                        >
-                          Settle Up
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Breakdown — only when expanded */}
-                    {isExpanded && (
-                      <div className="border-t border-black/5 dark:border-white/5 px-4 pb-3 pt-2.5 space-y-1.5">
-                        {[
-                          ...relatedExpenses.map(e => {
-                            const isBPayer = e.paidBy === b.userId
-                            const net      = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
-                            const cat      = CATEGORY_CONFIG[e.category]
-                            return { key: e.id, emoji: cat?.emoji ?? '💰', label: e.description, date: e.date, net }
-                          }),
-                          ...relatedBills.map(bi => {
-                            const isBPayer = bi.paidBy === b.userId
-                            const net      = isBPayer ? -(bi.splits![currentUserId] ?? 0) : (bi.splits![b.userId] ?? 0)
-                            return { key: bi.id, emoji: '🧾', label: bi.name, date: bi.dueDate ?? '', net }
-                          }),
-                        ]
-                          .sort((a, z) => z.date.localeCompare(a.date))
-                          .map(row => (
-                            <div key={row.key} className="flex items-center gap-2.5">
-                              <span className="text-base shrink-0">{row.emoji}</span>
-                              <p className="flex-1 text-[12px] font-semibold truncate text-foreground/80">{row.label}</p>
-                              <p className="text-[11px] text-muted-foreground shrink-0">
-                                {row.date ? new Date(row.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }) : '—'}
-                              </p>
-                              <p className={['text-[12px] font-extrabold shrink-0 w-16 text-right', row.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
-                                {row.net >= 0 ? '+' : ''}{formatAmount(Math.abs(row.net), b.currency)}
-                              </p>
-                            </div>
-                          ))
-                        }
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
 
@@ -2574,7 +2668,7 @@ export default function ExpensesPage() {
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Receipt size={14} className="text-muted-foreground" />
-              <h2 className="text-[15px] font-bold text-[#021328] dark:text-foreground">Splits</h2>
+              <h2 className="text-[15px] font-bold text-[#021328] dark:text-foreground">Recent Splits</h2>
               {visibleTx.length > 0 && (
                 <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
@@ -3430,6 +3524,97 @@ export default function ExpensesPage() {
           onSave={async (data) => { await updateRecurringBill(editBill.id, data) }}
           onClose={() => setEditBill(null)} />
       )}
+      {/* Quick settle bottom sheet */}
+      {quickSettle && (() => {
+        const m = members.find(x => x.uid === quickSettle.userId)
+        const isOwed = quickSettle.reversed
+        const lastExp = [...expenses]
+          .filter(e => !e.deferToNextMonth && (
+            (e.paidBy === quickSettle.userId && e.splitAmong.includes(currentUserId)) ||
+            (e.paidBy === currentUserId && e.splitAmong.includes(quickSettle.userId))
+          ))
+          .sort((a, b) => b.date.localeCompare(a.date))[0]
+        return createPortal(
+          <div className="fixed inset-0 bg-black/60 z-[200] flex items-end justify-center" onClick={() => setQuickSettle(null)}>
+            <div className="bg-card w-full max-w-lg rounded-t-[28px] overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
+              {/* Handle */}
+              <div className="flex justify-center pt-3 pb-1">
+                <div className="w-10 h-1 rounded-full bg-border" />
+              </div>
+              {/* Header */}
+              <div className="flex items-center justify-between px-5 py-3">
+                <p className="text-[15px] font-bold text-[#021328] dark:text-foreground">Settle Balance</p>
+                <button onClick={() => setQuickSettle(null)} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center cursor-pointer hover:bg-secondary/80">
+                  <X size={14} className="text-muted-foreground" />
+                </button>
+              </div>
+              {/* Person + amount */}
+              <div className="px-5 py-4 flex items-center gap-4">
+                <div className={['w-14 h-14 rounded-full flex items-center justify-center font-extrabold text-xl shrink-0',
+                  isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                          : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                ].join(' ')}>
+                  {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-[13px] text-muted-foreground font-medium">{isOwed ? `${m?.nickname ?? '…'} owes you` : `You owe ${m?.nickname ?? '…'}`}</p>
+                  <p className={['text-[32px] font-black leading-none tracking-tight mt-0.5',
+                    isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-600 dark:text-orange-400',
+                  ].join(' ')}>
+                    {formatAmount(quickSettle.amount, quickSettle.currency)}
+                  </p>
+                </div>
+              </div>
+              {/* Last expense */}
+              {lastExp && (
+                <div className="mx-5 mb-4 bg-secondary/50 rounded-[14px] px-4 py-3">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider mb-2">Last Expense</p>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[13px] font-semibold text-[#021328] dark:text-foreground">{lastExp.description}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {new Date(lastExp.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })} &middot; Paid by {lastExp.paidBy === currentUserId ? 'You' : nick(lastExp.paidBy)}
+                      </p>
+                    </div>
+                    <p className="text-[14px] font-bold text-[#021328] dark:text-foreground shrink-0">{formatAmount(lastExp.amount, lastExp.currency)}</p>
+                  </div>
+                </div>
+              )}
+              {/* Confirm text */}
+              <div className="px-5 pb-2">
+                <p className="text-[13px] font-semibold text-[#021328] dark:text-foreground">Mark this balance as settled?</p>
+                <p className="text-[11.5px] text-muted-foreground mt-0.5">This action can be undone from settlement history.</p>
+              </div>
+              {/* Buttons */}
+              <div className="flex gap-3 px-5 py-4">
+                <button
+                  onClick={() => setQuickSettle(null)}
+                  className="flex-1 border border-border text-[#021328] dark:text-foreground text-[13px] font-bold py-3 rounded-full hover:bg-secondary transition-colors cursor-pointer"
+                >
+                  Cancel
+                </button>
+                <button
+                  disabled={quickSettleSaving}
+                  onClick={async () => {
+                    setQuickSettleSaving(true)
+                    try {
+                      const fromId = isOwed ? quickSettle.userId : currentUserId
+                      const toId = isOwed ? currentUserId : quickSettle.userId
+                      await addSettlement({ fromUserId: fromId, toUserId: toId, amount: quickSettle.amount, currency: quickSettle.currency, date: todayStr() })
+                      setQuickSettle(null)
+                    } catch { /* ignore */ } finally { setQuickSettleSaving(false) }
+                  }}
+                  className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] disabled:opacity-60 text-white text-[13px] font-extrabold py-3 rounded-full transition-colors cursor-pointer shadow-[0px_4px_14px_rgba(55,134,251,0.30)]"
+                >
+                  {quickSettleSaving ? 'Saving…' : 'Mark as Settled'}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      })()}
+
       {settleTarget && (
         <SettleUpModal preToUserId={settleTarget.userId} preAmount={settleTarget.amount} preCurrency={settleTarget.currency}
           reversed={settleTarget.reversed} members={members} currentUserId={currentUserId} onSettle={addSettlement} onClose={() => setSettleTarget(null)} />

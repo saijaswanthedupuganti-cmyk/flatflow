@@ -2016,6 +2016,9 @@ export default function ExpensesPage() {
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showSplitsMenu, setShowSplitsMenu] = useState(false)
+  const [activeBalanceId, setActiveBalanceId] = useState<string | null>(null)
+  const [settleConfirmId, setSettleConfirmId] = useState<string | null>(null)
+  const [settlingInline, setSettlingInline] = useState(false)
   const [showResetAllConfirm, setShowResetAllConfirm] = useState(false)
   const [resettingAll, setResettingAll] = useState(false)
   const [showGenerate, setShowGenerate] = useState(false)
@@ -2909,207 +2912,182 @@ export default function ExpensesPage() {
 
       {/* DAILY SPLITS TAB */}
       {activeTab === 'daily' && (
-        <div className="space-y-4">
+        <div className="space-y-3">
 
-          {/* ── Balances ─────────────────────────────────── */}
-          {/* Hero card */}
-          {totalOwedToYou > 0 && (
-            <div className="rounded-[18px] bg-emerald-500 px-4 py-3.5 flex items-center justify-between shadow-[0px_8px_24px_rgba(16,185,129,0.25)]">
+          {/* ── Summary pill ─────────────────────────────── */}
+          {(totalOwedToYou > 0 || totalYouOwe > 0) && (
+            <div className={['rounded-[16px] px-4 py-3 flex items-center justify-between',
+              totalOwedToYou > 0
+                ? 'bg-emerald-500 shadow-[0px_6px_20px_rgba(16,185,129,0.25)]'
+                : 'bg-orange-500 shadow-[0px_6px_20px_rgba(249,115,22,0.22)]',
+            ].join(' ')}>
               <div>
-                <p className="text-emerald-50/80 text-[11px] font-semibold">You will receive</p>
-                <p className="text-white text-[28px] font-black leading-none mt-1 tracking-tight">{formatAmount(totalOwedToYou, 'INR')}</p>
-                <p className="text-emerald-100/70 text-[11px] mt-1">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
+                <p className="text-white/70 text-[10.5px] font-semibold">{totalOwedToYou > 0 ? 'You will receive' : 'You need to pay'}</p>
+                <p className="text-white text-[24px] font-black leading-none mt-0.5 tracking-tight">{formatAmount(totalOwedToYou > 0 ? totalOwedToYou : totalYouOwe, 'INR')}</p>
+                <p className="text-white/60 text-[10.5px] mt-0.5">
+                  {totalOwedToYou > 0
+                    ? `From ${balances.filter(x => x.amount > 0).length} ${balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}`
+                    : `To ${balances.filter(x => x.amount < 0).length} ${balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}`
+                  }
+                </p>
               </div>
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <ArrowDownLeft size={18} className="text-white" />
-              </div>
-            </div>
-          )}
-          {totalYouOwe > 0 && totalOwedToYou === 0 && (
-            <div className="rounded-[18px] bg-orange-500 px-4 py-3.5 flex items-center justify-between shadow-[0px_8px_24px_rgba(249,115,22,0.25)]">
-              <div>
-                <p className="text-orange-50/80 text-[11px] font-semibold">You need to pay</p>
-                <p className="text-white text-[28px] font-black leading-none mt-1 tracking-tight">{formatAmount(totalYouOwe, 'INR')}</p>
-                <p className="text-orange-100/70 text-[11px] mt-1">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center">
-                <ArrowUpRight size={18} className="text-white" />
+              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
+                {totalOwedToYou > 0 ? <ArrowDownLeft size={16} className="text-white" /> : <ArrowUpRight size={16} className="text-white" />}
               </div>
             </div>
           )}
 
-          {balances.length === 0 ? (
-            <div className="flex items-center gap-3 px-4 py-4 rounded-[18px] bg-gradient-to-r from-emerald-50 to-emerald-100/40 dark:from-emerald-950/50 dark:to-emerald-900/20 border border-emerald-200 dark:border-emerald-800/40">
-              <div className="w-9 h-9 rounded-full bg-emerald-500 flex items-center justify-center shrink-0 shadow-[0px_4px_12px_rgba(16,185,129,0.30)]">
-                <Check size={15} className="text-white" />
+          {/* Balances — compact grouped accordion */}
+          {balances.length === 0 && justSettled.size === 0 ? (
+            <div className="flex items-center gap-3 px-4 py-3 rounded-[16px] bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
+              <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
+                <Check size={13} className="text-white" />
               </div>
               <div>
-                <p className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400">All balances settled</p>
+                <p className="text-[13px] font-bold text-emerald-700 dark:text-emerald-400">All Settled</p>
                 <p className="text-[11px] text-emerald-600/70 dark:text-emerald-500/60 mt-0.5">No pending balances this cycle.</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* People who owe you */}
-              {balances.some(b => b.amount > 0) && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-0.5">
-                    <p className="text-[11px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">People who owe you</p>
-                    <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalOwedToYou, 'INR')}</p>
-                  </div>
-                  {balances.filter(b => b.amount > 0).map(b => {
-                    const m = members.find(x => x.uid === b.userId)
-                    const cardKey = b.userId + b.currency
-                    const isExpanded = expandedBalances.has(cardKey)
-                    const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
-                      (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
-                      (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
-                    ))
-                    const lastExpense = [...relatedExpenses].sort((a, z) => z.date.localeCompare(a.date))[0]
-                    return (
-                      <div key={cardKey} className="rounded-[18px] border border-emerald-100 dark:border-emerald-900/40 bg-card shadow-sm overflow-hidden">
-                        <div className="flex items-center gap-3 px-4 pt-3.5 pb-1">
-                          <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[13px] text-emerald-700 dark:text-emerald-300 shrink-0">
-                            {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                            <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-semibold">Owes you • {formatAmount(b.amount, b.currency)}</p>
+            <div className="rounded-[18px] border border-border/60 bg-card shadow-sm overflow-hidden">
+              {/* Card header */}
+              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-secondary/20">
+                <p className="text-[10.5px] font-extrabold text-muted-foreground uppercase tracking-widest">Balances in Daily Splits</p>
+                <button onClick={() => setShowDailySplitsView(true)} className="text-[11px] font-bold text-[#3786FB] cursor-pointer">View all</button>
+              </div>
+
+              {balances.map((b, i) => {
+                const isOwed = b.amount > 0
+                const amount = Math.abs(b.amount)
+                const m = members.find(x => x.uid === b.userId)
+                const isActive = activeBalanceId === b.userId
+                const isConfirming = settleConfirmId === b.userId
+                const isSettled = justSettled.has(b.userId)
+                return (
+                  <div key={b.userId}>
+                    {i > 0 && <div className="h-px bg-border/25 mx-4" />}
+
+                    {/* Single compact row */}
+                    <div
+                      className={['flex items-center gap-3 px-4 py-3 transition-colors select-none',
+                        !isSettled ? 'cursor-pointer active:bg-secondary/30' : '',
+                      ].join(' ')}
+                      onClick={() => {
+                        if (isSettled) return
+                        if (isConfirming) { setSettleConfirmId(null); return }
+                        setActiveBalanceId(prev => prev === b.userId ? null : b.userId)
+                        setSettleConfirmId(null)
+                      }}
+                    >
+                      <div className={['w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[12px] shrink-0',
+                        isSettled ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                        : isOwed   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
+                                   : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
+                      ].join(' ')}>
+                        {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                      </div>
+
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                        {isSettled ? (
+                          <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                            <Check size={9} /> Settled today
+                          </p>
+                        ) : (
+                          <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
+                            {isOwed ? 'Owes you' : 'You owe'}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <p className={['font-black tracking-tight',
+                          isSettled ? 'text-[12px] text-muted-foreground/35 line-through'
+                          : isOwed   ? 'text-[14px] text-emerald-600 dark:text-emerald-400'
+                                     : 'text-[14px] text-orange-500 dark:text-orange-400',
+                        ].join(' ')}>
+                          {formatAmount(amount, b.currency)}
+                        </p>
+                        {!isSettled && (
+                          <ChevronDown size={12} className={['text-muted-foreground/40 transition-transform duration-200', isActive ? 'rotate-180' : ''].join(' ')} />
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Expanded: action or inline confirm */}
+                    {isActive && !isSettled && (
+                      isConfirming ? (
+                        <div className="px-4 pb-4 pt-3 border-t border-border/20 bg-secondary/10" onClick={e => e.stopPropagation()}>
+                          <p className="text-[12px] text-muted-foreground text-center mb-3 leading-relaxed">
+                            {isOwed
+                              ? `Mark ${m?.nickname ?? '…'}'s balance as settled?`
+                              : `Mark your balance to ${m?.nickname ?? '…'} as settled?`}
+                          </p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setSettleConfirmId(null)}
+                              className="flex-1 py-2.5 border border-border rounded-full text-[12px] font-bold text-[#021328] dark:text-foreground hover:bg-secondary cursor-pointer transition-colors"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              disabled={settlingInline}
+                              onClick={async (e) => {
+                                e.stopPropagation()
+                                setSettlingInline(true)
+                                try {
+                                  const fromId = isOwed ? b.userId : currentUserId
+                                  const toId   = isOwed ? currentUserId : b.userId
+                                  await addSettlement({ fromUserId: fromId, toUserId: toId, amount, currency: b.currency, date: todayStr() })
+                                  setJustSettled(s => new Set(s).add(b.userId))
+                                  setActiveBalanceId(null)
+                                  setSettleConfirmId(null)
+                                } catch { /* ignore */ } finally { setSettlingInline(false) }
+                              }}
+                              className={['flex-1 py-2.5 rounded-full text-[12px] font-extrabold text-white disabled:opacity-60 cursor-pointer active:scale-95 transition-all',
+                                isOwed ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-[#3786FB] hover:bg-[#2672e6]',
+                              ].join(' ')}
+                            >
+                              {settlingInline ? 'Saving…' : 'Confirm'}
+                            </button>
                           </div>
                         </div>
-                        <div className="flex gap-2 px-4 pb-3.5 pt-2">
+                      ) : (
+                        <div className="px-4 pb-3.5 pt-2.5 border-t border-border/20 bg-secondary/10" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={() => setSettleConfirmId(b.userId)}
+                            className={['w-full py-2.5 rounded-full text-[12px] font-extrabold text-white cursor-pointer active:scale-95 transition-all',
+                              isOwed ? 'bg-emerald-500 hover:bg-emerald-600 shadow-[0px_4px_12px_rgba(16,185,129,0.25)]'
+                                     : 'bg-[#3786FB] hover:bg-[#2672e6] shadow-[0px_4px_12px_rgba(55,134,251,0.22)]',
+                            ].join(' ')}
+                          >
+                            {isOwed ? 'Settle' : 'Mark as Paid'}
+                          </button>
                           <button
                             onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
-                            className="flex-1 text-[12px] font-bold border border-border text-[#021328] dark:text-foreground py-2 rounded-full hover:bg-secondary transition-colors cursor-pointer"
+                            className="w-full mt-2.5 text-[11px] font-semibold text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors text-center"
                           >
-                            {personFilter === b.userId ? '✓ Filtered' : 'Remind'}
-                          </button>
-                          <button
-                            onClick={() => setQuickSettle({ userId: b.userId, amount: b.amount, currency: b.currency, reversed: true })}
-                            className="flex-1 bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_12px_rgba(16,185,129,0.25)]"
-                          >
-                            Settle
+                            {personFilter === b.userId ? '✓ Filtering — tap to clear' : 'Send Reminder'}
                           </button>
                         </div>
-                        {/* Tap header to expand breakdown */}
-                        {relatedExpenses.length > 0 && (
-                          <button
-                            onClick={() => setExpandedBalances(s => { const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n })}
-                            className="w-full border-t border-border/40 px-4 py-2 text-[11px] font-semibold text-muted-foreground flex items-center justify-center gap-1 hover:bg-secondary/30 transition-colors cursor-pointer"
-                          >
-                            {isExpanded ? 'Hide' : `${relatedExpenses.length} expense${relatedExpenses.length > 1 ? 's' : ''}`}
-                            <ChevronDown size={12} className={['transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
-                          </button>
-                        )}
-                        {isExpanded && (
-                          <div className="border-t border-border/30 px-4 py-2.5 space-y-1.5 bg-secondary/10">
-                            {relatedExpenses.sort((a, z) => z.date.localeCompare(a.date)).map(e => {
-                              const isBPayer = e.paidBy === b.userId
-                              const net = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
-                              return (
-                                <div key={e.id} className="flex items-center gap-2">
-                                  <span className="text-sm shrink-0">{CATEGORY_CONFIG[e.category]?.emoji ?? '💰'}</span>
-                                  <p className="flex-1 text-[11.5px] font-semibold truncate">{e.description}</p>
-                                  <p className="text-[10.5px] text-muted-foreground shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                                  <p className={['text-[11.5px] font-extrabold shrink-0', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500'].join(' ')}>
-                                    {net >= 0 ? '+' : ''}{formatAmount(Math.abs(net), b.currency)}
-                                  </p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                        {/* Store lastExpense for quick settle sheet */}
-                        <span data-last-expense={lastExpense?.id} className="hidden" />
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                      )
+                    )}
 
-              {/* People you owe */}
-              {balances.some(b => b.amount < 0) && (
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between px-0.5">
-                    <p className="text-[11px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider">People you owe</p>
-                    <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalYouOwe, 'INR')}</p>
+                    {/* Settled state micro-action */}
+                    {isSettled && (
+                      <div className="pb-2.5 pt-0 px-4 flex justify-end">
+                        <button
+                          onClick={() => setShowSettleHistory(true)}
+                          className="text-[11px] font-bold text-[#3786FB] cursor-pointer"
+                        >
+                          View History →
+                        </button>
+                      </div>
+                    )}
                   </div>
-                  {balances.filter(b => b.amount < 0).map(b => {
-                    const m = members.find(x => x.uid === b.userId)
-                    const cardKey = b.userId + b.currency
-                    const isExpanded = expandedBalances.has(cardKey)
-                    const relatedExpenses = expenses.filter(e => !e.deferToNextMonth && (
-                      (e.paidBy === b.userId && e.splitAmong.includes(currentUserId)) ||
-                      (e.paidBy === currentUserId && e.splitAmong.includes(b.userId))
-                    ))
-                    return (
-                      <div key={cardKey} className="rounded-[18px] border border-orange-100 dark:border-orange-900/40 bg-card shadow-sm overflow-hidden">
-                        <div className="flex items-center gap-3 px-4 pt-3.5 pb-1">
-                          <div className="w-10 h-10 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-[13px] text-orange-700 dark:text-orange-300 shrink-0">
-                            {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                            <p className="text-[11px] text-orange-600 dark:text-orange-400 font-semibold">You owe • {formatAmount(Math.abs(b.amount), b.currency)}</p>
-                          </div>
-                        </div>
-                        <div className="flex gap-2 px-4 pb-3.5 pt-2">
-                          <button
-                            onClick={() => setQuickSettle({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: false })}
-                            className="flex-1 text-[12px] font-bold border border-orange-300 dark:border-orange-700 text-orange-600 dark:text-orange-400 py-2 rounded-full hover:bg-orange-50 dark:hover:bg-orange-950/20 transition-colors cursor-pointer"
-                          >
-                            Pay Now
-                          </button>
-                          <button
-                            onClick={() => setQuickSettle({ userId: b.userId, amount: Math.abs(b.amount), currency: b.currency, reversed: false })}
-                            className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[12px] font-extrabold py-2 rounded-full transition-all cursor-pointer shadow-[0px_4px_12px_rgba(55,134,251,0.25)]"
-                          >
-                            Settle
-                          </button>
-                        </div>
-                        {relatedExpenses.length > 0 && (
-                          <button
-                            onClick={() => setExpandedBalances(s => { const n = new Set(s); n.has(cardKey) ? n.delete(cardKey) : n.add(cardKey); return n })}
-                            className="w-full border-t border-border/40 px-4 py-2 text-[11px] font-semibold text-muted-foreground flex items-center justify-center gap-1 hover:bg-secondary/30 transition-colors cursor-pointer"
-                          >
-                            {isExpanded ? 'Hide' : `${relatedExpenses.length} expense${relatedExpenses.length > 1 ? 's' : ''}`}
-                            <ChevronDown size={12} className={['transition-transform', isExpanded ? 'rotate-180' : ''].join(' ')} />
-                          </button>
-                        )}
-                        {isExpanded && (
-                          <div className="border-t border-border/30 px-4 py-2.5 space-y-1.5 bg-secondary/10">
-                            {relatedExpenses.sort((a, z) => z.date.localeCompare(a.date)).map(e => {
-                              const isBPayer = e.paidBy === b.userId
-                              const net = isBPayer ? -(e.splits[currentUserId] ?? 0) : (e.splits[b.userId] ?? 0)
-                              return (
-                                <div key={e.id} className="flex items-center gap-2">
-                                  <span className="text-sm shrink-0">{CATEGORY_CONFIG[e.category]?.emoji ?? '💰'}</span>
-                                  <p className="flex-1 text-[11.5px] font-semibold truncate">{e.description}</p>
-                                  <p className="text-[10.5px] text-muted-foreground shrink-0">{new Date(e.date + 'T00:00:00').toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</p>
-                                  <p className={['text-[11.5px] font-extrabold shrink-0', net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500'].join(' ')}>
-                                    {net >= 0 ? '+' : ''}{formatAmount(Math.abs(net), b.currency)}
-                                  </p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        )}
-                      </div>
-                    )
-                  })}
-                </div>
-              )}
+                )
+              })}
             </div>
-          )}
-
-          {/* View all button */}
-          {balances.length > 0 && (
-            <button
-              onClick={() => setShowDailySplitsView(true)}
-              className="w-full flex items-center justify-center gap-1.5 py-3 rounded-[14px] border border-border text-[12px] font-bold text-[#3786FB] hover:bg-secondary/50 transition-colors cursor-pointer"
-            >
-              View all splits &amp; settle <ChevronRight size={14} />
-            </button>
           )}
 
           {/* Person filter active banner */}

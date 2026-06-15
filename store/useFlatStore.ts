@@ -559,22 +559,46 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     set({ flatId, name: null, joinMode: 'auto', subscription: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
 
     // FLAT DOC LISTENER — flat name, joinMode, subscription
-    const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
-      if (snap.exists()) {
-        const data = snap.data()
-        const rawStatus = (data.subscriptionStatus as SubscriptionStatus | undefined) ?? 'trial'
-        const trialEndDate = (data.trialEndDate as string | undefined) ?? null
-        // If trial period has passed on the client, treat as expired
-        const effectiveStatus: SubscriptionStatus =
-          rawStatus === 'trial' && trialEndDate && new Date(trialEndDate) < new Date()
-            ? 'expired'
-            : rawStatus
+    const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), async (snap) => {
+      if (!snap.exists()) return
+      const data = snap.data()
+
+      // ── Backfill for flats created before the subscription system existed ──
+      // Derive trial end from the flat's createdAt (Firestore Timestamp or string).
+      // Admin writes it to Firestore so the whole flat gets consistent state.
+      // Members can't write the flat doc — they silently get a client-only value.
+      if (!data.subscriptionStatus) {
+        const createdMs: number =
+          data.createdAt?.toDate?.()?.getTime?.() ??
+          (typeof data.createdAt === 'string' ? new Date(data.createdAt).getTime() : Date.now())
+        const derivedEnd = new Date(createdMs + 30 * 24 * 60 * 60 * 1000).toISOString()
+        const derivedStatus: SubscriptionStatus = new Date(derivedEnd) < new Date() ? 'expired' : 'trial'
+        // Try to persist (succeeds for admin, silently fails for members)
+        try {
+          await updateDoc(doc(db, `flats/${flatId}`), {
+            subscriptionStatus: 'trial',
+            trialEndDate: derivedEnd,
+          })
+        } catch { /* member — no write permission, local state is enough */ }
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
-          subscription: { status: effectiveStatus, trialEndDate, couponUsed: data.couponUsed },
+          subscription: { status: derivedStatus, trialEndDate: derivedEnd },
         })
+        return
       }
+
+      const rawStatus = data.subscriptionStatus as SubscriptionStatus
+      const trialEndDate = (data.trialEndDate as string | undefined) ?? null
+      const effectiveStatus: SubscriptionStatus =
+        rawStatus === 'trial' && trialEndDate && new Date(trialEndDate) < new Date()
+          ? 'expired'
+          : rawStatus
+      set({
+        name: data.name || null,
+        joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+        subscription: { status: effectiveStatus, trialEndDate, couponUsed: data.couponUsed },
+      })
     }, (err) => console.warn('Flat doc listener error:', err))
 
     // TASKS LISTENER

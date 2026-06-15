@@ -12,28 +12,29 @@ import type { GatedFeature } from '@/hooks/useSubscription'
 /* ── Per-feature copy ─────────────────────────────────────────────────────── */
 const FEATURE_COPY: Record<GatedFeature, { title: string; subtitle: string }> = {
   create_task: {
-    title: 'Creating tasks needs a subscription',
-    subtitle: 'Unlock task creation, rotation management, and full admin control.',
+    title: 'Task creation needs a subscription',
+    subtitle: 'Your free trial has ended. Enter a coupon to unlock tasks, rotation, and full admin control.',
   },
   create_flat: {
-    title: 'Adding a second flat needs a subscription',
-    subtitle: 'Subscribe to manage multiple flats from the same account.',
+    title: 'You can only create 1 flat for free',
+    subtitle: 'Your free trial covers one flat. Enter a coupon code to add more flats to your account.',
   },
   add_expense: {
     title: 'Adding expenses needs a subscription',
-    subtitle: 'Unlock expense tracking, bill splits, and balance management.',
+    subtitle: 'Your free trial has ended. Enter a coupon to unlock expense tracking and bill splits.',
   },
   create_bill: {
     title: 'Recurring bills need a subscription',
-    subtitle: 'Unlock recurring bills, rent tracking, and monthly close.',
+    subtitle: 'Your free trial has ended. Enter a coupon to unlock recurring bills and monthly close.',
   },
 }
 
 /* ── What you get for free vs. subscribed ─────────────────────────────────── */
 const FREE_FEATURES = [
   { icon: CheckCircle2, label: 'Mark tasks as complete' },
-  { icon: LayoutDashboard, label: 'View your dashboard & activity' },
+  { icon: LayoutDashboard, label: 'View dashboard & activity' },
   { icon: Receipt, label: 'View expense balances' },
+  { icon: ShieldCheck, label: '1 flat included for free' },
 ]
 
 const PREMIUM_FEATURES = [

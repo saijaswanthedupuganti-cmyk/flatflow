@@ -7,6 +7,8 @@ import { createFlat, joinFlat, getFlatJoinMode, requestToJoinFlat } from '@/lib/
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X, Clock, AlertTriangle } from 'lucide-react'
+import { useSubscription } from '@/hooks/useSubscription'
+import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 
 type Step = 'choose' | 'create' | 'join' | 'pending'
 
@@ -22,6 +24,8 @@ function OnboardingContent() {
 
   const { user, setFlatId, logout, addFlatToState } = useAuthStore()
   const { initFirestoreListeners, addMemberMock } = useFlatStore()
+  const { can } = useSubscription()
+  const [showUpsell, setShowUpsell] = useState(false)
 
   const prefillCode = searchParams.get('code') || ''
 
@@ -56,6 +60,11 @@ function OnboardingContent() {
 
   const handleCreateFlat = async () => {
     if (!flatName.trim() || !nickname.trim()) return
+    // Adding a second flat requires an active subscription
+    if (isAddingFlat && !can('create_flat')) {
+      setShowUpsell(true)
+      return
+    }
     setLoading(true)
     setError('')
     try {
@@ -109,7 +118,7 @@ function OnboardingContent() {
         return
       }
       if (isAddingFlat) {
-        addFlatToState(code, code)
+        addFlatToState(code, result.flatName ?? code)
         initFirestoreListeners(code)
       } else {
         addMemberMock(user.uid, nickname.trim(), user.email, 'member')
@@ -343,6 +352,10 @@ function OnboardingContent() {
           </Card>
         )}
       </div>
+
+      {showUpsell && (
+        <SubscriptionUpsell feature="create_flat" onClose={() => setShowUpsell(false)} />
+      )}
     </div>
   )
 }

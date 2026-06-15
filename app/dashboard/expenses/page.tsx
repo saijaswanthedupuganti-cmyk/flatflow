@@ -3067,7 +3067,7 @@ export default function ExpensesPage() {
                             onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
                             className="w-full mt-2.5 text-[11px] font-semibold text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors text-center"
                           >
-                            {personFilter === b.userId ? '✓ Filtering — tap to clear' : 'Send Reminder'}
+                            {personFilter === b.userId ? '✓ Filtering — tap to clear' : 'Filter by this person'}
                           </button>
                         </div>
                       )
@@ -3953,7 +3953,7 @@ export default function ExpensesPage() {
 
       {/* ── Erase All Expense Data Confirmation ──────────────────────── */}
       {showResetAllConfirm && (
-        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => { if (!resettingAll) setShowResetAllConfirm(false) }} />
           <div className="relative w-full max-w-sm bg-card rounded-[24px] shadow-2xl border border-border overflow-hidden">
             <div className="p-5">

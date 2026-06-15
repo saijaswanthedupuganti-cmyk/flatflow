@@ -20,6 +20,18 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // ── Coupons ───────────────────────────────────────────────────────────────
+    // Coupon docs live at /coupons/{CODE} and are created via Firebase Console.
+    // Client can read (to validate) and append its flatId to usedBy (to redeem).
+    match /coupons/{code} {
+      allow read: if request.auth != null;
+      // Only permitted mutation: append one flatId to the usedBy array
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy'])
+        && request.resource.data.usedBy.size() == resource.data.usedBy.size() + 1;
+      allow create, delete: if false;
+    }
+
     // ── Flats ─────────────────────────────────────────────────────────────────
     match /flats/{flatId} {
       // Any authenticated user can read (needed to validate invite codes)
@@ -145,10 +157,20 @@ service cloud.firestore {
       // ── Settlements ──────────────────────────────────────────────────────────
       match /settlements/{settlementId} {
         allow read: if isMember(flatId);
+        // Either party (payer OR receiver) may record the settlement — the creditor
+        // recording a "Mark Received" sets fromUserId = debtor, so we must allow
+        // toUserId == auth.uid as well.
         allow create: if isMember(flatId)
-          && request.resource.data.fromUserId == request.auth.uid;
+          && (
+            request.resource.data.fromUserId == request.auth.uid
+            || request.resource.data.toUserId == request.auth.uid
+          );
         allow delete: if isMember(flatId)
-          && (resource.data.fromUserId == request.auth.uid || isAdmin(flatId));
+          && (
+            resource.data.fromUserId == request.auth.uid
+            || resource.data.toUserId == request.auth.uid
+            || isAdmin(flatId)
+          );
         allow update: if false;
       }
 

@@ -10,6 +10,8 @@ import {
   Trash2, ClipboardList, CheckCircle2, X, CalendarDays, Repeat2, Users, Zap,
 } from 'lucide-react'
 import { getPriorityWeight, getTaskDateInfo } from '@/lib/rotationEngine'
+import { useSubscription } from '@/hooks/useSubscription'
+import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -32,6 +34,8 @@ const FREQ_CONFIG = {
 export default function TasksPage() {
   const { tasks, members, swapRequests, manuallyAssignTask, createTask, editTask, deleteTask } = useFlatStore()
   const { user } = useAuthStore()
+  const { can } = useSubscription()
+  const [showUpsell, setShowUpsell] = useState(false)
 
   const [selectedAssigneeId, setSelectedAssigneeId]   = useState<string>('')
   const [overridingTaskId, setOverridingTaskId]       = useState<string | null>(null)
@@ -82,8 +86,10 @@ export default function TasksPage() {
   // Auto-open task creation when navigated here from the Quick Add FAB
   useEffect(() => {
     if (typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('add') === '1') {
-      setShowTypeSelector(true)
+      if (!can('create_task')) { setShowUpsell(true) }
+      else { setShowTypeSelector(true) }
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const adminId       = user?.uid || 'u1'
@@ -250,6 +256,7 @@ export default function TasksPage() {
               if (isCreating) { setIsCreating(false); setSelectedMembers([]) }
               else if (isGroupCreating) { setIsGroupCreating(false) }
               else if (isTempCreating) { setIsTempCreating(false) }
+              else if (!can('create_task')) { setShowUpsell(true) }
               else { setShowTypeSelector(true) }
             }}
             variant={isCreating || isGroupCreating || isTempCreating ? 'outline' : 'default'}
@@ -1111,6 +1118,10 @@ export default function TasksPage() {
             </div>
           </div>
         </div>
+      )}
+
+      {showUpsell && (
+        <SubscriptionUpsell feature="create_task" onClose={() => setShowUpsell(false)} />
       )}
     </div>
   )

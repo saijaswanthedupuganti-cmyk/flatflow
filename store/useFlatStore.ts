@@ -214,10 +214,19 @@ export interface MonthCycle {
   createdBy: string
 }
 
+export type SubscriptionStatus = 'trial' | 'active' | 'expired'
+
+export interface FlatSubscription {
+  status: SubscriptionStatus
+  trialEndDate: string | null   // ISO date string
+  couponUsed?: string
+}
+
 interface FlatState {
   flatId: string | null
   name: string | null
   joinMode: 'auto' | 'approval'
+  subscription: FlatSubscription | null
   members: Member[]
   tasks: Task[]
   activityLog: Activity[]
@@ -476,6 +485,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   flatId: hasKeys ? null : 'FLAT-1234',
   name: hasKeys ? null : 'Bachelor Pad',
   joinMode: 'auto',
+  subscription: null,
   members: hasKeys ? [] : MOCK_MEMBERS,
   tasks: hasKeys ? [] : MOCK_TASKS,
   activityLog: [],
@@ -499,6 +509,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       flatId: null,
       name: null,
       joinMode: 'auto',
+      subscription: null,
       members: [],
       tasks: [],
       activityLog: [],
@@ -545,13 +556,24 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, joinMode: 'auto', members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', subscription: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
 
-    // FLAT DOC LISTENER — to get flat name + joinMode
+    // FLAT DOC LISTENER — flat name, joinMode, subscription
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), (snap) => {
       if (snap.exists()) {
         const data = snap.data()
-        set({ name: data.name || null, joinMode: (data.joinMode as 'auto' | 'approval') || 'auto' })
+        const rawStatus = (data.subscriptionStatus as SubscriptionStatus | undefined) ?? 'trial'
+        const trialEndDate = (data.trialEndDate as string | undefined) ?? null
+        // If trial period has passed on the client, treat as expired
+        const effectiveStatus: SubscriptionStatus =
+          rawStatus === 'trial' && trialEndDate && new Date(trialEndDate) < new Date()
+            ? 'expired'
+            : rawStatus
+        set({
+          name: data.name || null,
+          joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+          subscription: { status: effectiveStatus, trialEndDate, couponUsed: data.couponUsed },
+        })
       }
     }, (err) => console.warn('Flat doc listener error:', err))
 
@@ -816,9 +838,18 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({ userId, action: 'returned_early', details: `returned early and rejoined queue` })
 
     const state = get()
+    // Build the member list with the returning user already marked available,
+    // since changeMemberStatus only updates local state in mock mode.
+    const updatedMembers = state.members.map(m =>
+      m.uid === userId ? { ...m, status: 'available' as const } : m
+    )
     for (const task of state.tasks) {
       if (task.status === 'paused' && task.queueOrder.includes(userId)) {
-        const updatedTask = { ...task, status: 'pending' as const, currentAssignedUserId: userId }
+        // Use getNextAssignee so we pick the correct next person — other members
+        // may still be OOS, so we should not blindly assign everything to the returner.
+        const nextUserId = getNextAssignee(task, updatedMembers)
+        if (!nextUserId) continue
+        const updatedTask = { ...task, status: 'pending' as const, currentAssignedUserId: nextUserId }
         if (hasKeys && state.flatId) {
           await setDoc(doc(db, `flats/${state.flatId}/tasks/${task.taskId}`), updatedTask)
         } else {
@@ -958,10 +989,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   addExpense: async (data) => {
     const newExpense: Expense = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    set(s => ({ expenses: [newExpense, ...s.expenses] }))
     if (hasKeys && get().flatId) {
       await setDoc(doc(db, `flats/${get().flatId}/expenses/${newExpense.id}`), fs(newExpense))
-    } else {
-      set(s => ({ expenses: [newExpense, ...s.expenses] }))
     }
     await get().addActivity({
       userId: data.createdBy,
@@ -972,10 +1002,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   updateExpense: async (expenseId, data) => {
     const { flatId } = get()
+    set(s => ({ expenses: s.expenses.map(e => e.id === expenseId ? { ...e, ...data } : e) }))
     if (hasKeys && flatId) {
       await updateDoc(doc(db, `flats/${flatId}/expenses/${expenseId}`), fs(data))
-    } else {
-      set(s => ({ expenses: s.expenses.map(e => e.id === expenseId ? { ...e, ...data } : e) }))
     }
   },
 
@@ -1010,14 +1039,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   addSettlement: async (data) => {
     const newSettlement: Settlement = { ...data, id: crypto.randomUUID(), createdAt: new Date().toISOString() }
+    set(s => ({ settlements: [newSettlement, ...s.settlements] }))
     if (hasKeys && get().flatId) {
       await setDoc(doc(db, `flats/${get().flatId}/settlements/${newSettlement.id}`), fs(newSettlement))
-    } else {
-      set(s => ({ settlements: [newSettlement, ...s.settlements] }))
     }
+    // Use current user's UID — the creditor may be recording on behalf of the debtor,
+    // so data.fromUserId could be someone else's UID and would fail the activity log rule.
+    const actorId = useAuthStore.getState().user?.uid ?? data.fromUserId
     const receiver = get().members.find(m => m.uid === data.toUserId)
     await get().addActivity({
-      userId: data.fromUserId,
+      userId: actorId,
       action: 'settlement_added',
       details: `settled up with ${receiver?.nickname ?? '…'}`,
     })
@@ -1025,6 +1056,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
   resetMonthSplits: async (month) => {
     const state = get()
+    const uid = useAuthStore.getState().user?.uid
     const toDelete = state.expenses.filter(e => e.date.startsWith(month) && !e.billInstanceId)
     set(s => ({ expenses: s.expenses.filter(e => !toDelete.find(d => d.id === e.id)) }))
     if (hasKeys && state.flatId) {
@@ -1033,7 +1065,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       }
     }
     await get().addActivity({
-      userId: state.members[0]?.uid ?? 'admin',
+      userId: uid ?? state.members[0]?.uid ?? 'admin',
       action: 'expense_deleted',
       details: `reset all ${toDelete.length} daily split expense(s) for ${month}`,
     })
@@ -1065,10 +1097,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   },
 
   deleteSettlement: async (settlementId) => {
+    set(s => ({ settlements: s.settlements.filter(st => st.id !== settlementId) }))
     if (hasKeys && get().flatId) {
       await deleteDoc(doc(db, `flats/${get().flatId}/settlements/${settlementId}`))
-    } else {
-      set(s => ({ settlements: s.settlements.filter(s => s.id !== settlementId) }))
     }
   },
 

@@ -12,6 +12,7 @@ import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
 import NotificationToast from '@/components/NotificationToast'
 import FlatSwitcher from '@/components/FlatSwitcher'
+import SubscriptionGate from '@/components/SubscriptionGate'
 
 const NAV_ITEMS = {
   main: [
@@ -146,17 +147,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <>
               <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-3 mb-1">Admin</p>
               {NAV_ITEMS.admin.map(item => (
-                <NavLink
-                  key={item.href}
-                  {...item}
-                  badge={item.href === '/dashboard/members' && pendingJoins > 0 ? pendingJoins : undefined}
-                />
+                <NavLink key={item.href} {...item} />
               ))}
             </>
           )}
 
           <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest px-3 mt-3 mb-1">General</p>
-          {NAV_ITEMS.general.map(item => <NavLink key={item.href} {...item} />)}
+          {NAV_ITEMS.general.map(item => (
+            <NavLink
+              key={item.href}
+              {...item}
+              badge={item.href === '/dashboard/members' && pendingJoins > 0 ? pendingJoins : undefined}
+            />
+          ))}
         </nav>
 
         {/* User Footer */}
@@ -194,7 +197,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* ── Main Content ─────────────────────────────── */}
       <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
         <div className="p-6 lg:p-8 max-w-6xl mx-auto">
-          {children}
+          <SubscriptionGate>
+            {children}
+          </SubscriptionGate>
         </div>
       </main>
 
@@ -298,11 +303,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 >
                   <Plus size={24} className="text-white" />
                 </motion.div>
-                {pendingSwaps > 0 && !showQuickAdd && (
-                  <span className="absolute -top-0.5 -right-0.5 bg-violet-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center leading-none z-10">
-                    {pendingSwaps}
-                  </span>
-                )}
               </motion.button>
 
               <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">Quick Add</span>
@@ -310,8 +310,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           )
         })()}
 
-        {/* 4 — Tasks (admin + member) */}
-        <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
+        {/* 4 — Tasks (admin) / Swaps (member) */}
+        {isAdmin
+          ? <MobileNavLink {...NAV_ITEMS.admin[0]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
+          : <MobileNavLink {...NAV_ITEMS.main[3]} badge={pendingSwaps > 0 ? pendingSwaps : undefined} />
+        }
 
         {/* 5 — Profile */}
         {(() => {

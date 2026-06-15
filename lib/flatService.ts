@@ -127,11 +127,14 @@ export async function createFlat(params: {
   }
 
   // Flat document — memberCount starts at 1 (the admin)
+  const trialEndDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
   await setDoc(doc(db, `flats/${flatId}`), {
     name: flatName,
     adminUid: uid,
     createdAt: serverTimestamp(),
     memberCount: 1,
+    subscriptionStatus: 'trial',
+    trialEndDate,
   })
 
   // Admin member document
@@ -229,7 +232,7 @@ export async function joinFlat(params: {
   nickname: string
   email: string
   flatId: string
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; flatName?: string }> {
   const { uid, nickname, email, flatId } = params
 
   if (!hasKeys || !db) return { success: true }
@@ -240,6 +243,7 @@ export async function joinFlat(params: {
   }
 
   const firestoreDb = db // capture for use inside the transaction callback
+  let flatName: string | undefined
 
   try {
     await runTransaction(firestoreDb, async (transaction) => {
@@ -254,6 +258,7 @@ export async function joinFlat(params: {
       ])
 
       if (!flatSnap.exists()) throw new Error('FLAT_NOT_FOUND')
+      flatName = flatSnap.data().name as string
 
       // Default to 0 for flats created before memberCount was introduced
       const memberCount: number = flatSnap.data().memberCount ?? 0
@@ -303,7 +308,7 @@ export async function joinFlat(params: {
     timestamp: new Date().toISOString(),
   })
 
-  return { success: true }
+  return { success: true, flatName }
 }
 
 /** Update the display name of a flat (admin only). The flat ID never changes. */

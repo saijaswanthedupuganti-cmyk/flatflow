@@ -28,22 +28,22 @@ import {
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string }> = {
-  rent:        { label: 'Rent',               emoji: '🏠' },
-  electricity: { label: 'Electricity',        emoji: '⚡' },
-  water:       { label: 'Water',              emoji: '💧' },
-  internet:    { label: 'Internet',           emoji: '📶' },
-  gas:         { label: 'Gas / LPG',          emoji: '🔥' },
-  maid:        { label: 'Maid / Housekeeping', emoji: '🧹' },
-  cook:        { label: 'Cook',               emoji: '👨‍🍳' },
-  gym:         { label: 'Gym',                emoji: '🏋️' },
-  grocery:     { label: 'Groceries',          emoji: '🛒' },
-  milk:        { label: 'Milk',               emoji: '🥛' },
-  ac:          { label: 'AC / Cooling',       emoji: '❄️' },
-  maintenance: { label: 'Maintenance',        emoji: '🔧' },
-  food:        { label: 'Food',               emoji: '🍽️' },
-  household:   { label: 'Household',          emoji: '📦' },
-  other:       { label: 'Other',              emoji: '💰' },
+export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string; color: string }> = {
+  rent:        { label: 'Rent',               emoji: '🏠', color: 'bg-violet-100 dark:bg-violet-900/30' },
+  electricity: { label: 'Electricity',        emoji: '⚡', color: 'bg-yellow-100 dark:bg-yellow-900/30' },
+  water:       { label: 'Water',              emoji: '💧', color: 'bg-sky-100 dark:bg-sky-900/30' },
+  internet:    { label: 'Internet',           emoji: '📶', color: 'bg-blue-100 dark:bg-blue-900/30' },
+  gas:         { label: 'Gas / LPG',          emoji: '🔥', color: 'bg-orange-100 dark:bg-orange-900/30' },
+  maid:        { label: 'Maid / Housekeeping', emoji: '🧹', color: 'bg-green-100 dark:bg-green-900/30' },
+  cook:        { label: 'Cook',               emoji: '👨‍🍳', color: 'bg-amber-100 dark:bg-amber-900/30' },
+  gym:         { label: 'Gym',                emoji: '🏋️', color: 'bg-red-100 dark:bg-red-900/30' },
+  grocery:     { label: 'Groceries',          emoji: '🛒', color: 'bg-emerald-100 dark:bg-emerald-900/30' },
+  milk:        { label: 'Milk',               emoji: '🥛', color: 'bg-blue-50 dark:bg-blue-950/30' },
+  ac:          { label: 'AC / Cooling',       emoji: '❄️', color: 'bg-cyan-100 dark:bg-cyan-900/30' },
+  maintenance: { label: 'Maintenance',        emoji: '🔧', color: 'bg-slate-100 dark:bg-slate-800/40' },
+  food:        { label: 'Food',               emoji: '🍽️', color: 'bg-rose-100 dark:bg-rose-900/30' },
+  household:   { label: 'Household',          emoji: '📦', color: 'bg-stone-100 dark:bg-stone-800/40' },
+  other:       { label: 'Other',              emoji: '💰', color: 'bg-gray-100 dark:bg-white/[0.07]' },
 }
 
 const CURRENCIES: Currency[] = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD']
@@ -710,7 +710,7 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, onEd
       >
         <div className="flex items-center gap-3">
           {/* Category icon */}
-          <div className="w-10 h-10 rounded-[14px] bg-[#f1f3ff] dark:bg-white/[0.07] flex items-center justify-center text-[18px] shrink-0">
+          <div className={['w-10 h-10 rounded-[14px] flex items-center justify-center text-[18px] shrink-0', cfg?.color ?? 'bg-[#f1f3ff] dark:bg-white/[0.07]'].join(' ')}>
             {cfg?.emoji ?? '💰'}
           </div>
 
@@ -729,6 +729,22 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, onEd
               <span className="mx-1 text-[#d8d9dd]">·</span>
               {dateStr}
             </p>
+            {expense.splitAmong.length > 1 && (
+              <div className="flex items-center gap-0.5 mt-1 flex-wrap">
+                {expense.splitAmong.slice(0, 4).map(uid => {
+                  const m = members.find(x => x.uid === uid)
+                  const label = uid === currentUserId ? 'You' : (m?.nickname?.split(' ')[0] ?? '?')
+                  return (
+                    <span key={uid} className="text-[9px] font-semibold bg-secondary text-muted-foreground/70 px-1.5 py-0.5 rounded-full leading-none">
+                      {label}
+                    </span>
+                  )
+                })}
+                {expense.splitAmong.length > 4 && (
+                  <span className="text-[9px] text-muted-foreground">+{expense.splitAmong.length - 4}</span>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Net amount */}
@@ -2174,22 +2190,6 @@ export default function ExpensesPage() {
       .reduce((s, bi) => s + (bi.amount ?? 0), 0)
   }, [billInstances, recurringBills])
 
-  const sevenDayBars = useMemo(() => {
-    const today = new Date()
-    return Array.from({ length: 7 }, (_, i) => {
-      const d = new Date(today)
-      d.setDate(today.getDate() - (6 - i))
-      const dayStr = d.toISOString().slice(0, 10)
-      const total = sortedExpenses
-        .filter(e => e.date === dayStr && e.currency === 'INR' && !e.billInstanceId)
-        .reduce((s, e) => s + e.amount, 0)
-      const dayLabel = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][d.getDay()]
-      return { dayStr, total, dayLabel }
-    })
-  }, [sortedExpenses])
-
-  const maxBar = useMemo(() => Math.max(1, ...sevenDayBars.map(b => b.total)), [sevenDayBars])
-
   const totalMonthlyCommitment = useMemo(
     () => recurringBills.filter(b => b.active && b.amount).reduce((s, b) => s + (b.amount ?? 0), 0),
     [recurringBills],
@@ -2288,8 +2288,9 @@ export default function ExpensesPage() {
     )
   }
 
-  // ── Daily Splits full sub-view ────────────────────────────────────────────────
-  if (showDailySplitsView) {
+  // ── Daily Splits sub-view (disabled — balances shown inline on main view) ─────
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
+  if (false as boolean) {
     const recentExpenses = [...expenses]
       .filter(e => e.splitAmong.includes(currentUserId) || e.paidBy === currentUserId)
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -2737,14 +2738,22 @@ export default function ExpensesPage() {
                 Expenses Hub
               </h1>
             </div>
-            {isAdmin && !isCurrentMonthClosed && (
+            <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
-                onClick={() => setShowMonthEnd(true)}
-                className="shrink-0 mt-1 flex items-center gap-1.5 bg-card border border-border text-[#021328] dark:text-foreground text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-secondary transition-colors cursor-pointer"
+                onClick={() => setShowAddExpense(true)}
+                className="flex items-center gap-1.5 bg-[#3786FB] hover:bg-[#2672e6] text-white text-[12px] font-bold px-3.5 py-2 rounded-full shadow-[0px_4px_12px_rgba(55,134,251,0.30)] transition-colors cursor-pointer"
               >
-                <CalendarCheck size={11} /> Close Cycle
+                <Plus size={13} /> Add Expense
               </button>
-            )}
+              {isAdmin && !isCurrentMonthClosed && (
+                <button
+                  onClick={() => setShowMonthEnd(true)}
+                  className="hidden sm:flex items-center gap-1.5 bg-card border border-border text-[#021328] dark:text-foreground text-[11px] font-bold px-3 py-1.5 rounded-lg shadow-sm hover:bg-secondary transition-colors cursor-pointer"
+                >
+                  <CalendarCheck size={11} /> Close Cycle
+                </button>
+              )}
+            </div>
           </div>
         )
       })()}
@@ -2921,30 +2930,7 @@ export default function ExpensesPage() {
       {activeTab === 'daily' && (
         <div className="space-y-3">
 
-          {/* ── Summary pill ─────────────────────────────── */}
-          {(totalOwedToYou > 0 || totalYouOwe > 0) && (
-            <div className={['rounded-[16px] px-4 py-3 flex items-center justify-between',
-              totalOwedToYou > 0
-                ? 'bg-emerald-500 shadow-[0px_6px_20px_rgba(16,185,129,0.25)]'
-                : 'bg-orange-500 shadow-[0px_6px_20px_rgba(249,115,22,0.22)]',
-            ].join(' ')}>
-              <div>
-                <p className="text-white/70 text-[10.5px] font-semibold">{totalOwedToYou > 0 ? 'You will receive' : 'You need to pay'}</p>
-                <p className="text-white text-[24px] font-black leading-none mt-0.5 tracking-tight">{formatAmount(totalOwedToYou > 0 ? totalOwedToYou : totalYouOwe, 'INR')}</p>
-                <p className="text-white/60 text-[10.5px] mt-0.5">
-                  {totalOwedToYou > 0
-                    ? `From ${balances.filter(x => x.amount > 0).length} ${balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}`
-                    : `To ${balances.filter(x => x.amount < 0).length} ${balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}`
-                  }
-                </p>
-              </div>
-              <div className="w-9 h-9 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-                {totalOwedToYou > 0 ? <ArrowDownLeft size={16} className="text-white" /> : <ArrowUpRight size={16} className="text-white" />}
-              </div>
-            </div>
-          )}
-
-          {/* Balances — compact grouped accordion */}
+          {/* ── Balances — "They owe you" / "You owe" sections ───────────────── */}
           {balances.length === 0 && justSettled.size === 0 ? (
             <div className="flex items-center gap-3 px-4 py-3 rounded-[16px] bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800/40">
               <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
@@ -2956,144 +2942,114 @@ export default function ExpensesPage() {
               </div>
             </div>
           ) : (
-            <div className="rounded-[18px] border border-border/60 bg-card shadow-sm overflow-hidden">
-              {/* Card header */}
-              <div className="flex items-center justify-between px-4 py-2.5 border-b border-border/40 bg-secondary/20">
-                <p className="text-[10.5px] font-extrabold text-muted-foreground uppercase tracking-widest">Balances in Daily Splits</p>
-                <button onClick={() => setShowDailySplitsView(true)} className="text-[11px] font-bold text-[#3786FB] cursor-pointer">View all</button>
-              </div>
-
-              {balances.map((b, i) => {
-                const isOwed = b.amount > 0
-                const amount = Math.abs(b.amount)
-                const m = members.find(x => x.uid === b.userId)
-                const isActive = activeBalanceId === b.userId
-                const isConfirming = settleConfirmId === b.userId
-                const isSettled = justSettled.has(b.userId)
-                return (
-                  <div key={b.userId}>
-                    {i > 0 && <div className="h-px bg-border/25 mx-4" />}
-
-                    {/* Single compact row */}
-                    <div
-                      className={['flex items-center gap-3 px-4 py-3 transition-colors select-none',
-                        !isSettled ? 'cursor-pointer active:bg-secondary/30' : '',
-                      ].join(' ')}
-                      onClick={() => {
-                        if (isSettled) return
-                        if (isConfirming) { setSettleConfirmId(null); return }
-                        setActiveBalanceId(prev => prev === b.userId ? null : b.userId)
-                        setSettleConfirmId(null)
-                      }}
-                    >
-                      <div className={['w-9 h-9 rounded-full flex items-center justify-center font-extrabold text-[12px] shrink-0',
-                        isSettled ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                        : isOwed   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                                   : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300',
-                      ].join(' ')}>
-                        {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                        {isSettled ? (
-                          <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
-                            <Check size={9} /> Settled today
-                          </p>
-                        ) : (
-                          <p className={['text-[11px] font-semibold', isOwed ? 'text-emerald-600 dark:text-emerald-400' : 'text-orange-500 dark:text-orange-400'].join(' ')}>
-                            {isOwed ? 'Owes you' : 'You owe'}
-                          </p>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        <p className={['font-black tracking-tight',
-                          isSettled ? 'text-[12px] text-muted-foreground/35 line-through'
-                          : isOwed   ? 'text-[14px] text-emerald-600 dark:text-emerald-400'
-                                     : 'text-[14px] text-orange-500 dark:text-orange-400',
-                        ].join(' ')}>
-                          {formatAmount(amount, b.currency)}
-                        </p>
-                        {!isSettled && (
-                          <ChevronDown size={12} className={['text-muted-foreground/40 transition-transform duration-200', isActive ? 'rotate-180' : ''].join(' ')} />
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Expanded: action or inline confirm */}
-                    {isActive && !isSettled && (
-                      isConfirming ? (
-                        <div className="px-4 pb-4 pt-3 border-t border-border/20 bg-secondary/10" onClick={e => e.stopPropagation()}>
-                          <p className="text-[12px] text-muted-foreground text-center mb-3 leading-relaxed">
-                            {isOwed
-                              ? `Mark ${m?.nickname ?? '…'}'s balance as settled?`
-                              : `Mark your balance to ${m?.nickname ?? '…'} as settled?`}
-                          </p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setSettleConfirmId(null)}
-                              className="flex-1 py-2.5 border border-border rounded-full text-[12px] font-bold text-[#021328] dark:text-foreground hover:bg-secondary cursor-pointer transition-colors"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              disabled={settlingInline}
-                              onClick={async (e) => {
-                                e.stopPropagation()
-                                setSettlingInline(true)
-                                try {
-                                  const fromId = isOwed ? b.userId : currentUserId
-                                  const toId   = isOwed ? currentUserId : b.userId
-                                  await addSettlement({ fromUserId: fromId, toUserId: toId, amount, currency: b.currency, date: todayStr() })
-                                  setJustSettled(s => new Set(s).add(b.userId))
-                                  setActiveBalanceId(null)
-                                  setSettleConfirmId(null)
-                                } catch { /* ignore */ } finally { setSettlingInline(false) }
-                              }}
-                              className={['flex-1 py-2.5 rounded-full text-[12px] font-extrabold text-white disabled:opacity-60 cursor-pointer active:scale-95 transition-all',
-                                isOwed ? 'bg-emerald-500 hover:bg-emerald-600' : 'bg-[#3786FB] hover:bg-[#2672e6]',
-                              ].join(' ')}
-                            >
-                              {settlingInline ? 'Saving…' : 'Confirm'}
-                            </button>
+            <div className="space-y-3">
+              {/* They owe you */}
+              {(balances.some(b => b.amount > 0) || justSettled.size > 0) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <p className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">They owe you</p>
+                    {totalOwedToYou > 0 && <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalOwedToYou, 'INR')}</p>}
+                  </div>
+                  <div className="rounded-[18px] border border-emerald-100 dark:border-emerald-900/30 bg-card shadow-sm overflow-hidden">
+                    {balances.filter(b => b.amount > 0).map((b, i) => {
+                      const m = members.find(x => x.uid === b.userId)
+                      const isSettled = justSettled.has(b.userId)
+                      return (
+                        <div key={b.userId}>
+                          {i > 0 && <div className="h-px bg-border/25 mx-4" />}
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[12px] text-emerald-700 dark:text-emerald-300 shrink-0">
+                              {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                              {isSettled ? (
+                                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Check size={9} /> Settled today</p>
+                              ) : (
+                                <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Owes you</p>
+                              )}
+                            </div>
+                            {isSettled ? (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[12px] font-black text-muted-foreground/40 line-through tracking-tight">{formatAmount(b.amount, b.currency)}</p>
+                                <button onClick={() => setShowSettleHistory(true)} className="text-[11px] font-bold text-[#3786FB] cursor-pointer whitespace-nowrap">View →</button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-2">
+                                <p className="text-[14px] font-black text-emerald-600 dark:text-emerald-400 tracking-tight">{formatAmount(b.amount, b.currency)}</p>
+                                <button
+                                  onClick={() => setQuickSettle({ userId: b.userId, amount: b.amount, currency: b.currency, reversed: true })}
+                                  className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(16,185,129,0.25)]"
+                                >
+                                  Settle
+                                </button>
+                              </div>
+                            )}
                           </div>
                         </div>
-                      ) : (
-                        <div className="px-4 pb-3.5 pt-2.5 border-t border-border/20 bg-secondary/10" onClick={e => e.stopPropagation()}>
-                          <button
-                            onClick={() => setSettleConfirmId(b.userId)}
-                            className={['w-full py-2.5 rounded-full text-[12px] font-extrabold text-white cursor-pointer active:scale-95 transition-all',
-                              isOwed ? 'bg-emerald-500 hover:bg-emerald-600 shadow-[0px_4px_12px_rgba(16,185,129,0.25)]'
-                                     : 'bg-[#3786FB] hover:bg-[#2672e6] shadow-[0px_4px_12px_rgba(55,134,251,0.22)]',
-                            ].join(' ')}
-                          >
-                            {isOwed ? 'Settle' : 'Mark as Paid'}
-                          </button>
-                          <button
-                            onClick={() => setPersonFilter(f => f === b.userId ? null : b.userId)}
-                            className="w-full mt-2.5 text-[11px] font-semibold text-muted-foreground/50 hover:text-muted-foreground cursor-pointer transition-colors text-center"
-                          >
-                            {personFilter === b.userId ? '✓ Filtering — tap to clear' : 'Filter by this person'}
-                          </button>
+                      )
+                    })}
+                    {/* Just-settled (optimistic) that no longer appear in balances */}
+                    {[...justSettled].filter(uid => !balances.find(b => b.userId === uid && b.amount > 0)).map((uid, i) => {
+                      const m = members.find(x => x.uid === uid)
+                      return (
+                        <div key={uid}>
+                          {(i > 0 || balances.some(b => b.amount > 0)) && <div className="h-px bg-border/25 mx-4" />}
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[12px] text-emerald-700 dark:text-emerald-300 shrink-0">
+                              {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                              <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Check size={9} /> Settled today</p>
+                            </div>
+                            <button onClick={() => setShowSettleHistory(true)} className="text-[11px] font-bold text-[#3786FB] cursor-pointer">View →</button>
+                          </div>
                         </div>
                       )
-                    )}
-
-                    {/* Settled state micro-action */}
-                    {isSettled && (
-                      <div className="pb-2.5 pt-0 px-4 flex justify-end">
-                        <button
-                          onClick={() => setShowSettleHistory(true)}
-                          className="text-[11px] font-bold text-[#3786FB] cursor-pointer"
-                        >
-                          View History →
-                        </button>
-                      </div>
-                    )}
+                    })}
                   </div>
-                )
-              })}
+                </div>
+              )}
+
+              {/* You owe */}
+              {balances.some(b => b.amount < 0) && (
+                <div>
+                  <div className="flex items-center justify-between mb-2 px-0.5">
+                    <p className="text-[11px] font-extrabold text-orange-500 dark:text-orange-400 uppercase tracking-wider">You owe</p>
+                    <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalYouOwe, 'INR')}</p>
+                  </div>
+                  <div className="rounded-[18px] border border-orange-100 dark:border-orange-900/30 bg-card shadow-sm overflow-hidden">
+                    {balances.filter(b => b.amount < 0).map((b, i) => {
+                      const m = members.find(x => x.uid === b.userId)
+                      const amount = Math.abs(b.amount)
+                      return (
+                        <div key={b.userId}>
+                          {i > 0 && <div className="h-px bg-border/25 mx-4" />}
+                          <div className="flex items-center gap-3 px-4 py-3">
+                            <div className="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-[12px] text-orange-700 dark:text-orange-300 shrink-0">
+                              {(m?.nickname ?? '?').charAt(0).toUpperCase()}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
+                              <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">You owe</p>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <p className="text-[14px] font-black text-orange-500 dark:text-orange-400 tracking-tight">{formatAmount(amount, b.currency)}</p>
+                              <button
+                                onClick={() => setQuickSettle({ userId: b.userId, amount, currency: b.currency, reversed: false })}
+                                className="bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[11px] font-extrabold px-3 py-1.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(55,134,251,0.25)]"
+                              >
+                                Pay
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -3132,36 +3088,10 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          {sortedExpenses.length > 0 && (
-            <div className="p-4 rounded-[20px] border border-border/50 bg-card shadow-[0px_4px_16px_rgba(0,0,0,0.06)] dark:shadow-[0px_4px_16px_rgba(0,0,0,0.22)]">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-xs font-bold text-[#999CA1] dark:text-muted-foreground uppercase tracking-wider">7-Day Activity</p>
-                {thisMonthExpensesTotal > 0 && (
-                  <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(thisMonthExpensesTotal, 'INR')} this month</p>
-                )}
-              </div>
-              <div className="flex items-end gap-1" style={{ height: '48px' }}>
-                {sevenDayBars.map((bar, i) => (
-                  <div key={i} className="flex-1 flex flex-col items-center gap-1 h-full justify-end">
-                    <div
-                      className="w-full rounded-sm transition-all"
-                      style={{
-                        height: Math.max(3, Math.round((bar.total / maxBar) * 36)) + 'px',
-                        backgroundColor: bar.total > 0 ? '#3786FB' : 'hsl(var(--secondary))',
-                        opacity: bar.total > 0 ? 1 : 0.5,
-                      }}
-                    />
-                    <span className="text-[9px] text-[#999CA1] dark:text-muted-foreground font-medium leading-none">{bar.dayLabel}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
           <section>
             <div className="flex items-center gap-2 mb-3">
               <Receipt size={14} className="text-muted-foreground" />
-              <h2 className="text-[15px] font-bold text-[#021328] dark:text-foreground">Recent Splits</h2>
+              <h2 className="text-[15px] font-bold text-[#021328] dark:text-foreground">Expense History</h2>
               {visibleTx.length > 0 && (
                 <span className="text-xs font-bold text-[#999CA1] bg-secondary px-2 py-0.5 rounded-full">{visibleTx.length}</span>
               )}
@@ -3202,10 +3132,10 @@ export default function ExpensesPage() {
                   </div>
                 )}
                 <button
-                  onClick={() => setShowAddExpense(true)}
-                  className="flex items-center gap-1.5 text-xs font-bold text-white bg-[#3786FB] hover:bg-[#2672e6] px-3.5 py-2 rounded-full transition-colors cursor-pointer shadow-[0px_4px_12px_rgba(55,134,251,0.30)]"
+                  onClick={() => setShowSettleHistory(true)}
+                  className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
                 >
-                  <Plus size={11} /> Add Split
+                  <History size={12} /> History
                 </button>
               </div>
             </div>

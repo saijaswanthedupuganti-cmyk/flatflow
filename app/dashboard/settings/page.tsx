@@ -221,7 +221,7 @@ export default function SettingsPage() {
         {leaveError && <p className="text-sm text-destructive font-medium">{leaveError}</p>}
       </ConfirmDialog>
 
-      <div className="space-y-6 max-w-2xl">
+      <div className="space-y-6 max-w-2xl mx-auto">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
           <p className="text-muted-foreground mt-1">Your personal preferences and account.</p>

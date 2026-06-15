@@ -2003,6 +2003,7 @@ export default function ExpensesPage() {
   const [settleTarget, setSettleTarget]     = useState<{ userId: string; amount: number; currency: Currency; reversed?: boolean } | null>(null)
   const [quickSettle, setQuickSettle]       = useState<{ userId: string; amount: number; currency: Currency; reversed: boolean } | null>(null)
   const [quickSettleSaving, setQuickSettleSaving] = useState(false)
+  const [quickSettleError, setQuickSettleError] = useState('')
   const [showDailySplitsView, setShowDailySplitsView] = useState(false)
   const [showSettleHistory, setShowSettleHistory] = useState(false)
   const [justSettled, setJustSettled] = useState<Set<string>>(new Set())
@@ -2546,12 +2547,12 @@ export default function ExpensesPage() {
             ))
             .sort((a, b) => b.date.localeCompare(a.date))[0]
           return createPortal(
-            <div className="fixed inset-0 bg-black/60 z-[200] flex items-end justify-center" onClick={() => setQuickSettle(null)}>
+            <div className="fixed inset-0 bg-black/60 z-[200] flex items-end justify-center" onClick={() => { setQuickSettle(null); setQuickSettleError('') }}>
               <div className="bg-card w-full max-w-lg rounded-t-[28px] overflow-hidden shadow-2xl" onClick={e => e.stopPropagation()}>
                 <div className="flex justify-center pt-3 pb-1"><div className="w-10 h-1 rounded-full bg-border" /></div>
                 <div className="flex items-center justify-between px-5 py-3">
                   <p className="text-[15px] font-bold text-[#021328] dark:text-foreground">Settle Balance</p>
-                  <button onClick={() => setQuickSettle(null)} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center cursor-pointer"><X size={14} className="text-muted-foreground" /></button>
+                  <button onClick={() => { setQuickSettle(null); setQuickSettleError('') }} className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center cursor-pointer"><X size={14} className="text-muted-foreground" /></button>
                 </div>
                 <div className="px-5 py-4 flex items-center gap-4">
                   <div className={['w-14 h-14 rounded-full flex items-center justify-center font-extrabold text-xl shrink-0', isOwed ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300' : 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300'].join(' ')}>
@@ -2577,19 +2578,25 @@ export default function ExpensesPage() {
                 <div className="px-5 pb-2">
                   <p className="text-[13px] font-semibold text-[#021328] dark:text-foreground">Mark this balance as settled?</p>
                   <p className="text-[11.5px] text-muted-foreground mt-0.5">This action can be undone from settlement history.</p>
+                  {quickSettleError && (
+                    <p className="text-[11.5px] text-red-500 mt-1.5 font-medium">{quickSettleError}</p>
+                  )}
                 </div>
                 <div className="flex gap-3 px-5 py-4">
-                  <button onClick={() => setQuickSettle(null)} className="flex-1 border border-border text-[#021328] dark:text-foreground text-[13px] font-bold py-3 rounded-full hover:bg-secondary transition-colors cursor-pointer">Cancel</button>
+                  <button onClick={() => { setQuickSettle(null); setQuickSettleError('') }} className="flex-1 border border-border text-[#021328] dark:text-foreground text-[13px] font-bold py-3 rounded-full hover:bg-secondary transition-colors cursor-pointer">Cancel</button>
                   <button disabled={quickSettleSaving}
                     onClick={async () => {
                       setQuickSettleSaving(true)
+                      setQuickSettleError('')
                       try {
                         const fromId = isOwed ? quickSettle.userId : currentUserId
                         const toId = isOwed ? currentUserId : quickSettle.userId
                         await addSettlement({ fromUserId: fromId, toUserId: toId, amount: quickSettle.amount, currency: quickSettle.currency, date: todayStr() })
                         setJustSettled(s => new Set(s).add(quickSettle.userId))
                         setQuickSettle(null)
-                      } catch { /* ignore */ } finally { setQuickSettleSaving(false) }
+                      } catch {
+                        setQuickSettleError('Failed to save. Please try again.')
+                      } finally { setQuickSettleSaving(false) }
                     }}
                     className="flex-1 bg-[#3786FB] hover:bg-[#2672e6] disabled:opacity-60 text-white text-[13px] font-extrabold py-3 rounded-full transition-colors cursor-pointer shadow-[0px_4px_14px_rgba(55,134,251,0.30)]">
                     {quickSettleSaving ? 'Saving…' : 'Mark as Settled'}

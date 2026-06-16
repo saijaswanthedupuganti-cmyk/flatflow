@@ -8,6 +8,7 @@ import {
   collection, serverTimestamp, arrayUnion, arrayRemove, writeBatch,
   runTransaction, increment,
 } from 'firebase/firestore'
+import { addBehavioralEvent } from '@/lib/behavioralEvents'
 
 export interface FlatProfile {
   activeFlatId: string
@@ -308,6 +309,11 @@ export async function joinFlat(params: {
     timestamp: new Date().toISOString(),
   })
 
+  // Behavioral event for discovery trust tag — non-critical, never blocks join
+  try {
+    await addBehavioralEvent(flatId, { flatId, uid, type: 'member_joined' })
+  } catch { /* non-critical */ }
+
   return { success: true, flatName }
 }
 
@@ -410,6 +416,11 @@ export async function leaveFlatService(uid: string, flatId: string): Promise<{ n
     details: `${memberName} left the flat`,
     timestamp: new Date().toISOString(),
   })
+
+  // Behavioral event written BEFORE member doc removal — Firestore rule requires active membership
+  try {
+    await addBehavioralEvent(flatId, { flatId, uid, type: 'member_left' })
+  } catch { /* non-critical */ }
 
   // Decrement the flat's member counter FIRST (while isMember() is still true),
   // then remove the member doc. Order matters for Firestore security rules.

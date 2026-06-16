@@ -14,6 +14,24 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid)).data.role == 'admin';
     }
 
+    // ── Seeker Profiles (any logged-in user, read by all authenticated) ──────
+    // Users post "I'm looking for a flat" profiles here. Admins can read these
+    // to discover potential flatmates. Users can only write their own profile.
+    match /seekerProfiles/{uid} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // ── Discovery Tags (global, shared across all flats) ─────────────────────
+    // Authenticated users can read all tags (for autocomplete).
+    // Any authenticated user may create a tag; tags are permanent (no update/delete).
+    match /discoveryTags/{tagId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── Users ─────────────────────────────────────────────────────────────────
     // Users can only read/write their own profile
     match /users/{userId} {
@@ -209,6 +227,16 @@ service cloud.firestore {
         allow create, update: if isAdmin(flatId);
         // No delete — month history is permanent
         allow delete: if false;
+      }
+
+      // ── Behavioral Events (Discovery / Trust Tag) ─────────────────────────────
+      // Immutable event log. Never trimmed. Only the event owner can write their own.
+      // Admin can read for auditing. No updates or deletes — append-only.
+      match /behavioralEvents/{eventId} {
+        allow read: if isMember(flatId);
+        allow create: if isMember(flatId)
+          && request.resource.data.uid == request.auth.uid;
+        allow update, delete: if false;
       }
 
       // ── Join Requests ────────────────────────────────────────────────────────

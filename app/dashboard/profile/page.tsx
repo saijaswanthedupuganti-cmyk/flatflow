@@ -11,6 +11,7 @@ import {
   Sun, Moon, AlertTriangle, DoorOpen, X, Download, Smartphone, Share, CheckCircle2, Info,
 } from 'lucide-react'
 import { usePWA } from '@/contexts/PWAContext'
+import TrustTagCard from '@/components/TrustTagCard'
 
 interface DialogProps {
   open: boolean
@@ -313,6 +314,17 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── Habitiq Rating (gated by NEXT_PUBLIC_DISCOVERY_ENABLED) ── */}
+        {process.env.NEXT_PUBLIC_DISCOVERY_ENABLED === 'true' && user && flatId && currentMember && (
+          <TrustTagCard
+            uid={user.uid}
+            flatId={flatId}
+            joinedAt={currentMember.joinedAt instanceof Date
+              ? currentMember.joinedAt.toISOString()
+              : String(currentMember.joinedAt)}
+          />
+        )}
 
         {/* ── Current Flat ── */}
         <div>

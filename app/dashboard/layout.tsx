@@ -5,7 +5,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users,
   Lightbulb, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
-  Plus, X, RefreshCw,
+  Plus, X, RefreshCw, UserPlus,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -26,6 +26,9 @@ const NAV_ITEMS = {
   ],
   general: [
     { href: '/dashboard/members', label: 'Members', icon: Users, exact: false, color: 'text-pink-500', bg: 'bg-pink-500/10' },
+    ...(process.env.NEXT_PUBLIC_DISCOVERY_ENABLED === 'true' ? [
+      { href: '/dashboard/find-members', label: 'Flat Board', icon: UserPlus, exact: false, color: 'text-teal-500', bg: 'bg-teal-500/10' },
+    ] : []),
     { href: '/dashboard/about', label: 'About', icon: Info, exact: false, color: 'text-muted-foreground', bg: 'bg-secondary' },
   ],
 }

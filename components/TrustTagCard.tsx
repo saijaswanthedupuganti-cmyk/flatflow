@@ -51,10 +51,11 @@ interface Props {
 }
 
 export default function TrustTagCard({ uid, flatId, joinedAt }: Props) {
-  const [consent, setConsent]       = useState<ConsentChoice | null>(null)
-  const [tag, setTag]               = useState<TrustTag | null>(null)
-  const [loading, setLoading]       = useState(false)
-  const [showReasons, setShowReasons] = useState(false)
+  const [consent, setConsent]           = useState<ConsentChoice | null>(null)
+  const [tag, setTag]                   = useState<TrustTag | null>(null)
+  const [loading, setLoading]           = useState(false)
+  const [computeError, setComputeError] = useState(false)
+  const [showReasons, setShowReasons]   = useState(false)
 
   // Hydrate consent from localStorage after mount (avoids SSR mismatch)
   useEffect(() => { setConsent(readConsent(uid)) }, [uid])
@@ -74,8 +75,9 @@ export default function TrustTagCard({ uid, flatId, joinedAt }: Props) {
         if (cancelled) return
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setTag(computeTrustTag(uid, flatId, rawEvents as any, joinedAt))
-      } catch {
-        /* non-critical — tag stays null, card shows nothing */
+      } catch (e) {
+        console.error('[TrustTagCard] failed to compute trust tag', e)
+        if (!cancelled) setComputeError(true)
       } finally {
         if (!cancelled) setLoading(false)
       }
@@ -163,8 +165,11 @@ export default function TrustTagCard({ uid, flatId, joinedAt }: Props) {
     )
   }
 
+  // ── Opted in: failed silently — show nothing rather than eternal skeleton ──
+  if (!loading && (computeError || !tag)) return null
+
   // ── Opted in: loading skeleton ─────────────────────────────────────────────
-  if (loading || !tag) {
+  if (loading) {
     return (
       <Card className="shadow-sm">
         <CardContent className="p-5 space-y-3 animate-pulse">

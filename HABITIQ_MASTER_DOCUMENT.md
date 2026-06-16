@@ -14,7 +14,7 @@ Habitiq is a **shared living management platform** that automates duty rotation 
 - **Habit** — the recurring routines of shared living that repeat and rotate
 - **IQ** — the intelligence that skips absent members, reassigns overdues, tracks reliability
 
-**Live at:** https://garbage-liart.vercel.app *(moving to habitiq.in / habitiq.app)*
+**Live at:** https://habitiq.app *(moving to habitiq.in / habitiq.app)*
 
 ---
 
@@ -420,7 +420,7 @@ Infrastructure cost is negligible relative to revenue at every tier. Margins sta
 
 | Resource | Link / Location |
 |----------|----------------|
-| Live app | https://garbage-liart.vercel.app |
+| Live app | https://habitiq.app |
 | Target domain | habitiq.in / habitiq.app |
 | Codebase | C:\garbage |
 | Obsidian vault | C:\garbage\project_1 |

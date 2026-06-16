@@ -846,7 +846,7 @@ function Hero() {
             <motion.span animate={{ opacity:[1,0.35,1] }} transition={{ duration:2, repeat:Infinity }}
               style={{ width:'6px', height:'6px', borderRadius:'50%', background:GREEN_L, display:'inline-block' }} />
             <span style={{ fontSize:'11px', fontWeight:'700', color:BLUE_L, letterSpacing:'0.12em', textTransform:'uppercase' }}>
-              Free · No card needed · Built in India
+              Free · No app download · Works worldwide
             </span>
           </motion.div>
 
@@ -862,7 +862,7 @@ function Hero() {
           <motion.p initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.75, delay:0.22, ease:EASE }}
             className="leading-relaxed mb-10 max-w-[480px] mx-auto lg:mx-0"
             style={{ fontSize:'1.125rem', color:'rgba(255,255,255,0.42)', fontFamily:'var(--font-inter)' }}>
-            Duties rotate automatically. Bills split to the rupee. Swaps handled in-app.
+            Duties rotate automatically. Bills split fairly. Swaps handled in-app.
             Your flat manages itself — you just live in it.
           </motion.p>
 
@@ -893,7 +893,7 @@ function Hero() {
               <div style={{ display:'flex', gap:'2px', marginBottom:'4px' }}>
                 {[...Array(5)].map((_,j) => <Star key={j} size={11} fill={BLUE} style={{ color:BLUE }} />)}
               </div>
-              <p style={{ fontSize:'11px', color:'rgba(255,255,255,0.28)' }}>Trusted by 20+ flats across India</p>
+              <p style={{ fontSize:'11px', color:'rgba(255,255,255,0.28)' }}>Trusted by 20+ flats worldwide</p>
             </div>
           </motion.div>
         </div>
@@ -1030,7 +1030,7 @@ function ProblemCallout() {
           initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }}
           viewport={{ once:true, margin:'-60px' }} transition={{ duration:0.75, ease:EASE, delay:0.1 }}>
           {[
-            { n:'50M+',    label:'People in shared accommodation in India' },
+            { n:'200M+',   label:'People living in shared accommodation worldwide' },
             { n:'< 2 min', label:'To set up your flat and invite flatmates'  },
             { n:'₹0',      label:'Cost during trial — no card required'        },
           ].map(({ n, label }) => (
@@ -1065,7 +1065,7 @@ function Testimonials() {
           viewport={{ once:true, margin:'-80px' }} transition={{ duration:0.7, ease:EASE }}>
           <span style={{ display:'inline-block', marginBottom:'16px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.14em', textTransform:'uppercase', padding:'6px 14px', borderRadius:'9999px', color:'rgba(255,255,255,0.25)', background:'rgba(255,255,255,0.04)', border:`1px solid ${BORDER}` }}>Real users</span>
           <h2 className="font-black text-white" style={{ fontSize:'clamp(1.8rem,3.5vw,2.5rem)', letterSpacing:'-0.035em', fontFamily:'var(--font-inter)' }}>Real flats. Real results.</h2>
-          <p style={{ marginTop:'12px', fontSize:'14px', color:'rgba(255,255,255,0.3)' }}>From Bengaluru to Hyderabad to Pune — people who stopped arguing.</p>
+          <p style={{ marginTop:'12px', fontSize:'14px', color:'rgba(255,255,255,0.3)' }}>From Bengaluru to London to Sydney — people who stopped arguing.</p>
         </motion.div>
         <TestimonialSlider testimonials={TESTIMONIALS} className="bg-transparent" />
       </div>
@@ -1079,7 +1079,8 @@ const FAQS = [
   { q:'How is Habitiq different from Splitwise?', a:"Splitwise only tracks money. Habitiq manages the flat. Duty rotation, automated assignment, swap request system, monthly fixed bills, and settlement tracking — Splitwise does one of these. Habitiq does all five, in one place." },
   { q:'How does the rotation actually work?', a:"You define tasks (cleaning, cooking, trash), add flatmates to the queue, and set the frequency. Habitiq auto-assigns the next person when a task is completed or the cycle resets. Members can send swap requests if they're unavailable — all logged officially." },
   { q:"Does my flatmate need to install an app?", a:"No. Habitiq is a PWA — it works in the browser. Flatmates open a link, sign in with Google, and they're in. They can add it to their home screen for a native feel. No App Store. No Play Store. Just a link." },
-  { q:'Which cities is Habitiq used in?', a:"Bengaluru, Hyderabad, Pune, Mumbai, Delhi, Chennai, Noida. Especially popular in tech hubs where multiple working professionals share flats. Any shared living setup works — flats, PGs, co-living, student accommodation." },
+  { q:'Which cities is Habitiq used in?', a:"Habitiq is used worldwide — Bengaluru, Hyderabad, Pune, Mumbai, Delhi, and Chennai in India; London and Manchester in the UK; Sydney and Melbourne in Australia; Singapore, Toronto, and beyond. Any shared living setup works anywhere — flats, PGs, house shares, co-living, and student accommodation." },
+  { q:'Does Habitiq work outside India?', a:"Yes — Habitiq works for any shared flat, house share, or co-living space in any country. The chore rotation, bill splitting, and swap request system work the same whether you're in London, Sydney, New York, Singapore, or Bengaluru. No country restrictions, no local setup needed." },
 ]
 
 function FAQ() {
@@ -1182,7 +1183,7 @@ function Footer() {
           <div className="lg:col-span-2">
             <img src="/habitiq-logo.svg" alt="Habitiq" className="h-7 w-auto brightness-0 invert mb-4" />
             <p style={{ fontSize:'14px', lineHeight:1.6, maxWidth:'280px', color:'rgba(255,255,255,0.22)' }}>
-              The operating system for shared flats in India. Duties rotate. Bills split. Flatmates stop arguing.
+              The operating system for shared flats. Duties rotate. Bills split. Flatmates stop arguing.
             </p>
             <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'16px' }}>
               <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:GREEN_L }} />

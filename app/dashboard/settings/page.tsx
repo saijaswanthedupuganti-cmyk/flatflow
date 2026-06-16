@@ -440,6 +440,10 @@ export default function SettingsPage() {
                   <a href="/terms" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
                     Terms of Service
                   </a>
+                  <span className="text-muted-foreground/40 text-xs">·</span>
+                  <a href="mailto:hello@habitiq.app" className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+                    Contact Support
+                  </a>
                 </div>
               </div>
             </div>

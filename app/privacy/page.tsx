@@ -48,8 +48,8 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Contact us at:{' '}
-              <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">
-                hello@habitiq.in
+              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">
+                hello@habitiq.app
               </a>
             </p>
           </section>
@@ -211,7 +211,7 @@ export default function PrivacyPage() {
             </ul>
             <p className="text-muted-foreground mt-3">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">hello@habitiq.in</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
               with the subject "Data Request". We will respond within 30 days.
             </p>
           </section>
@@ -227,7 +227,7 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               No security system is perfect. If you discover a vulnerability, please report it to{' '}
-              <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">hello@habitiq.in</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
               before disclosing it publicly.
             </p>
           </section>
@@ -259,7 +259,7 @@ export default function PrivacyPage() {
             <div className="mt-2 text-muted-foreground">
               <p><strong className="text-foreground">Name:</strong> Venkata Sai Jaswanth E</p>
               <p><strong className="text-foreground">Email:</strong>{' '}
-                <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">hello@habitiq.in</a>
+                <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>
               </p>
               <p><strong className="text-foreground">Response time:</strong> Within 30 days of receiving a complaint</p>
             </div>
@@ -268,7 +268,7 @@ export default function PrivacyPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Habitiq · habitiq.in · India · Document version 0.3.0 ·{' '}
+            Habitiq · habitiq.app · India · Document version 0.4.0 ·{' '}
             <Link href="/terms" className="text-violet-500 hover:underline">Terms of Service</Link>
           </p>
         </div>

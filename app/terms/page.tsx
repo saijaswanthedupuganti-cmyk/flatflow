@@ -215,7 +215,7 @@ export default function TermsPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Before taking any formal action, please contact us at{' '}
-              <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">hello@habitiq.in</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
               — we will try to resolve any concern directly.
             </p>
           </section>
@@ -235,7 +235,7 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibold mb-3">13. Contact</h2>
             <p className="text-muted-foreground">
               Questions about these Terms? Email us at{' '}
-              <a href="mailto:hello@habitiq.in" className="text-violet-500 hover:underline">hello@habitiq.in</a>.
+              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>.
               We read everything.
             </p>
           </section>
@@ -243,7 +243,7 @@ export default function TermsPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Habitiq · habitiq.in · India · Document version 0.3.0 ·{' '}
+            Habitiq · habitiq.app · India · Document version 0.4.0 ·{' '}
             <Link href="/privacy" className="text-violet-500 hover:underline">Privacy Policy</Link>
           </p>
         </div>

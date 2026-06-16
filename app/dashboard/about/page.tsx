@@ -109,6 +109,26 @@ export default function AboutPage() {
         </div>
       </div>
 
+      {/* ── Contact ──────────────────────────────────────── */}
+      <div className="space-y-3">
+        <div>
+          <h2 className="text-lg font-bold tracking-tight">Contact & Support</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Got feedback, a bug, or a question?</p>
+        </div>
+        <a
+          href="mailto:hello@habitiq.app"
+          className="flex items-center gap-3 px-4 py-3 rounded-xl border border-border bg-secondary/40 hover:bg-secondary/80 transition-colors group"
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+            <ArrowUpRight size={15} className="text-primary" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold">hello@habitiq.app</p>
+            <p className="text-xs text-muted-foreground">We read every message. Usually respond within 24 hours.</p>
+          </div>
+        </a>
+      </div>
+
       {/* ── Footer ───────────────────────────────────────── */}
       <div className="border-t border-border/60 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">

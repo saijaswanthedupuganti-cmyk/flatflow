@@ -191,8 +191,8 @@ export default function DashboardPage() {
   // Bills & Expenses summary for the widget
   const currentUserId = user?.uid ?? 'u1'
   const myBalances = useMemo(
-    () => computeBalances(currentUserId, expenses, settlements, billInstances),
-    [currentUserId, expenses, settlements, billInstances],
+    () => computeBalances(currentUserId, expenses, settlements),
+    [currentUserId, expenses, settlements],
   )
   const thisMonthBillsTotal = useMemo(() => {
     const m = currentMonthKey()

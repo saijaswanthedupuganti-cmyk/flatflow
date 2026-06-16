@@ -3,11 +3,11 @@
 > **Product:** Habitiq
 > **Version:** v0.4.0 (Trial Phase — Member UX, Swap Analytics, Bill Collector)
 > **Project folder:** C:\garbage
-> **Live URL:** https://garbage-liart.vercel.app
+> **Live URL:** https://habitiq.app
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
-> **Target Domain:** habitiq.in / habitiq.app
+> **Domain:** habitiq.app (canonical — live as of 17 June 2026)
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 16 June 2026
+> **Last Updated:** 17 June 2026
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -101,8 +101,8 @@ Entire product built by Sai (UI/UX designer, not a traditional engineer) using A
 ### Project Name History
 - Originally named **FlatFlow** (repo: flatflow, early URL: flatsflow.netlify.app)
 - Rebranded to **Habitiq** during build
-- Current URL: garbage-liart.vercel.app (Vercel auto-slug — not the final domain)
-- Target domain: habitiq.in / habitiq.app
+- Previous URL: garbage-liart.vercel.app (Vercel auto-slug — now retired)
+- **Live domain: habitiq.app (canonical — live as of 17 June 2026)**
 
 ### Hosting: Netlify → Vercel Migration
 Moved because Vercel has native Next.js support, 6,000 build minutes/month free vs Netlify's 300, better App Router performance, simpler env var management.
@@ -522,6 +522,45 @@ The Reliability Score stat card was removed from the Dashboard stats row (it was
 File: app/dashboard/layout.tsx
 Problem: Swaps was in the desktop sidebar but absent from the 5-slot mobile bottom nav. Members had no mobile access to the Swaps page.
 Fix: For members, slot 4 now shows Swaps (replacing Members). For admins, slot 4 still shows Tasks. Swaps badge (pending swap count) shown in mobile nav when applicable.
+
+---
+
+## 6e. Monthly Bills & Expense Modal Fixes — June 2026 (Session 3)
+
+### FIX — Monthly Bills: View Details and expanded card show wrong payer / out-of-sync statuses
+Files: app/dashboard/expenses/page.tsx
+Problem: `payerUid` was computed from `bill.currentPayerIndex`, which advances AFTER `generateBill` runs. So the index already points to next month's payer, not the payer for the generated instance. The View Details page and the expanded card both showed the wrong payer name, the wrong PAYS badge, and wrong member statuses.
+Fix: Use `instance.paidBy` as the authoritative payer for existing bill instances (set at generation time). Fallback to `currentPayerIndex` only when no instance exists. Applied fix to both View Details modal and the main expanded card.
+Also fixed: `isPayer` variable was shadowed, causing the PAYS badge to display on the collector instead of the payer. Split into `isThePayer` and `isTheCollector`. Added `isPaidForMember` to unify "settled" and "payer in split_generated" into one bool for status display.
+
+### FIX — Monthly Bills: Collection toggle permissions incorrect
+File: app/dashboard/expenses/page.tsx
+Problem: All members saw the "Mark Collected" toggle for all other members. Admin (who may not be the collector) also saw all toggles.
+Fix: Collection toggles now follow this rule:
+- Collector sees toggle for ALL other members (they collect from everyone)
+- Regular member sees toggle ONLY for themselves (to self-mark when they've paid)
+- Non-collector admin sees no toggles
+- The payer themselves is excluded from collection (they pay the landlord, not to themselves)
+`showCollect = instance is split_generated AND uid is not the collector AND (current user IS collector OR current user IS the uid)`
+
+### FIX — Monthly Bills data leaking into Daily Splits
+Files: lib/expenseUtils.ts, store/useFlatStore.ts, app/dashboard/expenses/page.tsx, app/dashboard/page.tsx
+Problem 1: `computeBalances` included a `billInstances` parameter and processed bill instances as part of balance calculations, mixing Monthly Bills into Daily Splits balances.
+Problem 2: `markBillPaid` created an expense document in the Daily Splits list with a `billInstanceId` link field, causing the bill to appear in Daily Splits history and contribute to balances.
+Problem 3: `deleteExpense` reverted bill instance status when deleting a bill-linked expense. `deleteBillInstance` and `deleteRecurringBill` also cascaded to delete linked expenses.
+Fix:
+- Removed `billInstances` parameter from `computeBalances`. Monthly Bills are now tracked separately only (signature: `(currentUserId, expenses, settlements)`).
+- Added `if (expense.billInstanceId) continue` guard inside `computeBalances` to exclude any residual bill-linked expenses.
+- Removed auto-expense creation from `markBillPaid`.
+- Removed all cascade-delete logic between bills and expenses in `deleteExpense`, `deleteBillInstance`, and `deleteRecurringBill`.
+- Updated both `app/dashboard/page.tsx` and `app/dashboard/expenses/page.tsx` `computeBalances` call sites to remove the `billInstances` argument.
+
+### FIX — Expense modal save button doesn't save or close
+Files: store/useFlatStore.ts, app/dashboard/expenses/page.tsx
+Problem 1: `addExpense` in the store awaited `addActivity` (the Firestore activity log write). If `addActivity` failed for any reason (Firestore rule rejected, network error), the error propagated to `ExpenseModal.handleSave`'s catch block, which kept the modal open with "Failed to save." — even though the expense itself WAS actually saved successfully.
+Problem 2: The error message in `ExpenseModal` was rendered inside the scrollable content area. On mobile (max-h 92dvh), the form body is often long enough that the error appears below the visible scroll area. Users saw the Save button spin briefly then go back to normal, with no visible feedback — the exact "not saving and not closing" symptom.
+Fix 1: Changed `await get().addActivity(...)` to `void get().addActivity(...)` in both `addExpense` and `deleteExpense`. Activity log writes are now fire-and-forget — a failure never blocks the modal from closing.
+Fix 2: Moved the `{error && ...}` red alert div from inside the scrollable body to the sticky footer, just above the Save button. Any save error is now always visible regardless of scroll position.
 
 ---
 

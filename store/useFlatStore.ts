@@ -21,6 +21,8 @@ import {
   rejectJoinRequestService,
   setFlatJoinMode as setFlatJoinModeService,
 } from '@/lib/flatService'
+import { addBehavioralEvent } from '@/lib/behavioralEvents'
+import type { VacancyListing } from '@/lib/discoveryTypes'
 
 export interface Member {
   uid: string
@@ -230,6 +232,7 @@ interface FlatState {
   name: string | null
   joinMode: 'auto' | 'approval'
   subscription: FlatSubscription | null
+  vacancy: VacancyListing | null
   members: Member[]
   tasks: Task[]
   activityLog: Activity[]
@@ -295,6 +298,7 @@ interface FlatState {
   // Flat Settings
   renameFlatAction: (newName: string) => Promise<void>
   setJoinMode: (mode: 'auto' | 'approval') => Promise<void>
+  updateVacancy: (data: Partial<VacancyListing>) => Promise<void>
 
   // Join Requests (approval mode)
   approveJoinRequest: (requestId: string) => Promise<void>
@@ -490,6 +494,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   name: hasKeys ? null : 'Bachelor Pad',
   joinMode: 'auto',
   subscription: null,
+  vacancy: null,
   members: hasKeys ? [] : MOCK_MEMBERS,
   tasks: hasKeys ? [] : MOCK_TASKS,
   activityLog: [],
@@ -514,6 +519,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       name: null,
       joinMode: 'auto',
       subscription: null,
+      vacancy: null,
       members: [],
       tasks: [],
       activityLog: [],
@@ -560,7 +566,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, joinMode: 'auto', subscription: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', subscription: null, vacancy: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
 
     // FLAT DOC LISTENER — flat name, joinMode, subscription
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), async (snap) => {
@@ -584,6 +590,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
           subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
+          vacancy: (data.vacancy as VacancyListing) ?? null,
         })
         return
       }
@@ -603,6 +610,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
           subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
+          vacancy: (data.vacancy as VacancyListing) ?? null,
         })
         return
       }
@@ -617,6 +625,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         name: data.name || null,
         joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
         subscription: { status: effectiveStatus, trialEndDate, couponUsed },
+        vacancy: (data.vacancy as VacancyListing) ?? null,
       })
     }, (err) => console.warn('Flat doc listener error:', err))
 
@@ -800,6 +809,25 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       ? ` on ${new Date(completionDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
       : ''
     await get().addActivity({ userId, action: 'completed_task', details: `completed ${task.name}${dateLabel}` })
+
+    // Behavioral event for discovery trust tag — non-critical, never blocks completion
+    if (state.flatId) {
+      const completedAtDate = completedAt ?? new Date()
+      const isOnTime = completedAtDate <= new Date(task.dueDate)
+      try {
+        await addBehavioralEvent(state.flatId, {
+          flatId: state.flatId,
+          uid: userId,
+          type: 'task_completed',
+          taskId: task.taskId,
+          taskName: task.name,
+          onTime: isOnTime,
+          daysLate: isOnTime ? 0 : Math.ceil(
+            (completedAtDate.getTime() - new Date(task.dueDate).getTime()) / 86400000
+          ),
+        })
+      } catch { /* non-critical */ }
+    }
 
     // Belt-and-suspenders: if the new assignee is still out-of-station, re-rotate.
     // This handles the edge case where freshMembers itself was incomplete.
@@ -1036,7 +1064,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (hasKeys && get().flatId) {
       await setDoc(doc(db, `flats/${get().flatId}/expenses/${newExpense.id}`), fs(newExpense))
     }
-    await get().addActivity({
+    void get().addActivity({
       userId: data.createdBy,
       action: 'expense_added',
       details: `added ₹${data.amount} for "${data.description}"${data.splitAmong.length > 1 ? `, split ${data.splitAmong.length} ways` : ''}`,
@@ -1058,21 +1086,8 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     if (hasKeys && get().flatId) {
       await deleteDoc(doc(db, `flats/${get().flatId}/expenses/${expenseId}`))
     }
-    // If this expense was auto-created from a bill payment, revert the bill instance
-    // back to split_generated so other members' balances reflect it correctly again.
-    if (expense?.billInstanceId && hasKeys && get().flatId) {
-      await updateDoc(
-        doc(db, `flats/${get().flatId}/billInstances/${expense.billInstanceId}`),
-        { status: 'split_generated', paidAt: null },
-      )
-      set(s => ({
-        billInstances: s.billInstances.map(b =>
-          b.id === expense.billInstanceId ? { ...b, status: 'split_generated' as BillInstanceStatus, paidAt: null } : b
-        ),
-      }))
-    }
     if (expense) {
-      await get().addActivity({
+      void get().addActivity({
         userId: actorId ?? expense.createdBy,
         action: 'expense_deleted',
         details: `deleted ₹${expense.amount} expense: "${expense.description}"`,
@@ -1095,6 +1110,29 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       action: 'settlement_added',
       details: `settled up with ${receiver?.nickname ?? '…'}`,
     })
+
+    // Behavioral event for discovery trust tag — non-critical, never blocks settlement
+    const settlState = get()
+    if (settlState.flatId && actorId) {
+      const matchedCycle = data.month
+        ? settlState.monthCycles.find(c => c.month === data.month && c.status === 'closed' && c.closedAt != null)
+        : settlState.monthCycles
+            .filter(c => c.status === 'closed' && c.closedAt != null)
+            .sort((a, b) => new Date(b.closedAt!).getTime() - new Date(a.closedAt!).getTime())[0]
+      try {
+        await addBehavioralEvent(settlState.flatId, {
+          flatId: settlState.flatId,
+          uid: actorId,
+          type: 'settlement_completed',
+          settlementAmount: data.amount,
+          currency: data.currency,
+          monthCycleId: matchedCycle?.id,
+          daysAfterClose: matchedCycle?.closedAt != null
+            ? Math.max(0, Math.ceil((Date.now() - new Date(matchedCycle.closedAt).getTime()) / 86400000))
+            : undefined,
+        })
+      } catch { /* non-critical */ }
+    }
   },
 
   resetMonthSplits: async (month) => {
@@ -1237,16 +1275,13 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const bill = state.recurringBills.find(b => b.id === billId)
     const uid = useAuthStore.getState().user?.uid
 
-    // Find all bill instances and auto-expenses linked to this template
+    // Find all bill instances linked to this template
     const linkedInstances = state.billInstances.filter(b => b.templateId === billId)
-    const linkedInstanceIds = new Set(linkedInstances.map(b => b.id))
-    const linkedExpenses = state.expenses.filter(e => e.billInstanceId && linkedInstanceIds.has(e.billInstanceId))
 
     // Optimistic update — remove everything immediately so dashboard clears at once
     set(s => ({
       recurringBills: s.recurringBills.filter(b => b.id !== billId),
       billInstances:  s.billInstances.filter(b => b.templateId !== billId),
-      expenses:       s.expenses.filter(e => !e.billInstanceId || !linkedInstanceIds.has(e.billInstanceId)),
     }))
 
     if (hasKeys && state.flatId) {
@@ -1258,9 +1293,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       batch.delete(doc(db, `flats/${state.flatId}/recurringBills/${billId}`))
       for (const inst of linkedInstances) {
         batch.delete(doc(db, `flats/${state.flatId}/billInstances/${inst.id}`))
-      }
-      for (const exp of linkedExpenses) {
-        batch.delete(doc(db, `flats/${state.flatId}/expenses/${exp.id}`))
       }
       await batch.commit()
     }
@@ -1419,24 +1451,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
     }
 
-    // Auto-create an expense so the payment appears in the transaction list.
-    // Store billInstanceId so deleteExpense can revert the instance back to split_generated.
-    if (instance.amount && instance.splits && instance.participants.length > 0) {
-      await get().addExpense({
-        description: instance.name,
-        amount: instance.amount,
-        currency: instance.currency,
-        paidBy: instance.paidBy,
-        splitAmong: instance.participants,
-        splitType: 'custom',
-        splits: instance.splits,
-        category: instance.category,
-        date: new Date().toISOString().split('T')[0],
-        createdBy: uid,
-        billInstanceId: instanceId,
-      })
-    }
-
     await get().addActivity({
       userId: uid,
       action: 'bill_paid',
@@ -1500,13 +1514,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const uid = useAuthStore.getState().user?.uid
     if (!instance || !uid) return
 
-    // Also find and delete the auto-expense created when this instance was marked paid
-    const linkedExpense = state.expenses.find(e => e.billInstanceId === instanceId)
-
-    // Optimistic update — clear instance + linked expense immediately
+    // Optimistic update — clear instance immediately
     set(s => ({
       billInstances: s.billInstances.filter(b => b.id !== instanceId),
-      expenses: s.expenses.filter(e => e.billInstanceId !== instanceId),
       recurringBills: s.recurringBills.map(b =>
         b.id === instance.templateId ? { ...b, lastGeneratedMonth: '' } : b
       ),
@@ -1514,9 +1524,6 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
     if (hasKeys && state.flatId) {
       await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`))
-      if (linkedExpense) {
-        await deleteDoc(doc(db, `flats/${state.flatId}/expenses/${linkedExpense.id}`))
-      }
       // Reset so the bill shows as DUE again and can be re-generated
       await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${instance.templateId}`), {
         lastGeneratedMonth: '',
@@ -1664,6 +1671,36 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     } else {
       set({ joinMode: mode })
     }
+  },
+
+  updateVacancy: async (data) => {
+    const { flatId, vacancy } = get()
+    if (!flatId) return
+    const base: VacancyListing = {
+      active: false,
+      bedsAvailable: 1,
+      rentPerHead: null,
+      currency: 'INR',
+      city: '',
+      area: '',
+      existingMembersGender: null,
+      preferredGender: 'any',
+      lifestyle: [],
+      customTags: [],
+      about: '',
+      updatedAt: '',
+    }
+    const merged = { ...base, ...vacancy, ...data }
+    const updated: VacancyListing = {
+      ...merged,
+      existingMembersGender: merged.existingMembersGender ?? null,
+      customTags: merged.customTags ?? [],
+      updatedAt: new Date().toISOString(),
+    }
+    if (hasKeys && db) {
+      await updateDoc(doc(db, `flats/${flatId}`), { vacancy: updated })
+    }
+    set({ vacancy: updated })
   },
 
   approveJoinRequest: async (requestId) => {

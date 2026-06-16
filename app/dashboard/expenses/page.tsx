@@ -2316,10 +2316,14 @@ export default function ExpensesPage() {
       .reduce((s, bi) => s + (bi.amount ?? 0), 0)
   }, [billInstances, recurringBills])
 
-  const totalMonthlyCommitment = useMemo(
-    () => recurringBills.filter(b => b.active && b.amount).reduce((s, b) => s + (b.amount ?? 0), 0),
-    [recurringBills],
-  )
+  const totalMonthlyCommitment = useMemo(() => {
+    const m = currentMonthKey()
+    return recurringBills.filter(b => b.active).reduce((s, b) => {
+      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === m && bi.status !== 'skipped')
+      const amount = inst?.amount ?? b.amount
+      return amount ? s + amount : s
+    }, 0)
+  }, [recurringBills, billInstances])
 
   const nextBillingDay = useMemo(() => {
     const days = recurringBills
@@ -2331,14 +2335,23 @@ export default function ExpensesPage() {
     return days.find(d => d >= today) ?? days[0]
   }, [recurringBills])
 
-  const myMonthlyShare = useMemo(() =>
-    recurringBills.filter(b => b.active && b.amount).reduce((s, b) => {
+  const myMonthlyShare = useMemo(() => {
+    const m = currentMonthKey()
+    return recurringBills.filter(b => b.active).reduce((s, b) => {
       const participants = b.participants?.length ? b.participants : b.rotationQueue
       if (!participants.includes(currentUserId)) return s
-      return s + (b.amount ?? 0) / Math.max(participants.length, 1)
-    }, 0),
-    [recurringBills, currentUserId]
-  )
+      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === m && bi.status !== 'skipped')
+      // Prefer actual split from generated instance
+      if (inst?.splits?.[currentUserId] != null) return s + inst.splits[currentUserId]
+      const amount = inst?.amount ?? b.amount ?? 0
+      if (!amount) return s
+      if (b.splitMethod === 'percent' && b.percentSplits?.[currentUserId] != null)
+        return s + amount * (b.percentSplits[currentUserId] / 100)
+      if (b.splitMethod === 'custom' && b.customSplits?.[currentUserId] != null)
+        return s + b.customSplits[currentUserId]
+      return s + amount / Math.max(participants.length, 1)
+    }, 0)
+  }, [recurringBills, billInstances, currentUserId])
 
   // ── Settlement History sub-view ─────────────────────────────────────────────
   if (showSettleHistory) {
@@ -3257,7 +3270,8 @@ export default function ExpensesPage() {
           const today = new Date()
           const day = nextDueBill.billingDay
           const target = new Date(today.getFullYear(), day < today.getDate() ? today.getMonth() + 1 : today.getMonth(), day)
-          const diff = Math.round((target.getTime() - today.getTime()) / 86400000)
+          const todayMidnight = new Date(today.getFullYear(), today.getMonth(), today.getDate())
+          const diff = Math.round((target.getTime() - todayMidnight.getTime()) / 86400000)
           return { name: nextDueBill.name, dateStr: target.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }), daysAway: diff }
         })() : null
         const nextCycleStart = (() => {

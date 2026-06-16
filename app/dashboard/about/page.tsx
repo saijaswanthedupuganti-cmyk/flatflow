@@ -36,7 +36,7 @@ export default function AboutPage() {
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-2">About</p>
           <h1 className="text-3xl font-extrabold tracking-tight">Habitiq</h1>
-          <p className="text-muted-foreground text-sm mt-1">v0.1.0 · Open Beta</p>
+          <p className="text-muted-foreground text-sm mt-1">v0.4.0 · Open Beta</p>
         </div>
         <p className="text-base text-foreground leading-relaxed">
           Habitiq is a household duty management app for flatmates who want a fair, automated rotation — no arguments, no forgotten tasks, no manual tracking.
@@ -132,7 +132,7 @@ export default function AboutPage() {
       {/* ── Footer ───────────────────────────────────────── */}
       <div className="border-t border-border/60 pt-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-xs text-muted-foreground">
-          Habitiq v0.1.0 · Built with{' '}
+          Habitiq v0.4.0 · Built with{' '}
           <a href="https://claude.ai/code" target="_blank" rel="noopener noreferrer" className="underline underline-offset-2 hover:text-foreground transition-colors">
             Claude Code
           </a>

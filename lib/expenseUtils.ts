@@ -1,4 +1,4 @@
-import type { Expense, Settlement, BillInstance, Currency } from '@/store/useFlatStore'
+import type { Expense, Settlement, Currency } from '@/store/useFlatStore'
 
 export interface Balance {
   userId: string
@@ -9,18 +9,13 @@ export interface Balance {
 /**
  * Computes the current user's net balances as DIRECT pairwise amounts.
  *
- * For each person the current user has transacted with, we return a single
- * net number: positive = they owe you, negative = you owe them.
- * No debt-chain simplification — balances always reflect actual transactions.
- *
- * Sources: expenses, bill instances (split_generated or paid), settlements.
- * Deferred expenses are excluded.
+ * Only covers Daily Splits ad-hoc expenses and settlements.
+ * Monthly Bills are tracked separately and do not affect these balances.
  */
 export function computeBalances(
   currentUserId: string,
   expenses: Expense[],
   settlements: Settlement[],
-  billInstances: BillInstance[] = [],
 ): Balance[] {
   // pair[currency][uid] > 0 → uid owes currentUser
   // pair[currency][uid] < 0 → currentUser owes uid
@@ -31,9 +26,10 @@ export function computeBalances(
     pair[currency][uid] = (pair[currency][uid] ?? 0) + delta
   }
 
-  // ── Ad-hoc expenses ────────────────────────────────────────────────────────
+  // ── Ad-hoc expenses (Daily Splits only — exclude any bill-linked expenses) ─
   for (const expense of expenses) {
     if (expense.deferToNextMonth) continue
+    if (expense.billInstanceId) continue
     const { paidBy, splitAmong, splits, currency } = expense
     if (paidBy === currentUserId) {
       for (const uid of splitAmong) {
@@ -42,25 +38,6 @@ export function computeBalances(
         if (owes > 0) bump(currency, uid, owes)
       }
     } else if (splitAmong.includes(currentUserId)) {
-      const myShare = splits[currentUserId] ?? 0
-      if (myShare > 0) bump(currency, paidBy, -myShare)
-    }
-  }
-
-  // ── Bill instances ─────────────────────────────────────────────────────────
-  // Only count split_generated (awaiting payment). Once paid, markBillPaid auto-creates
-  // an expense which handles the balance — counting both would double the amount.
-  for (const instance of billInstances) {
-    if (instance.status !== 'split_generated') continue
-    if (!instance.splits) continue
-    const { paidBy, participants, splits, currency } = instance
-    if (paidBy === currentUserId) {
-      for (const uid of participants) {
-        if (uid === currentUserId) continue
-        const owes = splits[uid] ?? 0
-        if (owes > 0) bump(currency, uid, owes)
-      }
-    } else if (participants.includes(currentUserId)) {
       const myShare = splits[currentUserId] ?? 0
       if (myShare > 0) bump(currency, paidBy, -myShare)
     }

@@ -512,17 +512,16 @@ function ExpenseModal({
             </div>
           )}
 
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0 space-y-3">
           {error && (
             <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
               <AlertCircle size={14} className="text-red-600 shrink-0" />
               <p className="text-xs font-semibold text-red-700 dark:text-red-300">{error}</p>
             </div>
           )}
-
-        </div>
-
-        {/* Footer */}
-        <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0">
           <button
             onClick={handleSave}
             disabled={saving || !form.description.trim() || totalAmount <= 0 || form.splitAmong.length === 0}
@@ -2143,8 +2142,8 @@ export default function ExpensesPage() {
   const isAdmin = currentUser?.role === 'admin'
 
   const balances = useMemo(
-    () => computeBalances(currentUserId, expenses, settlements, billInstances),
-    [currentUserId, expenses, settlements, billInstances],
+    () => computeBalances(currentUserId, expenses, settlements),
+    [currentUserId, expenses, settlements],
   )
 
   const sortedExpenses = useMemo(() => [...expenses].sort((a, b) => b.date.localeCompare(a.date)), [expenses])
@@ -2749,7 +2748,8 @@ export default function ExpensesPage() {
     const totalAmt = instance?.amount ?? bill.amount ?? 0
     const perPerson = billParticipants.length > 0 ? totalAmt / billParticipants.length : 0
     const myShare = instance?.splits?.[currentUserId] ?? perPerson
-    const payerUid = bill.payerMode === 'fixed' && bill.fixedPayerUid ? bill.fixedPayerUid : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+    const payerUid = instance?.paidBy
+      ?? (bill.payerMode === 'fixed' && bill.fixedPayerUid ? bill.fixedPayerUid : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length])
     const nextDue = (() => {
       const today = new Date()
       const day = bill.billingDay
@@ -3727,9 +3727,10 @@ export default function ExpensesPage() {
                 const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
                 const cfg = CATEGORY_CONFIG[bill.category]
                 const isSettled = instance?.status === 'paid'
-                const payerUid = bill.payerMode === 'fixed' && bill.fixedPayerUid
-                  ? bill.fixedPayerUid
-                  : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length]
+                const payerUid = instance?.paidBy
+                  ?? (bill.payerMode === 'fixed' && bill.fixedPayerUid
+                    ? bill.fixedPayerUid
+                    : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length])
                 const isYouPayer = payerUid === currentUserId
                 // Collector = designated money collector; falls back to payer if not set
                 const collectorUid = instance?.collectorId ?? bill.collectorId ?? payerUid
@@ -3862,19 +3863,21 @@ export default function ExpensesPage() {
                         {/* Participants + Collection tracking */}
                         {billParticipants.length > 0 && (
                           <div className="border-t border-border/40 divide-y divide-border/30">
-                            {instance && (isYouCollector || isAdmin) && instance.status === 'split_generated' && (
+                            {instance && instance.status === 'split_generated' && (
                               <div className="px-4 py-2 bg-violet-50/60 dark:bg-violet-950/20 flex items-center gap-2">
                                 <span className="text-[9.5px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wide">
-                                  Collection status — {isYouCollector ? 'mark who has paid you back' : `${collectorNickname} is collecting`}
+                                  Collection status — {isYouCollector ? 'mark who has paid you back' : `${collectorNickname} is collecting · mark yourself when paid`}
                                 </span>
                               </div>
                             )}
                             {billParticipants.map((uid) => {
-                              const share    = instance?.splits?.[uid] ?? perPersonAmt
-                              const isPayer  = uid === collectorUid
-                              const isYou    = uid === currentUserId
-                              const collected = !isPayer && instance?.collectedFrom?.[uid] === true
-                              const showCollect = instance && (isYouCollector || isAdmin) && instance.status === 'split_generated' && !isPayer
+                              const share          = instance?.splits?.[uid] ?? perPersonAmt
+                              const isThePayer     = uid === payerUid
+                              const isTheCollector = uid === collectorUid
+                              const isYou          = uid === currentUserId
+                              const collected      = !isTheCollector && instance?.collectedFrom?.[uid] === true
+                              const isPaidForMember = isSettled || (isThePayer && instance?.status === 'split_generated')
+                              const showCollect    = instance && instance.status === 'split_generated' && !isTheCollector && (isYouCollector || isYou)
                               return (
                                 <div key={uid} className="flex items-center gap-2.5 px-4 py-2.5 bg-card">
                                   <div className="w-7 h-7 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-extrabold text-[#3525cd] shrink-0">
@@ -3883,7 +3886,7 @@ export default function ExpensesPage() {
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                       <p className="text-xs font-semibold text-[#021328] dark:text-foreground truncate">{isYou ? 'You' : nick(uid)}</p>
-                                      {isPayer && (
+                                      {isThePayer && (
                                         <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAYS</span>
                                       )}
                                     </div>
@@ -3907,8 +3910,8 @@ export default function ExpensesPage() {
                                       {share != null && !showCollect && (
                                         <p className="text-xs font-bold text-[#021328] dark:text-foreground">{formatAmount(share, instance?.currency ?? bill.currency)}</p>
                                       )}
-                                      <p className={['text-[9px] font-semibold', isSettled ? 'text-emerald-500' : 'text-[#999CA1]'].join(' ')}>
-                                        {isSettled ? '✓ settled' : 'pending'}
+                                      <p className={['text-[9px] font-semibold', isPaidForMember ? 'text-emerald-500' : 'text-[#999CA1]'].join(' ')}>
+                                        {isPaidForMember ? '✓ paid' : 'pending'}
                                       </p>
                                     </div>
                                   )}

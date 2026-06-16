@@ -189,10 +189,13 @@ service cloud.firestore {
         allow create: if isAdmin(flatId)
           && request.resource.data.generatedBy == request.auth.uid;
         // Admin can update any field (skip, edit amount, etc.)
-        // Payer can mark their own instance as paid
+        // Payer can mark paid and update collection tracking
+        // Designated collector can update collection tracking
         allow update: if isAdmin(flatId)
           || (isMember(flatId) && resource.data.paidBy == request.auth.uid
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt']));
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'collectedFrom']))
+          || (isMember(flatId) && resource.data.collectorId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collectedFrom']));
         // Admin can delete (needed for flat deletion)
         allow delete: if isAdmin(flatId);
       }

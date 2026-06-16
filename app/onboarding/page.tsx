@@ -22,9 +22,9 @@ function OnboardingContent() {
   const isAddingFlat = searchParams.get('addFlat') === '1'
   const initialMode = searchParams.get('mode') // 'create' | 'join'
 
-  const { user, setFlatId, logout, addFlatToState } = useAuthStore()
+  const { user, setFlatId, logout, addFlatToState, allFlatIds } = useAuthStore()
   const { initFirestoreListeners, addMemberMock } = useFlatStore()
-  const { can } = useSubscription()
+  const { isActive, maxFlats } = useSubscription()
   const [showUpsell, setShowUpsell] = useState(false)
 
   const prefillCode = searchParams.get('code') || ''
@@ -60,10 +60,15 @@ function OnboardingContent() {
 
   const handleCreateFlat = async () => {
     if (!flatName.trim() || !nickname.trim()) return
-    // Adding a second flat requires an active subscription
-    if (isAddingFlat && !can('create_flat')) {
-      setShowUpsell(true)
-      return
+    if (isAddingFlat) {
+      if (allFlatIds.length >= maxFlats) {
+        if (isActive) {
+          setError(`You've reached the maximum of ${maxFlats} flats. Remove a flat first to create a new one.`)
+        } else {
+          setShowUpsell(true)
+        }
+        return
+      }
     }
     setLoading(true)
     setError('')
@@ -93,6 +98,16 @@ function OnboardingContent() {
   const handleJoinFlat = async () => {
     const code = inviteCode.trim().toUpperCase()
     if (!code || !nickname.trim()) return
+    if (isAddingFlat) {
+      if (allFlatIds.length >= maxFlats) {
+        if (isActive) {
+          setError(`You've reached the maximum of ${maxFlats} flats. Leave a flat first to join a new one.`)
+        } else {
+          setShowUpsell(true)
+        }
+        return
+      }
+    }
     setLoading(true)
     setError('')
     try {

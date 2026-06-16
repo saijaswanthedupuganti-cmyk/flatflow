@@ -7,7 +7,7 @@ import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo
 import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp, ArrowUpRight, ArrowDownLeft, XCircle } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 import NPSBanner from '@/components/NPSBanner'
 
@@ -386,6 +386,77 @@ export default function DashboardPage() {
           </div>
         </Link>
       )}
+
+      {/* ── Swaps Summary Widget ────────────────────────────────────── */}
+      {(() => {
+        const mySwapsSent     = swapRequests.filter(r => r.fromUserId === currentUserId)
+        const mySwapsReceived = swapRequests.filter(r => r.toUserId === currentUserId)
+        if (mySwapsSent.length === 0 && mySwapsReceived.length === 0) return null
+        const myPending   = mySwapsReceived.filter(r => r.status === 'pending').length
+        const myAccepted  = swapRequests.filter(r =>
+          (r.fromUserId === currentUserId || r.toUserId === currentUserId) && r.status === 'accepted'
+        ).length
+        const myRejected  = swapRequests.filter(r =>
+          (r.fromUserId === currentUserId || r.toUserId === currentUserId) && r.status === 'rejected'
+        ).length
+        return (
+          <Link href="/dashboard/swaps" className="block group">
+            <div className="rounded-xl border border-border/60 bg-card hover:border-violet-300/60 hover:shadow-sm transition-all p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-violet-500/10 flex items-center justify-center shrink-0">
+                    <Repeat size={14} className="text-violet-500" />
+                  </div>
+                  <span className="text-sm font-bold">Swap Requests</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  {myPending > 0 && (
+                    <span className="text-[10px] font-extrabold bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 px-2 py-0.5 rounded-full">
+                      {myPending} pending
+                    </span>
+                  )}
+                  <ChevronRight size={14} className="text-muted-foreground group-hover:text-foreground transition-colors" />
+                </div>
+              </div>
+              <div className="grid grid-cols-4 gap-2">
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <ArrowUpRight size={10} className="text-blue-500" /> Sent
+                  </p>
+                  <p className="text-base font-extrabold mt-0.5">{mySwapsSent.length}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <ArrowDownLeft size={10} className="text-violet-500" /> Received
+                  </p>
+                  <p className="text-base font-extrabold mt-0.5">{mySwapsReceived.length}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <CheckCircle2 size={10} className="text-green-500" /> Accepted
+                  </p>
+                  <p className={`text-base font-extrabold mt-0.5 ${myAccepted > 0 ? 'text-green-600 dark:text-green-400' : 'text-muted-foreground'}`}>
+                    {myAccepted || '—'}
+                  </p>
+                </div>
+                <div>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+                    <XCircle size={10} className="text-red-500" /> Declined
+                  </p>
+                  <p className={`text-base font-extrabold mt-0.5 ${myRejected > 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                    {myRejected || '—'}
+                  </p>
+                </div>
+              </div>
+              {isAdmin && swapRequests.length > 0 && (
+                <p className="text-[10px] text-muted-foreground/55 mt-2 pt-2 border-t border-border/40">
+                  {swapRequests.length} total swap{swapRequests.length !== 1 ? 's' : ''} in flat · tap to see all
+                </p>
+              )}
+            </div>
+          </Link>
+        )
+      })()}
 
       {/* ── NPS Survey Banner ───────────────────────────────────────── */}
       {showNPS && flatId && (

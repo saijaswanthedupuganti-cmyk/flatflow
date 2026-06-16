@@ -15,6 +15,8 @@ export interface SubscriptionInfo {
   daysLeft: number
   /** Whether this specific feature is allowed */
   can: (feature: GatedFeature) => boolean
+  /** Max total flats (created + joined). Free/trial = 1, Premium = 6 */
+  maxFlats: number
 }
 
 function daysRemaining(isoDate: string | null): number {
@@ -33,12 +35,16 @@ export function useSubscription(): SubscriptionInfo {
       isExpired: false,
       daysLeft: 30,
       can: () => true,
+      maxFlats: 6,
     }
   }
 
   const isActive = subscription.status === 'trial' || subscription.status === 'active'
   const isExpired = subscription.status === 'expired'
   const daysLeft = daysRemaining(subscription.trialEndDate)
+
+  // Premium (active coupon/subscription) = 6 flats; free/trial/expired = 1
+  const maxFlats = subscription.status === 'active' ? 6 : 1
 
   const BLOCKED_WHEN_EXPIRED: GatedFeature[] = [
     'create_task',
@@ -50,6 +56,7 @@ export function useSubscription(): SubscriptionInfo {
     isActive,
     isExpired,
     daysLeft,
+    maxFlats,
     can: (feature) => {
       if (!isExpired) return true
       return !BLOCKED_WHEN_EXPIRED.includes(feature)

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button'
 import {
   Plus, ArrowRight, ArrowDown, AlertTriangle, PauseCircle, Clock, Edit2,
   Trash2, ClipboardList, CheckCircle2, X, CalendarDays, Repeat2, Users, Zap,
+  ChevronDown, ChevronRight, Inbox, ArrowDownLeft, ArrowUpRight, Check,
 } from 'lucide-react'
 import { getPriorityWeight, getTaskDateInfo } from '@/lib/rotationEngine'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -32,7 +33,7 @@ const FREQ_CONFIG = {
 }
 
 export default function TasksPage() {
-  const { tasks, members, swapRequests, manuallyAssignTask, createTask, editTask, deleteTask } = useFlatStore()
+  const { tasks, members, swapRequests, manuallyAssignTask, createTask, editTask, deleteTask, resolveSwapRequest } = useFlatStore()
   const { user } = useAuthStore()
   const { can } = useSubscription()
   const [showUpsell, setShowUpsell] = useState(false)
@@ -82,6 +83,8 @@ export default function TasksPage() {
   const [newTaskStartDate, setNewTaskStartDate]       = useState(
     new Date().toISOString().split('T')[0]   // today yyyy-MM-dd
   )
+  const [expandedTaskId, setExpandedTaskId] = useState<string | null>(null)
+  const [showSwapSheet, setShowSwapSheet]   = useState(false)
 
   // Auto-open task creation when navigated here from the Quick Add FAB
   useEffect(() => {
@@ -93,6 +96,7 @@ export default function TasksPage() {
   }, [])
 
   const adminId       = user?.uid || 'u1'
+  const isAdmin       = members.find(m => m.uid === user?.uid)?.role === 'admin'
   const activeMembers = members.filter(m => m.status !== 'inactive')
   // For manual override: only show members who are currently available or busy
   const assignableMembers = members.filter(m => m.status === 'available' || m.status === 'busy')
@@ -229,6 +233,322 @@ export default function TasksPage() {
         .toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
     : null
 
+  // ── Member view (non-admin) ─────────────────────────────────────────────
+  if (!isAdmin) {
+    const myReceived = swapRequests
+      .filter(r => r.toUserId === adminId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    const mySent = swapRequests
+      .filter(r => r.fromUserId === adminId)
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+
+    return (
+      <div className="space-y-5 max-w-5xl">
+
+        {/* Header */}
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">Tasks & Rotation</h1>
+            <p className="text-muted-foreground mt-0.5 text-sm hidden sm:block">Flat duties and who&apos;s up next.</p>
+          </div>
+          {overdueCount > 0 && (
+            <div className="flex items-center gap-1.5 bg-red-100 dark:bg-red-900/30 border border-red-200 dark:border-red-800 rounded-xl px-2.5 py-1.5 mt-1 shrink-0">
+              <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" />
+              <span className="text-[11px] font-bold text-red-600 dark:text-red-400">
+                {overdueCount}<span className="hidden sm:inline"> overdue</span>
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Swap Requests button → bottom sheet */}
+        <button
+          onClick={() => setShowSwapSheet(true)}
+          className="w-full flex items-center gap-3 px-4 py-3.5 rounded-2xl border transition-all active:scale-[0.98] bg-violet-50 dark:bg-violet-950/20 border-violet-200 dark:border-violet-900/40"
+        >
+          <div className="w-9 h-9 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center shrink-0">
+            <Repeat2 size={18} className="text-violet-600 dark:text-violet-400" />
+          </div>
+          <div className="flex-1 min-w-0 text-left">
+            <p className="text-sm font-bold text-foreground">Swap Requests</p>
+            <p className="text-[11px] text-muted-foreground">
+              {pendingSwapCount > 0
+                ? `${pendingSwapCount} pending swap${pendingSwapCount > 1 ? 's' : ''} — tap to view`
+                : 'No pending swaps right now'}
+            </p>
+          </div>
+          {pendingSwapCount > 0 && (
+            <span className="bg-violet-500 text-white text-[10px] font-extrabold px-2 py-0.5 rounded-full shrink-0">
+              {pendingSwapCount}
+            </span>
+          )}
+          <ChevronRight size={15} className="text-muted-foreground shrink-0" />
+        </button>
+
+        {/* Compact task cards */}
+        <div className="space-y-2">
+          {sortedTasks.map(task => {
+            const isExpanded    = expandedTaskId === task.taskId
+            const dateInfo      = getTaskDateInfo(task)
+            const pCfg          = PRIORITY_CONFIG[task.priority] ?? PRIORITY_CONFIG.medium
+            const fCfg          = FREQ_CONFIG[task.frequency as keyof typeof FREQ_CONFIG] ?? FREQ_CONFIG.weekly
+            const emoji         = TASK_EMOJIS[task.type] ?? '📋'
+            const assignee      = members.find(m => m.uid === task.currentAssignedUserId)
+            const isMyTask      = task.currentAssignedUserId === adminId
+            const isOneTimeDone = task.frequency === 'one_time' && task.status === 'completed'
+
+            return (
+              <div
+                key={task.taskId}
+                onClick={() => setExpandedTaskId(isExpanded ? null : task.taskId)}
+                className={`rounded-2xl border-l-4 ${pCfg.border} border border-border/60 bg-card shadow-sm cursor-pointer select-none transition-all active:scale-[0.99] overflow-hidden ${isOneTimeDone ? 'opacity-60' : ''}`}
+              >
+                {/* Collapsed row */}
+                <div className="flex items-center gap-3 px-4 py-3">
+                  <span className="text-xl shrink-0">{emoji}</span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-bold truncate">{task.name}</p>
+                      {isMyTask && !isOneTimeDone && (
+                        <span className="text-[10px] font-extrabold bg-primary text-primary-foreground px-1.5 py-0.5 rounded-full shrink-0">YOU</span>
+                      )}
+                      {task.status === 'overdue' && !isOneTimeDone && (
+                        <span className="text-[10px] font-bold bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded-full shrink-0">
+                          {dateInfo.overdueDays}d overdue
+                        </span>
+                      )}
+                      {isOneTimeDone && (
+                        <span className="text-[10px] font-bold bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-400 px-1.5 py-0.5 rounded-full shrink-0">Done</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {assignee?.nickname ?? '—'} · Due {dateInfo.dueDateFormatted}
+                    </p>
+                  </div>
+                  <ChevronDown
+                    size={15}
+                    className={`text-muted-foreground shrink-0 transition-transform duration-200 ${isExpanded ? 'rotate-180' : ''}`}
+                  />
+                </div>
+
+                {/* Expanded details */}
+                {isExpanded && (
+                  <div className="px-4 pb-4 border-t border-border/40">
+                    <div className="flex items-center gap-1.5 pt-3 flex-wrap">
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${fCfg.bg} ${fCfg.text}`}>{fCfg.label}</span>
+                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${pCfg.bg} ${pCfg.text}`}>● {pCfg.label}</span>
+                      <span className="text-[11px] text-muted-foreground flex items-center gap-1">
+                        <Clock size={10} />Due {dateInfo.dueDateFormatted}
+                      </span>
+                    </div>
+
+                    {task.frequency !== 'one_time' ? (
+                      <div className="mt-3">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Rotation Queue</p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {task.queueOrder.map((uid) => {
+                            const m         = members.find(x => x.uid === uid)
+                            const isCurrent = uid === task.currentAssignedUserId
+                            if (!m) return null
+                            return (
+                              <div key={uid} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 transition-all ${
+                                isCurrent
+                                  ? 'bg-primary border-primary text-white shadow-sm'
+                                  : 'bg-card border-border text-muted-foreground'
+                              }`}>
+                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
+                                  isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
+                                }`}>
+                                  {m.nickname.charAt(0)}
+                                </span>
+                                <span className="text-xs font-semibold">{m.nickname}</span>
+                                {isCurrent && (
+                                  <span className="text-[8px] font-extrabold bg-white/20 text-white px-1 py-0.5 rounded-full">NOW</span>
+                                )}
+                                {m.status === 'out_of_station' && (
+                                  <PauseCircle size={10} className="text-orange-400" />
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-3">
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2">Assigned To</p>
+                        {assignee && (
+                          <div className={`inline-flex items-center gap-2 px-3 py-2 rounded-xl border-2 ${
+                            isOneTimeDone
+                              ? 'bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300'
+                              : 'bg-primary border-primary text-white shadow-sm'
+                          }`}>
+                            <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold ${
+                              isOneTimeDone ? 'bg-teal-200 dark:bg-teal-800 text-teal-700' : 'bg-white/20 text-white'
+                            }`}>
+                              {assignee.nickname.charAt(0)}
+                            </span>
+                            <span className="text-sm font-semibold">{assignee.nickname}</span>
+                            {isOneTimeDone
+                              ? <span className="text-[10px] font-bold bg-teal-200 dark:bg-teal-800 text-teal-700 px-1.5 py-0.5 rounded-full">DONE</span>
+                              : <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">PENDING</span>
+                            }
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <p className="text-[11px] text-muted-foreground mt-3">
+                      Last done: <span className="font-semibold text-foreground">{dateInfo.lastCompletedFormatted}</span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
+          })}
+
+          {tasks.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-16 text-center text-muted-foreground">
+              <ClipboardList size={44} className="mb-4 opacity-25" />
+              <p className="text-base font-bold">No tasks yet</p>
+              <p className="text-sm mt-1">Your admin hasn&apos;t created any tasks yet.</p>
+            </div>
+          )}
+        </div>
+
+        {/* Swap Requests Bottom Sheet */}
+        {showSwapSheet && (
+          <div className="fixed inset-0 z-50 flex items-end justify-center" onClick={() => setShowSwapSheet(false)}>
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div
+              className="relative w-full max-w-lg bg-card rounded-t-2xl border border-border shadow-2xl max-h-[80vh] flex flex-col"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex justify-center pt-3 pb-1 shrink-0">
+                <div className="w-10 h-1 rounded-full bg-border" />
+              </div>
+              <div className="flex items-center justify-between px-5 py-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <Repeat2 size={16} className="text-violet-500" />
+                  <h2 className="text-base font-bold">Swap Requests</h2>
+                  {pendingSwapCount > 0 && (
+                    <span className="text-[10px] font-extrabold bg-violet-500 text-white px-1.5 py-0.5 rounded-full">{pendingSwapCount}</span>
+                  )}
+                </div>
+                <button onClick={() => setShowSwapSheet(false)} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-secondary">
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="overflow-y-auto px-5 pb-8 space-y-5 flex-1">
+                {/* Received */}
+                {myReceived.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <ArrowDownLeft size={13} className="text-violet-500" />
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Received</p>
+                      <span className="text-[10px] font-bold bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">{myReceived.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {myReceived.map(req => {
+                        const task     = tasks.find(t => t.taskId === req.taskId)
+                        const fromUser = members.find(m => m.uid === req.fromUserId)
+                        return (
+                          <div key={req.id} className={`flex items-center gap-3 p-3 rounded-xl border ${
+                            req.status === 'pending'
+                              ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30'
+                              : 'border-border bg-card'
+                          }`}>
+                            <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-sm font-bold text-violet-600 dark:text-violet-400 shrink-0">
+                              {fromUser?.nickname?.charAt(0) ?? '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">{fromUser?.nickname ?? 'Someone'}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{task?.name ?? 'Unknown task'}</p>
+                            </div>
+                            {req.status === 'pending' ? (
+                              <div className="flex gap-1.5 shrink-0">
+                                <button
+                                  onClick={e => { e.stopPropagation(); resolveSwapRequest(req.id, 'accepted') }}
+                                  className="w-8 h-8 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center text-green-600 dark:text-green-400 hover:bg-green-200 dark:hover:bg-green-900/50 transition-colors"
+                                >
+                                  <Check size={14} />
+                                </button>
+                                <button
+                                  onClick={e => { e.stopPropagation(); resolveSwapRequest(req.id, 'rejected') }}
+                                  className="w-8 h-8 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors"
+                                >
+                                  <X size={14} />
+                                </button>
+                              </div>
+                            ) : (
+                              <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                                req.status === 'accepted'
+                                  ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300'
+                                  : 'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                              }`}>
+                                {req.status === 'accepted' ? 'Accepted' : 'Declined'}
+                              </span>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Sent */}
+                {mySent.length > 0 && (
+                  <div>
+                    <div className="flex items-center gap-2 mb-2">
+                      <ArrowUpRight size={13} className="text-blue-500" />
+                      <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Sent</p>
+                      <span className="text-[10px] font-bold bg-secondary text-muted-foreground px-1.5 py-0.5 rounded-full">{mySent.length}</span>
+                    </div>
+                    <div className="space-y-2">
+                      {mySent.map(req => {
+                        const task   = tasks.find(t => t.taskId === req.taskId)
+                        const toUser = members.find(m => m.uid === req.toUserId)
+                        return (
+                          <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
+                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400 shrink-0">
+                              {toUser?.nickname?.charAt(0) ?? '?'}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold truncate">→ {toUser?.nickname ?? 'Someone'}</p>
+                              <p className="text-[11px] text-muted-foreground truncate">{task?.name ?? 'Unknown task'}</p>
+                            </div>
+                            <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full shrink-0 ${
+                              req.status === 'pending'  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300' :
+                              req.status === 'accepted' ? 'bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300' :
+                                                          'bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300'
+                            }`}>
+                              {req.status === 'pending' ? 'Pending' : req.status === 'accepted' ? 'Accepted' : 'Declined'}
+                            </span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Empty */}
+                {myReceived.length === 0 && mySent.length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-12 text-center text-muted-foreground">
+                    <Inbox size={36} className="mb-3 opacity-25" />
+                    <p className="font-bold">No swap history yet</p>
+                    <p className="text-sm mt-1 opacity-70">Swap requests will appear here.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+      </div>
+    )
+  }
+
+  // ── Admin view ──────────────────────────────────────────────────────────────
   return (
     <div className="space-y-6 max-w-5xl">
 

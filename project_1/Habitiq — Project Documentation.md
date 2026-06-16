@@ -1,13 +1,13 @@
 ﻿# Habitiq — Project Documentation
 
 > **Product:** Habitiq
-> **Version:** v0.3.0 (Trial Phase — Expenses & Splitwise complete)
+> **Version:** v0.4.0 (Trial Phase — Member UX, Swap Analytics, Bill Collector)
 > **Project folder:** C:\garbage
 > **Live URL:** https://garbage-liart.vercel.app
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Target Domain:** habitiq.in / habitiq.app
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 13 June 2026
+> **Last Updated:** 16 June 2026
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -258,11 +258,14 @@ C:\garbage\
 
   /recurringBills/{billId}
     name, category, amount?, billingDay, currency, active, payerMode,
-    rotationQueue[], participants[], createdBy, createdAt
+    rotationQueue[], participants[], createdBy, createdAt,
+    collectorId?          — uid who collects member shares; defaults to admin; changeable any month
 
   /billInstances/{instanceId}
     billId, name, amount, dueDate, status (pending|split_generated|paid|skipped),
-    paidBy?, splits{uid→amount}?, participants[], currency, createdAt
+    paidBy?, splits{uid→amount}?, participants[], currency, createdAt,
+    collectedFrom?{uid→bool} — per-member collection status (set by collector or admin),
+    collectorId?          — snapshot from template at generation time
 
   /monthCycles/{month}   (month = 'YYYY-MM')
     month, status (open|closed), closedAt?, totalBillsINR, totalExpensesINR,
@@ -375,6 +378,83 @@ New: counts all pending swaps in the flat regardless of direction. Both admin an
 ### FEAT — Tasks page mobile Swap Requests shortcut
 File: app/dashboard/tasks/page.tsx
 Mobile-only banner (md:hidden) below the Tasks page header. Shows "Swap Requests" with live pending count badge. Tapping navigates directly to /dashboard/swaps. Replaces the need for a dedicated Swaps slot in the mobile bottom nav.
+
+---
+
+## 6g. Member UX, Swap Analytics & Bill Collector — June 2026 (Session 6)
+
+### FIX — Mobile nav: Profile restored to slot 5 for all users
+File: `app/dashboard/layout.tsx`
+Previous session incorrectly replaced Profile with Swaps in slot 5 for members. Reverted. Both admin and member now share the same 5-slot layout: Dashboard · Expenses · [FAB] · Tasks · Profile. Swaps are not a separate nav destination for members on mobile — they are accessed via the Swap Requests button on the Tasks page.
+
+### FEAT — Member Tasks page: read-only view with swap bottom sheet
+File: `app/dashboard/tasks/page.tsx`
+Members see a completely different Tasks page from admin. Early return before the admin view renders:
+- Header with overdue badge counter
+- **Swap Requests button** at top (violet, shows pending count) — opens a slide-up bottom sheet, NOT page navigation
+- Task list: compact cards (emoji + name + YOU badge + overdue status + assignee · due date + expand arrow)
+- Tap any card on mobile → expands in-place to show: frequency/priority/due badges, full rotation queue (NOW indicator, OOS markers, position chips), last done date
+- No New Task, Edit, Delete, or Override controls visible to members
+- Bottom sheet: handle bar + Received/Sent sections with Accept/Decline buttons + empty state
+
+### FIX — Leave flat redirect: always went to /onboarding instead of next flat
+File: `app/dashboard/profile/page.tsx`
+Root cause: `handleConfirmLeave` and `handleTransferAndLeave` received `nextFlatId` from `leaveFlatService` (which correctly updates Firestore `activeFlatId`) but never called `switchFlat(nextFlatId)` to update the in-memory `useAuthStore` state. So routing to `/dashboard` loaded with the old, now-invalid flat ID.
+Fix: Added `await switchFlat(nextFlatId)` + `initFirestoreListeners(nextFlatId)` before `router.push('/dashboard')` in both handlers. Pattern modelled on `handleSwitchFlat` which already did this correctly.
+
+### RENAME — "Fixed Bills" → "Monthly Bills"
+Files: `app/dashboard/expenses/page.tsx`
+All UI references to "Fixed Bills" renamed to "Monthly Bills" — tab label, breadcrumb, card headers, buttons, empty state. The underlying data model is unchanged.
+
+### FEAT — Payer collection tracking on bill instances
+Files: `store/useFlatStore.ts`, `app/dashboard/expenses/page.tsx`, `firestore.rules`
+The person who pays the bill upfront (landlord/utility) can now track which members have paid them back their individual share, per bill instance:
+- New field: `BillInstance.collectedFrom?: Record<string, boolean>` — uid → received true/false
+- New store action: `markBillCollected(instanceId, memberUid, collected)` — optimistic update + Firestore dot-notation write `{ ['collectedFrom.uid']: value }`
+- UI: violet header strip "Collection status — mark who has paid you back" visible to payer and admin when `status === 'split_generated'`; per-person toggle button: green "✓ Received" or red "Pending"
+- Firestore rule: payer can update `['status', 'paidAt', 'collectedFrom']` on their own instances
+
+### FEAT — Swap page redesign: stat chips + admin All Swaps view
+File: `app/dashboard/swaps/page.tsx`
+Swaps page now has two major additions:
+- **4 stat chips** at top of "My Swaps" view: Sent (blue) · Received (violet, with pending badge) · Accepted (green) · Declined (red) — counts scoped to the current user
+- **Admin toggle** top-right: "My Swaps" | "All Swaps" — All Swaps renders a flat list of every swap in the flat with `From → To · Task` layout, Auto/You badges, status badges, and inline Accept/Decline buttons for pending swaps addressed to the admin
+
+### FEAT — Dashboard swap summary widget
+File: `app/dashboard/page.tsx`
+New clickable card on the home dashboard (only shown when the user has swap history) linking to `/dashboard/swaps`:
+- Shows 4 stats: Sent · Received · Accepted · Declined
+- Pending count badge in card header if action needed
+- Admin sees a footnote: "N total swaps in flat · tap to see all"
+- Positioned between Bills & Expenses widget and NPS banner
+
+### FEAT — Collector field on Monthly Bills
+Files: `store/useFlatStore.ts`, `app/dashboard/expenses/page.tsx`, `firestore.rules`
+Separates the concept of "who pays the owner" (payer rotation) from "who collects money from flatmates" (collector):
+- New field: `RecurringBill.collectorId?: string` — persists on the template, carries month-to-month until changed
+- New field: `BillInstance.collectorId?: string` — snapshot from template at generation time
+- `generateBill` copies `bill.collectorId` to the instance
+- `updateRecurringBill` type updated to include `collectorId`
+- **UI in bill card header:** "X pays · Y collects · 5th monthly" — collector shown inline; "You collect" in violet when it's the current user
+- **Collection tracking strip:** header text changes — "mark who has paid you back" for the collector, "X is collecting" for others; non-collector members are marked `isPayer` (no toggle shown)
+- **Firestore rule:** new third branch — `collectorId == request.auth.uid` can update `['collectedFrom']` only (no status/paidAt)
+
+### REDESIGN — MonthlyBillModal: collector picker + amount type selector
+File: `app/dashboard/expenses/page.tsx`
+Two major modal UI improvements:
+
+**Collector picker** (replaced plain `<select>`):
+- Grid of avatar cards — one per flat member
+- Each card shows: colored avatar circle with initial, name below, "you" sub-label for self
+- Selected state: violet border + violet tint background + blue checkmark badge on avatar
+- Tapping selects that person as collector (radio selection)
+
+**Amount type selector** (replaced disconnected bottom toggle):
+- The old toggle was at the bottom of the form while the amount input was near the top — broken UX, user reported "not working properly"
+- Fix: replaced with a 2-button radio selector directly above the amount input: **Fixed** | **Variable**
+- Fixed selected → ₹ amount input appears immediately below with ₹ prefix
+- Variable selected → amber info card replaces input: "You'll enter the actual amount each month"
+- Modal header corrected: "Add New Fixed Bill" → "Add Monthly Bill"
 
 ---
 
@@ -515,7 +595,7 @@ Auto-assignment · Per-task rotation queue · Skip OOS members · Resume on retu
 Admin creates/deletes/edits tasks · Mark done (single tap) · Overdue tracking + persistence · New member auto-added to all queues · Group tasks (multi-member, sub-task per person) · Temp (one-off) tasks outside rotation
 
 ### Swap System
-Request swap · Accept/Decline · Persistent dashboard banner · Activity log tracking · Pending-swap badge on desktop sidebar and mobile Tasks nav · Swap Requests shortcut button on Tasks page (mobile)
+Request swap · Accept/Decline · Persistent dashboard banner · Activity log tracking · Pending-swap badge on desktop sidebar · Swap Requests button on member Tasks page opens bottom sheet · Swap page: 4 stat chips (Sent/Received/Accepted/Declined) + admin All Swaps toggle (flat-wide list with inline accept/decline) · Dashboard swap summary widget (clickable, links to swaps page)
 
 ### Rotation Card
 Full queue visibility · Position numbers · YOU badge · Due date + frequency display
@@ -530,14 +610,16 @@ Leave flat · Auto flat switch · Admin transfer requirement · Last-member flat
 Multiple flat memberships · FlatSwitcher (Gmail-style) · Instant switch · Join/create from inside dashboard
 
 ### Expenses & Splitwise (complete)
-**Recurring Bills:**
+**Recurring Bills (now called Monthly Bills):**
 - Admin configures monthly bills (Rent, WiFi, Water, Electricity, Gas, Maid etc.)
-- Fixed or variable amount per month
+- Fixed or variable amount per month — chosen via 2-button radio selector (Fixed/Variable) in the creation modal
 - Payer auto-rotates through a queue each month
+- **Collector field**: separate from the payer — designates who collects each member's share. Defaults to admin, changeable any month via avatar card picker in the modal. Shown in bill card header ("X collects")
 - Admin generates bills on/after billing date; variable bills prompt for actual amount
 - Bill instances tracked with status: pending → split_generated → paid / skipped
 - All payers (not just admin) can mark their bills paid
 - Marking paid auto-creates a matching expense in the Daily Splits transaction list
+- **Collection tracking**: per-member Received/Pending toggles on expanded bill instance (visible to collector + admin); `collectedFrom` map stored on instance; Firestore rule allows collector to update `collectedFrom` without admin role
 
 **Daily Splits:**
 - Ad-hoc expense log (like Splitwise) — anyone can add
@@ -578,7 +660,7 @@ Full audit trail · Real-time · Flat-wide visibility
 Firestore onSnapshot on all data · No refresh needed · Offline detection
 
 ### UI & Navigation
-Dark/light mode · Bottom nav mobile (5-slot with radial FAB) + sidebar desktop · Fully responsive · No install required · Turbopack fast loading · Pending badge counts on nav items · Radial Quick-Add FAB (Split expense / Bill / Task)
+Dark/light mode · Bottom nav mobile (5-slot with radial FAB: Dashboard · Expenses · [FAB] · Tasks · Profile — same layout for admin and member) + sidebar desktop · Fully responsive · No install required · Turbopack fast loading · Pending badge counts on nav items · Radial Quick-Add FAB (Split expense / Bill / Task for admin; Split only for member) · Member Tasks page has read-only view with compact tap-to-expand cards and swap bottom sheet
 
 ---
 
@@ -614,8 +696,8 @@ Tap FlatSwitcher → Dropdown shows all flats → Tap target flat → All data r
 ### Flow 9 — Add & Split an Expense
 Expenses Hub → Daily Splits tab → (+) FAB or Add button → Enter description, amount, category, date → Choose equal or custom split → Select who is included → Save → Appears in transaction list instantly → Balances update immediately
 
-### Flow 10 — Setting Up Recurring Bills
-Expenses Hub → Fixed Bills tab → Add Bill → Enter name, category, billing day, fixed/variable → Set rotation queue (who pays each month) → Save → Admin generates on billing date → Bill instances created with split amounts → Each payer marks their bill paid → Auto-logged in Daily Splits
+### Flow 10 — Setting Up Monthly Bills
+Expenses Hub → Monthly Bills tab → Add Monthly Bill → Enter name, category → Select Fixed or Variable amount type → Enter amount (if fixed) → Set billing day → Choose who splits → Pick Collector (avatar card, default = admin) → Save → Admin generates on billing date → Bill instances created with split amounts → Collector marks each member as Received/Pending as they pay → Each payer marks their bill paid → Auto-logged in Daily Splits
 
 ### Flow 11 — Settling a Balance
 Expenses Hub → Tap balance strip (compact) → Balances expand → See "You owe Rahul ₹2,000" → Tap "Settle" → Quick-fill "Pay full" or enter partial → Add note (UPI/cash) → Mark as Paid → Balance recomputes instantly
@@ -663,6 +745,17 @@ Goal: Validate with 5–20 real flats.
 
 ### Phase 2 — Growth (3–6 Months)
 Goal: 100+ active flats. Add features users asked for.
+
+**Done (June 2026 — Session 2026-06-16):**
+- ✅ **Mobile nav unified** — Profile in slot 5 for both admin and member. Swaps removed from member mobile nav; accessed via button on Tasks page instead
+- ✅ **Member Tasks page** — Read-only view with compact cards (tap to expand rotation details) + Swap Requests bottom sheet button at top
+- ✅ **Leave flat redirect bug fixed** — Now correctly switches to next flat (if one exists) instead of always going to /onboarding
+- ✅ **"Fixed Bills" → "Monthly Bills"** — All UI labels updated; data model unchanged
+- ✅ **Payer collection tracking** — Per-member Received/Pending toggles on bill instances; `collectedFrom` map on `BillInstance`; Firestore rule allows payer to update collection status
+- ✅ **Swap page redesign** — 4 stat chips + admin "All Swaps" toggle with flat-wide list
+- ✅ **Dashboard swap widget** — Clickable summary card on home page showing sent/received/accepted/declined counts
+- ✅ **Bill Collector field** — `collectorId` on `RecurringBill` + `BillInstance`; avatar card picker in modal; collector shown in bill card header; Firestore rule allows collector to update `collectedFrom`
+- ✅ **MonthlyBillModal redesign** — 2-button Fixed/Variable selector (replaced disconnected toggle), avatar card collector picker (replaced plain select), header text corrected
 
 **Done (June 2026 — Session 2026-06-13, Part 2):**
 - ✅ **Privacy Policy** — `app/privacy/page.tsx`. DPDP Act 2023 compliant. Covers: data collected (email, name, photo URL, tasks, expenses, activity logs), lawful basis per DPDP, third-party processors (Firebase, Vercel, WhatsApp/FCM planned), cross-border data transfer disclosure, user rights (access, correction, erasure, grievance redressal, nomination), Grievance Officer designation. Static page, no auth required.

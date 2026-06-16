@@ -135,6 +135,7 @@ export interface RecurringBill {
   createdBy: string
   createdAt: string
   lastGeneratedMonth: string  // 'yyyy-MM' or '' — prevents double-generation
+  collectorId?: string        // uid who collects money from flatmates; defaults to admin, changeable any month
 }
 
 // ── Bill Instance — transactional layer for recurring bills ────────────────────
@@ -171,6 +172,8 @@ export interface BillInstance {
   skippedReason: string | null
   generatedAt: string
   generatedBy: string
+  collectedFrom?: Record<string, boolean>  // uid → collector has received their share
+  collectorId?: string     // snapshot from template — who collects money from flatmates
 }
 
 export interface Settlement {
@@ -265,13 +268,14 @@ interface FlatState {
   deleteSettlement: (settlementId: string) => Promise<void>
   createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
   bulkCreateRecurringBills: (bills: Array<Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>>) => Promise<void>
-  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'payerMode' | 'fixedPayerUid' | 'splitMethod' | 'percentSplits' | 'customSplits' | 'isVariable' | 'active' | 'currency'>>) => Promise<void>
+  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'payerMode' | 'fixedPayerUid' | 'splitMethod' | 'percentSplits' | 'customSplits' | 'isVariable' | 'active' | 'currency' | 'collectorId'>>) => Promise<void>
   deleteRecurringBill: (billId: string) => Promise<void>
   generateBill: (billId: string, amount?: number, manualPayerUid?: string) => Promise<void>
   generateAllDueBills: (month: string) => Promise<void>
   confirmBillAmount: (instanceId: string, amount: number) => Promise<void>
   editBillInstanceAmount: (instanceId: string, amount: number) => Promise<void>
   markBillPaid: (instanceId: string) => Promise<void>
+  markBillCollected: (instanceId: string, memberUid: string, collected: boolean) => Promise<void>
   skipBillInstance: (instanceId: string, reason?: string) => Promise<void>
   deleteBillInstance: (instanceId: string) => Promise<void>
   resetMonthSplits: (month: string) => Promise<void>
@@ -563,32 +567,47 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       if (!snap.exists()) return
       const data = snap.data()
 
-      // ── Backfill for flats created before the subscription system existed ──
-      // Derive trial end from the flat's createdAt (Firestore Timestamp or string).
-      // Admin writes it to Firestore so the whole flat gets consistent state.
-      // Members can't write the flat doc — they silently get a client-only value.
+      const FREE_UNTIL = '2099-12-31T23:59:59.999Z'
+      const couponUsed = data.couponUsed as string | undefined
+
+      // ── Case 1: flat has never had subscription written (pre-subscription launch) ──
+      // Give lifetime free access — no trial countdown shown to existing users.
       if (!data.subscriptionStatus) {
-        const createdMs: number =
-          data.createdAt?.toDate?.()?.getTime?.() ??
-          (typeof data.createdAt === 'string' ? new Date(data.createdAt).getTime() : Date.now())
-        const derivedEnd = new Date(createdMs + 30 * 24 * 60 * 60 * 1000).toISOString()
-        const derivedStatus: SubscriptionStatus = new Date(derivedEnd) < new Date() ? 'expired' : 'trial'
-        // Try to persist (succeeds for admin, silently fails for members)
         try {
           await updateDoc(doc(db, `flats/${flatId}`), {
-            subscriptionStatus: 'trial',
-            trialEndDate: derivedEnd,
+            subscriptionStatus: 'active',
+            trialEndDate: FREE_UNTIL,
+            couponUsed: 'LEGACY_FREE',
           })
         } catch { /* member — no write permission, local state is enough */ }
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
-          subscription: { status: derivedStatus, trialEndDate: derivedEnd },
+          subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
         })
         return
       }
 
+      // ── Case 2: bad backfill already ran — flat is expired but never used a real coupon ──
+      // The old backfill wrote createdAt+30d which expired existing flats. Undo that.
       const rawStatus = data.subscriptionStatus as SubscriptionStatus
+      if (rawStatus === 'expired' && !couponUsed) {
+        try {
+          await updateDoc(doc(db, `flats/${flatId}`), {
+            subscriptionStatus: 'active',
+            trialEndDate: FREE_UNTIL,
+            couponUsed: 'LEGACY_FREE',
+          })
+        } catch { /* member */ }
+        set({
+          name: data.name || null,
+          joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+          subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
+        })
+        return
+      }
+
+      // ── Normal path: subscription status already set correctly ──
       const trialEndDate = (data.trialEndDate as string | undefined) ?? null
       const effectiveStatus: SubscriptionStatus =
         rawStatus === 'trial' && trialEndDate && new Date(trialEndDate) < new Date()
@@ -597,7 +616,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({
         name: data.name || null,
         joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
-        subscription: { status: effectiveStatus, trialEndDate, couponUsed: data.couponUsed },
+        subscription: { status: effectiveStatus, trialEndDate, couponUsed },
       })
     }, (err) => console.warn('Flat doc listener error:', err))
 
@@ -1314,6 +1333,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       skippedReason: null,
       generatedAt: new Date().toISOString(),
       generatedBy: uid,
+      collectorId: bill.collectorId,
     }
 
     if (hasKeys && state.flatId) {
@@ -1422,6 +1442,22 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       action: 'bill_paid',
       details: `marked ${instance.name} as paid`,
     })
+  },
+
+  markBillCollected: async (instanceId, memberUid, collected) => {
+    const state = get()
+    if (!state.flatId) return
+    const changes = { [`collectedFrom.${memberUid}`]: collected }
+    set(s => ({
+      billInstances: s.billInstances.map(b =>
+        b.id === instanceId
+          ? { ...b, collectedFrom: { ...(b.collectedFrom ?? {}), [memberUid]: collected } }
+          : b
+      ),
+    }))
+    if (hasKeys && db) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    }
   },
 
   skipBillInstance: async (instanceId, reason?) => {

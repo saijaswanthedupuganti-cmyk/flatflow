@@ -148,6 +148,8 @@ export default function ProfilePage() {
       } catch { /* ignore */ }
       const { nextFlatId } = await leaveFlat(user.uid)
       if (nextFlatId) {
+        await switchFlat(nextFlatId)
+        initFirestoreListeners(nextFlatId)
         router.push('/dashboard')
       } else {
         await logout()
@@ -174,6 +176,8 @@ export default function ProfilePage() {
       const { nextFlatId } = await leaveFlat(user.uid)
       setShowTransferAdmin(false)
       if (nextFlatId) {
+        await switchFlat(nextFlatId)
+        initFirestoreListeners(nextFlatId)
         router.push('/dashboard')
       } else {
         await logout()

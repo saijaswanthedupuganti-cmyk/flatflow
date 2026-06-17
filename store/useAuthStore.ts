@@ -12,6 +12,7 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   updateProfile,
+  sendPasswordResetEmail,
 } from 'firebase/auth'
 
 /** Detect mobile browsers — redirect is more reliable than popup on mobile */
@@ -50,6 +51,7 @@ interface AuthState {
   loginWithGoogle: () => Promise<void>
   loginWithEmail: (email: string, pass: string) => Promise<void>
   signUpWithEmail: (email: string, pass: string, nickname: string) => Promise<void>
+  resetPassword: (email: string) => Promise<void>
   loginAsAdminMock: () => void
   loginAsMemberMock: () => void
   logout: () => Promise<void>
@@ -116,6 +118,14 @@ export const useAuthStore = create<AuthState>()(
           return
         }
         await signInWithEmailAndPassword(auth, email, pass)
+      },
+
+      resetPassword: async (email) => {
+        if (!hasKeys) {
+          alert('Firebase is not configured.')
+          return
+        }
+        await sendPasswordResetEmail(auth, email)
       },
 
       signUpWithEmail: async (email, pass, nickname) => {

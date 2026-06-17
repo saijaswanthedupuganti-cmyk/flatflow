@@ -188,6 +188,7 @@ export default function TrustTagCard({ uid, flatId, joinedAt }: Props) {
   }
 
   // ── Opted in: tag card ─────────────────────────────────────────────────────
+  if (!tag) return null
   const t = TIER[tag.tier]
   const pct = Math.round(tag.choreOnTimeRate * 100)
 

@@ -104,17 +104,18 @@ function MagButton({ children, className, onClick, style, disabled, type = "butt
 // ── Auth Form (dropdown + inline variants) ───────────────────────────────────
 export function AuthForm({ onClose, inline = false }: { onClose?: () => void; inline?: boolean }) {
   const {
-    loginWithGoogle, loginWithEmail, signUpWithEmail,
+    loginWithGoogle, loginWithEmail, signUpWithEmail, resetPassword,
     loginAsAdminMock, loginAsMemberMock,
     redirectError, clearRedirectError,
   } = useAuthStore()
 
-  const [mode, setMode]       = useState<"in" | "up">("in")
-  const [email, setEmail]     = useState("")
-  const [pw, setPw]           = useState("")
-  const [nick, setNick]       = useState("")
-  const [err, setErr]         = useState("")
-  const [loading, setLoading] = useState(false)
+  const [mode, setMode]           = useState<"in" | "up" | "reset">("in")
+  const [email, setEmail]         = useState("")
+  const [pw, setPw]               = useState("")
+  const [nick, setNick]           = useState("")
+  const [err, setErr]             = useState("")
+  const [loading, setLoading]     = useState(false)
+  const [resetSent, setResetSent] = useState(false)
 
   useEffect(() => {
     if (redirectError) { setErr(redirectError); clearRedirectError?.() }
@@ -149,6 +150,22 @@ export function AuthForm({ onClose, inline = false }: { onClose?: () => void; in
     try { await loginWithGoogle() } catch (err) { const m = toMsg(err); if (m) setErr(m); setLoading(false) }
   }
 
+  async function onReset(e: React.FormEvent) {
+    e.preventDefault(); setErr(""); setLoading(true)
+    try {
+      await resetPassword(email.trim())
+      setResetSent(true)
+    } catch (err) {
+      const c = (err as { code?: string })?.code ?? ""
+      if (c.includes("user-not-found")) {
+        // Don't leak whether the email exists — show success anyway
+        setResetSent(true)
+      } else {
+        setErr("Failed to send reset email. Try again.")
+      }
+    } finally { setLoading(false) }
+  }
+
   const inp = [
     "w-full h-10 px-3.5 rounded-xl text-sm text-white",
     "bg-white/[0.06] border border-white/[0.1]",
@@ -157,7 +174,90 @@ export function AuthForm({ onClose, inline = false }: { onClose?: () => void; in
     "transition-all duration-200",
   ].join(" ")
 
-  const formBody = (
+  const closeButton = !inline && onClose && (
+    <button
+      onClick={onClose}
+      className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer shrink-0"
+      aria-label="Close"
+    >
+      <X size={13} />
+    </button>
+  )
+
+  const formBody = mode === "reset" ? (
+    <>
+      {/* Reset password header */}
+      <div className="flex items-center justify-between mb-4">
+        <div>
+          <p className="text-white font-semibold text-[15px] leading-tight">Reset password</p>
+          <p className="text-white/35 text-[11px] mt-0.5">
+            {resetSent ? "Check your inbox" : "We'll email you a reset link"}
+          </p>
+        </div>
+        {closeButton}
+      </div>
+
+      {resetSent ? (
+        <div className="flex flex-col items-center text-center gap-3 py-2">
+          <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/25 flex items-center justify-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#34d399" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20 6L9 17l-5-5"/>
+            </svg>
+          </div>
+          <p className="text-white/70 text-[12.5px] leading-relaxed max-w-[220px]">
+            If an account exists for <span className="text-white font-medium">{email}</span>, a reset link is on its way.
+          </p>
+          <button
+            onClick={() => { setMode("in"); setResetSent(false); setErr("") }}
+            className="text-violet-400 text-[11.5px] hover:text-violet-300 transition-colors cursor-pointer mt-1"
+          >
+            ← Back to sign in
+          </button>
+        </div>
+      ) : (
+        <>
+          <AnimatePresence>
+            {err && (
+              <motion.p
+                initial={{ opacity: 0, y: -4, height: 0 }}
+                animate={{ opacity: 1, y: 0, height: "auto" }}
+                exit={{ opacity: 0, y: -4, height: 0 }}
+                className="text-red-400 text-xs font-medium mb-3 px-3 py-2 bg-red-500/10 border border-red-500/20 rounded-xl overflow-hidden"
+              >
+                {err}
+              </motion.p>
+            )}
+          </AnimatePresence>
+          <form onSubmit={onReset} className="flex flex-col gap-2">
+            <input
+              type="email"
+              placeholder="Your email address"
+              value={email}
+              maxLength={254}
+              onChange={e => setEmail(e.target.value)}
+              className={inp}
+              required
+              autoFocus
+            />
+            <MagButton
+              type="submit"
+              disabled={loading}
+              className="relative overflow-hidden w-full h-10 rounded-xl font-semibold text-white text-sm mt-0.5 disabled:opacity-50"
+              style={{ background: "linear-gradient(135deg, #7c3aed, #4f46e5)", boxShadow: "0 4px 16px rgba(124,58,237,0.35)" }}
+            >
+              <span className="relative z-10">{loading ? "Sending…" : "Send Reset Link"}</span>
+            </MagButton>
+          </form>
+          <button
+            onClick={() => { setMode("in"); setErr("") }}
+            className="w-full text-white/28 text-[11.5px] text-center hover:text-white/55 transition-colors cursor-pointer mt-3"
+          >
+            ← Back to sign in
+          </button>
+        </>
+      )}
+    </>
+  ) : (
     <>
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
@@ -169,15 +269,7 @@ export function AuthForm({ onClose, inline = false }: { onClose?: () => void; in
             {mode === "in" ? "Sign in to your Habitiq account" : "Start managing your flat today"}
           </p>
         </div>
-        {!inline && onClose && (
-          <button
-            onClick={onClose}
-            className="w-7 h-7 rounded-lg flex items-center justify-center text-white/30 hover:text-white hover:bg-white/[0.08] transition-all cursor-pointer shrink-0"
-            aria-label="Close"
-          >
-            <X size={13} />
-          </button>
-        )}
+        {closeButton}
       </div>
 
       {/* Error */}
@@ -218,8 +310,19 @@ export function AuthForm({ onClose, inline = false }: { onClose?: () => void; in
         )}
         <input type="email" placeholder="Email address" value={email} maxLength={254}
           onChange={e => setEmail(e.target.value)} className={inp} required />
-        <input type="password" placeholder="Password" value={pw} minLength={6} maxLength={128}
-          onChange={e => setPw(e.target.value)} className={inp} required />
+        <div className="relative">
+          <input type="password" placeholder="Password" value={pw} minLength={6} maxLength={128}
+            onChange={e => setPw(e.target.value)} className={inp} required />
+          {mode === "in" && (
+            <button
+              type="button"
+              onClick={() => { setMode("reset"); setErr("") }}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-white/30 text-[11px] hover:text-violet-400 transition-colors cursor-pointer whitespace-nowrap"
+            >
+              Forgot?
+            </button>
+          )}
+        </div>
 
         <MagButton
           type="submit"

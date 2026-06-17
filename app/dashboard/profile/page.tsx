@@ -9,9 +9,12 @@ import {
   Home, LogOut, Shield, ShieldCheck, Users, Star, ArrowRight,
   Copy, Check, LogIn, Plus, Building2, ChevronRight,
   Sun, Moon, AlertTriangle, DoorOpen, X, Download, Smartphone, Share, CheckCircle2, Info,
+  Ticket, Crown, Clock, Lock,
 } from 'lucide-react'
 import { usePWA } from '@/contexts/PWAContext'
 import TrustTagCard from '@/components/TrustTagCard'
+import { useSubscription } from '@/hooks/useSubscription'
+import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 
 interface DialogProps {
   open: boolean
@@ -60,7 +63,10 @@ export default function ProfilePage() {
   const { members, name: currentFlatName, flatId, resetFlatData, initFirestoreListeners, leaveFlat, transferAdmin, deleteFlat } = useFlatStore()
 
   const { canInstall, isInstalled, isIOS, triggerInstall } = usePWA()
+  const { isActive, isExpired, daysLeft, can } = useSubscription()
+  const subscription = useFlatStore(s => s.subscription)
 
+  const [showSubUpsell, setShowSubUpsell] = useState(false)
   const [switching, setSwitching] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [isDark, setIsDark] = useState(false)
@@ -325,6 +331,94 @@ export default function ProfilePage() {
               : String(currentMember.joinedAt)}
           />
         )}
+
+        {/* ── Subscription Status ── */}
+        {subscription && (
+          <Card className={`shadow-sm overflow-hidden ${
+            isExpired ? 'border-red-300 dark:border-red-800' :
+            subscription.status === 'active' ? 'border-emerald-300 dark:border-emerald-800' :
+            'border-amber-300 dark:border-amber-800'
+          }`}>
+            <CardContent className="p-0">
+              {/* Header band */}
+              <div className={`px-5 py-4 flex items-center justify-between ${
+                isExpired ? 'bg-red-50 dark:bg-red-950/30' :
+                subscription.status === 'active' ? 'bg-emerald-50 dark:bg-emerald-950/30' :
+                'bg-amber-50 dark:bg-amber-950/30'
+              }`}>
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-xl flex items-center justify-center ${
+                    isExpired ? 'bg-red-100 dark:bg-red-900/40' :
+                    subscription.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-900/40' :
+                    'bg-amber-100 dark:bg-amber-900/40'
+                  }`}>
+                    {isExpired ? <Lock size={16} className="text-red-600 dark:text-red-400" /> :
+                     subscription.status === 'active' ? <Crown size={16} className="text-emerald-600 dark:text-emerald-400" /> :
+                     <Clock size={16} className="text-amber-600 dark:text-amber-400" />}
+                  </div>
+                  <div>
+                    <p className={`text-sm font-extrabold ${
+                      isExpired ? 'text-red-700 dark:text-red-400' :
+                      subscription.status === 'active' ? 'text-emerald-700 dark:text-emerald-400' :
+                      'text-amber-700 dark:text-amber-400'
+                    }`}>
+                      {isExpired ? 'Subscription Expired' :
+                       subscription.status === 'active' ? 'Premium Active' :
+                       `Trial — ${daysLeft} day${daysLeft !== 1 ? 's' : ''} left`}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground mt-0.5">
+                      {isExpired ? 'Enter a coupon to restore full access' :
+                       subscription.status === 'active' ? (subscription.couponUsed && subscription.couponUsed !== 'LEGACY_FREE' ? `Unlocked with coupon` : 'All features enabled') :
+                       'Create tasks, expenses & bills while trial lasts'}
+                    </p>
+                  </div>
+                </div>
+                <span className={`text-[10px] font-extrabold px-2.5 py-1 rounded-full ${
+                  isExpired ? 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400' :
+                  subscription.status === 'active' ? 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-400' :
+                  'bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400'
+                }`}>
+                  {isExpired ? 'EXPIRED' : subscription.status === 'active' ? 'ACTIVE' : 'TRIAL'}
+                </span>
+              </div>
+
+              {/* Feature access summary */}
+              <div className="px-5 py-3 border-t border-border grid grid-cols-2 gap-x-4 gap-y-2">
+                {[
+                  { label: 'View dashboard', allowed: true },
+                  { label: 'Mark tasks done', allowed: true },
+                  { label: 'Create tasks', allowed: can('create_task') },
+                  { label: 'Add expenses', allowed: can('add_expense') },
+                  { label: 'Recurring bills', allowed: can('create_bill') },
+                  { label: 'Admin controls', allowed: can('create_task') },
+                ].map(({ label, allowed }) => (
+                  <div key={label} className="flex items-center gap-1.5">
+                    <CheckCircle2 size={12} className={allowed ? 'text-emerald-500' : 'text-muted-foreground/30'} />
+                    <span className={`text-[12px] ${allowed ? 'text-foreground' : 'text-muted-foreground/50 line-through'}`}>{label}</span>
+                  </div>
+                ))}
+              </div>
+
+              {/* CTA */}
+              {(isExpired || subscription.status === 'trial') && (
+                <div className="px-5 pb-4 pt-1">
+                  <button
+                    onClick={() => setShowSubUpsell(true)}
+                    className={`w-full py-2.5 rounded-xl text-sm font-bold flex items-center justify-center gap-2 cursor-pointer transition-colors ${
+                      isExpired
+                        ? 'bg-red-600 hover:bg-red-700 text-white'
+                        : 'bg-amber-500 hover:bg-amber-600 text-white'
+                    }`}
+                  >
+                    <Ticket size={14} /> Enter Coupon Code
+                  </button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
+
+        {showSubUpsell && <SubscriptionUpsell feature="create_task" onClose={() => setShowSubUpsell(false)} />}
 
         {/* ── Current Flat ── */}
         <div>

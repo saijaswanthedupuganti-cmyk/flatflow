@@ -573,49 +573,49 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       if (!snap.exists()) return
       const data = snap.data()
 
-      const FREE_UNTIL = '2099-12-31T23:59:59.999Z'
       const couponUsed = data.couponUsed as string | undefined
+      const rawStatus = data.subscriptionStatus as SubscriptionStatus | undefined
 
-      // ── Case 1: flat has never had subscription written (pre-subscription launch) ──
-      // Give lifetime free access — no trial countdown shown to existing users.
-      if (!data.subscriptionStatus) {
+      // ── Case 1: no subscription data yet (flat pre-dates subscription launch) ──
+      // Grant a 90-day trial from today so existing users aren't immediately blocked.
+      if (!rawStatus) {
+        const trialEnd = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
         try {
           await updateDoc(doc(db, `flats/${flatId}`), {
-            subscriptionStatus: 'active',
-            trialEndDate: FREE_UNTIL,
-            couponUsed: 'LEGACY_FREE',
+            subscriptionStatus: 'trial',
+            trialEndDate: trialEnd,
           })
         } catch { /* member — no write permission, local state is enough */ }
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
-          subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
+          subscription: { status: 'trial', trialEndDate: trialEnd },
           vacancy: (data.vacancy as VacancyListing) ?? null,
         })
         return
       }
 
-      // ── Case 2: bad backfill already ran — flat is expired but never used a real coupon ──
-      // The old backfill wrote createdAt+30d which expired existing flats. Undo that.
-      const rawStatus = data.subscriptionStatus as SubscriptionStatus
-      if (rawStatus === 'expired' && !couponUsed) {
+      // ── LEGACY_FREE flats: old backfill granted year-2099 access ──
+      // Give them a 90-day trial from today so they're not instantly blocked.
+      if (couponUsed === 'LEGACY_FREE') {
+        const trialEnd = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString()
         try {
           await updateDoc(doc(db, `flats/${flatId}`), {
-            subscriptionStatus: 'active',
-            trialEndDate: FREE_UNTIL,
-            couponUsed: 'LEGACY_FREE',
+            subscriptionStatus: 'trial',
+            trialEndDate: trialEnd,
+            couponUsed: null,
           })
         } catch { /* member */ }
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
-          subscription: { status: 'active', trialEndDate: FREE_UNTIL, couponUsed: 'LEGACY_FREE' },
+          subscription: { status: 'trial', trialEndDate: trialEnd },
           vacancy: (data.vacancy as VacancyListing) ?? null,
         })
         return
       }
 
-      // ── Normal path: subscription status already set correctly ──
+      // ── Normal path: real subscription status ──
       const trialEndDate = (data.trialEndDate as string | undefined) ?? null
       const effectiveStatus: SubscriptionStatus =
         rawStatus === 'trial' && trialEndDate && new Date(trialEndDate) < new Date()

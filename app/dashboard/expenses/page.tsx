@@ -13,6 +13,8 @@ import {
   type SuggestedSettlement,
 } from '@/lib/settlementUtils'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useSubscription } from '@/hooks/useSubscription'
+import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 import { computeBalances, formatAmount, type Balance } from '@/lib/expenseUtils'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -2078,9 +2080,21 @@ export default function ExpensesPage() {
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
   } = useFlatStore()
   const { user } = useAuthStore()
+  const { can } = useSubscription()
 
   const [showAddExpense, setShowAddExpense] = useState(false)
   const [showAddBill, setShowAddBill] = useState(false)
+  const [showExpenseUpsell, setShowExpenseUpsell] = useState(false)
+  const [upsellFeature, setUpsellFeature] = useState<'add_expense' | 'create_bill'>('add_expense')
+
+  const tryAddExpense = () => {
+    if (!can('add_expense')) { setUpsellFeature('add_expense'); setShowExpenseUpsell(true); return }
+    setShowAddExpense(true)
+  }
+  const tryAddBill = () => {
+    if (!can('create_bill')) { setUpsellFeature('create_bill'); setShowExpenseUpsell(true); return }
+    setShowAddBill(true)
+  }
   const [showExpenseTypePicker, setShowExpenseTypePicker] = useState(false)
   const [splitView, setSplitView] = useState<'mine' | 'all'>('mine')
   const [showAllSplits, setShowAllSplits] = useState(false)
@@ -3205,7 +3219,7 @@ export default function ExpensesPage() {
             </div>
             <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
-                onClick={() => isAdmin ? setShowExpenseTypePicker(true) : setShowAddExpense(true)}
+                onClick={() => can('add_expense') ? (isAdmin ? setShowExpenseTypePicker(true) : setShowAddExpense(true)) : (setUpsellFeature('add_expense'), setShowExpenseUpsell(true))}
                 className="flex items-center gap-1.5 bg-[#3786FB] hover:bg-[#2672e6] text-white text-[12px] font-bold px-3.5 py-2 rounded-full shadow-[0px_4px_12px_rgba(55,134,251,0.30)] transition-colors cursor-pointer"
               >
                 <Plus size={13} /> Add Expense
@@ -3618,7 +3632,7 @@ export default function ExpensesPage() {
                   <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
                     Record groceries, takeout, or any shared cost and split it automatically.
                   </p>
-                  <Button onClick={() => setShowAddExpense(true)} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
+                  <Button onClick={tryAddExpense} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
                     <Plus size={14} className="mr-1.5" /> Add Expense
                   </Button>
                 </CardContent>
@@ -3709,7 +3723,7 @@ export default function ExpensesPage() {
                   <Zap size={13} className="mr-1" /> Generate All
                 </Button>
               )}
-              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={() => setShowAddBill(true)}>
+              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
                 <Plus size={13} className="mr-1" /> Add Monthly Bill
               </Button>
             </div>
@@ -3728,7 +3742,7 @@ export default function ExpensesPage() {
                     <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
                       <Sparkles size={14} className="mr-1.5" /> Quick Setup
                     </Button>
-                    <Button className="font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={() => setShowAddBill(true)}>
+                    <Button className="font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
                       <Plus size={14} className="mr-1.5" /> Add Monthly Bill
                     </Button>
                   </div>
@@ -4383,7 +4397,7 @@ export default function ExpensesPage() {
             </div>
             <div className="px-4 pb-5 space-y-3">
               <button
-                onClick={() => { setShowExpenseTypePicker(false); setShowAddExpense(true) }}
+                onClick={() => { setShowExpenseTypePicker(false); tryAddExpense() }}
                 className="w-full text-left flex items-start gap-4 p-4 rounded-[18px] border-2 border-[#3786FB]/20 bg-[#3786FB]/5 hover:bg-[#3786FB]/10 hover:border-[#3786FB]/40 transition-all cursor-pointer group"
               >
                 <div className="w-11 h-11 rounded-[14px] bg-[#3786FB]/15 group-hover:bg-[#3786FB]/25 flex items-center justify-center shrink-0 transition-colors">
@@ -4395,7 +4409,7 @@ export default function ExpensesPage() {
                 </div>
               </button>
               <button
-                onClick={() => { setShowExpenseTypePicker(false); setShowAddBill(true) }}
+                onClick={() => { setShowExpenseTypePicker(false); tryAddBill() }}
                 className="w-full text-left flex items-start gap-4 p-4 rounded-[18px] border-2 border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 hover:border-violet-500/40 transition-all cursor-pointer group"
               >
                 <div className="w-11 h-11 rounded-[14px] bg-violet-500/15 group-hover:bg-violet-500/25 flex items-center justify-center shrink-0 transition-colors">
@@ -4428,6 +4442,8 @@ export default function ExpensesPage() {
           onSave={async (data) => { await updateRecurringBill(editBill.id, data) }}
           onClose={() => setEditBill(null)} />
       )}
+      {showExpenseUpsell && <SubscriptionUpsell feature={upsellFeature} onClose={() => setShowExpenseUpsell(false)} />}
+
       {/* Quick settle bottom sheet */}
       {quickSettle && (() => {
         const m = members.find(x => x.uid === quickSettle.userId)

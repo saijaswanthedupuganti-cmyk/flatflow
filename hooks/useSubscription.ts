@@ -9,6 +9,8 @@ export type GatedFeature =
 export interface SubscriptionInfo {
   /** true = trial active or coupon applied — full access */
   isActive: boolean
+  /** true = coupon redeemed (status === 'active') — show crown/premium treatment */
+  isPremium: boolean
   /** true = trial ended, no coupon yet */
   isExpired: boolean
   /** Days remaining in trial (0 when expired) */
@@ -32,28 +34,32 @@ export function useSubscription(): SubscriptionInfo {
   if (!subscription) {
     return {
       isActive: true,
+      isPremium: false,
       isExpired: false,
       daysLeft: 30,
       can: () => true,
-      maxFlats: 6,
+      maxFlats: 1,
     }
   }
 
   const isActive = subscription.status === 'trial' || subscription.status === 'active'
+  const isPremium = subscription.status === 'active'
   const isExpired = subscription.status === 'expired'
   const daysLeft = daysRemaining(subscription.trialEndDate)
 
-  // Premium (active coupon/subscription) = 6 flats; free/trial/expired = 1
-  const maxFlats = subscription.status === 'active' ? 6 : 1
+  // Premium (active coupon) = 3 flats; free/trial/expired = 1
+  const maxFlats = subscription.status === 'active' ? 3 : 1
 
   const BLOCKED_WHEN_EXPIRED: GatedFeature[] = [
     'create_task',
     'create_flat',
+    'add_expense',
     'create_bill',
   ]
 
   return {
     isActive,
+    isPremium,
     isExpired,
     daysLeft,
     maxFlats,

@@ -14,6 +14,17 @@ export type CouponResult =
   | { success: true; durationDays: number; type: CouponDoc['type'] }
   | { success: false; error: string }
 
+// Built-in coupon codes — work without a Firestore document.
+// All codes grant 90 days. No lifetime, no 365-day access.
+// HABITIQ-BETA  → founder / internal testing team only
+// EARLYBIRD-2026 → early adopter promotion
+// HAB-WELCOME   → general welcome code shown publicly in the upsell modal
+const BUILT_IN_COUPONS: Record<string, Omit<CouponDoc, 'code' | 'usedBy'>> = {
+  'HABITIQ-BETA':   { durationDays: 90, maxUses: -1, type: 'full_unlock' },
+  'EARLYBIRD-2026': { durationDays: 90, maxUses: -1, type: 'trial_extend' },
+  'HAB-WELCOME':    { durationDays: 90, maxUses: -1, type: 'full_unlock' },
+}
+
 export async function validateAndRedeemCoupon(
   flatId: string,
   rawCode: string,
@@ -21,9 +32,30 @@ export async function validateAndRedeemCoupon(
   const code = rawCode.toUpperCase().trim()
   if (!code) return { success: false, error: 'Please enter a coupon code.' }
 
+  // ── Check built-in codes first (always work, no Firestore doc needed) ──
+  const builtin = BUILT_IN_COUPONS[code]
+  if (builtin) {
+    const newEndDate =
+      builtin.durationDays === -1
+        ? new Date('2099-12-31').toISOString()
+        : new Date(Date.now() + builtin.durationDays * 24 * 60 * 60 * 1000).toISOString()
+    if (hasKeys && db) {
+      try {
+        await updateDoc(doc(db, `flats/${flatId}`), {
+          subscriptionStatus: 'active',
+          trialEndDate: newEndDate,
+          couponUsed: code,
+        })
+      } catch {
+        return { success: false, error: 'Failed to activate. Please try again.' }
+      }
+    }
+    return { success: true, durationDays: builtin.durationDays, type: builtin.type }
+  }
+
   if (!hasKeys || !db) {
     // Mock mode — any code unlocks forever
-    return { success: true, durationDays: 365, type: 'full_unlock' }
+    return { success: true, durationDays: -1, type: 'full_unlock' }
   }
 
   const couponRef = doc(db, `coupons/${code}`)

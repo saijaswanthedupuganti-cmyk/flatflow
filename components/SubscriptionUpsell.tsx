@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, Ticket, ShieldCheck, Loader2, AlertTriangle,
-  ClipboardList, LayoutDashboard, Receipt, CheckCircle2, Lock,
+  ClipboardList, LayoutDashboard, Receipt, CheckCircle2, Lock, Crown, Sparkles,
 } from 'lucide-react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { validateAndRedeemCoupon } from '@/lib/couponService'
@@ -17,7 +17,7 @@ const FEATURE_COPY: Record<GatedFeature, { title: string; subtitle: string }> = 
   },
   create_flat: {
     title: 'You\'ve reached your flat limit',
-    subtitle: 'Free access covers 1 flat. Subscribe to create up to 3 flats and join 3 more — 6 total.',
+    subtitle: 'Free access covers 1 flat. Subscribe to create and manage up to 3 flats.',
   },
   add_expense: {
     title: 'Adding expenses needs a subscription',
@@ -118,13 +118,12 @@ function CouponForm({ flatId, onSuccess }: { flatId: string; onSuccess: (days: n
 
 /* ── Celebration view ────────────────────────────────────────────────────── */
 function CelebrationView({ days, onClose }: { days: number; onClose: () => void }) {
-  const isForever = days === -1 || days > 365
-  const accessLabel = isForever ? 'Lifetime access activated' : `${days} days of full access`
+  const accessLabel = `${days} days of Premium`
 
   return (
     <div
       className="fixed inset-0 z-[350] flex items-center justify-center p-4 overflow-hidden"
-      style={{ background: 'rgba(0,0,0,0.82)', backdropFilter: 'blur(10px)' }}
+      style={{ background: 'rgba(0,0,0,0.88)', backdropFilter: 'blur(14px)' }}
     >
       {/* Confetti rain */}
       {CONFETTI_PIECES.map((c, i) => (
@@ -145,73 +144,86 @@ function CelebrationView({ days, onClose }: { days: number; onClose: () => void 
 
       {/* Card */}
       <div
-        className="relative w-full max-w-sm bg-card rounded-[28px] shadow-2xl border border-border overflow-hidden"
-        style={{ animation: 'celebration-card-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) both' }}
+        className="relative w-full max-w-sm rounded-[32px] shadow-[0_32px_80px_rgba(0,0,0,0.6)] overflow-hidden"
+        style={{
+          background: 'linear-gradient(160deg, #0f1a0f 0%, #0a1f14 50%, #0d2010 100%)',
+          border: '1px solid rgba(16,185,129,0.25)',
+          animation: 'celebration-card-in 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) both',
+        }}
       >
-        {/* Emerald gradient header */}
-        <div className="relative bg-gradient-to-br from-emerald-500 via-teal-500 to-emerald-600 px-6 pt-10 pb-16 flex flex-col items-center">
+        {/* Gold shimmer line at top */}
+        <div className="h-px w-full" style={{ background: 'linear-gradient(90deg, transparent, #10b981, #34d399, #10b981, transparent)' }} />
+
+        {/* Header */}
+        <div className="relative px-6 pt-8 pb-14 flex flex-col items-center overflow-hidden">
+          {/* Glow blob */}
+          <div className="absolute -top-10 left-1/2 -translate-x-1/2 w-48 h-48 rounded-full pointer-events-none" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.18) 0%, transparent 70%)' }} />
+
+          {/* Pulse rings */}
+          <div className="absolute w-28 h-28 rounded-full" style={{ border: '1px solid rgba(52,211,153,0.25)', animation: 'ring-expand 2s ease-out 0.3s infinite' }} />
+          <div className="absolute w-28 h-28 rounded-full" style={{ border: '1px solid rgba(52,211,153,0.12)', animation: 'ring-expand 2s ease-out 0.8s infinite' }} />
+
+          {/* Crown icon */}
+          <div
+            className="relative z-10 w-22 h-22 flex flex-col items-center justify-center"
+            style={{ animation: 'unlock-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both' }}
+          >
+            <div className="w-20 h-20 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(16,185,129,0.5)]" style={{ background: 'linear-gradient(145deg, #059669, #10b981, #34d399)' }}>
+              <Crown size={36} className="text-white" style={{ filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.3))' }} />
+            </div>
+          </div>
+
+          {/* Premium badge */}
+          <div
+            className="mt-4 flex items-center gap-1.5 px-3 py-1 rounded-full"
+            style={{ background: 'rgba(52,211,153,0.12)', border: '1px solid rgba(52,211,153,0.25)', animation: 'stagger-up 0.4s ease-out 0.35s both' }}
+          >
+            <Sparkles size={10} className="text-emerald-400" />
+            <span className="text-[10px] font-extrabold text-emerald-400 tracking-widest uppercase">Premium Activated</span>
+          </div>
 
           {/* Close */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 p-1.5 rounded-full bg-white/15 hover:bg-white/25 text-white transition-colors cursor-pointer"
+            className="absolute top-4 right-4 p-1.5 rounded-full transition-colors cursor-pointer"
+            style={{ background: 'rgba(255,255,255,0.07)' }}
             aria-label="Close"
           >
-            <X size={16} />
+            <X size={15} className="text-white/50" />
           </button>
-
-          {/* Pulse rings */}
-          <div
-            className="absolute w-24 h-24 rounded-full bg-white/25"
-            style={{ animation: 'ring-expand 1.8s ease-out 0.3s infinite' }}
-          />
-          <div
-            className="absolute w-24 h-24 rounded-full bg-white/15"
-            style={{ animation: 'ring-expand 1.8s ease-out 0.75s infinite' }}
-          />
-
-          {/* Icon */}
-          <div
-            className="relative z-10 w-20 h-20 rounded-full bg-white shadow-2xl flex items-center justify-center"
-            style={{ animation: 'unlock-pop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.1s both' }}
-          >
-            <ShieldCheck size={38} className="text-emerald-500" />
-          </div>
         </div>
 
-        {/* Floating content card */}
+        {/* Floating content */}
         <div
-          className="-mt-6 mx-4 bg-card border border-border rounded-2xl shadow-lg px-5 pt-5 pb-4 mb-4 space-y-4"
-          style={{ animation: 'stagger-up 0.5s ease-out 0.2s both' }}
+          className="-mt-8 mx-4 rounded-2xl px-5 pt-5 pb-4 mb-4 space-y-4"
+          style={{
+            background: 'rgba(255,255,255,0.04)',
+            border: '1px solid rgba(255,255,255,0.07)',
+            animation: 'stagger-up 0.5s ease-out 0.2s both',
+          }}
         >
           {/* Heading */}
-          <div className="text-center space-y-1">
-            <p
-              className="text-[22px] font-black text-foreground leading-tight"
-              style={{ animation: 'stagger-up 0.4s ease-out 0.3s both' }}
-            >
-              You&apos;re unlocked!
+          <div className="text-center space-y-0.5" style={{ animation: 'stagger-up 0.4s ease-out 0.3s both' }}>
+            <p className="text-[24px] font-black text-white leading-tight">
+              Welcome to Premium 🎉
             </p>
-            <p
-              className="text-[13px] font-semibold text-emerald-600 dark:text-emerald-400"
-              style={{ animation: 'stagger-up 0.4s ease-out 0.38s both' }}
-            >
-              {accessLabel}
+            <p className="text-[13px] font-semibold text-emerald-400">
+              {accessLabel} unlocked
             </p>
           </div>
 
           {/* Feature list */}
-          <div className="space-y-2.5">
+          <div className="space-y-2">
             {PREMIUM_FEATURES.map(({ label }, i) => (
               <div
                 key={label}
                 className="flex items-center gap-3"
                 style={{ animation: `stagger-up 0.35s ease-out ${0.45 + i * 0.07}s both` }}
               >
-                <div className="w-6 h-6 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center shrink-0">
-                  <CheckCircle2 size={13} className="text-emerald-600 dark:text-emerald-400" />
+                <div className="w-5 h-5 rounded-full flex items-center justify-center shrink-0" style={{ background: 'rgba(16,185,129,0.18)' }}>
+                  <CheckCircle2 size={12} className="text-emerald-400" />
                 </div>
-                <span className="text-[13px] font-medium">{label}</span>
+                <span className="text-[13px] font-medium text-white/80">{label}</span>
               </div>
             ))}
           </div>
@@ -219,19 +231,26 @@ function CelebrationView({ days, onClose }: { days: number; onClose: () => void 
           {/* CTA */}
           <button
             onClick={onClose}
-            className="w-full py-3.5 rounded-xl bg-emerald-500 hover:bg-emerald-600 active:scale-[0.98] text-white font-bold text-[14px] transition-all cursor-pointer shadow-[0_4px_16px_rgba(16,185,129,0.35)]"
-            style={{ animation: 'stagger-up 0.4s ease-out 0.75s both' }}
+            className="w-full py-3.5 rounded-xl font-bold text-[14px] text-white transition-all cursor-pointer active:scale-[0.98]"
+            style={{
+              background: 'linear-gradient(135deg, #059669, #10b981)',
+              boxShadow: '0 4px 24px rgba(16,185,129,0.4)',
+              animation: 'stagger-up 0.4s ease-out 0.75s both',
+            }}
           >
-            Start exploring →
+            Start using Premium →
           </button>
 
           <p
-            className="text-center text-[11px] text-muted-foreground pb-1"
-            style={{ animation: 'stagger-up 0.4s ease-out 0.82s both' }}
+            className="text-center text-[11px] pb-1"
+            style={{ color: 'rgba(255,255,255,0.3)', animation: 'stagger-up 0.4s ease-out 0.82s both' }}
           >
-            All features are now active
+            All features are now active for your flat
           </p>
         </div>
+
+        {/* Gold shimmer line at bottom */}
+        <div className="h-px w-full mb-0" style={{ background: 'linear-gradient(90deg, transparent, rgba(16,185,129,0.4), transparent)' }} />
       </div>
     </div>
   )
@@ -324,27 +343,19 @@ export default function SubscriptionUpsell({ feature, onClose }: Props) {
               setCelebrated(true)
             }}
           />
-          <div className="flex items-center gap-3">
-            <div className="flex-1 h-px bg-border" />
-            <span className="text-xs text-muted-foreground">or</span>
-            <div className="flex-1 h-px bg-border" />
+          {/* Free welcome code hint */}
+          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.07)', border: '1px dashed rgba(99,102,241,0.25)' }}>
+            <Ticket size={13} className="text-primary shrink-0" />
+            <p className="text-[12px] text-muted-foreground leading-snug">
+              Try <span className="font-extrabold text-foreground tracking-widest font-mono">HAB-WELCOME</span> — free for all early users. Unlocks 90 days.
+            </p>
           </div>
-          <div className="flex flex-col gap-2">
-            <a
-              href="https://wa.me/917981756963?text=Hi!%20I%20need%20a%20Habitiq%20coupon%20code."
-              target="_blank"
-              rel="noopener noreferrer"
-              className="w-full py-2.5 rounded-xl border border-border text-sm font-semibold text-center hover:bg-secondary/60 transition-colors cursor-pointer"
-            >
-              Get a coupon on WhatsApp
-            </a>
-            <button
-              onClick={onClose}
-              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-            >
-              Continue with limited access
-            </button>
-          </div>
+          <button
+            onClick={onClose}
+            className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+          >
+            Continue with limited access
+          </button>
         </div>
 
       </div>

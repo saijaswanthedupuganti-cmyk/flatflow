@@ -610,7 +610,7 @@ function OnboardingContent() {
         setFlatId(flatId)
         initFirestoreListeners(flatId)
       }
-      router.push('/dashboard')
+      router.push('/dashboard?new=1')
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to create flat. Please try again.')
     } finally {

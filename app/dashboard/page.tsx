@@ -7,9 +7,11 @@ import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo
 import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp, ArrowUpRight, ArrowDownLeft, XCircle } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp, ArrowUpRight, ArrowDownLeft, XCircle, Crown } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 import NPSBanner from '@/components/NPSBanner'
+import { useSubscription } from '@/hooks/useSubscription'
+import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -73,6 +75,9 @@ export default function DashboardPage() {
     } catch { dismissedSwapRef.current = new Set<string>() }
   }
   const { flatId } = useFlatStore()
+  const { isExpired, isActive, isPremium, daysLeft } = useSubscription()
+  const subscription = useFlatStore(s => s.subscription)
+  const [showDashUpsell, setShowDashUpsell] = useState(false)
 
   useEffect(() => {
     checkOverdueTasks()
@@ -251,12 +256,23 @@ export default function DashboardPage() {
 
         {/* ── Content — sits above ambient layers ── */}
         <div className="relative z-10 px-6 lg:px-8 pt-10 pb-10">
-          <p className={`text-[9px] font-extrabold uppercase tracking-[0.22em] ${th.sub} mb-1.5`}>{th.label}</p>
+          <div className="flex items-center gap-2 mb-1.5">
+            <p className={`text-[9px] font-extrabold uppercase tracking-[0.22em] ${th.sub}`}>{th.label}</p>
+            {isPremium && (
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-full" style={{ background: 'rgba(251,191,36,0.2)', border: '1px solid rgba(251,191,36,0.35)' }}>
+                <Crown size={9} style={{ color: '#fbbf24' }} />
+                <span className="text-[8px] font-extrabold tracking-widest" style={{ color: '#fbbf24' }}>PREMIUM</span>
+              </div>
+            )}
+          </div>
           <h1 className="text-[22px] font-extrabold text-white leading-tight">
             {greeting}, <span className="opacity-90">{currentUser.displayName?.split(' ')[0] ?? 'there'}</span>
+            {isPremium && <span className="ml-2 text-[20px]">👑</span>}
           </h1>
           <p className="text-white/55 text-[11.5px] mt-1">
-            {isAdmin
+            {isPremium
+              ? isAdmin ? 'Premium — full access across all your flats' : 'Premium member — full access enabled'
+              : isAdmin
               ? adminView === 'org' ? 'Global duty roster' : 'Your personal duties'
               : 'Your duties for today'}
           </p>
@@ -467,6 +483,43 @@ export default function DashboardPage() {
           onDone={() => { npsActedRef.current = true; setShowNPS(false) }}
         />
       )}
+
+      {/* ── Subscription Status Banner ── */}
+      {subscription && isExpired && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-800">
+          <div className="w-8 h-8 rounded-xl bg-red-100 dark:bg-red-900/40 flex items-center justify-center shrink-0">
+            <AlertTriangle size={14} className="text-red-600 dark:text-red-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-red-700 dark:text-red-400">Your trial has ended</p>
+            <p className="text-[12px] text-red-600/70 dark:text-red-400/70">Creating tasks, expenses & bills is paused. Enter a coupon to continue.</p>
+          </div>
+          <button
+            onClick={() => setShowDashUpsell(true)}
+            className="shrink-0 text-[11px] font-extrabold px-3 py-1.5 rounded-full bg-red-600 text-white hover:bg-red-700 transition-colors cursor-pointer"
+          >
+            Unlock
+          </button>
+        </div>
+      )}
+      {subscription && !isExpired && subscription.status === 'trial' && (
+        <div className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800">
+          <div className="w-8 h-8 rounded-xl bg-amber-100 dark:bg-amber-900/40 flex items-center justify-center shrink-0">
+            <AlertCircle size={14} className="text-amber-600 dark:text-amber-400" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-amber-700 dark:text-amber-400">{daysLeft} day{daysLeft !== 1 ? 's' : ''} left in trial</p>
+            <p className="text-[12px] text-amber-600/70 dark:text-amber-400/70">Get a coupon before your trial ends to keep full access.</p>
+          </div>
+          <button
+            onClick={() => setShowDashUpsell(true)}
+            className="shrink-0 text-[11px] font-extrabold px-3 py-1.5 rounded-full bg-amber-500 text-white hover:bg-amber-600 transition-colors cursor-pointer"
+          >
+            Get Coupon
+          </button>
+        </div>
+      )}
+      {showDashUpsell && <SubscriptionUpsell feature="create_task" onClose={() => setShowDashUpsell(false)} />}
 
       {/* ── Swap Request Banner — shown to ALL members, top of page ──── */}
       {incomingRequests.length > 0 && (

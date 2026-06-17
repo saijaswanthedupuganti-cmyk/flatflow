@@ -76,39 +76,53 @@ function CouponInput({ flatId, onSuccess }: { flatId: string; onSuccess: () => v
 
 /* ── Expired modal for the admin ──────────────────────────────────────────── */
 function AdminExpiredModal({ flatId, onUnlocked }: { flatId: string; onUnlocked: () => void }) {
+  const [dismissed, setDismissed] = useState(false)
+
+  if (dismissed) return null
+
   return createPortal(
     <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/70 backdrop-blur-sm">
-      <div className="w-full max-w-sm bg-card border border-border rounded-3xl shadow-2xl p-7 space-y-5">
+      <div className="w-full max-w-sm bg-card border border-border rounded-3xl shadow-2xl overflow-hidden">
 
         {/* Header */}
-        <div className="flex flex-col items-center text-center gap-3">
+        <div className="relative px-7 pt-7 pb-5 flex flex-col items-center text-center gap-3">
+          <button
+            onClick={() => setDismissed(true)}
+            className="absolute top-4 right-4 p-1.5 rounded-full text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+            aria-label="Dismiss"
+          >
+            <X size={16} />
+          </button>
           <div className="w-14 h-14 rounded-2xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center">
             <Clock size={26} className="text-amber-600 dark:text-amber-400" />
           </div>
           <div>
             <h2 className="text-lg font-bold">Free trial ended</h2>
             <p className="text-sm text-muted-foreground mt-1">
-              Enter a coupon code to keep using Habitiq with your flat.
+              Enter a coupon to unlock task creation, expenses, and bills for your flat.
             </p>
           </div>
         </div>
 
         {/* Coupon input */}
-        <CouponInput flatId={flatId} onSuccess={onUnlocked} />
+        <div className="px-7 pb-4">
+          <CouponInput flatId={flatId} onSuccess={onUnlocked} />
+        </div>
 
-        {/* Footer hint */}
-        <p className="text-center text-xs text-muted-foreground">
-          No code?{' '}
-          <a
-            href="https://wa.me/917981756963?text=Hi!%20I%20need%20a%20Habitiq%20coupon%20code%20for%20my%20flat."
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-primary underline underline-offset-2 cursor-pointer"
-          >
-            Contact us on WhatsApp
-          </a>
-          {' '}to get one.
-        </p>
+        {/* Free code hint */}
+        <div className="mx-7 mb-5 flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.06)', border: '1px dashed rgba(99,102,241,0.25)' }}>
+          <Ticket size={13} className="text-primary shrink-0" />
+          <p className="text-[12px] text-muted-foreground leading-snug">
+            Try <span className="font-extrabold text-foreground font-mono tracking-widest">HAB-WELCOME</span> — free 90-day access for everyone.
+          </p>
+        </div>
+
+        <button
+          onClick={() => setDismissed(true)}
+          className="w-full py-3 border-t border-border text-xs text-muted-foreground hover:text-foreground hover:bg-secondary/50 transition-colors cursor-pointer"
+        >
+          View flat in read-only mode
+        </button>
       </div>
     </div>,
     document.body,
@@ -146,6 +160,12 @@ function MemberExpiredModal({ flatId, adminName, onUnlocked }: { flatId: string;
           <CouponInput flatId={flatId} onSuccess={onUnlocked} />
         )}
 
+        <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.06)', border: '1px dashed rgba(99,102,241,0.25)' }}>
+          <Ticket size={12} className="text-primary shrink-0" />
+          <p className="text-[11px] text-muted-foreground leading-snug">
+            Have a code? Try <span className="font-extrabold text-foreground font-mono">HAB-WELCOME</span> for free 90-day access.
+          </p>
+        </div>
         <p className="text-center text-xs text-muted-foreground">
           You can still view your flat data while the trial is expired.
         </p>

@@ -3302,7 +3302,7 @@ export default function ExpensesPage() {
             {/* Three stat pills */}
             <div className="grid grid-cols-3 gap-1.5">
               <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-[14px] px-2.5 py-2.5">
-                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-none">{iAmCollector ? 'You\'ll Collect' : 'Getting Back'}</p>
+                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-none">You Will Receive</p>
                 <div className="flex items-center gap-0.5 mt-1.5">
                   <p className="text-[14px] font-black text-emerald-700 dark:text-emerald-300 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
                   <ArrowDownLeft size={11} className="text-emerald-500 shrink-0" />
@@ -3310,12 +3310,12 @@ export default function ExpensesPage() {
                 <p className="text-[9px] text-emerald-500/70 mt-1">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
               </div>
               <div className="bg-orange-50 dark:bg-orange-950/30 rounded-[14px] px-2.5 py-2.5">
-                <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider leading-none">Pay to Collector</p>
+                <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider leading-none">You Need To Pay</p>
                 <div className="flex items-center gap-0.5 mt-1.5">
                   <p className="text-[14px] font-black text-orange-700 dark:text-orange-300 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
                   <ArrowUpRight size={11} className="text-orange-500 shrink-0" />
                 </div>
-                <p className="text-[9px] text-orange-500/70 mt-1">{monthlyCollector ? `To ${monthlyCollector.uid === currentUserId ? 'yourself' : monthlyCollector.nickname}` : 'Pending settlement'}</p>
+                <p className="text-[9px] text-orange-500/70 mt-1">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
               </div>
               <div className="bg-secondary/60 rounded-[14px] px-2.5 py-2.5">
                 <p className="text-[9px] font-bold text-[#999CA1] uppercase tracking-wider leading-none">Net Position</p>
@@ -3472,7 +3472,7 @@ export default function ExpensesPage() {
                   <div className="flex items-center justify-between mb-2 px-0.5">
                     <div className="flex items-center gap-1">
                       <ArrowDownLeft size={12} className="text-emerald-500" />
-                      <p className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{iAmCollector ? 'Collecting from' : 'Getting back'}</p>
+                      <p className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Getting back</p>
                     </div>
                     {totalOwedToYou > 0 && <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalOwedToYou, 'INR')}</p>}
                   </div>
@@ -3493,7 +3493,7 @@ export default function ExpensesPage() {
                                 {isSettled ? (
                                   <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Check size={9} /> Paid today</p>
                                 ) : (
-                                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{iAmCollector ? 'Owes you' : 'Will pay you'}</p>
+                                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Will pay you</p>
                                 )}
                               </div>
                             </button>
@@ -3509,7 +3509,7 @@ export default function ExpensesPage() {
                                   onClick={() => setQuickSettle({ userId: b.userId, amount: b.amount, currency: b.currency, reversed: true })}
                                   className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-extrabold px-3 py-2.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(16,185,129,0.25)] shrink-0"
                                 >
-                                  {iAmCollector ? 'Mark Received' : 'Settle'}
+                                  Settle
                                 </button>
                               </div>
                             )}
@@ -3546,7 +3546,7 @@ export default function ExpensesPage() {
                   <div className="flex items-center justify-between mb-2 px-0.5">
                     <div className="flex items-center gap-1">
                       <ArrowUpRight size={12} className="text-orange-500" />
-                      <p className="text-[11px] font-extrabold text-orange-500 dark:text-orange-400 uppercase tracking-wider">You owe</p>
+                      <p className="text-[11px] font-extrabold text-orange-500 dark:text-orange-400 uppercase tracking-wider">You&apos;ll pay</p>
                     </div>
                     <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalYouOwe, 'INR')}</p>
                   </div>
@@ -3564,9 +3564,7 @@ export default function ExpensesPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                                <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">
-                                  {b.userId === monthlyCollectorUid ? `Pay to collector` : 'Tap to see history'}
-                                </p>
+                                <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">Tap to see history</p>
                               </div>
                             </button>
                             <div className="flex items-center gap-2 shrink-0">
@@ -3575,7 +3573,7 @@ export default function ExpensesPage() {
                                 onClick={() => setQuickSettle({ userId: b.userId, amount, currency: b.currency, reversed: false })}
                                 className="bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[11px] font-extrabold px-3 py-2.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(55,134,251,0.25)] shrink-0"
                               >
-                                {b.userId === monthlyCollectorUid ? 'Pay Collector' : 'Pay'}
+                                Pay
                               </button>
                             </div>
                           </div>

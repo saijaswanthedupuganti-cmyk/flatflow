@@ -292,6 +292,7 @@ interface FlatState {
     carryForwardOut: Record<string, number> | null,
   ) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
+  cancelSwapRequest: (requestId: string) => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
   addActivity: (activity: Omit<Activity, 'id' | 'timestamp'>) => Promise<void>
   toggleActivityHidden: (id: string) => Promise<void>
@@ -1699,6 +1700,23 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       }
     } else if (status === 'rejected' && task && fromUser) {
       await get().addActivity({ userId: request.toUserId, action: 'swap_resolved', details: `declined to cover ${task.name} for ${fromUser.nickname}` })
+    }
+  },
+
+  cancelSwapRequest: async (requestId) => {
+    const state = get()
+    const request = state.swapRequests.find(r => r.id === requestId)
+    if (!request || request.status !== 'pending') return
+
+    // Only the requester can withdraw their own pending request
+    const currentUid = useAuthStore.getState().user?.uid
+    if (!currentUid || request.fromUserId !== currentUid) return
+
+    set(s => ({
+      swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, status: 'rejected' } : r),
+    }))
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/swapRequests/${requestId}`), { status: 'rejected' })
     }
   },
 

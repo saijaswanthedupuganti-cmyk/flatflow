@@ -169,13 +169,21 @@ service cloud.firestore {
         // Any member can create a swap request
         allow create: if isMember(flatId);
         // Only the intended recipient (toUserId) can accept or reject.
-        // The requester (fromUserId) can mark their own notification as read.
+        // The requester (fromUserId) can: mark their own notification as read, OR
+        // withdraw (cancel) their pending request by setting status → 'rejected'.
         allow update: if isMember(flatId)
           && (
             resource.data.toUserId == request.auth.uid
             || (
               resource.data.fromUserId == request.auth.uid
-              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+              && (
+                request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+                || (
+                  request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+                  && resource.data.status == 'pending'
+                  && request.resource.data.status == 'rejected'
+                )
+              )
             )
           );
         // Admin can delete (needed for flat deletion and kick cleanup)

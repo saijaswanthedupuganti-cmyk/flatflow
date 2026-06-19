@@ -49,7 +49,7 @@ function currentMonthKey() {
 
 export default function DashboardPage() {
   const { members, tasks, activityLog, swapRequests, expenses, settlements, billInstances, recurringBills,
-    markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, transferTask, createSwapRequest, resolveSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
+    markTaskCompleted, checkOverdueTasks, returnEarly, changeMemberStatus, transferTask, createSwapRequest, resolveSwapRequest, cancelSwapRequest, markSwapRequestRead, toggleActivityHidden } = useFlatStore()
   const { user } = useAuthStore()
   const [swappingTaskId, setSwappingTaskId] = useState<string | null>(null)
   const [selectedSubstituteId, setSelectedSubstituteId] = useState<string>('')
@@ -706,7 +706,10 @@ export default function DashboardPage() {
                   const style = getUrgencyStyles(task)
                   const dateInfo = getTaskDateInfo(task)
                   const isSwapping = swappingTaskId === task.taskId
-                  const hasPendingRequest = swapRequests.some(r => r.taskId === task.taskId && r.status === 'pending')
+                  const pendingSwap = swapRequests.find(r => r.taskId === task.taskId && r.status === 'pending')
+                  const hasPendingRequest = !!pendingSwap
+                  const pendingSwapIsMyRequest = pendingSwap?.fromUserId === currentUser.uid
+                  const pendingSwapToUser = pendingSwapIsMyRequest ? members.find(m => m.uid === pendingSwap?.toUserId) : undefined
 
                   return (
                     <Card key={task.taskId} className={`${style.bg} ${style.text} border-none shadow-md transition-all hover:scale-[1.02]`}>
@@ -745,10 +748,26 @@ export default function DashboardPage() {
                         {/* Action area */}
                         <div className="mt-3">
                           {hasPendingRequest ? (
-                            <div className="bg-background/20 p-3 rounded-lg border border-background/20 text-center">
-                              <Clock className="mx-auto mb-2 opacity-80" size={22} />
-                              <p className="text-sm font-bold text-white">Swap Request Pending</p>
-                              <p className="text-xs text-white/70">Waiting for roommate to accept</p>
+                            <div className="bg-background/20 p-3 rounded-lg border border-background/20">
+                              <div className="flex items-center gap-2">
+                                <Clock size={14} className="opacity-70 shrink-0" />
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-bold text-white">
+                                    {pendingSwapIsMyRequest ? 'Swap request sent' : 'Swap Request Pending'}
+                                  </p>
+                                  <p className="text-xs text-white/60 truncate">
+                                    Waiting for {pendingSwapToUser?.nickname ?? 'your roommate'} to accept
+                                  </p>
+                                </div>
+                              </div>
+                              {pendingSwapIsMyRequest && pendingSwap && (
+                                <button
+                                  onClick={() => cancelSwapRequest(pendingSwap.id)}
+                                  className="mt-2 w-full text-center text-xs font-semibold text-white/45 hover:text-white/80 transition-colors duration-200 cursor-pointer pt-2 border-t border-white/10"
+                                >
+                                  Withdraw &amp; ask someone else
+                                </button>
+                              )}
                             </div>
                           ) : completingTaskId === task.taskId ? (
                             /* ── Date confirmation panel ── */

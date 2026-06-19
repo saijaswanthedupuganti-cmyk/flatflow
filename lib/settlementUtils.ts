@@ -11,7 +11,16 @@ export interface MonthSummary {
   totalExpensesINR: number
   totalSettledINR: number
   netBalances: Record<string, number>
-  pendingVariableBills: number   // blocker count: variable instances still pending
+  pendingVariableBills: number   // variable instances still pending (no amount entered)
+  unpaidBillsCount: number       // bills split_generated but not yet marked paid to vendor
+}
+
+// ── Per-member bill summary for the collector view ────────────────────────────
+export interface MemberBillSummary {
+  totalShare: number        // sum of all bill splits owed by this member this month
+  contributions: number     // net credit from bills this member personally paid (paid amount minus own share)
+  settled: number           // amount already paid to/from the collector via settlements
+  outstanding: number       // totalShare - contributions - settled (positive = owes collector)
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
@@ -47,9 +56,13 @@ export function monthLabel(yyyymm: string): string {
  *   positive → uid is owed money by others
  *   negative → uid owes money to others
  *
+ * IMPORTANT: Bill instances only enter the balance calculation when status === 'paid'.
+ * Creating a bill does NOT create a credit entry for the designated handler.
+ * Credit is only given once the vendor payment is confirmed (markBillPaid).
+ *
  * Sources (in order applied):
  *   1. carry-forward from previous month
- *   2. bill instances (generated recurring bills)
+ *   2. paid bill instances (status === 'paid') — payer credited, participants debited
  *   3. ad-hoc expenses
  *   4. settlements already recorded this month (reduces debt)
  *
@@ -76,10 +89,10 @@ export function computeMonthNetBalances(
     }
   }
 
-  // 2. Bill instances for this month (recurring bills that were generated)
+  // 2. Paid bill instances — only credit the actual vendor payer, never the designated handler
   for (const instance of billInstances) {
     if (instance.month !== month) continue
-    if (instance.status === 'skipped') continue
+    if (instance.status !== 'paid') continue  // creating a bill ≠ paying a bill
     if (!instance.splits || instance.currency !== 'INR') continue
     for (const uid of instance.participants) {
       if (uid === instance.paidBy) continue
@@ -115,6 +128,80 @@ export function computeMonthNetBalances(
   }
 
   return net
+}
+
+/**
+ * Per-member bill summary for the collector's settlement view.
+ *
+ * For each member in the flat this month:
+ *   totalShare    = sum of their bill splits (all non-skipped instances)
+ *   contributions = net vendor payment credit (prepaid bills they personally paid,
+ *                   excluding their own share — what they effectively covered for the room)
+ *   settled       = amount already paid to/from the collector via settlement records
+ *   outstanding   = totalShare - contributions - settled
+ *                   positive → member owes collector
+ *                   negative → collector owes member
+ *
+ * This is separate from computeMonthNetBalances. It is used by the collector
+ * to see who has paid and who still owes, regardless of bill payment status.
+ */
+export function computeMemberBillSummary(
+  month: string,
+  billInstances: BillInstance[],
+  settlements: Settlement[],
+  collectorUid: string,
+): Record<string, MemberBillSummary> {
+  const result: Record<string, MemberBillSummary> = {}
+
+  const ensure = (uid: string) => {
+    if (!result[uid]) result[uid] = { totalShare: 0, contributions: 0, settled: 0, outstanding: 0 }
+    return result[uid]
+  }
+
+  // Accumulate each member's bill share (all non-skipped instances)
+  for (const instance of billInstances) {
+    if (instance.month !== month) continue
+    if (instance.status === 'skipped') continue
+    if (!instance.splits || instance.currency !== 'INR') continue
+
+    for (const uid of instance.participants) {
+      const share = instance.splits[uid] ?? 0
+      if (share > 0) ensure(uid).totalShare += share
+    }
+
+    // If someone actually paid the vendor, credit their contribution
+    // contribution = what they paid externally minus their own share
+    if (instance.status === 'paid' && instance.amount != null && instance.amount > 0) {
+      const ownShare = instance.splits[instance.paidBy] ?? 0
+      const roomCredit = instance.amount - ownShare
+      if (roomCredit > 0.5) {
+        ensure(instance.paidBy).contributions += roomCredit
+      }
+    }
+  }
+
+  // Apply settlements between members and the collector
+  for (const s of settlements) {
+    if (s.currency !== 'INR') continue
+    const settMonth = s.month ?? s.date.substring(0, 7)
+    if (settMonth !== month) continue
+
+    if (s.toUserId === collectorUid) {
+      // Member paid collector → increases their settled amount
+      ensure(s.fromUserId).settled += s.amount
+    } else if (s.fromUserId === collectorUid) {
+      // Collector paid member (credit back) → reduces settled
+      ensure(s.toUserId).settled -= s.amount
+    }
+  }
+
+  // Compute final outstanding for each member
+  for (const uid in result) {
+    const r = result[uid]
+    r.outstanding = Math.round(r.totalShare - r.contributions - r.settled)
+  }
+
+  return result
 }
 
 /**
@@ -168,7 +255,9 @@ export function computeCarryForward(
 }
 
 /**
- * Summarises a month: totals and blocker count.
+ * Summarises a month: totals and blocker counts.
+ * unpaidBillsCount counts split_generated instances that haven't been marked paid yet.
+ * These should be resolved before closing the month.
  */
 export function buildMonthSummary(
   month: string,
@@ -181,11 +270,13 @@ export function buildMonthSummary(
   let totalExpensesINR = 0
   let totalSettledINR = 0
   let pendingVariableBills = 0
+  let unpaidBillsCount = 0
 
   for (const b of billInstances) {
     if (b.month !== month) continue
     if (b.status === 'skipped') continue
     if (b.status === 'pending') { pendingVariableBills++; continue }
+    if (b.status === 'split_generated' || b.status === 'overdue') unpaidBillsCount++
     if (b.currency === 'INR' && b.amount) totalBillsINR += b.amount
   }
   for (const e of expenses) {
@@ -203,5 +294,5 @@ export function buildMonthSummary(
     month, expenses, billInstances, settlements, carryForwardIn,
   )
 
-  return { totalBillsINR, totalExpensesINR, totalSettledINR, netBalances, pendingVariableBills }
+  return { totalBillsINR, totalExpensesINR, totalSettledINR, netBalances, pendingVariableBills, unpaidBillsCount }
 }

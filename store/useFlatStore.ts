@@ -145,6 +145,11 @@ export interface RecurringBill {
   recurrenceType?: 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly'
   recurrenceIntervalValue?: number  // N for every_n_days / every_n_months (e.g. 90, 6)
   lastGeneratedAt?: string | null   // 'yyyy-MM-dd' — tracks last actual generation date for non-monthly bills
+
+  // ── Payment model ──────────────────────────────────────────────────────────
+  // prepaid: someone pays the vendor first, then collects from flatmates
+  // postpaid: members pay the collector directly each month (no vendor advance)
+  billType?: 'prepaid' | 'postpaid'
 }
 
 // ── Bill Instance — transactional layer for recurring bills ────────────────────
@@ -183,6 +188,7 @@ export interface BillInstance {
   generatedBy: string
   collectedFrom?: Record<string, boolean>  // uid → collector has received their share
   collectorId?: string     // snapshot from template — who collects money from flatmates
+  billType?: 'prepaid' | 'postpaid'        // snapshot from template
 }
 
 export interface Settlement {
@@ -1453,6 +1459,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       generatedAt: new Date().toISOString(),
       generatedBy: uid,
       collectorId: bill.collectorId,
+      billType: bill.billType,
     }
 
     if (hasKeys && state.flatId) {

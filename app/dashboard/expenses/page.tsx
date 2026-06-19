@@ -10,7 +10,8 @@ import {
 import {
   computeMonthNetBalances, suggestSettlements, computeCarryForward,
   buildMonthSummary, prevMonthKey, nextMonthKey, monthLabel as monthLabelUtil,
-  type SuggestedSettlement,
+  computeMemberBillSummary,
+  type SuggestedSettlement, type MemberBillSummary,
 } from '@/lib/settlementUtils'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useSubscription } from '@/hooks/useSubscription'
@@ -911,9 +912,9 @@ function SettlementRow({ settlement, members, currentUserId, canDelete, onDelete
 // ── Monthly Bill Form Modal ───────────────────────────────────────────────────
 
 const PAYER_MODE_CONFIG: Record<PayerMode, { label: string; desc: string; icon: React.ReactNode }> = {
-  rotation: { label: 'Rotates',      desc: 'Members take turns paying each month', icon: <Repeat2 size={13} /> },
-  fixed:    { label: 'Fixed payer',  desc: 'Same person pays every month',         icon: <UserCircle size={13} /> },
-  manual:   { label: 'Choose each month', desc: 'Admin picks payer when generating', icon: <HelpCircle size={13} /> },
+  rotation: { label: 'Takes Turns',       desc: 'Members take turns managing the bill each month', icon: <Repeat2 size={13} /> },
+  fixed:    { label: 'Same Person Always', desc: 'One person always manages this bill',             icon: <UserCircle size={13} /> },
+  manual:   { label: 'Choose Each Time',  desc: 'Admin picks manager when generating this month',  icon: <HelpCircle size={13} /> },
 }
 
 const SPLIT_METHOD_CONFIG: Record<SplitMethod, { label: string; desc: string }> = {
@@ -943,6 +944,7 @@ function MonthlyBillModal({
     collectorId:            initial?.collectorId ?? currentUserId,
     recurrenceType:         (initial?.recurrenceType ?? 'monthly') as 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly',
     recurrenceIntervalValue: initial?.recurrenceIntervalValue?.toString() ?? '90',
+    billType:               (initial?.billType ?? 'prepaid') as 'prepaid' | 'postpaid',
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -984,6 +986,7 @@ function MonthlyBillModal({
         recurrenceIntervalValue: form.recurrenceType === 'monthly' || form.recurrenceType === 'yearly'
           ? undefined
           : Math.max(1, parseInt(form.recurrenceIntervalValue) || 1),
+        billType:               form.billType,
       })
       onClose()
     } catch {
@@ -1170,6 +1173,41 @@ function MonthlyBillModal({
                 </span>
               </div>
             )}
+          </div>
+
+          {/* Payment model */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Payment Model</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'prepaid', label: 'Paid From Personal Funds', desc: 'Someone pays vendor first, then collects from flatmates' },
+                { value: 'postpaid', label: 'Direct to Collector', desc: 'Members pay the monthly collector directly — no advance' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, billType: opt.value }))}
+                  className={[
+                    'flex flex-col items-start gap-1 px-4 py-3 rounded-[12px] border-2 transition-all cursor-pointer text-left',
+                    form.billType === opt.value
+                      ? 'border-[#3525cd] bg-[#3525cd]/5 dark:bg-[#3525cd]/10'
+                      : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#3525cd]/30',
+                  ].join(' ')}
+                >
+                  <div className="flex items-center gap-2">
+                    <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                      form.billType === opt.value ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
+                    ].join(' ')}>
+                      {form.billType === opt.value && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
+                    </div>
+                    <span className={['text-[11px] font-bold leading-tight', form.billType === opt.value ? 'text-[#3525cd]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
+                      {opt.label}
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-[#777587] leading-tight pl-6">{opt.desc}</span>
+                </button>
+              ))}
+            </div>
           </div>
 
           {/* Due Day — only shown for monthly bills */}
@@ -2399,6 +2437,12 @@ export default function ExpensesPage() {
       return s + amount / Math.max(participants.length, 1)
     }, 0)
   }, [recurringBills, billInstances, currentUserId])
+
+  const memberBillSummary = useMemo(
+    () => computeMemberBillSummary(currentMonthKey(), billInstances, settlements, monthlyCollectorUid),
+    [billInstances, settlements, monthlyCollectorUid],
+  )
+  const myBillStats: MemberBillSummary | null = memberBillSummary[currentUserId] ?? null
 
   // ── Settlement History sub-view ─────────────────────────────────────────────
   if (showSettleHistory) {
@@ -3822,9 +3866,24 @@ export default function ExpensesPage() {
 
           <div className="grid grid-cols-3 gap-2">
             {[
-              { label: 'Total Bills', value: totalMonthlyCommitment > 0 ? formatAmount(totalMonthlyCommitment, 'INR') : '--', sub: recurringBills.filter(b => b.active).length + ' active bills', dark: true },
-              { label: 'Your Share', value: myMonthlyShare > 0 ? formatAmount(myMonthlyShare, 'INR') : '--', sub: 'your obligation', dark: true },
-              { label: 'Next Due', value: nextBillingDay != null ? ordinal(nextBillingDay) : '--', sub: 'next billing day', dark: false },
+              {
+                label: 'My Share',
+                value: myBillStats && myBillStats.totalShare > 0 ? formatAmount(myBillStats.totalShare, 'INR') : (myMonthlyShare > 0 ? formatAmount(myMonthlyShare, 'INR') : '--'),
+                sub: 'total bill splits',
+                dark: true,
+              },
+              {
+                label: 'Contributed',
+                value: myBillStats && myBillStats.contributions > 0 ? formatAmount(myBillStats.contributions, 'INR') : '--',
+                sub: 'paid on behalf',
+                dark: true,
+              },
+              {
+                label: iAmCollector ? 'You Collect' : 'Amount Due',
+                value: myBillStats ? (Math.abs(myBillStats.outstanding) >= 1 ? formatAmount(Math.abs(myBillStats.outstanding), 'INR') : '✓ Clear') : '--',
+                sub: iAmCollector ? 'from flatmates' : (myBillStats && myBillStats.outstanding < 0 ? 'collector owes you' : 'owe to collector'),
+                dark: false,
+              },
             ].map(({ label, value, sub, dark }) => (
               <div key={label} className={['p-3 rounded-[16px]', dark ? 'bg-gradient-to-br from-[#0D1117] to-[#1A202C] border border-white/[0.06] shadow-[0px_4px_16px_rgba(0,0,0,0.25)]' : 'bg-card border border-border shadow-sm'].join(' ')}>
                 <p className={['text-[10px] font-bold uppercase tracking-wider', dark ? 'text-[#999CA1]' : 'text-muted-foreground'].join(' ')}>{label}</p>
@@ -3853,6 +3912,72 @@ export default function ExpensesPage() {
             </button>
           )}
 
+          {/* Collector settlement panel — only visible to the month's collector */}
+          {iAmCollector && Object.keys(memberBillSummary).length > 0 && (() => {
+            const others = members.filter(m => m.uid !== currentUserId && memberBillSummary[m.uid])
+            if (!others.length) return null
+            return (
+              <div className="rounded-[16px] border border-violet-200 dark:border-violet-800/50 overflow-hidden">
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-violet-50 dark:bg-violet-950/20 border-b border-violet-200 dark:border-violet-800/40">
+                  <div className="w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
+                    <span className="text-white font-extrabold text-[10px]">C</span>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-extrabold text-violet-700 dark:text-violet-300 uppercase tracking-wide">Collection Dues</p>
+                    <p className="text-[10px] text-[#777587] dark:text-gray-400">Tap Mark Collected when a flatmate settles</p>
+                  </div>
+                </div>
+                <div className="divide-y divide-border/40 bg-card">
+                  {others.map(m => {
+                    const s = memberBillSummary[m.uid]!
+                    const isSettledUp = Math.abs(s.outstanding) < 1
+                    return (
+                      <div key={m.uid} className="flex items-center gap-3 px-4 py-3">
+                        <div className="w-8 h-8 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[11px] font-extrabold text-[#3525cd] shrink-0">
+                          {m.nickname.charAt(0).toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[12px] font-bold text-[#021328] dark:text-foreground">{m.nickname}</p>
+                          <p className="text-[10px] text-[#999CA1]">
+                            Share ₹{Math.round(s.totalShare)} &middot; Contributed ₹{Math.round(s.contributions)}
+                          </p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1.5 shrink-0">
+                          {isSettledUp ? (
+                            <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/20 px-2 py-1 rounded-full">✓ Settled</span>
+                          ) : (
+                            <>
+                              <p className="text-[12px] font-extrabold text-[#021328] dark:text-foreground">
+                                {s.outstanding > 0 ? `Owes ₹${s.outstanding}` : `Return ₹${Math.abs(s.outstanding)}`}
+                              </p>
+                              {s.outstanding > 0 && (
+                                <button
+                                  onClick={() => addSettlement({
+                                    fromUserId: m.uid,
+                                    toUserId: currentUserId,
+                                    amount: s.outstanding,
+                                    currency: 'INR',
+                                    date: todayStr(),
+                                    month: currentMonthKey(),
+                                    type: 'month_end',
+                                    note: `Bill dues collected from ${m.nickname}`,
+                                  })}
+                                  className="text-[10px] font-extrabold text-white bg-violet-600 hover:bg-violet-700 px-2.5 py-1 rounded-full transition-colors cursor-pointer"
+                                >
+                                  Mark Collected ₹{s.outstanding}
+                                </button>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
           {isAdmin && (
             <div className="flex gap-2">
               {recurringBills.length === 0 && (
@@ -3866,7 +3991,7 @@ export default function ExpensesPage() {
                 </Button>
               )}
               <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
-                <Plus size={13} className="mr-1" /> Add Monthly Bill
+                <Plus size={13} className="mr-1" /> Add Recurring Bill
               </Button>
             </div>
           )}
@@ -3885,7 +4010,7 @@ export default function ExpensesPage() {
                       <Sparkles size={14} className="mr-1.5" /> Quick Setup
                     </Button>
                     <Button className="font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
-                      <Plus size={14} className="mr-1.5" /> Add Monthly Bill
+                      <Plus size={14} className="mr-1.5" /> Add Recurring Bill
                     </Button>
                   </div>
                 )}
@@ -3902,10 +4027,10 @@ export default function ExpensesPage() {
                     ? bill.fixedPayerUid
                     : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length])
                 const isYouPayer = payerUid === currentUserId
-                // Collector = designated money collector; falls back to payer if not set
-                const collectorUid = instance?.collectorId ?? bill.collectorId ?? payerUid
-                const isYouCollector = collectorUid === currentUserId
-                const collectorNickname = members.find(m => m.uid === collectorUid)?.nickname ?? '...'
+                // Collector is always the flat's monthly collector, not a per-bill field
+                const collectorUid = monthlyCollectorUid
+                const isYouCollector = iAmCollector
+                const collectorNickname = monthlyCollector?.nickname ?? '...'
                 const billParticipants = bill.participants?.length ? bill.participants : bill.rotationQueue
                 const perPersonAmt = (instance?.amount ?? bill.amount)
                   ? (instance?.amount ?? bill.amount ?? 0) / Math.max(billParticipants.length, 1)
@@ -3950,13 +4075,13 @@ export default function ExpensesPage() {
                         </div>
                         <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                           {isYouPayer
-                            ? <span className="text-[10.5px] font-extrabold text-[#3525cd] dark:text-violet-400">You pay</span>
-                            : <span className="text-[10.5px] text-[#999CA1]">{payerNickname} pays</span>
+                            ? <span className="text-[10.5px] font-extrabold text-[#3525cd] dark:text-violet-400">Managed by you</span>
+                            : <span className="text-[10.5px] text-[#999CA1]">Managed by {payerNickname}</span>
                           }
                           <span className="text-[#d0d2d8]">&middot;</span>
                           {isYouCollector
-                            ? <span className="text-[10.5px] font-extrabold text-violet-600 dark:text-violet-400">You collect</span>
-                            : <span className="text-[10.5px] text-[#999CA1]">{collectorNickname} collects</span>
+                            ? <span className="text-[10.5px] font-extrabold text-violet-600 dark:text-violet-400">You collect dues</span>
+                            : <span className="text-[10.5px] text-[#999CA1]">Room Collector: {collectorNickname}</span>
                           }
                           <span className="text-[#d0d2d8]">&middot;</span>
                           <span className="text-[10.5px] text-[#999CA1]">
@@ -4137,7 +4262,7 @@ export default function ExpensesPage() {
                           </div>
                         )}
 
-                        {/* Mark Paid CTA — visible to the payer (admin or member) */}
+                        {/* Record vendor payment CTA — visible to the payer (admin or member) */}
                         {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
                           <div className="border-t border-[#3786FB]/20 bg-[#F0F6FF] dark:bg-blue-950/15 px-4 py-3 flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2.5">
@@ -4146,16 +4271,16 @@ export default function ExpensesPage() {
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-[#021328] dark:text-foreground">
-                                  {isYouPayer ? "You're the payer this month" : `${payerNickname} is the payer`}
+                                  {isYouPayer ? 'Paid from your personal funds?' : `${payerNickname} paid the vendor?`}
                                 </p>
-                                <p className="text-[10px] text-[#999CA1]">Confirm payment was made · auto-adds to transactions</p>
+                                <p className="text-[10px] text-[#999CA1]">Confirm vendor was paid · credits the payer in monthly balance</p>
                               </div>
                             </div>
                             <button
                               onClick={() => markBillPaid(instance.id)}
                               className="px-4 py-2 bg-[#3786FB] text-white text-[11px] font-extrabold rounded-full hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
                             >
-                              Mark Paid
+                              Confirm Payment
                             </button>
                           </div>
                         )}

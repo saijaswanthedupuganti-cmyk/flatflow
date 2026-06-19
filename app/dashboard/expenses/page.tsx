@@ -83,8 +83,24 @@ function cycleRange(monthKey: string) {
 function isBillDue(bill: RecurringBill): boolean {
   if (!bill.active) return false
   const today = new Date()
-  const effectiveDay = Math.min(bill.billingDay, daysInCurrentMonth())
-  return bill.lastGeneratedMonth !== currentMonthKey() && today.getDate() >= effectiveDay
+  const recurrenceType = bill.recurrenceType ?? 'monthly'
+
+  if (recurrenceType === 'monthly') {
+    const effectiveDay = Math.min(bill.billingDay, daysInCurrentMonth())
+    return bill.lastGeneratedMonth !== currentMonthKey() && today.getDate() >= effectiveDay
+  }
+
+  if (!bill.lastGeneratedAt) return true  // never generated
+  const last = new Date(bill.lastGeneratedAt)
+  const daysDiff = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24))
+  if (recurrenceType === 'every_n_days') return daysDiff >= (bill.recurrenceIntervalValue ?? 30)
+  if (recurrenceType === 'yearly') return daysDiff >= 365
+  if (recurrenceType === 'every_n_months') {
+    const monthsDiff = (today.getFullYear() - last.getFullYear()) * 12
+      + today.getMonth() - last.getMonth()
+    return monthsDiff >= (bill.recurrenceIntervalValue ?? 1)
+  }
+  return false
 }
 
 function ordinal(n: number): string {
@@ -912,19 +928,21 @@ function MonthlyBillModal({
   members: { uid: string; nickname: string }[]
   currentUserId: string
   initial?: RecurringBill
-  onSave: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
+  onSave: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth' | 'lastGeneratedAt'>) => Promise<void>
   onClose: () => void
 }) {
   const [saving, setSaving] = useState(false)
   const [form, setForm] = useState({
-    name:          initial?.name ?? '',
-    category:      (initial?.category ?? 'other') as ExpenseCategory,
-    isVariable:    initial?.isVariable ?? false,
-    amount:        initial?.amount != null ? initial.amount.toString() : '',
-    billingDay:    initial?.billingDay?.toString() ?? '1',
-    rotationQueue: initial?.rotationQueue ?? members.map(m => m.uid),
-    active:        initial?.active ?? true,
-    collectorId:   initial?.collectorId ?? currentUserId,
+    name:                   initial?.name ?? '',
+    category:               (initial?.category ?? 'other') as ExpenseCategory,
+    isVariable:             initial?.isVariable ?? false,
+    amount:                 initial?.amount != null ? initial.amount.toString() : '',
+    billingDay:             initial?.billingDay?.toString() ?? '1',
+    rotationQueue:          initial?.rotationQueue ?? members.map(m => m.uid),
+    active:                 initial?.active ?? true,
+    collectorId:            initial?.collectorId ?? currentUserId,
+    recurrenceType:         (initial?.recurrenceType ?? 'monthly') as 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly',
+    recurrenceIntervalValue: initial?.recurrenceIntervalValue?.toString() ?? '90',
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -946,22 +964,26 @@ function MonthlyBillModal({
     setSaving(true)
     try {
       await onSave({
-        name:          form.name.trim(),
-        category:      form.category,
-        isVariable:    form.isVariable,
-        amount:        form.isVariable ? null : parseFloat(form.amount),
-        currency:      (initial?.currency ?? 'INR') as Currency,
-        billingDay:    Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
-        rotationQueue: form.rotationQueue,
-        participants:  form.rotationQueue,
-        payerMode:     (initial?.payerMode ?? 'rotation') as PayerMode,
-        fixedPayerUid: initial?.fixedPayerUid,
-        splitMethod:   (initial?.splitMethod ?? 'equal') as SplitMethod,
-        percentSplits: initial?.percentSplits,
-        customSplits:  initial?.customSplits,
-        active:        form.active,
-        createdBy:     currentUserId,
-        collectorId:   form.collectorId,
+        name:                   form.name.trim(),
+        category:               form.category,
+        isVariable:             form.isVariable,
+        amount:                 form.isVariable ? null : parseFloat(form.amount),
+        currency:               (initial?.currency ?? 'INR') as Currency,
+        billingDay:             Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
+        rotationQueue:          form.rotationQueue,
+        participants:           form.rotationQueue,
+        payerMode:              (initial?.payerMode ?? 'rotation') as PayerMode,
+        fixedPayerUid:          initial?.fixedPayerUid,
+        splitMethod:            (initial?.splitMethod ?? 'equal') as SplitMethod,
+        percentSplits:          initial?.percentSplits,
+        customSplits:           initial?.customSplits,
+        active:                 form.active,
+        createdBy:              currentUserId,
+        collectorId:            form.collectorId,
+        recurrenceType:         form.recurrenceType,
+        recurrenceIntervalValue: form.recurrenceType === 'monthly' || form.recurrenceType === 'yearly'
+          ? undefined
+          : Math.max(1, parseInt(form.recurrenceIntervalValue) || 1),
       })
       onClose()
     } catch {
@@ -985,7 +1007,7 @@ function MonthlyBillModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
           <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">
-            {initial ? 'Edit Monthly Bill' : 'Add Monthly Bill'}
+            {initial ? 'Edit Recurring Bill' : 'Add Recurring Bill'}
           </h2>
           <button
             onClick={onClose}
@@ -1108,7 +1130,50 @@ function MonthlyBillModal({
             )}
           </div>
 
-          {/* Due Date */}
+          {/* Recurrence */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">How Often</label>
+            <div className="grid grid-cols-2 gap-2">
+              {([
+                { value: 'monthly',       label: 'Monthly' },
+                { value: 'every_n_days',  label: 'Every N Days' },
+                { value: 'every_n_months', label: 'Every N Months' },
+                { value: 'yearly',        label: 'Yearly' },
+              ] as const).map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setForm(f => ({ ...f, recurrenceType: opt.value }))}
+                  className={[
+                    'py-2.5 px-3 rounded-[10px] text-sm font-medium text-left transition-all border cursor-pointer',
+                    form.recurrenceType === opt.value
+                      ? 'bg-[#3525cd] text-white border-transparent'
+                      : 'bg-[#f1f3ff] dark:bg-white/[0.06] text-[#464555] dark:text-gray-300 border-transparent hover:border-[#3525cd]/30',
+                  ].join(' ')}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {(form.recurrenceType === 'every_n_days' || form.recurrenceType === 'every_n_months') && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-sm text-[#777587] dark:text-gray-400 shrink-0">Every</span>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.recurrenceIntervalValue}
+                  onChange={e => setForm(f => ({ ...f, recurrenceIntervalValue: e.target.value }))}
+                  className="w-20 bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 text-center"
+                />
+                <span className="text-sm text-[#777587] dark:text-gray-400 shrink-0">
+                  {form.recurrenceType === 'every_n_days' ? 'days' : 'months'}
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Due Day — only shown for monthly bills */}
+          {form.recurrenceType === 'monthly' && (
           <div className="space-y-1.5">
             <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Due Date</label>
             <div className="relative">
@@ -1127,6 +1192,7 @@ function MonthlyBillModal({
               <CalendarCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#777587]" />
             </div>
           </div>
+          )}
 
           {/* Assign Roommates */}
           <div className="space-y-2.5">
@@ -2145,7 +2211,7 @@ export default function ExpensesPage() {
 
   const combinedTx = useMemo((): TxEntry[] => {
     const items: TxEntry[] = [
-      // Exclude auto-expenses generated by markBillPaid — they're shown in Fixed Bills tab
+      // Exclude any expenses manually linked to a bill instance (shown in Fixed Bills tab)
       ...expenses.filter(e => !e.billInstanceId).map(e => ({ kind: 'expense' as const, data: e })),
       ...settlements.map(s => ({ kind: 'settlement' as const, data: s })),
     ]
@@ -2746,9 +2812,23 @@ export default function ExpensesPage() {
       ?? (bill.payerMode === 'fixed' && bill.fixedPayerUid ? bill.fixedPayerUid : bill.rotationQueue[bill.currentPayerIndex % bill.rotationQueue.length])
     const nextDue = (() => {
       const today = new Date()
-      const day = bill.billingDay
-      return new Date(today.getFullYear(), day < today.getDate() ? today.getMonth() + 1 : today.getMonth(), day)
-        .toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      const recType = bill.recurrenceType ?? 'monthly'
+      if (recType === 'monthly') {
+        const day = bill.billingDay
+        return new Date(today.getFullYear(), day < today.getDate() ? today.getMonth() + 1 : today.getMonth(), day)
+          .toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
+      }
+      if (!bill.lastGeneratedAt) return 'Now'
+      const last = new Date(bill.lastGeneratedAt)
+      let nextDate: Date
+      if (recType === 'every_n_days') {
+        nextDate = new Date(last.getTime() + (bill.recurrenceIntervalValue ?? 30) * 86400000)
+      } else if (recType === 'yearly') {
+        nextDate = new Date(last.getFullYear() + 1, last.getMonth(), last.getDate())
+      } else {
+        nextDate = new Date(last.getFullYear(), last.getMonth() + (bill.recurrenceIntervalValue ?? 1), last.getDate())
+      }
+      return nextDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })
     })()
     const paidParticipants = instance?.status === 'paid' ? billParticipants : []
     const paidTotal = paidParticipants.length * perPerson
@@ -3879,7 +3959,16 @@ export default function ExpensesPage() {
                             : <span className="text-[10.5px] text-[#999CA1]">{collectorNickname} collects</span>
                           }
                           <span className="text-[#d0d2d8]">&middot;</span>
-                          <span className="text-[10.5px] text-[#999CA1]">{ordinal(bill.billingDay)} monthly</span>
+                          <span className="text-[10.5px] text-[#999CA1]">
+                            {(() => {
+                              const rt = bill.recurrenceType ?? 'monthly'
+                              if (rt === 'monthly') return `${ordinal(bill.billingDay)} monthly`
+                              if (rt === 'yearly') return 'Yearly'
+                              if (rt === 'every_n_days') return `Every ${bill.recurrenceIntervalValue ?? '?'} days`
+                              if (rt === 'every_n_months') return `Every ${bill.recurrenceIntervalValue ?? '?'} months`
+                              return 'Recurring'
+                            })()}
+                          </span>
                         </div>
                       </div>
                       <div className="text-right shrink-0 flex items-center gap-2">

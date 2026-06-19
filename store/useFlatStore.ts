@@ -138,8 +138,13 @@ export interface RecurringBill {
   active: boolean
   createdBy: string
   createdAt: string
-  lastGeneratedMonth: string  // 'yyyy-MM' or '' — prevents double-generation
+  lastGeneratedMonth: string  // 'yyyy-MM' or '' — prevents same-month double-generation for monthly bills
   collectorId?: string        // uid who collects money from flatmates; defaults to admin, changeable any month
+
+  // ── Flexible recurrence (optional — defaults to monthly behavior) ─────────
+  recurrenceType?: 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly'
+  recurrenceIntervalValue?: number  // N for every_n_days / every_n_months (e.g. 90, 6)
+  lastGeneratedAt?: string | null   // 'yyyy-MM-dd' — tracks last actual generation date for non-monthly bills
 }
 
 // ── Bill Instance — transactional layer for recurring bills ────────────────────
@@ -275,9 +280,9 @@ interface FlatState {
   deleteExpense: (expenseId: string, actorId?: string) => Promise<void>
   addSettlement: (data: Omit<Settlement, 'id' | 'createdAt'>) => Promise<void>
   deleteSettlement: (settlementId: string) => Promise<void>
-  createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>) => Promise<void>
-  bulkCreateRecurringBills: (bills: Array<Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth'>>) => Promise<void>
-  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'payerMode' | 'fixedPayerUid' | 'splitMethod' | 'percentSplits' | 'customSplits' | 'isVariable' | 'active' | 'currency' | 'collectorId'>>) => Promise<void>
+  createRecurringBill: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth' | 'lastGeneratedAt'>) => Promise<void>
+  bulkCreateRecurringBills: (bills: Array<Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth' | 'lastGeneratedAt'>>) => Promise<void>
+  updateRecurringBill: (billId: string, changes: Partial<Pick<RecurringBill, 'name' | 'amount' | 'billingDay' | 'rotationQueue' | 'participants' | 'payerMode' | 'fixedPayerUid' | 'splitMethod' | 'percentSplits' | 'customSplits' | 'isVariable' | 'active' | 'currency' | 'collectorId' | 'recurrenceType' | 'recurrenceIntervalValue'>>) => Promise<void>
   deleteRecurringBill: (billId: string) => Promise<void>
   generateBill: (billId: string, amount?: number, manualPayerUid?: string) => Promise<void>
   generateAllDueBills: (month: string) => Promise<void>
@@ -1266,6 +1271,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       id: crypto.randomUUID(),
       currentPayerIndex: 0,
       lastGeneratedMonth: '',
+      lastGeneratedAt: null,
       createdAt: new Date().toISOString(),
     }
     if (hasKeys && get().flatId) {
@@ -1284,6 +1290,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       id: crypto.randomUUID(),
       currentPayerIndex: 0,
       lastGeneratedMonth: '',
+      lastGeneratedAt: null,
       createdAt: new Date().toISOString(),
       createdBy: uid,
     }))
@@ -1387,7 +1394,11 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const yr = today.getFullYear()
     const mo = today.getMonth() + 1
     const currentMonth = `${yr}-${String(mo).padStart(2, '0')}`
-    const dueDate = `${currentMonth}-${String(bill.billingDay).padStart(2, '0')}`
+
+    const recurrenceType = bill.recurrenceType ?? 'monthly'
+    const dueDate = recurrenceType === 'monthly'
+      ? `${currentMonth}-${String(bill.billingDay).padStart(2, '0')}`
+      : today.toISOString().split('T')[0]
 
     // ── Determine payer based on payerMode ──────────────────────────────────
     const payerMode = bill.payerMode ?? 'rotation'
@@ -1450,9 +1461,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set(s => ({ billInstances: [...s.billInstances, instance] }))
     }
 
-    // Advance rotation index ONLY for rotation mode
-    const billUpdate: { lastGeneratedMonth: string; currentPayerIndex?: number } = {
+    // Advance rotation index ONLY for rotation mode; track generation date for non-monthly bills
+    const billUpdate: { lastGeneratedMonth: string; lastGeneratedAt?: string; currentPayerIndex?: number } = {
       lastGeneratedMonth: currentMonth,
+    }
+    if (recurrenceType !== 'monthly') {
+      billUpdate.lastGeneratedAt = today.toISOString().split('T')[0]
     }
     if (payerMode === 'rotation') {
       billUpdate.currentPayerIndex = (bill.currentPayerIndex + 1) % bill.rotationQueue.length
@@ -1477,16 +1491,41 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const state = get()
     const uid = useAuthStore.getState().user?.uid
     if (!uid) return
-    const [yr, mo] = month.split('-').map(Number)
     const today = new Date()
-    const dueBills = state.recurringBills.filter(b =>
+
+    function isNonMonthlyDue(bill: RecurringBill): boolean {
+      if (!bill.lastGeneratedAt) return true  // never generated
+      const last = new Date(bill.lastGeneratedAt)
+      const daysDiff = Math.floor((today.getTime() - last.getTime()) / (1000 * 60 * 60 * 24))
+      const type = bill.recurrenceType!
+      if (type === 'every_n_days') return daysDiff >= (bill.recurrenceIntervalValue ?? 30)
+      if (type === 'yearly') return daysDiff >= 365
+      if (type === 'every_n_months') {
+        const monthsDiff = (today.getFullYear() - last.getFullYear()) * 12
+          + today.getMonth() - last.getMonth()
+        return monthsDiff >= (bill.recurrenceIntervalValue ?? 1)
+      }
+      return false
+    }
+
+    const monthlyDue = state.recurringBills.filter(b =>
       b.active &&
+      (b.recurrenceType ?? 'monthly') === 'monthly' &&
       b.lastGeneratedMonth !== month &&
-      b.payerMode !== 'manual' &&    // manual bills skip batch generation
-      !b.isVariable &&                // variable bills need admin-entered amount
+      b.payerMode !== 'manual' &&
+      !b.isVariable &&
       today.getDate() >= b.billingDay
     )
-    for (const bill of dueBills) {
+
+    const nonMonthlyDue = state.recurringBills.filter(b =>
+      b.active &&
+      (b.recurrenceType ?? 'monthly') !== 'monthly' &&
+      !b.isVariable &&
+      b.payerMode !== 'manual' &&
+      isNonMonthlyDue(b)
+    )
+
+    for (const bill of [...monthlyDue, ...nonMonthlyDue]) {
       if (!state.billInstances.find(bi => bi.templateId === bill.id && bi.month === month)) {
         await get().generateBill(bill.id)
       }

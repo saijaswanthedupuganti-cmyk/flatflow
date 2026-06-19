@@ -945,8 +945,6 @@ function MonthlyBillModal({
     recurrenceType:         (initial?.recurrenceType ?? 'monthly') as 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly',
     recurrenceIntervalValue: initial?.recurrenceIntervalValue?.toString() ?? '90',
     billType:               (initial?.billType ?? 'prepaid') as 'prepaid' | 'postpaid',
-    payerMode:              (initial?.payerMode ?? 'rotation') as PayerMode,
-    fixedPayerUid:          initial?.fixedPayerUid ?? (members[0]?.uid ?? ''),
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -973,11 +971,11 @@ function MonthlyBillModal({
         isVariable:             form.isVariable,
         amount:                 form.isVariable ? null : parseFloat(form.amount),
         currency:               (initial?.currency ?? 'INR') as Currency,
-        billingDay:             Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
+        billingDay:             1,
         rotationQueue:          form.rotationQueue,
         participants:           form.rotationQueue,
-        payerMode:              form.billType === 'postpaid' ? 'rotation' : form.payerMode,
-        fixedPayerUid:          form.billType === 'prepaid' && form.payerMode === 'fixed' ? form.fixedPayerUid : undefined,
+        payerMode:              'rotation',
+        fixedPayerUid:          undefined,
         splitMethod:            (initial?.splitMethod ?? 'equal') as SplitMethod,
         percentSplits:          initial?.percentSplits,
         customSplits:           initial?.customSplits,
@@ -1211,90 +1209,14 @@ function MonthlyBillModal({
               ))}
             </div>
 
-            {/* Payer config — only for prepaid */}
-            {form.billType === 'prepaid' && (
-              <div className="space-y-3 pt-1">
-                <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Usually Managed By</label>
-                <div className="grid grid-cols-3 gap-1.5">
-                  {([
-                    { value: 'rotation' as PayerMode, label: 'Takes Turns' },
-                    { value: 'fixed'    as PayerMode, label: 'Always Same' },
-                    { value: 'manual'   as PayerMode, label: 'Choose Each Time' },
-                  ]).map(opt => (
-                    <button
-                      key={opt.value}
-                      type="button"
-                      onClick={() => setForm(f => ({ ...f, payerMode: opt.value }))}
-                      className={[
-                        'py-2 px-2 rounded-[10px] text-[11px] font-semibold text-center transition-all border cursor-pointer',
-                        form.payerMode === opt.value
-                          ? 'bg-[#3525cd] text-white border-transparent'
-                          : 'bg-[#f1f3ff] dark:bg-white/[0.06] text-[#464555] dark:text-gray-300 border-transparent hover:border-[#3525cd]/30',
-                      ].join(' ')}
-                    >
-                      {opt.label}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Fixed payer selector */}
-                {form.payerMode === 'fixed' && (
-                  <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-3 space-y-2">
-                    <p className="text-[10px] font-bold text-[#464555] dark:text-gray-400 uppercase tracking-wide">Who always manages this bill?</p>
-                    <div className="space-y-1.5">
-                      {members.map((m, idx) => (
-                        <button
-                          key={m.uid}
-                          type="button"
-                          onClick={() => setForm(f => ({ ...f, fixedPayerUid: m.uid }))}
-                          className="flex items-center gap-2.5 w-full cursor-pointer"
-                        >
-                          <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0',
-                            form.fixedPayerUid === m.uid ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
-                          ].join(' ')}>
-                            {form.fixedPayerUid === m.uid && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
-                          </div>
-                          <div className={['w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0', memberAvatarColors[idx % memberAvatarColors.length]].join(' ')}>
-                            {m.nickname.charAt(0).toUpperCase()}
-                          </div>
-                          <span className={['text-sm font-medium', form.fixedPayerUid === m.uid ? 'text-[#141b2b] dark:text-white' : 'text-[#777587]'].join(' ')}>
-                            {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
 
-          {/* Due Day — only shown for monthly bills */}
-          {form.recurrenceType === 'monthly' && (
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Due Date</label>
-            <div className="relative">
-              <select
-                value={form.billingDay}
-                onChange={e => setForm(f => ({ ...f, billingDay: e.target.value }))}
-                className="w-full appearance-none bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-10 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
-              >
-                {billingDayOptions.map(d => (
-                  <option key={d} value={d.toString()}>{ordinal(d)} of every month</option>
-                ))}
-                {!billingDayOptions.includes(parseInt(form.billingDay)) && (
-                  <option value={form.billingDay}>{ordinal(parseInt(form.billingDay))} of every month</option>
-                )}
-              </select>
-              <CalendarCheck size={16} className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none text-[#777587]" />
-            </div>
-          </div>
-          )}
-
-          {/* Assign Roommates */}
+          {/* Who shares this bill — for prepaid these members also rotate paying the vendor */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
-              <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">Split Among</label>
+              <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">
+                {form.billType === 'prepaid' ? 'Who Takes Turns Paying & Splitting' : 'Split Among'}
+              </label>
               <button
                 onClick={selectAll}
                 className="text-xs font-semibold text-[#3525cd] cursor-pointer hover:opacity-70 transition-opacity"
@@ -3528,82 +3450,6 @@ export default function ExpensesPage() {
       })()}
 
 
-      {/* ── Monthly Collector Card — above tab bar, only when on bills tab ── */}
-      {activeTab === 'bills' && <div className="rounded-[16px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] px-4 py-3">
-        {!showChangeCollector ? (
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
-              <span className="text-white font-extrabold text-[13px]">
-                {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
-              </span>
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold uppercase tracking-wider text-[#3525cd] dark:text-[#8b9ef8] leading-none">This Month&apos;s Collector</p>
-              <p className="text-[14px] font-extrabold text-[#141b2b] dark:text-white mt-0.5 leading-snug">
-                {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
-              </p>
-              <p className="text-[10px] text-[#777587] dark:text-gray-400 mt-0.5">
-                {iAmCollector
-                  ? 'You handle all bill payments & collect dues from flatmates'
-                  : `Handles all bill payments & collects dues from everyone`}
-              </p>
-            </div>
-            {isAdmin && (
-              <button
-                onClick={() => { setShowChangeCollector(true); setPendingCollectorUid(monthlyCollectorUid) }}
-                className="text-[11px] font-bold text-[#3525cd] dark:text-[#8b9ef8] bg-white dark:bg-[#2d3a6b] px-3 py-1.5 rounded-full border border-[#c7d7f5] dark:border-[#3d4f8a] cursor-pointer hover:bg-[#eef2ff] dark:hover:bg-[#363f78] transition-colors shrink-0"
-              >
-                Change
-              </button>
-            )}
-          </div>
-        ) : (
-          <div className="space-y-3">
-            <p className="text-[11px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider">Change This Month&apos;s Collector</p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-              {members.filter(m => m.status !== 'inactive').map(m => (
-                <button
-                  key={m.uid}
-                  onClick={() => setPendingCollectorUid(m.uid)}
-                  className={[
-                    'flex items-center gap-2 px-3 py-2 rounded-[12px] border text-left transition-all cursor-pointer',
-                    pendingCollectorUid === m.uid
-                      ? 'border-[#3525cd] bg-[#3525cd] text-white'
-                      : 'border-[#c7d7f5] dark:border-[#2d3a6b] bg-white dark:bg-[#242b4e] text-[#141b2b] dark:text-white',
-                  ].join(' ')}
-                >
-                  <span className={['w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0',
-                    pendingCollectorUid === m.uid ? 'bg-white/20 text-white' : 'bg-[#e8ecff] dark:bg-[#3525cd]/30 text-[#3525cd]',
-                  ].join(' ')}>
-                    {m.nickname.charAt(0).toUpperCase()}
-                  </span>
-                  <span className="text-[12px] font-bold truncate">
-                    {m.uid === currentUserId ? 'You' : m.nickname}
-                    {m.role === 'admin' && <span className={['text-[9px] ml-1', pendingCollectorUid === m.uid ? 'text-white/70' : 'text-[#3525cd]/60 dark:text-[#8b9ef8]/60'].join(' ')}>admin</span>}
-                  </span>
-                </button>
-              ))}
-            </div>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                className="flex-1 font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white"
-                disabled={!pendingCollectorUid || pendingCollectorUid === monthlyCollectorUid}
-                onClick={async () => {
-                  await setMonthlyCollector(currentMonthKey(), pendingCollectorUid)
-                  setShowChangeCollector(false)
-                }}
-              >
-                Set as Collector
-              </Button>
-              <Button size="sm" variant="outline" className="font-bold" onClick={() => setShowChangeCollector(false)}>
-                Cancel
-              </Button>
-            </div>
-          </div>
-        )}
-      </div>}
-
       {/* Tab switcher */}
       <div className="flex gap-0 p-1 bg-[#EDEDF0] dark:bg-white/[0.06] rounded-[14px] border border-black/[0.05] dark:border-white/[0.05]">
         <button
@@ -3917,6 +3763,78 @@ export default function ExpensesPage() {
               </Button>
             </div>
           )}
+
+          {/* Collector chip — compact, below the toggle, change panel expands inline */}
+          <div className="rounded-[12px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] overflow-hidden">
+            <div className="flex items-center gap-2.5 px-3.5 py-2.5">
+              <div className="w-7 h-7 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
+                <span className="text-white font-extrabold text-[11px]">
+                  {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
+                </span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider leading-none">Monthly Collector</p>
+                <p className="text-[13px] font-extrabold text-[#141b2b] dark:text-white mt-0.5 leading-none">
+                  {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
+                  <span className="text-[10px] font-normal text-[#777587] dark:text-gray-400 ml-1.5">· collects dues this month</span>
+                </p>
+              </div>
+              {isAdmin && (
+                <button
+                  onClick={() => { setShowChangeCollector(s => !s); setPendingCollectorUid(monthlyCollectorUid) }}
+                  className={[
+                    'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors cursor-pointer shrink-0',
+                    showChangeCollector
+                      ? 'bg-[#3525cd] text-white border-[#3525cd]'
+                      : 'text-[#3525cd] dark:text-[#8b9ef8] border-[#c7d7f5] dark:border-[#3d4f8a] bg-white dark:bg-[#2d3a6b] hover:bg-[#eef2ff] dark:hover:bg-[#363f78]',
+                  ].join(' ')}
+                >
+                  {showChangeCollector ? 'Cancel' : 'Change ▾'}
+                </button>
+              )}
+            </div>
+
+            {/* Inline change panel — expands when admin clicks Change */}
+            {showChangeCollector && (
+              <div className="border-t border-[#c7d7f5] dark:border-[#2d3a6b] px-3.5 py-3 space-y-2.5">
+                <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wide">Pick this month&apos;s collector</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {members.filter(m => m.status !== 'inactive').map(m => (
+                    <button
+                      key={m.uid}
+                      onClick={() => setPendingCollectorUid(m.uid)}
+                      className={[
+                        'flex items-center gap-2 px-2.5 py-2 rounded-[10px] border text-left transition-all cursor-pointer',
+                        pendingCollectorUid === m.uid
+                          ? 'border-[#3525cd] bg-[#3525cd] text-white'
+                          : 'border-[#c7d7f5] dark:border-[#2d3a6b] bg-white dark:bg-[#242b4e] text-[#141b2b] dark:text-white',
+                      ].join(' ')}
+                    >
+                      <span className={['w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold shrink-0',
+                        pendingCollectorUid === m.uid ? 'bg-white/20 text-white' : 'bg-[#e8ecff] dark:bg-[#3525cd]/30 text-[#3525cd]',
+                      ].join(' ')}>
+                        {m.nickname.charAt(0).toUpperCase()}
+                      </span>
+                      <span className="text-[11px] font-bold truncate">
+                        {m.uid === currentUserId ? 'You' : m.nickname}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+                <Button
+                  size="sm"
+                  className="w-full font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white"
+                  disabled={!pendingCollectorUid || pendingCollectorUid === monthlyCollectorUid}
+                  onClick={async () => {
+                    await setMonthlyCollector(currentMonthKey(), pendingCollectorUid)
+                    setShowChangeCollector(false)
+                  }}
+                >
+                  Confirm — Set {members.find(m => m.uid === pendingCollectorUid)?.nickname ?? '…'} as Collector
+                </Button>
+              </div>
+            )}
+          </div>
 
           <div className="grid grid-cols-3 gap-2">
             {[

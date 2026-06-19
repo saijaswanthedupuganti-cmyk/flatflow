@@ -1173,57 +1173,16 @@ function MonthlyBillModal({
             </div>
           </div>
 
-          {/* Collector — card picker */}
-          <div className="space-y-3">
-            <div>
-              <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Collector</label>
-              <p className="text-[11px] text-[#777587] mt-0.5 leading-snug">
-                Collects everyone&apos;s share and pays the owner. Can be changed any month.
-              </p>
+          {/* Collector note — monthly collector set at the flat level */}
+          <div className="flex items-start gap-3 px-3 py-3 rounded-[12px] bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b]">
+            <div className="w-7 h-7 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0 mt-0.5">
+              <span className="text-white font-extrabold text-[11px]">C</span>
             </div>
-            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(members.length, 4)}, 1fr)` }}>
-              {members.map((m, idx) => {
-                const isSelected = form.collectorId === m.uid
-                return (
-                  <button
-                    key={m.uid}
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, collectorId: m.uid }))}
-                    className={[
-                      'flex flex-col items-center gap-2 py-3 px-2 rounded-[14px] border-2 transition-all cursor-pointer',
-                      isSelected
-                        ? 'border-[#3525cd] bg-[#3525cd]/5 dark:bg-[#3525cd]/15 shadow-sm'
-                        : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#3525cd]/25',
-                    ].join(' ')}
-                  >
-                    {/* Avatar with selection ring */}
-                    <div className={['relative w-10 h-10 rounded-full flex items-center justify-center text-[15px] font-bold text-white shrink-0 transition-all',
-                      memberAvatarColors[idx % memberAvatarColors.length],
-                      isSelected ? 'ring-2 ring-[#3525cd] ring-offset-2 ring-offset-white dark:ring-offset-[#1A202C]' : '',
-                    ].join(' ')}>
-                      {m.nickname.charAt(0).toUpperCase()}
-                      {isSelected && (
-                        <span className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-[#3525cd] rounded-full flex items-center justify-center">
-                          <svg width="8" height="6" viewBox="0 0 8 6" fill="none">
-                            <path d="M1 3L3 5L7 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </span>
-                      )}
-                    </div>
-                    {/* Name */}
-                    <div className="text-center">
-                      <p className={['text-[11px] font-semibold leading-tight truncate max-w-[64px]',
-                        isSelected ? 'text-[#3525cd] dark:text-violet-400' : 'text-[#464555] dark:text-gray-300',
-                      ].join(' ')}>
-                        {m.nickname.split(' ')[0]}
-                      </p>
-                      {m.uid === currentUserId && (
-                        <p className="text-[9px] text-[#777587] font-medium">you</p>
-                      )}
-                    </div>
-                  </button>
-                )
-              })}
+            <div>
+              <p className="text-[12px] font-bold text-[#3525cd] dark:text-[#8b9ef8]">Collector set at flat level</p>
+              <p className="text-[11px] text-[#777587] dark:text-gray-400 mt-0.5 leading-snug">
+                This bill will be handled by this month&apos;s collector. Change the collector from the Expenses page — it applies to all bills for the month.
+              </p>
             </div>
           </div>
 
@@ -2077,7 +2036,7 @@ export default function ExpensesPage() {
     resetMonthSplits, resetAllExpensesData,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, markBillCollected, skipBillInstance, deleteBillInstance,
-    createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth,
+    createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth, setMonthlyCollector,
   } = useFlatStore()
   const { user } = useAuthStore()
   const { can } = useSubscription()
@@ -2154,6 +2113,14 @@ export default function ExpensesPage() {
   const currentUserId = user?.uid || 'u1'
   const currentUser = members.find(m => m.uid === currentUserId)
   const isAdmin = currentUser?.role === 'admin'
+
+  // Monthly collector — the one person who handles all bill payments and collects dues
+  const adminMember = members.find(m => m.role === 'admin')
+  const monthlyCollectorUid = currentCycle?.monthlyCollectorUid ?? adminMember?.uid ?? currentUserId
+  const monthlyCollector = members.find(m => m.uid === monthlyCollectorUid)
+  const iAmCollector = monthlyCollectorUid === currentUserId
+  const [showChangeCollector, setShowChangeCollector] = useState(false)
+  const [pendingCollectorUid, setPendingCollectorUid] = useState('')
 
   const balances = useMemo(
     () => computeBalances(currentUserId, expenses, settlements),
@@ -3335,7 +3302,7 @@ export default function ExpensesPage() {
             {/* Three stat pills */}
             <div className="grid grid-cols-3 gap-1.5">
               <div className="bg-emerald-50 dark:bg-emerald-950/30 rounded-[14px] px-2.5 py-2.5">
-                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-none">You Will Receive</p>
+                <p className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider leading-none">{iAmCollector ? 'You\'ll Collect' : 'Getting Back'}</p>
                 <div className="flex items-center gap-0.5 mt-1.5">
                   <p className="text-[14px] font-black text-emerald-700 dark:text-emerald-300 leading-none">{formatAmount(totalOwedToYou, 'INR')}</p>
                   <ArrowDownLeft size={11} className="text-emerald-500 shrink-0" />
@@ -3343,12 +3310,12 @@ export default function ExpensesPage() {
                 <p className="text-[9px] text-emerald-500/70 mt-1">From {balances.filter(x => x.amount > 0).length} {balances.filter(x => x.amount > 0).length === 1 ? 'person' : 'people'}</p>
               </div>
               <div className="bg-orange-50 dark:bg-orange-950/30 rounded-[14px] px-2.5 py-2.5">
-                <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider leading-none">You Need To Pay</p>
+                <p className="text-[9px] font-bold text-orange-600 dark:text-orange-400 uppercase tracking-wider leading-none">Pay to Collector</p>
                 <div className="flex items-center gap-0.5 mt-1.5">
                   <p className="text-[14px] font-black text-orange-700 dark:text-orange-300 leading-none">{formatAmount(totalYouOwe, 'INR')}</p>
                   <ArrowUpRight size={11} className="text-orange-500 shrink-0" />
                 </div>
-                <p className="text-[9px] text-orange-500/70 mt-1">To {balances.filter(x => x.amount < 0).length} {balances.filter(x => x.amount < 0).length === 1 ? 'person' : 'people'}</p>
+                <p className="text-[9px] text-orange-500/70 mt-1">{monthlyCollector ? `To ${monthlyCollector.uid === currentUserId ? 'yourself' : monthlyCollector.nickname}` : 'Pending settlement'}</p>
               </div>
               <div className="bg-secondary/60 rounded-[14px] px-2.5 py-2.5">
                 <p className="text-[9px] font-bold text-[#999CA1] uppercase tracking-wider leading-none">Net Position</p>
@@ -3383,6 +3350,82 @@ export default function ExpensesPage() {
         )
       })()}
 
+
+      {/* ── Monthly Collector Card ───────────────────────────────────────── */}
+      <div className="rounded-[16px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] px-4 py-3">
+        {!showChangeCollector ? (
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
+              <span className="text-white font-extrabold text-[13px]">
+                {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#3525cd] dark:text-[#8b9ef8] leading-none">This Month&apos;s Collector</p>
+              <p className="text-[14px] font-extrabold text-[#141b2b] dark:text-white mt-0.5 leading-snug">
+                {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
+              </p>
+              <p className="text-[10px] text-[#777587] dark:text-gray-400 mt-0.5">
+                {iAmCollector
+                  ? 'You handle all bill payments & collect dues from flatmates'
+                  : `Handles all bill payments & collects dues from everyone`}
+              </p>
+            </div>
+            {isAdmin && (
+              <button
+                onClick={() => { setShowChangeCollector(true); setPendingCollectorUid(monthlyCollectorUid) }}
+                className="text-[11px] font-bold text-[#3525cd] dark:text-[#8b9ef8] bg-white dark:bg-[#2d3a6b] px-3 py-1.5 rounded-full border border-[#c7d7f5] dark:border-[#3d4f8a] cursor-pointer hover:bg-[#eef2ff] dark:hover:bg-[#363f78] transition-colors shrink-0"
+              >
+                Change
+              </button>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-3">
+            <p className="text-[11px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider">Change This Month&apos;s Collector</p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+              {members.filter(m => m.status !== 'inactive').map(m => (
+                <button
+                  key={m.uid}
+                  onClick={() => setPendingCollectorUid(m.uid)}
+                  className={[
+                    'flex items-center gap-2 px-3 py-2 rounded-[12px] border text-left transition-all cursor-pointer',
+                    pendingCollectorUid === m.uid
+                      ? 'border-[#3525cd] bg-[#3525cd] text-white'
+                      : 'border-[#c7d7f5] dark:border-[#2d3a6b] bg-white dark:bg-[#242b4e] text-[#141b2b] dark:text-white',
+                  ].join(' ')}
+                >
+                  <span className={['w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0',
+                    pendingCollectorUid === m.uid ? 'bg-white/20 text-white' : 'bg-[#e8ecff] dark:bg-[#3525cd]/30 text-[#3525cd]',
+                  ].join(' ')}>
+                    {m.nickname.charAt(0).toUpperCase()}
+                  </span>
+                  <span className="text-[12px] font-bold truncate">
+                    {m.uid === currentUserId ? 'You' : m.nickname}
+                    {m.role === 'admin' && <span className={['text-[9px] ml-1', pendingCollectorUid === m.uid ? 'text-white/70' : 'text-[#3525cd]/60 dark:text-[#8b9ef8]/60'].join(' ')}>admin</span>}
+                  </span>
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                className="flex-1 font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white"
+                disabled={!pendingCollectorUid || pendingCollectorUid === monthlyCollectorUid}
+                onClick={async () => {
+                  await setMonthlyCollector(currentMonthKey(), pendingCollectorUid)
+                  setShowChangeCollector(false)
+                }}
+              >
+                Set as Collector
+              </Button>
+              <Button size="sm" variant="outline" className="font-bold" onClick={() => setShowChangeCollector(false)}>
+                Cancel
+              </Button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {/* Tab switcher */}
       <div className="flex gap-0 p-1 bg-[#EDEDF0] dark:bg-white/[0.06] rounded-[14px] border border-black/[0.05] dark:border-white/[0.05]">
@@ -3429,7 +3472,7 @@ export default function ExpensesPage() {
                   <div className="flex items-center justify-between mb-2 px-0.5">
                     <div className="flex items-center gap-1">
                       <ArrowDownLeft size={12} className="text-emerald-500" />
-                      <p className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">Getting back</p>
+                      <p className="text-[11px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider">{iAmCollector ? 'Collecting from' : 'Getting back'}</p>
                     </div>
                     {totalOwedToYou > 0 && <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalOwedToYou, 'INR')}</p>}
                   </div>
@@ -3450,7 +3493,7 @@ export default function ExpensesPage() {
                                 {isSettled ? (
                                   <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Check size={9} /> Paid today</p>
                                 ) : (
-                                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">Will pay you</p>
+                                  <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400">{iAmCollector ? 'Owes you' : 'Will pay you'}</p>
                                 )}
                               </div>
                             </button>
@@ -3466,7 +3509,7 @@ export default function ExpensesPage() {
                                   onClick={() => setQuickSettle({ userId: b.userId, amount: b.amount, currency: b.currency, reversed: true })}
                                   className="bg-emerald-500 hover:bg-emerald-600 active:scale-95 text-white text-[11px] font-extrabold px-3 py-2.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(16,185,129,0.25)] shrink-0"
                                 >
-                                  Settle
+                                  {iAmCollector ? 'Mark Received' : 'Settle'}
                                 </button>
                               </div>
                             )}
@@ -3503,7 +3546,7 @@ export default function ExpensesPage() {
                   <div className="flex items-center justify-between mb-2 px-0.5">
                     <div className="flex items-center gap-1">
                       <ArrowUpRight size={12} className="text-orange-500" />
-                      <p className="text-[11px] font-extrabold text-orange-500 dark:text-orange-400 uppercase tracking-wider">You&apos;ll pay</p>
+                      <p className="text-[11px] font-extrabold text-orange-500 dark:text-orange-400 uppercase tracking-wider">You owe</p>
                     </div>
                     <p className="text-[11px] font-bold text-[#021328] dark:text-foreground">{formatAmount(totalYouOwe, 'INR')}</p>
                   </div>
@@ -3521,7 +3564,9 @@ export default function ExpensesPage() {
                               </div>
                               <div className="min-w-0">
                                 <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
-                                <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">Tap to see history</p>
+                                <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">
+                                  {b.userId === monthlyCollectorUid ? `Pay to collector` : 'Tap to see history'}
+                                </p>
                               </div>
                             </button>
                             <div className="flex items-center gap-2 shrink-0">
@@ -3530,7 +3575,7 @@ export default function ExpensesPage() {
                                 onClick={() => setQuickSettle({ userId: b.userId, amount, currency: b.currency, reversed: false })}
                                 className="bg-[#3786FB] hover:bg-[#2672e6] active:scale-95 text-white text-[11px] font-extrabold px-3 py-2.5 rounded-full transition-all cursor-pointer shadow-[0px_3px_8px_rgba(55,134,251,0.25)] shrink-0"
                               >
-                                Pay
+                                {b.userId === monthlyCollectorUid ? 'Pay Collector' : 'Pay'}
                               </button>
                             </div>
                           </div>
@@ -3678,6 +3723,25 @@ export default function ExpensesPage() {
       {/* FIXED BILLS TAB */}
       {activeTab === 'bills' && (
         <div className="space-y-4">
+
+          {/* Collector in bills tab — who handles bill payments */}
+          <div className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b]">
+            <div className="w-8 h-8 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
+              <span className="text-white font-extrabold text-[12px]">
+                {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
+              </span>
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider leading-none">Monthly Collector</p>
+              <p className="text-[13px] font-extrabold text-[#141b2b] dark:text-white mt-0.5">
+                {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
+              </p>
+            </div>
+            <p className="text-[10px] text-[#777587] dark:text-gray-400 text-right leading-snug max-w-[120px]">
+              Pays all bills &amp; collects dues from flatmates
+            </p>
+          </div>
+
           <div className="grid grid-cols-3 gap-2">
             {[
               { label: 'Total Bills', value: totalMonthlyCommitment > 0 ? formatAmount(totalMonthlyCommitment, 'INR') : '--', sub: recurringBills.filter(b => b.active).length + ' active bills', dark: true },

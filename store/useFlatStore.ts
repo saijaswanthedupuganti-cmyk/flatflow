@@ -219,6 +219,10 @@ export interface MonthCycle {
   carryForwardOut: { toMonth: string;   balances: Record<string, number> } | null
 
   createdBy: string
+
+  // The one person who handles all bill payments and collects dues from flatmates.
+  // Defaults to admin when not set. Admin can change it per month.
+  monthlyCollectorUid?: string
 }
 
 export type SubscriptionStatus = 'trial' | 'active' | 'expired'
@@ -291,6 +295,7 @@ interface FlatState {
     summary: { totalBillsINR: number; totalExpensesINR: number; totalSettledINR: number; netBalances: Record<string, number> },
     carryForwardOut: Record<string, number> | null,
   ) => Promise<void>
+  setMonthlyCollector: (month: string, collectorUid: string) => Promise<void>
   resolveSwapRequest: (requestId: string, status: 'accepted' | 'rejected') => Promise<void>
   cancelSwapRequest: (requestId: string) => Promise<void>
   markSwapRequestRead: (requestId: string) => Promise<void>
@@ -1674,6 +1679,33 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       action: 'settlement_added',
       details: `closed ${label} — ${confirmedSettlements.length} settlement${confirmedSettlements.length !== 1 ? 's' : ''} recorded${carryForwardOut ? ', balance carried forward' : ''}`,
     })
+  },
+
+  setMonthlyCollector: async (month, collectorUid) => {
+    const state = get()
+    if (!state.flatId) return
+    const cycleId = `${state.flatId}_${month}`
+    const existing = state.monthCycles.find(mc => mc.month === month)
+    if (existing) {
+      const updated = { ...existing, monthlyCollectorUid: collectorUid }
+      set(s => ({ monthCycles: s.monthCycles.map(mc => mc.month === month ? updated : mc) }))
+      if (hasKeys) {
+        await updateDoc(doc(db, `flats/${state.flatId}/monthCycles/${cycleId}`), { monthlyCollectorUid: collectorUid })
+      }
+    } else {
+      const uid = useAuthStore.getState().user?.uid ?? ''
+      const cycle: MonthCycle = {
+        id: cycleId, flatId: state.flatId, month, status: 'open',
+        openedAt: new Date().toISOString(), closedAt: null,
+        totalBillsINR: 0, totalExpensesINR: 0, totalSettledINR: 0, netBalances: {},
+        carryForwardIn: null, carryForwardOut: null, createdBy: uid,
+        monthlyCollectorUid: collectorUid,
+      }
+      set(s => ({ monthCycles: [cycle, ...s.monthCycles] }))
+      if (hasKeys) {
+        await setDoc(doc(db, `flats/${state.flatId}/monthCycles/${cycleId}`), fs(cycle))
+      }
+    }
   },
 
   resolveSwapRequest: async (requestId, status) => {

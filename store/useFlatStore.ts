@@ -1519,16 +1519,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       b.active &&
       (b.recurrenceType ?? 'monthly') === 'monthly' &&
       b.lastGeneratedMonth !== month &&
-      b.payerMode !== 'manual' &&
-      !b.isVariable &&
       today.getDate() >= b.billingDay
     )
 
     const nonMonthlyDue = state.recurringBills.filter(b =>
       b.active &&
       (b.recurrenceType ?? 'monthly') !== 'monthly' &&
-      !b.isVariable &&
-      b.payerMode !== 'manual' &&
       isNonMonthlyDue(b)
     )
 

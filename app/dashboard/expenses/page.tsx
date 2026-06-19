@@ -945,6 +945,8 @@ function MonthlyBillModal({
     recurrenceType:         (initial?.recurrenceType ?? 'monthly') as 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly',
     recurrenceIntervalValue: initial?.recurrenceIntervalValue?.toString() ?? '90',
     billType:               (initial?.billType ?? 'prepaid') as 'prepaid' | 'postpaid',
+    payerMode:              (initial?.payerMode ?? 'rotation') as PayerMode,
+    fixedPayerUid:          initial?.fixedPayerUid ?? (members[0]?.uid ?? ''),
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -974,8 +976,8 @@ function MonthlyBillModal({
         billingDay:             Math.min(31, Math.max(1, parseInt(form.billingDay) || 1)),
         rotationQueue:          form.rotationQueue,
         participants:           form.rotationQueue,
-        payerMode:              (initial?.payerMode ?? 'rotation') as PayerMode,
-        fixedPayerUid:          initial?.fixedPayerUid,
+        payerMode:              form.billType === 'postpaid' ? 'rotation' : form.payerMode,
+        fixedPayerUid:          form.billType === 'prepaid' && form.payerMode === 'fixed' ? form.fixedPayerUid : undefined,
         splitMethod:            (initial?.splitMethod ?? 'equal') as SplitMethod,
         percentSplits:          initial?.percentSplits,
         customSplits:           initial?.customSplits,
@@ -1175,14 +1177,14 @@ function MonthlyBillModal({
             )}
           </div>
 
-          {/* Payment model */}
-          <div className="space-y-1.5">
-            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Payment Model</label>
+          {/* Payment model → conditionally shows payer config */}
+          <div className="space-y-3">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">How Is This Bill Paid?</label>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { value: 'prepaid', label: 'Paid From Personal Funds', desc: 'Someone pays vendor first, then collects from flatmates' },
-                { value: 'postpaid', label: 'Direct to Collector', desc: 'Members pay the monthly collector directly — no advance' },
-              ] as const).map(opt => (
+                { value: 'prepaid' as const, label: 'Paid From Personal Funds', desc: 'Someone pays the vendor first, then collects from flatmates' },
+                { value: 'postpaid' as const, label: 'Direct to Collector', desc: 'Members pay the monthly collector directly — no vendor advance' },
+              ]).map(opt => (
                 <button
                   key={opt.value}
                   type="button"
@@ -1195,7 +1197,7 @@ function MonthlyBillModal({
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-2">
-                    <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                    <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0',
                       form.billType === opt.value ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
                     ].join(' ')}>
                       {form.billType === opt.value && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
@@ -1208,6 +1210,63 @@ function MonthlyBillModal({
                 </button>
               ))}
             </div>
+
+            {/* Payer config — only for prepaid */}
+            {form.billType === 'prepaid' && (
+              <div className="space-y-3 pt-1">
+                <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Usually Managed By</label>
+                <div className="grid grid-cols-3 gap-1.5">
+                  {([
+                    { value: 'rotation' as PayerMode, label: 'Takes Turns' },
+                    { value: 'fixed'    as PayerMode, label: 'Always Same' },
+                    { value: 'manual'   as PayerMode, label: 'Choose Each Time' },
+                  ]).map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, payerMode: opt.value }))}
+                      className={[
+                        'py-2 px-2 rounded-[10px] text-[11px] font-semibold text-center transition-all border cursor-pointer',
+                        form.payerMode === opt.value
+                          ? 'bg-[#3525cd] text-white border-transparent'
+                          : 'bg-[#f1f3ff] dark:bg-white/[0.06] text-[#464555] dark:text-gray-300 border-transparent hover:border-[#3525cd]/30',
+                      ].join(' ')}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Fixed payer selector */}
+                {form.payerMode === 'fixed' && (
+                  <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-[#464555] dark:text-gray-400 uppercase tracking-wide">Who always manages this bill?</p>
+                    <div className="space-y-1.5">
+                      {members.map((m, idx) => (
+                        <button
+                          key={m.uid}
+                          type="button"
+                          onClick={() => setForm(f => ({ ...f, fixedPayerUid: m.uid }))}
+                          className="flex items-center gap-2.5 w-full cursor-pointer"
+                        >
+                          <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0',
+                            form.fixedPayerUid === m.uid ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
+                          ].join(' ')}>
+                            {form.fixedPayerUid === m.uid && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
+                          </div>
+                          <div className={['w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0', memberAvatarColors[idx % memberAvatarColors.length]].join(' ')}>
+                            {m.nickname.charAt(0).toUpperCase()}
+                          </div>
+                          <span className={['text-sm font-medium', form.fixedPayerUid === m.uid ? 'text-[#141b2b] dark:text-white' : 'text-[#777587]'].join(' ')}>
+                            {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Due Day — only shown for monthly bills */}
@@ -2336,13 +2395,7 @@ export default function ExpensesPage() {
 
   const dueBills = useMemo(() => recurringBills.filter(isBillDue), [recurringBills])
 
-  // Auto-open generate modal for admins when bills are due
-  useEffect(() => {
-    if (isAdmin && dueBills.length > 0 && !hasAutoOpened.current) {
-      hasAutoOpened.current = true
-      setShowGenerate(true)
-    }
-  }, [isAdmin, dueBills.length]) // eslint-disable-line react-hooks/exhaustive-deps
+  // (auto-open of generate modal removed — admin uses Generate All button intentionally)
 
   // 2-day month-end warning for variable bills not yet confirmed
   const isNearMonthEnd = useMemo(() => {
@@ -3475,8 +3528,8 @@ export default function ExpensesPage() {
       })()}
 
 
-      {/* ── Monthly Collector Card ───────────────────────────────────────── */}
-      <div className="rounded-[16px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] px-4 py-3">
+      {/* ── Monthly Collector Card — above tab bar, only when on bills tab ── */}
+      {activeTab === 'bills' && <div className="rounded-[16px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] px-4 py-3">
         {!showChangeCollector ? (
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
@@ -3549,7 +3602,7 @@ export default function ExpensesPage() {
             </div>
           </div>
         )}
-      </div>
+      </div>}
 
       {/* Tab switcher */}
       <div className="flex gap-0 p-1 bg-[#EDEDF0] dark:bg-white/[0.06] rounded-[14px] border border-black/[0.05] dark:border-white/[0.05]">
@@ -3846,23 +3899,24 @@ export default function ExpensesPage() {
       {activeTab === 'bills' && (
         <div className="space-y-4">
 
-          {/* Collector in bills tab — who handles bill payments */}
-          <div className="flex items-center gap-3 px-3.5 py-3 rounded-[14px] bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b]">
-            <div className="w-8 h-8 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
-              <span className="text-white font-extrabold text-[12px]">
-                {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
-              </span>
+          {/* Admin action bar — Add bill + Generate All */}
+          {isAdmin && (
+            <div className="flex gap-2">
+              {dueBills.length > 0 && (
+                <Button size="sm" className="font-semibold flex-1 bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => generateAllDueBills(currentMonthKey())}>
+                  <Zap size={13} className="mr-1" /> Generate All
+                </Button>
+              )}
+              {recurringBills.length === 0 && (
+                <Button size="sm" variant="outline" className="font-semibold flex-1" onClick={() => setShowQuickSetup(true)}>
+                  <Sparkles size={13} className="mr-1" /> Quick Setup
+                </Button>
+              )}
+              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
+                <Plus size={13} className="mr-1" /> Add Recurring Bill
+              </Button>
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider leading-none">Monthly Collector</p>
-              <p className="text-[13px] font-extrabold text-[#141b2b] dark:text-white mt-0.5">
-                {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
-              </p>
-            </div>
-            <p className="text-[10px] text-[#777587] dark:text-gray-400 text-right leading-snug max-w-[120px]">
-              Pays all bills &amp; collects dues from flatmates
-            </p>
-          </div>
+          )}
 
           <div className="grid grid-cols-3 gap-2">
             {[
@@ -3978,23 +4032,6 @@ export default function ExpensesPage() {
             )
           })()}
 
-          {isAdmin && (
-            <div className="flex gap-2">
-              {recurringBills.length === 0 && (
-                <Button size="sm" variant="outline" className="font-semibold flex-1" onClick={() => setShowQuickSetup(true)}>
-                  <Sparkles size={13} className="mr-1" /> Quick Setup
-                </Button>
-              )}
-              {dueBills.filter(b => b.payerMode !== 'manual' && !b.isVariable).length > 0 && (
-                <Button size="sm" className="font-semibold flex-1 bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => generateAllDueBills(currentMonthKey())}>
-                  <Zap size={13} className="mr-1" /> Generate All
-                </Button>
-              )}
-              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
-                <Plus size={13} className="mr-1" /> Add Recurring Bill
-              </Button>
-            </div>
-          )}
 
           {recurringBills.filter(b => b.active).length === 0 ? (
             <Card className="border-dashed border-2">
@@ -4320,14 +4357,7 @@ export default function ExpensesPage() {
                               )}
                               {/* Secondary admin tools */}
                               <div className="flex flex-wrap bg-secondary/20">
-                                {!instance && bill.active && (
-                                  <button
-                                    onClick={() => { if (bill.isVariable || bill.payerMode === 'manual') setShowGenerate(true); else generateBill(bill.id) }}
-                                    className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-amber-600 dark:text-amber-400 hover:bg-amber-50 dark:hover:bg-amber-950/20 transition-colors cursor-pointer"
-                                  >
-                                    <Play size={11} /> Generate Split
-                                  </button>
-                                )}
+                                {/* Per-bill generate removed — use the "Generate All" button above the list */}
                                 {instance?.status === 'split_generated' && (
                                   <button
                                     onClick={() => {

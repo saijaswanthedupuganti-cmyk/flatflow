@@ -15,6 +15,7 @@ import { usePWA } from '@/contexts/PWAContext'
 import TrustTagCard from '@/components/TrustTagCard'
 import { useSubscription } from '@/hooks/useSubscription'
 import SubscriptionUpsell from '@/components/SubscriptionUpsell'
+import RewardsWallet from '@/components/RewardsWallet'
 
 interface DialogProps {
   open: boolean
@@ -320,6 +321,9 @@ export default function ProfilePage() {
             </div>
           </CardContent>
         </Card>
+
+        {/* ── Rewards Wallet ── */}
+        <RewardsWallet />
 
         {/* ── Habitiq Rating (gated by NEXT_PUBLIC_DISCOVERY_ENABLED) ── */}
         {process.env.NEXT_PUBLIC_DISCOVERY_ENABLED === 'true' && user && flatId && currentMember && (

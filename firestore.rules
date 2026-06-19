@@ -36,6 +36,27 @@ service cloud.firestore {
     // Users can only read/write their own profile
     match /users/{userId} {
       allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // ── Rewards subcollection ──────────────────────────────────────────────
+      // Written by the server-side task-completion logic (useFlatStore) under the
+      // completing user's UID. Read by that user only in their profile Wallet.
+      // Only `isRedeemed` may be updated (when the user copies their code).
+      match /rewards/{rewardId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow create: if request.auth != null && request.auth.uid == userId;
+        allow update: if request.auth != null && request.auth.uid == userId
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRedeemed']);
+        allow delete: if false;
+      }
+    }
+
+    // ── Reward Pool (admin-managed via Firebase Console, read-only for clients) ─
+    // Admins create/update documents here: { brandName, discountCode, description,
+    // isActive, expiryDays }. The app reads active rewards and picks one per task
+    // completion. Update a code here → all users get it automatically (6h cache).
+    match /rewardPool/{rewardId} {
+      allow read: if request.auth != null;
+      allow write: if false; // Firebase Console / Admin SDK only
     }
 
     // ── Coupons ───────────────────────────────────────────────────────────────

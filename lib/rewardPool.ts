@@ -1,0 +1,82 @@
+import { db, hasKeys } from '@/lib/firebase'
+import { collection, getDocs, query, where } from 'firebase/firestore'
+
+export interface RewardTemplate {
+  id: string
+  brandName: string
+  discountCode: string
+  description: string  // Plain-language instructions shown to the user
+  isActive: boolean
+  expiryDays: number   // Days from earning until the coupon expires
+}
+
+const LS_POOL_KEY = 'habitiq_reward_pool'
+const LS_POOL_TTL_KEY = 'habitiq_reward_pool_ttl'
+const CACHE_TTL_MS = 6 * 60 * 60 * 1000 // re-fetch from Firestore every 6 hours
+
+// Hardcoded fallback — used when Firestore is unavailable or /rewardPool is empty
+const FALLBACK_POOL: RewardTemplate[] = [
+  {
+    id: 'beardo-20',
+    brandName: 'Beardo',
+    discountCode: 'HABITIQ-BEARDO-20',
+    description:
+      'Paste this code at checkout on beardo.com to get 20% off your entire order. Valid on all products. Single-use code.',
+    isActive: true,
+    expiryDays: 30,
+  },
+]
+
+function loadPoolFromLS(): RewardTemplate[] | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const ttl = parseInt(localStorage.getItem(LS_POOL_TTL_KEY) ?? '0', 10)
+    if (Date.now() - ttl > CACHE_TTL_MS) return null
+    const raw = localStorage.getItem(LS_POOL_KEY)
+    return raw ? JSON.parse(raw) : null
+  } catch { return null }
+}
+
+function savePoolToLS(pool: RewardTemplate[]) {
+  if (typeof window === 'undefined') return
+  try {
+    localStorage.setItem(LS_POOL_KEY, JSON.stringify(pool))
+    localStorage.setItem(LS_POOL_TTL_KEY, String(Date.now()))
+  } catch {}
+}
+
+function pickRandom<T>(arr: T[]): T {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+/**
+ * Returns one active reward template.
+ * Priority: (1) localStorage cache → (2) Firestore /rewardPool → (3) hardcoded fallback.
+ *
+ * To update coupon codes: add/edit documents in Firebase Console → /rewardPool.
+ * Each document: { brandName, discountCode, description, isActive, expiryDays }
+ * Users see new codes automatically within 6 hours (cache TTL).
+ */
+export async function getActiveRewardTemplate(): Promise<RewardTemplate> {
+  // 1. Use localStorage cache if fresh
+  const cached = loadPoolFromLS()
+  if (cached && cached.length > 0) return pickRandom(cached)
+
+  // 2. Fetch from Firestore /rewardPool
+  if (hasKeys) {
+    try {
+      const snap = await getDocs(
+        query(collection(db, 'rewardPool'), where('isActive', '==', true))
+      )
+      const pool: RewardTemplate[] = []
+      snap.forEach(d => pool.push({ id: d.id, ...d.data() } as RewardTemplate))
+      if (pool.length > 0) {
+        savePoolToLS(pool)
+        return pickRandom(pool)
+      }
+    } catch { /* Firestore unavailable — use fallback */ }
+  }
+
+  // 3. Hardcoded fallback
+  return pickRandom(FALLBACK_POOL)
+}

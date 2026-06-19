@@ -16,6 +16,8 @@ import SubscriptionGate from '@/components/SubscriptionGate'
 import { useSubscription } from '@/hooks/useSubscription'
 import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 import AdminWelcomeModal, { shouldShowAdminWelcome } from '@/components/AdminWelcomeModal'
+import RewardUnlockModal from '@/components/RewardUnlockModal'
+import { useRewardsStore } from '@/store/useRewardsStore'
 
 const NAV_ITEMS = {
   main: [
@@ -47,6 +49,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const isAdmin = currentUser?.role === 'admin'
 
   const { isPremium, isExpired } = useSubscription()
+  const { initRewardsListener } = useRewardsStore()
   const subscription = useFlatStore(s => s.subscription)
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [showLayoutUpsell, setShowLayoutUpsell] = useState(false)
@@ -82,6 +85,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   }, [user, authFlatId, isSynced, initFirestoreListeners])
 
   useEffect(() => { setShowQuickAdd(false) }, [pathname])
+
+  // Rewards listener — per-user, persists across flat switches
+  useEffect(() => {
+    if (!user?.uid) return
+    const unsub = initRewardsListener(user.uid)
+    return unsub
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.uid])
 
   useEffect(() => {
     if (wasKicked) {
@@ -144,6 +155,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="flex h-screen bg-secondary/20">
       <NotificationToast />
+      <RewardUnlockModal />
 
       {/* ── Sidebar ─────────────────────────────────── */}
       <aside className="hidden md:flex flex-col w-64 bg-card border-r border-border/60 shadow-sm">

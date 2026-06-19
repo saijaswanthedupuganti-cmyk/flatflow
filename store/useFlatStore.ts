@@ -22,6 +22,8 @@ import {
   setFlatJoinMode as setFlatJoinModeService,
 } from '@/lib/flatService'
 import { addBehavioralEvent } from '@/lib/behavioralEvents'
+import { emitRewardUnlocked } from '@/lib/rewardSignal'
+import { getActiveRewardTemplate } from '@/lib/rewardPool'
 import type { VacancyListing } from '@/lib/discoveryTypes'
 
 export interface Member {
@@ -828,6 +830,39 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         })
       } catch { /* non-critical */ }
     }
+
+    // ── Reward streak logic — non-critical, never blocks task completion ──────
+    try {
+      // Anti-abuse guard 1: no reward for retroactively edited completions
+      const isRecentCompletion = !completedAt
+        || (Date.now() - completedAt.getTime() < 2 * 60 * 60 * 1000)
+
+      // Anti-abuse guard 2: one reward per 24 hours per device
+      const lastRewardKey = 'habitiq_last_reward_at'
+      const lastRewardAt = parseInt(localStorage.getItem(lastRewardKey) ?? '0', 10)
+      const rewardCooldownPassed = Date.now() - lastRewardAt > 24 * 60 * 60 * 1000
+
+      if (isRecentCompletion && rewardCooldownPassed) {
+        // Fetch active coupon from Firestore /rewardPool (with localStorage cache + fallback)
+        const template = await getActiveRewardTemplate()
+        const reward = {
+          id: crypto.randomUUID(),
+          brandName: template.brandName,
+          discountCode: template.discountCode,
+          description: template.description,
+          unlockedAt: new Date().toISOString(),
+          isRedeemed: false,
+          expiryDate: new Date(Date.now() + template.expiryDays * 24 * 60 * 60 * 1000).toISOString(),
+        }
+        localStorage.setItem(lastRewardKey, String(Date.now()))
+        // Emit locally — updates localStorage + Zustand state immediately
+        emitRewardUnlocked(reward)
+        // Best-effort Firestore sync for multi-device persistence
+        if (hasKeys && userId) {
+          setDoc(doc(db, `users/${userId}/rewards/${reward.id}`), reward).catch(() => {})
+        }
+      }
+    } catch { /* non-critical */ }
 
     // Belt-and-suspenders: if the new assignee is still out-of-station, re-rotate.
     // This handles the edge case where freshMembers itself was incomplete.

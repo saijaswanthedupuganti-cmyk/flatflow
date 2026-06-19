@@ -786,6 +786,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const task = state.tasks[taskIndex]
     const completedAt = completionDate ? new Date(completionDate) : undefined
 
+    // IMMEDIATE optimistic update using current member state. This removes the card
+    // from the dashboard BEFORE the async getDocs fetch below. Without this, the
+    // await creates a ~300ms window where setCompletingTaskId(null) has already closed
+    // the date picker but the task card re-shows the Done button — allowing double clicks
+    // that produce duplicate activity log entries.
+    const earlyTask = completeTask(task, state.members, completedAt)
+    const earlyTasks = [...state.tasks]
+    earlyTasks[taskIndex] = earlyTask
+    set({ tasks: earlyTasks })
+
     // Always fetch the freshest member availability directly from Firestore so the
     // rotation never lands on an out-of-station member due to stale Zustand state.
     let freshMembers = state.members
@@ -800,10 +810,16 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
     const updatedTask = completeTask(task, freshMembers, completedAt)
 
-    // Optimistic update — removes card from dashboard immediately, prevents double-completion
-    const newTasks = [...state.tasks]
-    newTasks[taskIndex] = updatedTask
-    set({ tasks: newTasks })
+    // Correct local state only if fresh members changed the rotation target
+    if (updatedTask.currentAssignedUserId !== earlyTask.currentAssignedUserId) {
+      set(s => {
+        const idx = s.tasks.findIndex(t => t.taskId === taskId)
+        if (idx === -1) return s
+        const arr = [...s.tasks]
+        arr[idx] = updatedTask
+        return { tasks: arr }
+      })
+    }
 
     // Cancel any pending swap requests for this task — they're stale now that the task
     // is done and rotating. Without this, the next assignee sees "Swap Request Pending"

@@ -8,12 +8,15 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 
 export default function SwapsPage() {
-  const { swapRequests, members, tasks, resolveSwapRequest } = useFlatStore()
+  const { swapRequests, members, tasks, resolveSwapRequest, cancelSwapRequest, createSwapRequest } = useFlatStore()
   const { user } = useAuthStore()
 
   const currentUserId = user?.uid || 'u1'
   const isAdmin = members.find(m => m.uid === currentUserId)?.role === 'admin'
   const [adminView, setAdminView] = useState<'mine' | 'all'>('mine')
+  const [redirectingId, setRedirectingId] = useState<string | null>(null)
+  const [redirectToId, setRedirectToId] = useState<string>('')
+  const [redirecting, setRedirecting] = useState(false)
 
   // My swap requests — newest first
   const received = [...swapRequests]
@@ -332,29 +335,98 @@ export default function SwapsPage() {
                     {sent.map(req => {
                       const task   = tasks.find(t => t.taskId === req.taskId)
                       const toUser = members.find(m => m.uid === req.toUserId)
+                      const isPending = req.status === 'pending'
+                      const isRedirecting = redirectingId === req.id
+                      const alternatives = members.filter(
+                        m => m.uid !== currentUserId && m.uid !== req.toUserId && m.status !== 'inactive'
+                      )
 
                       return (
                         <div
                           key={req.id}
-                          className="flex items-start gap-3 p-4 rounded-xl border border-border bg-card"
+                          className={`flex flex-col gap-3 p-4 rounded-xl border transition-all ${
+                            isPending
+                              ? 'border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/20'
+                              : 'border-border bg-card'
+                          }`}
                         >
-                          <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
-                            {req.status === 'pending'
-                              ? <Clock size={15} className="text-blue-500" />
-                              : req.status === 'accepted'
-                                ? <CheckCircle2 size={15} className="text-green-600" />
-                                : <XCircle size={15} className="text-red-500" />}
+                          <div className="flex items-start gap-3">
+                            <div className="w-9 h-9 rounded-lg bg-secondary flex items-center justify-center shrink-0">
+                              {isPending
+                                ? <Clock size={15} className="text-blue-500" />
+                                : req.status === 'accepted'
+                                  ? <CheckCircle2 size={15} className="text-green-600" />
+                                  : <XCircle size={15} className="text-red-500" />}
+                            </div>
+
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold leading-snug">
+                                You asked <span className="font-extrabold">{toUser?.nickname ?? 'someone'}</span>
+                                {' '}to cover <span className="font-extrabold">{task?.name ?? 'a task'}</span>
+                              </p>
+                              <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
+                            </div>
+
+                            <StatusBadge status={req.status} />
                           </div>
 
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold leading-snug">
-                              You asked <span className="font-extrabold">{toUser?.nickname ?? 'someone'}</span>
-                              {' '}to cover <span className="font-extrabold">{task?.name ?? 'a task'}</span>
-                            </p>
-                            <p className="text-xs text-muted-foreground mt-0.5">{timeAgo(req.createdAt)}</p>
-                          </div>
-
-                          <StatusBadge status={req.status} />
+                          {/* Redirect panel — only for pending requests */}
+                          {isPending && (
+                            isRedirecting ? (
+                              <div className="pt-2 border-t border-blue-200 dark:border-blue-700 space-y-2">
+                                <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider">
+                                  Send to someone else
+                                </p>
+                                {alternatives.length === 0 ? (
+                                  <p className="text-xs text-muted-foreground">No other roommates available.</p>
+                                ) : (
+                                  <select
+                                    value={redirectToId}
+                                    onChange={e => setRedirectToId(e.target.value)}
+                                    className="w-full bg-background text-foreground border border-border rounded-md px-3 py-2 text-sm"
+                                  >
+                                    <option value="" disabled>Choose a roommate</option>
+                                    {alternatives.map(m => (
+                                      <option key={m.uid} value={m.uid}>{m.nickname}</option>
+                                    ))}
+                                  </select>
+                                )}
+                                <div className="flex gap-2">
+                                  <Button
+                                    size="sm"
+                                    className="flex-1 font-bold"
+                                    disabled={!redirectToId || redirecting}
+                                    onClick={async () => {
+                                      if (!redirectToId) return
+                                      setRedirecting(true)
+                                      await cancelSwapRequest(req.id)
+                                      await createSwapRequest(req.taskId, currentUserId, redirectToId)
+                                      setRedirectingId(null)
+                                      setRedirectToId('')
+                                      setRedirecting(false)
+                                    }}
+                                  >
+                                    Send Request
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="flex-1"
+                                    onClick={() => { setRedirectingId(null); setRedirectToId('') }}
+                                  >
+                                    Cancel
+                                  </Button>
+                                </div>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setRedirectingId(req.id); setRedirectToId('') }}
+                                className="text-xs font-semibold text-blue-500 hover:text-blue-700 dark:hover:text-blue-300 transition-colors cursor-pointer text-left pt-1 border-t border-blue-200 dark:border-blue-800"
+                              >
+                                Send to someone else instead →
+                              </button>
+                            )
+                          )}
                         </div>
                       )
                     })}

@@ -799,12 +799,31 @@ export const useFlatStore = create<FlatState>((set, get) => ({
 
     const updatedTask = completeTask(task, freshMembers, completedAt)
 
+    // Optimistic update — removes card from dashboard immediately, prevents double-completion
+    const newTasks = [...state.tasks]
+    newTasks[taskIndex] = updatedTask
+    set({ tasks: newTasks })
+
+    // Cancel any pending swap requests for this task — they're stale now that the task
+    // is done and rotating. Without this, the next assignee sees "Swap Request Pending"
+    // and is completely blocked (can't complete or swap their task).
+    const pendingSwaps = state.swapRequests.filter(r => r.taskId === taskId && r.status === 'pending')
+    if (pendingSwaps.length > 0) {
+      set(s => ({
+        swapRequests: s.swapRequests.map(r =>
+          r.taskId === taskId && r.status === 'pending' ? { ...r, status: 'rejected' } : r
+        ),
+      }))
+      if (hasKeys && state.flatId) {
+        const fid = state.flatId
+        pendingSwaps.forEach(swap => {
+          updateDoc(doc(db, `flats/${fid}/swapRequests/${swap.id}`), { status: 'rejected' }).catch(() => {})
+        })
+      }
+    }
+
     if (hasKeys && state.flatId) {
       await setDoc(doc(db, `flats/${state.flatId}/tasks/${taskId}`), updatedTask)
-    } else {
-      const newTasks = [...state.tasks]
-      newTasks[taskIndex] = updatedTask
-      set({ tasks: newTasks })
     }
 
     const dateLabel = completionDate
@@ -1644,6 +1663,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const state = get()
     const request = state.swapRequests.find(r => r.id === requestId)
     if (!request) return
+
+    // Guard: only the designated recipient (toUserId) can accept or decline.
+    // Prevents the requester from resolving their own request, and prevents
+    // stale requests from being actioned after the task has rotated.
+    const currentUid = useAuthStore.getState().user?.uid
+    if (!currentUid || request.toUserId !== currentUid) return
 
     // Optimistic local update so subsequent checks in this function see the new status
     set(s => ({ swapRequests: s.swapRequests.map(r => r.id === requestId ? { ...r, status } : r) }))

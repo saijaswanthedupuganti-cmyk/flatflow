@@ -22,6 +22,7 @@ import VoiceButton from '@/components/VoiceButton'
 import VoiceListeningOverlay from '@/components/VoiceListeningOverlay'
 import VoiceResponseCard from '@/components/VoiceResponseCard'
 import VoiceFallbackModal from '@/components/VoiceFallbackModal'
+import MicPermissionModal from '@/components/MicPermissionModal'
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant'
 import { useVoiceProcessor } from '@/hooks/useVoiceProcessor'
 import { requestMicPermission } from '@/lib/voice/permissions'
@@ -67,6 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return localStorage.getItem('habitiq-voice') !== 'false'
   })
   const [showFallback, setShowFallback] = useState(false)
+  const [showMicPermission, setShowMicPermission] = useState(false)
 
   const voice     = useVoiceAssistant()
   const processor = useVoiceProcessor()
@@ -88,14 +90,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
 
+  const startVoice = useCallback(() => {
+    initTTS()
+    voice.startListening()
+    setTimeout(() => tts.speak("How can I help you?"), 120)
+  }, [voice.startListening])
+
   const handleVoiceTap = useCallback(async () => {
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
-    // Start listening immediately — overlay appears right away, no silent wait
-    initTTS()
-    voice.startListening()
-    tts.speak("How can I help you?")
-  }, [voiceEnabled, voice.isSupported, voice.startListening])
+    // Check if mic permission was already granted in a previous session
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('habitiq-mic-perm') : null
+    if (stored === 'granted') {
+      startVoice()
+    } else {
+      setShowMicPermission(true)
+    }
+  }, [voiceEnabled, voice.isSupported, startVoice])
 
   // Multi-flat warning: user is in > 1 flat but subscription is expired
   const multiFlat = allFlats.length > 1
@@ -395,6 +406,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         isOpen={showFallback}
         onClose={() => setShowFallback(false)}
         onSubmit={(text) => { void processor.process(text); setShowFallback(false) }}
+      />
+      <MicPermissionModal
+        isOpen={showMicPermission}
+        onGranted={() => { setShowMicPermission(false); startVoice() }}
+        onDismiss={() => setShowMicPermission(false)}
       />
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}

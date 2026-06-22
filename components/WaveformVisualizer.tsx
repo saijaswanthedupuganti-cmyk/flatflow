@@ -62,7 +62,21 @@ export default function WaveformVisualizer({ isActive, width = 200, height = 36 
 
         ctx.beginPath()
         const r = Math.min(barW / 2, h / 2)
-        ctx.roundRect(x, y, barW, h, r)
+        // roundRect is Safari 15.4+ only — use arc fallback for older devices
+        if (typeof ctx.roundRect === 'function') {
+          ctx.roundRect(x, y, barW, h, r)
+        } else {
+          ctx.moveTo(x + r, y)
+          ctx.lineTo(x + barW - r, y)
+          ctx.arc(x + barW - r, y + r, r, -Math.PI / 2, 0)
+          ctx.lineTo(x + barW, y + h - r)
+          ctx.arc(x + barW - r, y + h - r, r, 0, Math.PI / 2)
+          ctx.lineTo(x + r, y + h)
+          ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI)
+          ctx.lineTo(x, y + r)
+          ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2)
+          ctx.closePath()
+        }
         ctx.fill()
       }
 

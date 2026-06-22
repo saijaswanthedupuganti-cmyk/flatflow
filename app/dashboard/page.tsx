@@ -3,13 +3,14 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
-import { getPriorityWeight, getTaskUrgency, getTimeCycleContext, getTaskDateInfo, formatDateTime, timeAgo, getNextAssignee } from '@/lib/rotationEngine'
+import { getPriorityWeight, getTaskUrgency, getTaskDateInfo, timeAgo } from '@/lib/rotationEngine'
 import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
-import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, Eye, EyeOff, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, TrendingUp, ArrowUpRight, ArrowDownLeft, XCircle, Crown } from 'lucide-react'
+import { CheckCircle2, Clock, AlertTriangle, AlertCircle, ArrowUpCircle, Repeat, Inbox, Check, X, Copy, Share2, CalendarDays, Bell, ArrowRight, ArrowDown, ChevronRight, MapPinOff, Receipt, ArrowUpRight, ArrowDownLeft, XCircle, Crown, TrendingUp, TrendingDown } from 'lucide-react'
 import GoingOutModal from '@/components/GoingOutModal'
 import NPSBanner from '@/components/NPSBanner'
+import MemberAvatar, { MemberChip } from '@/components/MemberAvatar'
 import { useSubscription } from '@/hooks/useSubscription'
 import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 
@@ -129,38 +130,34 @@ export default function DashboardPage() {
   )
 
 
-  const upNext = tasks.map(task => {
-    // Use the same availability logic as the rotation engine — skip out-of-station/inactive
-    const nextUserId = getNextAssignee(task, members)
-    return {
-      taskName: task.name,
-      priority: task.priority,
-      person: nextUserId ? members.find(m => m.uid === nextUserId) : undefined
-    }
-  })
+
+  const memberUids = members.map(m => m.uid)
 
   const getUrgencyStyles = (task: any) => {
     const urgency = getTaskUrgency(task)
     if (urgency === 'overdue') return {
-      bg: 'bg-gradient-to-br from-red-600 to-red-800',
-      text: 'text-white',
-      badge: 'bg-red-900/50 text-red-100 border-red-400',
-      icon: <AlertTriangle size={20} />,
-      label: '⚠️ Past Due'
+      borderColor: '#ef4444',
+      badgeBg: 'rgba(239,68,68,0.12)',
+      badgeBorder: 'rgba(239,68,68,0.35)',
+      badgeText: '#ef4444',
+      icon: <AlertTriangle size={14} style={{ color: '#ef4444' }} />,
+      label: 'Overdue',
     }
     if (urgency === 'warning') return {
-      bg: 'bg-gradient-to-br from-orange-500 to-amber-600',
-      text: 'text-white',
-      badge: 'bg-orange-900/50 text-orange-100 border-orange-400',
-      icon: <Clock size={20} />,
-      label: 'Nearing Deadline'
+      borderColor: '#f59e0b',
+      badgeBg: 'rgba(245,158,11,0.12)',
+      badgeBorder: 'rgba(245,158,11,0.35)',
+      badgeText: '#f59e0b',
+      icon: <Clock size={14} style={{ color: '#f59e0b' }} />,
+      label: 'Due soon',
     }
     return {
-      bg: 'bg-gradient-to-br from-primary to-blue-600',
-      text: 'text-white',
-      badge: 'bg-blue-900/50 text-blue-100 border-blue-400',
-      icon: <Clock size={20} />,
-      label: 'Due soon'
+      borderColor: '#7c3aed',
+      badgeBg: 'rgba(124,58,237,0.12)',
+      badgeBorder: 'rgba(124,58,237,0.30)',
+      badgeText: '#a78bfa',
+      icon: <Clock size={14} style={{ color: '#a78bfa' }} />,
+      label: 'Upcoming',
     }
   }
 
@@ -199,22 +196,21 @@ export default function DashboardPage() {
     () => computeBalances(currentUserId, expenses, settlements),
     [currentUserId, expenses, settlements],
   )
+  const monthKey = currentMonthKey()
   const thisMonthBillsTotal = useMemo(() => {
-    const m = currentMonthKey()
-    return recurringBills.filter(b => b.active && b.amount).reduce((s, b) => {
-      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === m && bi.status !== 'skipped')
+    return recurringBills.filter(b => b.active).reduce((s, b) => {
+      const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === monthKey && bi.status !== 'skipped')
       return s + (inst?.amount ?? b.amount ?? 0)
     }, 0)
-  }, [recurringBills, billInstances])
+  }, [recurringBills, billInstances, monthKey])
   const thisMonthSplitsTotal = useMemo(() => {
-    const m = currentMonthKey()
     return expenses
-      .filter(e => e.date.startsWith(m) && e.currency === 'INR' && !e.deferToNextMonth && !e.billInstanceId)
+      .filter(e => e.date.startsWith(monthKey) && e.currency === 'INR' && !e.deferToNextMonth && !e.billInstanceId)
       .reduce((s, e) => s + e.amount, 0)
-  }, [expenses])
+  }, [expenses, monthKey])
   const pendingBills = useMemo(
-    () => recurringBills.filter(b => b.active && b.lastGeneratedMonth !== currentMonthKey()).length,
-    [recurringBills],
+    () => recurringBills.filter(b => b.active && b.lastGeneratedMonth !== monthKey).length,
+    [recurringBills, monthKey],
   )
   const iOweTotal = myBalances.filter(b => b.amount < 0 && b.currency === 'INR').reduce((s, b) => s + b.amount, 0)
   const owedToMe = myBalances.filter(b => b.amount > 0 && b.currency === 'INR').reduce((s, b) => s + b.amount, 0)
@@ -623,19 +619,7 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {(isAdmin ? adminView === 'mine' : false) && isOutOfStation ? (
-          <Card className="col-span-1 md:col-span-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md">
-            <CardContent className="p-4 flex flex-row items-center justify-between gap-4">
-              <div>
-                <h2 className="text-base font-bold">You&apos;re Out of Station</h2>
-                <p className="text-orange-100 text-xs mt-0.5">Rotation is skipping your duties.</p>
-              </div>
-              <Button size="sm" variant="secondary" className="font-bold text-orange-600 shrink-0" onClick={() => returnEarly(currentUser.uid)}>
-                I&apos;m Back
-              </Button>
-            </CardContent>
-          </Card>
-        ) : !isAdmin && isOutOfStation ? (
+        {(!isAdmin || adminView === 'mine') && isOutOfStation ? (
           <Card className="col-span-1 md:col-span-3 bg-gradient-to-br from-orange-500 to-amber-600 text-white shadow-md">
             <CardContent className="p-4 flex flex-row items-center justify-between gap-4">
               <div>
@@ -712,58 +696,83 @@ export default function DashboardPage() {
                   const pendingSwapToUser = pendingSwapIsMyRequest ? members.find(m => m.uid === pendingSwap?.toUserId) : undefined
 
                   return (
-                    <Card key={task.taskId} className={`${style.bg} ${style.text} border-none shadow-md transition-all hover:scale-[1.02]`}>
-                      <CardContent className="p-4">
-                        {/* Top row: icon + freq + priority */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="flex items-center gap-1.5">
+                    <div
+                      key={task.taskId}
+                      className="rounded-xl overflow-hidden transition-all hover:translate-y-[-1px] card-glow"
+                      style={{
+                        backgroundColor: 'var(--card)',
+                        borderLeft: `3px solid ${style.borderColor}`,
+                        border: `1px solid var(--border)`,
+                        borderLeftWidth: '3px',
+                        borderLeftColor: style.borderColor,
+                      }}
+                    >
+                      <div className="p-4">
+                        {/* Top row: urgency badge + member avatar */}
+                        <div className="flex items-center justify-between mb-3">
+                          <span
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
+                            style={{ backgroundColor: style.badgeBg, color: style.badgeText, border: `1px solid ${style.badgeBorder}` }}
+                          >
                             {style.icon}
-                            <span className="text-[10px] font-bold uppercase tracking-wider opacity-80">
-                              {FREQ_LABEL[task.frequency] ?? task.frequency}
-                            </span>
+                            {style.label}
                           </span>
-                          {task.priority === 'high' && (
-                            <span className={`text-[10px] px-2 py-0.5 rounded uppercase font-bold border flex items-center gap-1 ${style.badge}`}>
-                              <ArrowUpCircle size={10} /> High
-                            </span>
-                          )}
+                          <div className="flex items-center gap-1.5">
+                            {task.priority === 'high' && (
+                              <span className="text-[9px] font-extrabold text-amber-500 uppercase tracking-wider">HIGH</span>
+                            )}
+                            {task.currentAssignedUserId && (
+                              <MemberAvatar
+                                uid={task.currentAssignedUserId}
+                                nickname={members.find(m => m.uid === task.currentAssignedUserId)?.nickname ?? '?'}
+                                memberUids={memberUids}
+                                size="xs"
+                                showRing
+                              />
+                            )}
+                          </div>
                         </div>
 
-                        {/* Task name */}
-                        <div className="text-xl font-bold leading-tight">{task.name}</div>
+                        {/* Freq chip + Task name */}
+                        <div className="mb-1">
+                          <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">
+                            {FREQ_LABEL[task.frequency] ?? task.frequency}
+                          </span>
+                        </div>
+                        <div className="text-base font-bold leading-tight text-foreground">{task.name}</div>
 
                         {/* Dates */}
                         {dateInfo.isOverdue ? (
-                          <div className="mt-2 bg-black/20 rounded-lg p-2 border border-white/20">
-                            <p className="text-xs font-extrabold text-white/90">⚠️ {dateInfo.overdueLabel}</p>
-                            <p className="text-xs text-white/70 mt-0.5">Due: <span className="font-bold">{dateInfo.originalDueFormatted}</span></p>
+                          <div className="mt-2 rounded-lg p-2" style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.20)' }}>
+                            <p className="text-xs font-extrabold text-red-400">{dateInfo.overdueLabel}</p>
+                            <p className="text-xs text-muted-foreground mt-0.5">Was due <span className="font-semibold text-foreground">{dateInfo.originalDueFormatted}</span></p>
                           </div>
                         ) : (
                           <div className="mt-1.5 flex items-center gap-3">
-                            <p className="text-xs text-white/75">{dateInfo.cycleLabel}</p>
-                            <p className="text-xs text-white/60">Due: <span className="font-semibold">{dateInfo.dueDateFormatted}</span></p>
+                            <p className="text-xs text-muted-foreground">{dateInfo.cycleLabel}</p>
+                            <p className="text-xs text-muted-foreground">Due <span className="font-semibold text-foreground">{dateInfo.dueDateFormatted}</span></p>
                           </div>
                         )}
 
                         {/* Action area */}
                         <div className="mt-3">
                           {hasPendingRequest ? (
-                            <div className="bg-background/20 p-3 rounded-lg border border-background/20">
+                            <div className="p-3 rounded-lg" style={{ backgroundColor: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.20)' }}>
                               <div className="flex items-center gap-2">
-                                <Clock size={14} className="opacity-70 shrink-0" />
+                                <Clock size={14} className="text-primary/60 shrink-0" />
                                 <div className="flex-1 min-w-0">
-                                  <p className="text-sm font-bold text-white">
-                                    {pendingSwapIsMyRequest ? 'Swap request sent' : 'Swap Request Pending'}
+                                  <p className="text-sm font-bold text-foreground">
+                                    {pendingSwapIsMyRequest ? 'Swap sent' : 'Swap pending'}
                                   </p>
-                                  <p className="text-xs text-white/60 truncate">
-                                    Waiting for {pendingSwapToUser?.nickname ?? 'your roommate'} to accept
+                                  <p className="text-xs text-muted-foreground truncate">
+                                    Waiting for {pendingSwapToUser?.nickname ?? 'your roommate'}
                                   </p>
                                 </div>
                               </div>
                               {pendingSwapIsMyRequest && pendingSwap && (
                                 <button
                                   onClick={() => cancelSwapRequest(pendingSwap.id)}
-                                  className="mt-2 w-full text-center text-xs font-semibold text-white/45 hover:text-white/80 transition-colors duration-200 cursor-pointer pt-2 border-t border-white/10"
+                                  className="mt-2 w-full text-center text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors duration-200 cursor-pointer pt-2 border-t border-border/40"
                                 >
                                   Withdraw &amp; ask someone else
                                 </button>
@@ -771,8 +780,8 @@ export default function DashboardPage() {
                             </div>
                           ) : completingTaskId === task.taskId ? (
                             /* ── Date confirmation panel ── */
-                            <div className="bg-background/20 p-3 rounded-lg border border-background/20 space-y-3">
-                              <p className="text-xs font-bold uppercase tracking-wider text-white flex items-center gap-1.5">
+                            <div className="p-3 rounded-lg border border-border/60 space-y-3" style={{ backgroundColor: 'var(--secondary)' }}>
+                              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-1.5">
                                 <CalendarDays size={13} /> When did you do this?
                               </p>
                               <input
@@ -780,12 +789,12 @@ export default function DashboardPage() {
                                 value={completionDate}
                                 max={new Date().toISOString().split('T')[0]}
                                 onChange={e => setCompletionDate(e.target.value)}
-                                className="w-full bg-background text-foreground border-none rounded-md px-3 py-2 text-sm"
+                                className="w-full bg-background text-foreground border border-border/60 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
                               />
                               <div className="flex gap-2">
                                 <Button
-                                  variant="secondary"
-                                  className="flex-1 font-bold text-foreground"
+                                  className="flex-1 font-bold"
+                                  style={{ backgroundColor: '#7c3aed', color: '#fff' }}
                                   disabled={!completionDate}
                                   onClick={() => {
                                     markTaskCompleted(task.taskId, currentUser.uid, completionDate)
@@ -796,7 +805,7 @@ export default function DashboardPage() {
                                 </Button>
                                 <Button
                                   variant="outline"
-                                  className="flex-1 bg-transparent border-white/30 text-white hover:bg-white/10"
+                                  className="flex-1 border-border/60"
                                   onClick={() => setCompletingTaskId(null)}
                                 >
                                   Cancel
@@ -804,12 +813,12 @@ export default function DashboardPage() {
                               </div>
                             </div>
                           ) : isSwapping ? (
-                            <div className="bg-background/20 p-3 rounded-lg border border-background/20 space-y-3">
-                              <p className="text-xs font-bold uppercase tracking-wider text-white">Request Swap</p>
+                            <div className="p-3 rounded-lg border border-border/60 space-y-3" style={{ backgroundColor: 'var(--secondary)' }}>
+                              <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground">Request Swap</p>
                               <select
                                 value={selectedSubstituteId}
                                 onChange={(e) => setSelectedSubstituteId(e.target.value)}
-                                className="w-full bg-background text-foreground border-none rounded-md px-3 py-2 text-sm"
+                                className="w-full bg-background text-foreground border border-border/60 rounded-lg px-3 py-2 text-sm focus:outline-none"
                               >
                                 <option value="" disabled>Select roommate</option>
                                 {availableSubstitutes.map(sub => (
@@ -821,8 +830,8 @@ export default function DashboardPage() {
                               </select>
                               <div className="flex gap-2">
                                 <Button
-                                  variant="secondary"
-                                  className="flex-1 font-bold text-foreground"
+                                  className="flex-1 font-bold"
+                                  style={{ backgroundColor: '#7c3aed', color: '#fff' }}
                                   onClick={() => handleTransferRequest(task.taskId)}
                                   disabled={!selectedSubstituteId}
                                 >
@@ -830,7 +839,7 @@ export default function DashboardPage() {
                                 </Button>
                                 <Button
                                   variant="outline"
-                                  className="flex-1 bg-transparent border-white/30 text-white hover:bg-white/10"
+                                  className="flex-1 border-border/60"
                                   onClick={() => setSwappingTaskId(null)}
                                 >
                                   Cancel
@@ -840,31 +849,31 @@ export default function DashboardPage() {
                           ) : (
                             <div className="flex gap-2">
                               <Button
-                                variant="secondary"
-                                className="flex-1 font-bold shadow-sm text-foreground"
+                                className="flex-1 font-bold"
+                                style={{ backgroundColor: '#7c3aed', color: '#fff' }}
                                 onClick={() => {
                                   setSwappingTaskId(null)
                                   setCompletingTaskId(task.taskId)
                                   setCompletionDate(new Date().toISOString().split('T')[0])
                                 }}
                               >
-                                <CheckCircle2 size={16} className="mr-1.5" />
+                                <CheckCircle2 size={15} className="mr-1.5" />
                                 Done
                               </Button>
                               <Button
                                 variant="outline"
                                 size="icon"
-                                className="bg-transparent border-white/30 text-white hover:bg-white/10 hover:text-white shrink-0"
+                                className="shrink-0 border-border/60 hover:border-primary/40 hover:bg-primary/10 transition-colors"
                                 onClick={() => setSwappingTaskId(task.taskId)}
                                 title="Ask someone to cover this duty"
                               >
-                                <Repeat size={18} />
+                                <Repeat size={16} className="text-muted-foreground" />
                               </Button>
                             </div>
                           )}
                         </div>
-                      </CardContent>
-                    </Card>
+                      </div>
+                    </div>
                   )
                 })}
               </div>
@@ -879,42 +888,41 @@ export default function DashboardPage() {
                 const assignee = members.find(m => m.uid === task.currentAssignedUserId)
                 const dateInfo = getTaskDateInfo(task)
                 return (
-                  <Card key={task.taskId} className={`shadow-sm overflow-hidden ${dateInfo.isOverdue ? 'border-red-200 dark:border-red-900' : ''}`}>
-                    <CardHeader className="pb-2">
-                      <CardTitle className="text-sm font-medium text-muted-foreground flex items-center justify-between">
-                        <span>{task.name}</span>
+                  <div
+                    key={task.taskId}
+                    className="rounded-xl overflow-hidden card-glow"
+                    style={{
+                      backgroundColor: 'var(--card)',
+                      border: `1px solid var(--border)`,
+                      borderLeft: `3px solid ${dateInfo.isOverdue ? '#ef4444' : '#7c3aed'}`,
+                    }}
+                  >
+                    <div className="p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="text-sm font-bold text-foreground truncate pr-2">{task.name}</span>
                         {dateInfo.isOverdue && (
-                          <span className="text-[10px] bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-400 px-1.5 py-0.5 rounded font-bold">
+                          <span className="shrink-0 text-[9px] font-extrabold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(239,68,68,0.12)', color: '#ef4444' }}>
                             {dateInfo.overdueDays}d late
                           </span>
                         )}
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-bold text-primary shrink-0">
-                          {assignee?.nickname.charAt(0) || '?'}
-                        </div>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        {assignee && (
+                          <MemberAvatar uid={assignee.uid} nickname={assignee.nickname} memberUids={memberUids} size="sm" showRing />
+                        )}
                         <div className="min-w-0">
-                          <div className="font-bold">{assignee?.nickname || 'Unassigned'}</div>
-                          <span className={`text-xs font-bold uppercase tracking-wider ${
-                            task.status === 'overdue' ? 'text-red-500' : 'text-blue-500'
-                          }`}>
+                          <div className="text-xs font-semibold text-foreground">{assignee?.nickname || 'Unassigned'}</div>
+                          <span className="text-[10px] font-bold uppercase tracking-wider" style={{ color: task.status === 'overdue' ? '#ef4444' : '#a78bfa' }}>
                             {task.status}
                           </span>
                         </div>
                       </div>
-                      <div className="mt-3 pt-3 border-t border-border space-y-1">
-                        <p className="text-xs text-muted-foreground">
-                          Due: <span className="font-semibold text-foreground">{dateInfo.dueDateFormatted}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">
-                          Last done: <span className="font-semibold text-foreground">{dateInfo.lastCompletedFormatted}</span>
-                        </p>
-                        <p className="text-xs text-muted-foreground">{dateInfo.cycleLabel}</p>
+                      <div className="mt-2 pt-2 border-t border-border/40 space-y-0.5">
+                        <p className="text-[10px] text-muted-foreground">Due <span className="font-semibold text-foreground">{dateInfo.dueDateFormatted}</span></p>
+                        <p className="text-[10px] text-muted-foreground">{dateInfo.cycleLabel}</p>
                       </div>
-                    </CardContent>
-                  </Card>
+                    </div>
+                  </div>
                 )
               })}
             </div>
@@ -923,42 +931,55 @@ export default function DashboardPage() {
       </div>
       
       {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-4 border-t border-border/60">
-        <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <CheckCircle2 size={13} className="text-green-500" />
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Flat Health</span>
+      {(() => {
+        const flatHealth = Math.round((tasks.filter(t => t.status !== 'overdue').length / (tasks.length || 1)) * 100)
+        const overdueCount = tasks.filter(t => t.status === 'overdue').length
+        const pendingSwaps = swapRequests.filter(r => r.status === 'pending').length
+        const activeMembers = members.filter(m => m.status === 'available').length
+        return (
+          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/40">
+            {/* Flat Health */}
+            <div className="rounded-xl p-3 card-glow" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1 mb-2">
+                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: 'rgba(34,197,94,0.12)' }}>
+                  <CheckCircle2 size={11} style={{ color: '#22c55e' }} />
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Health</span>
+              </div>
+              <div className="numeric-lg" style={{ color: flatHealth >= 80 ? '#22c55e' : flatHealth >= 50 ? '#f59e0b' : '#ef4444' }}>
+                {flatHealth}%
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                {overdueCount > 0 ? `${overdueCount} overdue` : 'All on track'}
+              </p>
             </div>
-            <div className="text-2xl font-extrabold">
-              {Math.round((tasks.filter(t => t.status !== 'overdue').length / (tasks.length || 1)) * 100)}%
+            {/* Total Tasks */}
+            <div className="rounded-xl p-3 card-glow" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1 mb-2">
+                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: 'rgba(124,58,237,0.12)' }}>
+                  <Inbox size={11} style={{ color: '#a78bfa' }} />
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Tasks</span>
+              </div>
+              <div className="numeric-lg">{tasks.length}</div>
+              <p className="text-[10px] text-muted-foreground mt-1">{activeMembers} active</p>
             </div>
-            <p className="text-xs text-muted-foreground mt-0.5">{tasks.filter(t => t.status === 'overdue').length} overdue</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <AlertCircle size={13} className="text-blue-500" />
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Total Tasks</span>
+            {/* Swaps */}
+            <div className="rounded-xl p-3 card-glow" style={{ backgroundColor: 'var(--card)', border: '1px solid var(--border)' }}>
+              <div className="flex items-center gap-1 mb-2">
+                <div className="w-5 h-5 rounded-md flex items-center justify-center" style={{ backgroundColor: 'rgba(14,165,233,0.12)' }}>
+                  <Repeat size={11} style={{ color: '#0ea5e9' }} />
+                </div>
+                <span className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">Swaps</span>
+              </div>
+              <div className="numeric-lg" style={{ color: pendingSwaps > 0 ? '#f59e0b' : undefined }}>
+                {pendingSwaps || '—'}
+              </div>
+              <p className="text-[10px] text-muted-foreground mt-1">pending</p>
             </div>
-            <div className="text-2xl font-extrabold">{tasks.length}</div>
-            <p className="text-xs text-muted-foreground mt-0.5">{members.filter(m => m.status === 'available').length} active</p>
-          </CardContent>
-        </Card>
-        <Card className="shadow-sm border-border/60 col-span-1">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Inbox size={13} className="text-purple-500" />
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Swaps</span>
-            </div>
-            <div className="text-2xl font-extrabold">
-              {swapRequests.filter(r => r.status === 'pending').length}
-            </div>
-            <p className="text-xs text-muted-foreground mt-0.5">pending</p>
-          </CardContent>
-        </Card>
-      </div>
+          </div>
+        )
+      })()}
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* ── Rotation Order — visible to ALL members ───────────────── */}
@@ -1053,22 +1074,19 @@ export default function DashboardPage() {
                       const assignee = members.find(m => m.uid === task.currentAssignedUserId)
                       if (!assignee) return null
                       return (
-                        <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 ${
-                          isMyTask
-                            ? 'bg-primary border-primary text-white shadow-md'
-                            : 'bg-card border-border/50'
-                        }`}>
-                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                            isMyTask ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
-                          }`}>
-                            {assignee.nickname.charAt(0).toUpperCase()}
-                          </div>
-                          <span className={`flex-1 text-sm font-semibold ${isMyTask ? 'text-white' : 'text-foreground'}`}>
-                            {assignee.nickname}
-                          </span>
-                          <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
-                            isMyTask ? 'bg-white/20 text-white' : 'bg-secondary text-muted-foreground'
-                          }`}>
+                        <div
+                          className="flex items-center gap-3 px-3 py-2.5 rounded-xl border"
+                          style={{
+                            backgroundColor: isMyTask ? 'rgba(124,58,237,0.12)' : 'transparent',
+                            borderColor: isMyTask ? 'rgba(124,58,237,0.40)' : 'var(--border)',
+                          }}
+                        >
+                          <MemberAvatar uid={assignee.uid} nickname={assignee.nickname} memberUids={memberUids} size="sm" showRing={isMyTask} />
+                          <span className="flex-1 text-sm font-semibold text-foreground">{assignee.nickname}</span>
+                          <span
+                            className="text-[10px] font-extrabold px-2 py-0.5 rounded-full"
+                            style={{ backgroundColor: 'rgba(124,58,237,0.12)', color: '#a78bfa' }}
+                          >
                             {isMyTask ? 'YOU' : 'ASSIGNED'}
                           </span>
                         </div>
@@ -1086,61 +1104,51 @@ export default function DashboardPage() {
                         if (!m) return null
                         return (
                           <div key={uid}>
-                            <div className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border-2 transition-all ${
-                              isOOS  ? 'bg-secondary/40 border-border/30 opacity-50'
-                             : isNow  ? 'bg-primary border-primary text-white shadow-md'
-                             : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
-                             : isMe   ? 'bg-secondary border-primary/40'
-                             :          'bg-card border-border/50'
-                            }`}>
-                              {/* Position */}
-                              <span className={`text-[10px] font-bold w-5 text-center shrink-0 tabular-nums ${
-                                isNow ? 'text-white/60' : 'text-muted-foreground/50'
-                              }`}>
-                                #{idx + 1}
+                            <div
+                              className={`flex items-center gap-3 px-3 py-2.5 rounded-xl border transition-all ${
+                                isOOS ? 'opacity-40' : ''
+                              }`}
+                              style={{
+                                backgroundColor: isNow ? 'rgba(124,58,237,0.15)' : isNext ? 'rgba(124,58,237,0.06)' : 'transparent',
+                                borderColor: isNow ? 'rgba(124,58,237,0.50)' : isNext ? 'rgba(124,58,237,0.20)' : 'var(--border)',
+                              }}
+                            >
+                              <span className="text-[10px] font-bold w-5 text-center shrink-0 tnum text-muted-foreground/40">
+                                {idx + 1}
                               </span>
-                              {/* Avatar */}
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                                isOOS   ? 'bg-muted text-muted-foreground'
-                               : isNow  ? 'bg-white/25 text-white'
-                               : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
-                               : isMe   ? 'bg-primary/15 text-primary'
-                               :          'bg-secondary text-foreground'
-                              }`}>
-                                {m.nickname.charAt(0).toUpperCase()}
-                              </div>
-                              {/* Name + expected date */}
+                              <MemberAvatar
+                                uid={uid}
+                                nickname={m.nickname}
+                                memberUids={memberUids}
+                                size="sm"
+                                showRing={isNow || isMe}
+                              />
                               <div className="flex-1 min-w-0">
-                                <span className={`text-sm font-semibold truncate block ${
-                                  isOOS ? 'text-muted-foreground line-through' : isNow ? 'text-white' : isNext ? 'text-blue-900 dark:text-blue-100' : 'text-foreground'
-                                }`}>
+                                <span className={`text-sm font-semibold truncate block ${isOOS ? 'line-through text-muted-foreground' : 'text-foreground'}`}>
                                   {m.nickname}
                                 </span>
-                                {!isOneTime && (
-                                  <span className={`text-[10px] font-medium ${
-                                    isOOS ? 'text-muted-foreground/40' : isNow ? 'text-white/65' : 'text-muted-foreground/55'
-                                  }`}>
-                                    {isOOS ? '—' : getExpectedDate(task.dueDate, task.frequency, idx)}
-                                  </span>
-                                )}
+                                <span className="text-[10px] text-muted-foreground/55">
+                                  {isOOS ? 'Away' : getExpectedDate(task.dueDate, task.frequency, idx)}
+                                </span>
                               </div>
-                              {/* Badge */}
-                              <span className={`ml-auto text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0 ${
-                                isOOS  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
-                               : isNow  ? 'bg-white/25 text-white'
-                               : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
-                               : isMe   ? 'bg-primary/15 text-primary'
-                               :          'invisible'
-                              }`}>
-                                {isOOS ? 'OUT' : isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
-                              </span>
+                              {(isOOS || isNow || isNext || isMe) && (
+                                <span
+                                  className="text-[9px] font-extrabold px-2 py-0.5 rounded-full shrink-0"
+                                  style={{
+                                    backgroundColor: isNow ? 'rgba(124,58,237,0.20)' : isOOS ? 'rgba(245,158,11,0.15)' : 'rgba(124,58,237,0.10)',
+                                    color: isNow ? '#a78bfa' : isOOS ? '#f59e0b' : isMe ? '#a78bfa' : '#a09db0',
+                                  }}
+                                >
+                                  {isOOS ? 'AWAY' : isNow ? 'NOW' : isNext ? 'NEXT' : 'YOU'}
+                                </span>
+                              )}
                             </div>
                             {idx < orderedQueue.length - 1 ? (
                               <div className="flex justify-center py-0.5">
-                                <ArrowDown size={10} className="text-muted-foreground/25" />
+                                <ArrowDown size={10} className="text-muted-foreground/20" />
                               </div>
                             ) : (
-                              <div className="flex justify-center items-center gap-0.5 py-0.5 text-muted-foreground/25">
+                              <div className="flex justify-center items-center gap-0.5 py-0.5 text-muted-foreground/20">
                                 <ArrowDown size={10} />
                                 <span className="text-[10px] font-bold leading-none">↺</span>
                               </div>
@@ -1167,52 +1175,41 @@ export default function DashboardPage() {
                           <div key={uid} className="flex flex-row items-center gap-0 shrink-0">
 
                             {/* ── Card ── */}
-                            <div className={`flex flex-col items-center justify-start gap-1
-                              w-[76px] min-w-[76px] px-1.5 pt-2 pb-2 rounded-xl border-2 transition-all
-                              ${isOOS  ? 'bg-secondary/40 border-border/30 opacity-50'
-                               : isNow  ? 'bg-primary border-primary text-white shadow-md shadow-primary/20'
-                               : isNext ? 'bg-blue-50 dark:bg-blue-950/40 border-blue-300 dark:border-blue-700'
-                               : isMe   ? 'bg-secondary border-primary/40'
-                               :          'bg-card border-border/50'
-                              }`}>
-
-                              {/* Avatar */}
-                              <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                                isOOS   ? 'bg-muted text-muted-foreground'
-                               : isNow  ? 'bg-white/25 text-white'
-                               : isNext ? 'bg-blue-100 dark:bg-blue-800 text-blue-700 dark:text-blue-200'
-                               : isMe   ? 'bg-primary/15 text-primary'
-                               :          'bg-secondary text-foreground'
-                              }`}>
-                                {m.nickname.charAt(0).toUpperCase()}
-                              </div>
+                            <div
+                              className={`flex flex-col items-center justify-start gap-1 w-[76px] min-w-[76px] px-1.5 pt-2 pb-2 rounded-xl border transition-all ${isOOS ? 'opacity-40' : ''}`}
+                              style={{
+                                backgroundColor: isNow ? 'rgba(124,58,237,0.15)' : isNext ? 'rgba(124,58,237,0.06)' : 'transparent',
+                                borderColor: isNow ? 'rgba(124,58,237,0.50)' : isNext ? 'rgba(124,58,237,0.20)' : 'var(--border)',
+                              }}
+                            >
+                              <MemberAvatar
+                                uid={uid}
+                                nickname={m.nickname}
+                                memberUids={memberUids}
+                                size="sm"
+                                showRing={isNow || isMe}
+                              />
 
                               {/* Name */}
-                              <span className={`w-full text-center text-[10px] font-semibold leading-tight truncate px-1 ${
-                                isOOS   ? 'text-muted-foreground line-through'
-                               : isNow  ? 'text-white'
-                               : isNext ? 'text-blue-900 dark:text-blue-100'
-                               : isMe   ? 'text-foreground'
-                               :          'text-muted-foreground'
-                              }`} title={m.nickname}>
+                              <span className={`w-full text-center text-[10px] font-semibold leading-tight truncate px-1 ${isOOS ? 'line-through text-muted-foreground' : 'text-foreground'}`} title={m.nickname}>
                                 {m.nickname}
                               </span>
 
                               {/* Status badge */}
-                              <span className={`text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap leading-tight ${
-                                isOOS  ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-600 dark:text-orange-400'
-                               : isNow  ? 'bg-white/25 text-white'
-                               : isNext ? 'bg-blue-200 dark:bg-blue-700 text-blue-800 dark:text-blue-100'
-                               : isMe   ? 'bg-primary/15 text-primary'
-                               :          'invisible'
-                              }`}>
-                                {isOOS ? 'OUT' : isNow ? 'NOW' : isNext ? 'NEXT' : isMe ? 'YOU' : 'x'}
-                              </span>
+                              {(isOOS || isNow || isNext || isMe) && (
+                                <span
+                                  className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full whitespace-nowrap leading-tight"
+                                  style={{
+                                    backgroundColor: isNow ? 'rgba(124,58,237,0.25)' : isOOS ? 'rgba(245,158,11,0.15)' : 'rgba(124,58,237,0.10)',
+                                    color: isNow ? '#a78bfa' : isOOS ? '#f59e0b' : '#a09db0',
+                                  }}
+                                >
+                                  {isOOS ? 'AWAY' : isNow ? 'NOW' : isNext ? 'NEXT' : 'YOU'}
+                                </span>
+                              )}
                               {/* Expected date */}
                               {!isOneTime && (
-                                <span className={`text-[9px] font-medium leading-tight text-center px-0.5 ${
-                                  isOOS ? 'text-muted-foreground/30' : isNow ? 'text-white/60' : 'text-muted-foreground/50'
-                                }`}>
+                                <span className="text-[9px] text-muted-foreground/50 leading-tight text-center px-0.5">
                                   {isOOS ? '—' : getExpectedDate(task.dueDate, task.frequency, idx)}
                                 </span>
                               )}

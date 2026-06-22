@@ -610,6 +610,59 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
+        {/* ── Voice Assistant ── */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <span className="text-base">🎙️</span>
+              Voice Assistant
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* Enable / disable toggle */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="font-semibold text-sm">Voice Commands</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Hold the + button to speak a command</p>
+              </div>
+              <button
+                onClick={() => {
+                  const next = localStorage.getItem('habitiq-voice') !== 'false' ? 'false' : 'true'
+                  localStorage.setItem('habitiq-voice', next)
+                  // Force re-render by toggling a key — layout reads on mount
+                  window.dispatchEvent(new Event('storage'))
+                }}
+                className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2 cursor-pointer ${
+                  (typeof window !== 'undefined' && localStorage.getItem('habitiq-voice') !== 'false')
+                    ? 'bg-primary'
+                    : 'bg-secondary border border-border'
+                }`}
+              >
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-md transition-transform ${
+                  (typeof window !== 'undefined' && localStorage.getItem('habitiq-voice') !== 'false')
+                    ? 'translate-x-6' : 'translate-x-1'
+                }`} />
+              </button>
+            </div>
+
+            {/* Quick reference */}
+            <div className="rounded-xl p-3.5 space-y-2" style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)' }}>
+              <p className="text-[11px] font-bold text-violet-400 uppercase tracking-widest mb-1">Example commands</p>
+              {[
+                ['"Kitchen done"',                    'Mark a task complete'],
+                ['"Add 500 for groceries, split it"', 'Log an expense'],
+                ['"How much does Bhanu owe me?"',     'Check balances'],
+                ['"What are my tasks?"',              'List your pending duties'],
+              ].map(([cmd, hint]) => (
+                <div key={cmd} className="flex items-start gap-2">
+                  <span className="text-xs font-semibold text-foreground shrink-0">{cmd}</span>
+                  <span className="text-xs text-muted-foreground">— {hint}</span>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+
         {/* ── Install App ── */}
         <Card className="shadow-sm">
           <CardHeader className="pb-3">

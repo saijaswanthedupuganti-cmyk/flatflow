@@ -1,13 +1,13 @@
 ﻿# Habitiq — Project Documentation
 
 > **Product:** Habitiq
-> **Version:** v0.4.0 (Trial Phase — Member UX, Swap Analytics, Bill Collector)
+> **Version:** v0.4.3 (Rewards Wallet — 5-task streak, brand coupons, unlock modal)
 > **Project folder:** C:\garbage
 > **Live URL:** https://habitiq.app
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Domain:** habitiq.app (canonical — live as of 17 June 2026)
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 17 June 2026
+> **Last Updated:** 19 June 2026 (Session 4)
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -622,9 +622,11 @@ Fix: Added explicit fortnightly handling in completeTask (14-day nextDueDate), g
 ## 7. Complete Feature Set (v0.3.0)
 
 ### Auth
-Google Sign-In (one-tap) · Email/Password · Custom auth domain proxy (iOS Safari fix) · Session persistence · Minimal data (email + name only)
+Google Sign-In (one-tap) · Email/Password · Custom auth domain proxy (iOS Safari fix) · Session persistence · Minimal data (email + name only) · **Forgot password flow** (in-modal reset, email enumeration safe)
 
 ### Onboarding
+**Mobile:** Continuity flow — each step feels like a direct continuation of the choice screen. Choose screen (orange/purple hero cards) → Create Flat (170px hero strip, "Your Flat. Your Rules." headline, flat name only) or Join Flat (170px hero strip, "Your Crew. Already Here." headline, nickname + invite code). No redundant headings, no nickname ask on create (user already authenticated). Invalid invite codes caught early with clear error message before any other flow runs.
+**Desktop:** Premium two-panel layout — full-viewport image on left with floating feature cards, form on right.
 Create flat (instant invite code) · Join flat via code · One-time setup · Join/create additional flats without logout · Approval-mode join (admin approves requests)
 
 ### Rotation Engine
@@ -706,10 +708,10 @@ Dark/light mode · Bottom nav mobile (5-slot with radial FAB: Dashboard · Expen
 ## 8. User Flows
 
 ### Flow 1 — Admin Creates Flat
-Open app → Sign in → Onboarding → Create flat → Enter name → Invite code generated → Dashboard → Share code → Create tasks → Done
+Open app → Sign in → Onboarding choose screen (Your Flat. Your Rules. card) → Create Flat screen → Enter flat name only (nickname auto-set from profile) → Invite code generated → Dashboard → Share code → Create tasks → Done
 
 ### Flow 2 — Member Joins
-Open app → Sign in → Onboarding → Join flat → Enter invite code → Auto-added to all queues → Dashboard
+Open app → Sign in → Onboarding choose screen (Your Crew. Already Here. card) → Join Flat screen → Enter nickname + invite code → Invalid code: immediate clear error → Valid code: auto-added to all queues → Dashboard
 
 ### Flow 3 — Daily Use
 Open app (30–60s) → See "Your Tasks" → Complete task → Tap Mark Done → Next person auto-assigned → Activity log updates for all
@@ -761,7 +763,7 @@ Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile U
 | No push notifications | Must open app to see updates | Phase 2 |
 | No offline mode | Needs internet | Phase 3 |
 | No native mobile app | Web only | Phase 3 |
-| No password reset UI | Firebase default email | Phase 2 |
+| No password reset UI | ~~Firebase default email~~ **Done — forgot password flow in navbar auth modal** | ✅ Done |
 | No task photo proof | No visual verification | Phase 2 |
 | No flat announcements | No admin broadcast | Phase 2 |
 | No task history archive | Older than 30 days not viewable | Phase 2 |
@@ -784,6 +786,29 @@ Goal: Validate with 5–20 real flats.
 
 ### Phase 2 — Growth (3–6 Months)
 Goal: 100+ active flats. Add features users asked for.
+
+**Done (June 2026 — Session 2026-06-19 — Rewards Wallet v2, shipped to Vercel):**
+- **Every task = reward** — removed 5-task streak. `markTaskCompleted` gives a coupon on every completion.
+- **Anti-abuse guards** — (1) retroactive completions excluded (`completedAt > 2h ago` → no reward); (2) 1 reward per 24 hours per device via `habitiq_last_reward_at` localStorage key.
+- **Dynamic reward pool from Firestore** — `lib/rewardPool.ts`. Reads active coupons from `/rewardPool/{id}` collection (`brandName`, `discountCode`, `description`, `isActive`, `expiryDays`). Cached in localStorage for 6h. To update coupon codes: edit documents in Firebase Console → all users get new codes automatically. Hardcoded Beardo fallback if pool is empty.
+- **localStorage as primary storage** — `store/useRewardsStore.ts` seeds from `habitiq_rewards` on load. Firestore sync is best-effort. Fixes `Missing or insufficient permissions` error that was hiding the wallet.
+- **RewardUnlockModal** — redesigned as center-screen celebration overlay: scale spring animation (0.72→1), backdrop blur, 🎊🎁🎉 confetti, brand name, "View Reward" CTA navigates to `/dashboard/profile`, "Later" dismisses, auto-dismiss after 8s.
+- **RewardsWallet** — always visible in Profile (no `return null` guard). Empty state: dashed border card with lock icon + "Your first reward awaits / Complete any task to earn a gift from our brand partners". Scratch-card design: indigo/purple gradient cards with shimmer sweep animation, brand name, `●●●●-●●●● · tap to reveal`. Bottom sheet reveals full code + Copy button → marks as redeemed.
+- **Firestore rules** — `/rewardPool` read-only for auth'd users (Console-only writes). `/users/{uid}/rewards` subcollection: owner can read+create, update restricted to `isRedeemed` only.
+- **Signal architecture** — `lib/rewardSignal.ts` decouples useFlatStore ↔ useRewardsStore to avoid circular imports. `emitRewardUnlocked` fires always (local), Firestore write is async best-effort.
+- **⚠️ Pending**: deploy `firestore.rules` via `firebase deploy --only firestore:rules` to enable Firestore reward sync for multi-device.
+
+**Done (June 2026 — Session 2026-06-17, Session 3):**
+- ✅ **Onboarding mobile redesign — full continuity flow** — `app/onboarding/page.tsx` completely restructured using `hidden lg:flex` / `lg:hidden` fragment pattern. Desktop (two-panel) and mobile (single-column) are now entirely separate implementations. Mobile choose screen was already done (hero cards). Mobile create/join steps now feel like direct continuations of the choice:
+  - **Create Flat mobile**: 170px hero strip (same warm apartment image), headline "Your Flat. Your Rules." (exact text from the choice screen card), description, flat name only field (no nickname — user is already authenticated), "Create Flat →" CTA, 3 checkmark benefits, trust footer. No nickname field.
+  - **Join Flat mobile**: 170px hero strip (same purple atmosphere image), headline "Your Crew. Already Here." (exact text from choice screen), description, YOUR NICKNAME field (pre-filled from Google profile, editable) + INVITE CODE field, "Join Flat →" CTA, 3 checkmark benefits. Nickname kept here because joining requires identifying yourself to existing members.
+  - **Desktop unchanged** — `hidden lg:flex` keeps the original premium two-panel layout.
+  - Hero images `public/onboard-create.png` and `public/onboard-join.png` added and committed.
+- ✅ **Invalid invite code — clear error** — `handleJoinFlat` now calls `flatExists(code)` before any other Firestore operations. If the code doesn't match any flat, user immediately sees: "That invite code doesn't match any flat. Double-check it with your flatmate and try again." Previously, wrong codes could surface generic or confusing error messages from deeper in the join flow. `flatExists` added to imports from `@/lib/flatService`.
+- ✅ **Nickname read-only when profile exists** — Desktop create/join forms: if `user.displayName` is set (always true for Google users), the YOUR NICKNAME field renders as a non-editable display row (muted text + green checkmark). Email/password users without a display name still see the editable input. The `nickname` state is still set from `displayName` so `handleCreateFlat` / `handleJoinFlat` work unchanged.
+- ✅ **TrustTagCard null guard** — `components/TrustTagCard.tsx`: added `if (!tag) return null` guard before accessing `tag.tier`. Prevents runtime crash when the tag document is missing or hasn't loaded.
+- **Forgot Password flow** — `AuthForm` in `components/ui/navbar.tsx` now has a third mode `"reset"`. In sign-in view, a "Forgot?" link appears inside the password field. Clicking switches to the reset view: email input + "Send Reset Link" button. Uses Firebase `sendPasswordResetEmail` (added to `useAuthStore.ts`). On success shows confirmation: "If an account exists for [email], a reset link is on its way." `user-not-found` errors treated as success silently (no email enumeration). Back to sign in link in both reset form and success state.
+- **Auto-flat bug investigation** — NOT a real bug. Confirmed by code review. `initAuthListener` loads an existing flat from Firestore on every sign-in. A tester who created an account + flat in session 1, then signed in again in session 2, sees the flat load automatically — which is correct behavior. No auto-create logic exists anywhere.
 
 **Done (June 2026 — Session 2026-06-16):**
 - ✅ **Mobile nav unified** — Profile in slot 5 for both admin and member. Swaps removed from member mobile nav; accessed via button on Tasks page instead

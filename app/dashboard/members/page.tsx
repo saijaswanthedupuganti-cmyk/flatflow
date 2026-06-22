@@ -4,6 +4,7 @@ import { useFlatStore, Member } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import MemberAvatar from '@/components/MemberAvatar'
 import {
   Users, MapPinOff, CheckCircle2, ShieldCheck, Star, UserMinus,
   X, Filter, Bell, Copy, Check, Link, Lock, UserCheck,
@@ -236,9 +237,13 @@ export default function MembersPage() {
                 <div key={member.uid} className={`flex items-center gap-3 px-4 py-3 ${member.status === 'out_of_station' ? 'opacity-70' : ''}`}>
 
                   {/* Avatar */}
-                  <div className={`w-10 h-10 rounded-full bg-gradient-to-br ${GRADIENTS[i % GRADIENTS.length]} flex items-center justify-center text-white font-bold text-sm shrink-0`}>
-                    {member.nickname.charAt(0)}
-                  </div>
+                  <MemberAvatar
+                    uid={member.uid}
+                    nickname={member.nickname}
+                    memberUids={members.map(m => m.uid)}
+                    size="md"
+                    showRing
+                  />
 
                   {/* Name + meta */}
                   <div className="flex-1 min-w-0">

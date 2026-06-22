@@ -8,19 +8,20 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   HABITIQ DESIGN SYSTEM — globals.css
-   Palette: Indigo primary + Warm amber accent — balanced, international standard.
+   HABITIQ DESIGN SYSTEM v2.0 — globals.css
+   71-brand synthesis: Revolut · Stripe · Linear · Airbnb · Wise · Framer ···
 
    Psychology:
-     Indigo  → trust, depth, intelligence, fairness ("the system works")
-     Orange  → energy, warmth, action, community ("get it done")
-     Together → smart AND human — exactly what a shared living platform needs.
+     Warm-dark canvas  → intimacy, focus, calm ("this is your space")
+     Violet primary    → creativity, trust, premium ("we care about quality")
+     Member DNA colors → identity, belonging, accountability ("you matter here")
+     Together          → smart AND human — exactly right for shared living.
 
    Token architecture:
-     1. @theme      — Tailwind v4 utilities (brand scale, action, status, surfaces)
+     1. @theme      — Tailwind v4 utilities (brand scale, member DNA, surfaces)
      2. :root       — Light mode semantic tokens (shadcn + custom)
-     3. .dark       — Dark mode overrides (deep-dark, matches landing page)
-     4. @layer base — Global baseline styles
+     3. .dark       — Dark mode overrides (warm-dark canvas)
+     4. @layer base — Global baseline + utilities
    ───────────────────────────────────────────────────────────────────────────── */
 
 @theme {
@@ -49,35 +50,24 @@
   --color-card:                   var(--card);
   --color-card-foreground:        var(--card-foreground);
 
-  /* ── Brand scale — Indigo ─────────────────────────────────────────────────
-     Primary brand color family. Blue-leaning violet — internationally
-     recognised SaaS tone (Stripe, Linear, Vercel, GitHub Copilot).
-     Usage: bg-brand-600 (primary), text-brand-400 (on dark), border-brand-200
+  /* ── Habitiq Violet — primary brand ──────────────────────────────────────
+     Warm violet, not cold indigo. Sits between Stripe's indigo and
+     Framer's purple. Feels premium, creative, and trustworthy.
      ──────────────────────────────────────────────────────────────────────── */
-  --color-brand-50:  #eef2ff;
-  --color-brand-100: #e0e7ff;
-  --color-brand-200: #c7d2fe;
-  --color-brand-300: #a5b4fc;
-  --color-brand-400: #818cf8;
-  --color-brand-500: #6366f1;
-  --color-brand-600: #4f46e5;
-  --color-brand-700: #4338ca;
-  --color-brand-800: #3730a3;
-  --color-brand-900: #312e81;
-  --color-brand-950: #1e1b4b;
+  --color-brand-50:  #f5f3ff;
+  --color-brand-100: #ede9fe;
+  --color-brand-200: #ddd6fe;
+  --color-brand-300: #c4b5fd;
+  --color-brand-400: #a78bfa;
+  --color-brand-500: #8b5cf6;
+  --color-brand-600: #7c3aed;
+  --color-brand-700: #6d28d9;
+  --color-brand-800: #5b21b6;
+  --color-brand-900: #4c1d95;
+  --color-brand-950: #2e1065;
 
-  /* ── Gradient end — Violet ────────────────────────────────────────────────
-     The brand gradient runs #4f46e5 → #7c3aed (indigo → violet).
-     These tokens represent the violet end of that gradient.
-     Usage: from-brand-600 to-brand-end  (gradient utilities)
-     ──────────────────────────────────────────────────────────────────────── */
-  --color-brand-end:      #7c3aed;
-  --color-brand-end-dark: #4338ca;
-
-  /* ── Warm action scale — Orange/Amber ────────────────────────────────────
-     The warm half of the balanced palette. Used for energy and warmth
-     in marketing contexts and key landing page CTAs.
-     Usage: bg-action-500 (CTA), text-action-400 (on dark), bg-warm-400 (badge)
+  /* ── Warm action scale — Amber/Orange ────────────────────────────────────
+     Bills, warnings, streak fire. High-energy, human warmth.
      ──────────────────────────────────────────────────────────────────────── */
   --color-action-400: #fb923c;
   --color-action-500: #f97316;
@@ -88,25 +78,47 @@
   --color-warm-500: #f59e0b;
   --color-warm-600: #d97706;
 
-  /* ── Status colors ────────────────────────────────────────────────────────
-     Semantic task/duty state indicators. Consistent across light + dark.
-     ──────────────────────────────────────────────────────────────────────── */
+  /* ── Status colors ─────────────────────────────────────────────────────── */
   --color-status-overdue: #ef4444;
   --color-status-today:   #f59e0b;
-  --color-status-soon:    #4f46e5;
-  --color-status-done:    #10b981;
+  --color-status-soon:    #7c3aed;
+  --color-status-done:    #22c55e;
 
-  /* ── Surface scale — Dark depth layers ───────────────────────────────────
-     For layering depth in dark mode without guessing hex values.
-     Surface-0 is the deepest (page bg). Surface-5 is the shallowest.
-     Usage: bg-surface-2 (cards), bg-surface-4 (borders)
+  /* ── Warm-dark surface scale ──────────────────────────────────────────────
+     Violet-tinted dark — not pure black, not gray. Inspired by Linear,
+     Resend, Raycast. Every surface feels intentionally crafted.
+     surface-0: page canvas  surface-1: subtle lift  surface-2: cards
+     surface-3: modals       surface-4: hairline borders
      ──────────────────────────────────────────────────────────────────────── */
-  --color-surface-0: #0a0a0a;
-  --color-surface-1: #0f0f0f;
-  --color-surface-2: #141414;
-  --color-surface-3: #1a1a1a;
-  --color-surface-4: #242424;
-  --color-surface-5: #3a3a3a;
+  --color-surface-0: #0c0b0f;
+  --color-surface-1: #110f16;
+  --color-surface-2: #1a1820;
+  --color-surface-3: #211f28;
+  --color-surface-4: #2a2635;
+  --color-surface-5: #3d3850;
+
+  /* ── Ink scale — text hierarchy ──────────────────────────────────────────
+     Three-level text hierarchy. Primary readable, soft for labels,
+     mute for placeholders/hints.
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-ink-primary: #f4f3f8;
+  --color-ink-soft:    #a09db0;
+  --color-ink-mute:    #514e61;
+
+  /* ── Member DNA — 8 person palette ──────────────────────────────────────
+     Every flatmate gets one of these. Colors are distinct at a glance,
+     accessible at 3:1 on dark surfaces, and don't fight each other.
+     Member 0 = amber, 1 = teal, 2 = rose, 3 = sky, 4 = violet,
+     5 = lime, 6 = orange, 7 = cyan.
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-member-0: #f59e0b;
+  --color-member-1: #14b8a6;
+  --color-member-2: #f43f5e;
+  --color-member-3: #0ea5e9;
+  --color-member-4: #8b5cf6;
+  --color-member-5: #84cc16;
+  --color-member-6: #f97316;
+  --color-member-7: #06b6d4;
 
   /* ── Radius scale ── */
   --radius-lg: var(--radius);
@@ -115,102 +127,87 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   LIGHT MODE — 3-surface system
-   Page canvas (#f5f6fa) → Card (#ffffff) → Input fill (#ecedf4)
-   Cards visually lift off the page. No harsh all-white reflection.
-   Same approach used by Stripe, GitHub, Linear, Vercel.
+   LIGHT MODE
    ───────────────────────────────────────────────────────────────────────────── */
 :root {
-  /* ── Page canvas — soft off-white, no harsh reflection ── */
   --background:       #f5f6fa;
   --foreground:       #0f172a;
 
-  /* ── Cards — pure white, lifts off the page canvas ── */
   --card:             #ffffff;
   --card-foreground:  #0f172a;
 
   --popover:          #ffffff;
   --popover-foreground: #0f172a;
 
-  /* Brand primary — Habitiq Indigo */
-  --primary:            #4f46e5;
+  --primary:            #7c3aed;
   --primary-foreground: #ffffff;
 
-  /* ── Secondary — hover fills, subtle chips ── */
   --secondary:            #ecedf4;
   --secondary-foreground: #0f172a;
 
-  /* ── Muted — disabled states, empty fills ── */
   --muted:            #ecedf4;
   --muted-foreground: #5e6a82;
 
-  /* Accent — indigo-tinted in light mode */
-  --accent:            #eef2ff;
-  --accent-foreground: #312e81;
+  --accent:            #f5f3ff;
+  --accent-foreground: #4c1d95;
 
-  /* Destructive */
   --destructive:            #ef4444;
   --destructive-foreground: #ffffff;
 
-  /* ── Borders — slightly brand-harmonious ── */
   --border: #e1e3ee;
   --input:  #e1e3ee;
-  --ring:   #4f46e5;
+  --ring:   #7c3aed;
 
-  /* Shape */
   --radius: 0.75rem;
 
-  /* Shadow tokens */
-  --shadow-brand:    0 8px 32px rgba(79, 70, 229, 0.35);
-  --shadow-brand-sm: 0 4px 16px rgba(79, 70, 229, 0.25);
+  --shadow-brand:    0 8px 32px rgba(124, 58, 237, 0.30);
+  --shadow-brand-sm: 0 4px 16px rgba(124, 58, 237, 0.20);
   --shadow-action:   0 8px 32px rgba(249, 115, 22, 0.35);
+  --shadow-violet:   0 4px 16px rgba(124, 58, 237, 0.40);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   DARK MODE
-   Deep-dark aesthetic matching the landing page — #0a0a0a base, not slate.
-   Indigo primary stays consistent. Orange accent glows warmer on dark.
+   DARK MODE — warm-dark canvas
+   Every surface has a violet tint — not slate, not pure black.
+   Inspired by: Linear, Resend, Raycast, Framer, Vercel.
    ───────────────────────────────────────────────────────────────────────────── */
 .dark {
-  /* Surfaces — true dark */
-  --background:       #0a0a0a;
-  --foreground:       #f4f4f5;
+  /* Warm-dark canvas */
+  --background:       #0c0b0f;
+  --foreground:       #f4f3f8;
 
-  --card:             #111111;
-  --card-foreground:  #f4f4f5;
+  --card:             #1a1820;
+  --card-foreground:  #f4f3f8;
 
-  --popover:          #1a1a1a;
-  --popover-foreground: #f4f4f5;
+  --popover:          #211f28;
+  --popover-foreground: #f4f3f8;
 
-  /* Brand primary — indigo, same across both modes */
-  --primary:            #4f46e5;
+  /* Habitiq Violet — warm, premium, creative */
+  --primary:            #7c3aed;
   --primary-foreground: #ffffff;
 
-  /* Secondary — dark elevated surface */
-  --secondary:            #1a1a1a;
-  --secondary-foreground: #f4f4f5;
+  /* Elevated surfaces */
+  --secondary:            #211f28;
+  --secondary-foreground: #f4f3f8;
 
-  /* Muted */
-  --muted:            #1a1a1a;
-  --muted-foreground: #a1a1aa;
+  --muted:            #211f28;
+  --muted-foreground: #a09db0;
 
-  /* Accent — subtle indigo tint on dark */
-  --accent:            #0f0d2e;
-  --accent-foreground: #818cf8;
+  --accent:            #1e1b2e;
+  --accent-foreground: #a78bfa;
 
-  /* Destructive */
   --destructive:            #7f1d1d;
   --destructive-foreground: #fca5a5;
 
-  /* Borders */
-  --border: #242424;
-  --input:  #242424;
-  --ring:   #4f46e5;
+  /* Warm hairline borders */
+  --border: #2a2635;
+  --input:  #2a2635;
+  --ring:   #7c3aed;
 
-  /* Shadow tokens (slightly stronger on dark bg) */
-  --shadow-brand:    0 8px 32px rgba(79, 70, 229, 0.45);
-  --shadow-brand-sm: 0 4px 16px rgba(79, 70, 229, 0.30);
+  --shadow-brand:    0 8px 32px rgba(124, 58, 237, 0.45);
+  --shadow-brand-sm: 0 4px 16px rgba(124, 58, 237, 0.30);
   --shadow-action:   0 8px 32px rgba(249, 115, 22, 0.40);
+  --shadow-violet:   0 4px 16px rgba(124, 58, 237, 0.50);
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
@@ -223,8 +220,53 @@
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-feature-settings: "rlig" 1, "calt" 1;
+    /* ss03 = Inter alternate digits — rounder, more friendly than geometric */
+    font-feature-settings: "rlig" 1, "calt" 1, "ss03" 1;
   }
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   UTILITY CLASSES
+   ───────────────────────────────────────────────────────────────────────────── */
+
+/* Inner glow — Resend card pattern. Makes cards feel lit from within. */
+.card-glow {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+/* Violet FAB glow */
+.shadow-violet {
+  box-shadow: 0 4px 16px rgba(124, 58, 237, 0.40);
+}
+
+/* Tabular numerics — financial data never shifts on update */
+.tnum {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Hero numeric — 64px/800 for big money numbers */
+.numeric-hero {
+  font-size: 3.5rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Large numeric — for stat cards */
+.numeric-lg {
+  font-size: 2rem;
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Member left-border accent on cards */
+.member-border-left {
+  border-left-width: 3px;
+  border-left-style: solid;
 }
 
 /* ── Coupon celebration animations ── */

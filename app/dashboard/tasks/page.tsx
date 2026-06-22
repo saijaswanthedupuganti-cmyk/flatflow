@@ -13,6 +13,8 @@ import {
 import { getPriorityWeight, getTaskDateInfo } from '@/lib/rotationEngine'
 import { useSubscription } from '@/hooks/useSubscription'
 import SubscriptionUpsell from '@/components/SubscriptionUpsell'
+import MemberAvatar from '@/components/MemberAvatar'
+import { getMemberColor } from '@/lib/memberColors'
 
 const TASK_EMOJIS: Record<string, string> = {
   garbage: '🗑️', cleaning: '🧹', kitchen: '🍳', groceries: '🛒',
@@ -20,16 +22,16 @@ const TASK_EMOJIS: Record<string, string> = {
 }
 
 const PRIORITY_CONFIG = {
-  high:   { label: 'High',   bg: 'bg-red-100 dark:bg-red-900/30',       text: 'text-red-600 dark:text-red-400',       dot: 'bg-red-500',    border: 'border-l-red-500' },
-  medium: { label: 'Medium', bg: 'bg-yellow-100 dark:bg-yellow-900/30', text: 'text-yellow-700 dark:text-yellow-400', dot: 'bg-yellow-500', border: 'border-l-yellow-500' },
-  low:    { label: 'Low',    bg: 'bg-green-100 dark:bg-green-900/30',   text: 'text-green-700 dark:text-green-400',   dot: 'bg-green-500',  border: 'border-l-green-400' },
+  high:   { label: 'High',   bg: 'bg-red-500/15',    text: 'text-red-400',    dot: 'bg-red-500',    border: 'border-l-red-500' },
+  medium: { label: 'Medium', bg: 'bg-yellow-500/15', text: 'text-yellow-400', dot: 'bg-yellow-500', border: 'border-l-yellow-500' },
+  low:    { label: 'Low',    bg: 'bg-green-500/15',  text: 'text-green-400',  dot: 'bg-green-500',  border: 'border-l-green-400' },
 }
 
 const FREQ_CONFIG = {
-  daily:    { label: 'Daily',    bg: 'bg-orange-100 dark:bg-orange-900/30', text: 'text-orange-700 dark:text-orange-400' },
-  weekly:   { label: 'Weekly',   bg: 'bg-blue-100 dark:bg-blue-900/30',    text: 'text-blue-700 dark:text-blue-400' },
-  monthly:  { label: 'Monthly',  bg: 'bg-purple-100 dark:bg-purple-900/30', text: 'text-purple-700 dark:text-purple-400' },
-  one_time: { label: 'One-time', bg: 'bg-teal-100 dark:bg-teal-900/30',    text: 'text-teal-700 dark:text-teal-400' },
+  daily:    { label: 'Daily',    bg: 'bg-orange-500/15', text: 'text-orange-400' },
+  weekly:   { label: 'Weekly',   bg: 'bg-sky-500/15',    text: 'text-sky-400' },
+  monthly:  { label: 'Monthly',  bg: 'bg-violet-500/15', text: 'text-violet-400' },
+  one_time: { label: 'One-time', bg: 'bg-teal-500/15',   text: 'text-teal-400' },
 }
 
 export default function TasksPage() {
@@ -351,22 +353,22 @@ export default function TasksPage() {
                             const isCurrent = uid === task.currentAssignedUserId
                             if (!m) return null
                             return (
-                              <div key={uid} className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border-2 transition-all ${
-                                isCurrent
-                                  ? 'bg-primary border-primary text-white shadow-sm'
-                                  : 'bg-card border-border text-muted-foreground'
-                              }`}>
-                                <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 ${
-                                  isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
-                                }`}>
-                                  {m.nickname.charAt(0)}
-                                </span>
-                                <span className="text-xs font-semibold">{m.nickname}</span>
+                              <div
+                                key={uid}
+                                className="flex items-center gap-1.5 px-2 py-1 rounded-lg border transition-all"
+                                style={{
+                                  backgroundColor: isCurrent ? 'rgba(124,58,237,0.12)' : 'transparent',
+                                  borderColor: isCurrent ? 'rgba(124,58,237,0.40)' : 'var(--border)',
+                                  opacity: m.status === 'out_of_station' ? 0.5 : 1,
+                                }}
+                              >
+                                <MemberAvatar uid={uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="xs" showRing={isCurrent} />
+                                <span className="text-xs font-semibold text-foreground">{m.nickname}</span>
                                 {isCurrent && (
-                                  <span className="text-[8px] font-extrabold bg-white/20 text-white px-1 py-0.5 rounded-full">NOW</span>
+                                  <span className="text-[8px] font-extrabold px-1 py-0.5 rounded-full" style={{ backgroundColor: 'rgba(124,58,237,0.20)', color: '#a78bfa' }}>NOW</span>
                                 )}
                                 {m.status === 'out_of_station' && (
-                                  <PauseCircle size={10} className="text-orange-400" />
+                                  <PauseCircle size={10} className="text-amber-400" />
                                 )}
                               </div>
                             )
@@ -453,14 +455,16 @@ export default function TasksPage() {
                         const task     = tasks.find(t => t.taskId === req.taskId)
                         const fromUser = members.find(m => m.uid === req.fromUserId)
                         return (
-                          <div key={req.id} className={`flex items-center gap-3 p-3 rounded-xl border ${
-                            req.status === 'pending'
-                              ? 'border-violet-300 dark:border-violet-700 bg-violet-50 dark:bg-violet-950/30'
-                              : 'border-border bg-card'
-                          }`}>
-                            <div className="w-8 h-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-sm font-bold text-violet-600 dark:text-violet-400 shrink-0">
-                              {fromUser?.nickname?.charAt(0) ?? '?'}
-                            </div>
+                          <div
+                            key={req.id}
+                            className="flex items-center gap-3 p-3 rounded-xl border"
+                            style={{
+                              borderColor: req.status === 'pending' ? 'rgba(124,58,237,0.35)' : 'var(--border)',
+                              backgroundColor: req.status === 'pending' ? 'rgba(124,58,237,0.06)' : 'var(--card)',
+                            }}
+                          >
+                            {fromUser && <MemberAvatar uid={fromUser.uid} nickname={fromUser.nickname} memberUids={members.map(m => m.uid)} size="sm" showRing={req.status === 'pending'} />}
+                            {!fromUser && <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold shrink-0">?</div>}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold truncate">{fromUser?.nickname ?? 'Someone'}</p>
                               <p className="text-[11px] text-muted-foreground truncate">{task?.name ?? 'Unknown task'}</p>
@@ -509,10 +513,9 @@ export default function TasksPage() {
                         const task   = tasks.find(t => t.taskId === req.taskId)
                         const toUser = members.find(m => m.uid === req.toUserId)
                         return (
-                          <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl border border-border bg-card">
-                            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-sm font-bold text-blue-600 dark:text-blue-400 shrink-0">
-                              {toUser?.nickname?.charAt(0) ?? '?'}
-                            </div>
+                          <div key={req.id} className="flex items-center gap-3 p-3 rounded-xl border border-border/60 bg-card">
+                            {toUser && <MemberAvatar uid={toUser.uid} nickname={toUser.nickname} memberUids={members.map(m => m.uid)} size="sm" showRing={false} />}
+                            {!toUser && <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-xs font-bold shrink-0">?</div>}
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-semibold truncate">→ {toUser?.nickname ?? 'Someone'}</p>
                               <p className="text-[11px] text-muted-foreground truncate">{task?.name ?? 'Unknown task'}</p>
@@ -1123,9 +1126,20 @@ export default function TasksPage() {
           const emoji        = TASK_EMOJIS[task.type] ?? '📋'
 
           const isOneTimeDone = task.frequency === 'one_time' && task.status === 'completed'
+          const memberUids   = members.map(x => x.uid)
+          const memberColor  = getMemberColor(task.currentAssignedUserId, memberUids)
 
           return (
-            <Card key={task.taskId} className={`shadow-sm overflow-hidden border-l-4 ${pCfg.border} ${isOneTimeDone ? 'opacity-60' : ''}`}>
+            <Card
+              key={task.taskId}
+              className={`shadow-sm overflow-hidden border-l-4 ${isOneTimeDone ? 'opacity-60' : ''}`}
+              style={{
+                borderLeftColor: memberColor.hex,
+                background: task.status === 'overdue'
+                  ? `linear-gradient(rgba(245,158,11,0.06), rgba(245,158,11,0.06)), var(--card)`
+                  : `var(--card)`,
+              }}
+            >
               <CardContent className="p-0">
 
                 {/* ── Card header ──────────────────────────────────────── */}
@@ -1229,25 +1243,23 @@ export default function TasksPage() {
                     </p>
 
                     {task.frequency === 'one_time' ? (
-                      /* One-time: show just the single assigned person */
+                      /* One-time: show the single assigned person with member DNA */
                       (() => {
                         const m = members.find(x => x.uid === task.currentAssignedUserId)
                         if (!m) return null
                         return (
-                          <div className={`inline-flex items-center gap-2.5 px-3 py-2.5 rounded-xl border-2 ${
-                            isOneTimeDone
-                              ? 'bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800 text-teal-700 dark:text-teal-300'
-                              : 'bg-primary border-primary text-white shadow-md'
-                          }`}>
-                            <div className={`w-7 h-7 rounded-full flex items-center justify-center text-sm font-bold shrink-0 ${
-                              isOneTimeDone ? 'bg-teal-200 dark:bg-teal-800 text-teal-700 dark:text-teal-300' : 'bg-white/20 text-white'
-                            }`}>
-                              {m.nickname.charAt(0)}
-                            </div>
-                            <span className="font-semibold text-sm">{m.nickname}</span>
+                          <div
+                            className="inline-flex items-center gap-2.5 px-3 py-2.5 rounded-xl border"
+                            style={{
+                              borderColor: isOneTimeDone ? 'rgba(34,197,94,0.30)' : memberColor.hex + '40',
+                              background:  isOneTimeDone ? 'rgba(34,197,94,0.06)' : memberColor.hex + '10',
+                            }}
+                          >
+                            <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={memberUids} size="sm" showRing />
+                            <span className="font-semibold text-sm text-foreground">{m.nickname}</span>
                             {isOneTimeDone
-                              ? <span className="text-[10px] font-bold bg-teal-200 dark:bg-teal-800 text-teal-700 dark:text-teal-300 px-1.5 py-0.5 rounded-full">DONE</span>
-                              : <span className="text-[10px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full">PENDING</span>
+                              ? <span className="text-[10px] font-bold bg-emerald-500/20 text-emerald-400 px-1.5 py-0.5 rounded-full">DONE</span>
+                              : <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ backgroundColor: memberColor.hex + '25', color: memberColor.hex }}>PENDING</span>
                             }
                           </div>
                         )
@@ -1261,22 +1273,21 @@ export default function TasksPage() {
                           if (!m) return null
                           return (
                             <div key={uid} className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
-                              <div className={`flex flex-row sm:flex-col items-center gap-2 sm:gap-1 sm:justify-center px-3 sm:px-2.5 py-2 rounded-xl border-2 transition-all w-full sm:w-auto sm:min-w-[62px] ${
-                                isCurrent
-                                  ? 'bg-primary border-primary text-white shadow-md'
-                                  : 'bg-card border-border/60 text-muted-foreground'
-                              }`}>
-                                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold shrink-0 ${
-                                  isCurrent ? 'bg-white/20 text-white' : 'bg-secondary text-foreground'
-                                }`}>
-                                  {m.nickname.charAt(0)}
-                                </div>
-                                <span className="text-sm sm:text-[11px] font-semibold leading-tight">{m.nickname}</span>
+                              <div
+                                className="flex flex-row sm:flex-col items-center gap-2 sm:gap-1 sm:justify-center px-3 sm:px-2.5 py-2 rounded-xl border transition-all w-full sm:w-auto sm:min-w-[62px]"
+                                style={{
+                                  backgroundColor: isCurrent ? 'rgba(124,58,237,0.12)' : 'transparent',
+                                  borderColor: isCurrent ? 'rgba(124,58,237,0.40)' : 'var(--border)',
+                                  opacity: m.status === 'out_of_station' ? 0.5 : 1,
+                                }}
+                              >
+                                <MemberAvatar uid={uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="sm" showRing={isCurrent} />
+                                <span className={`text-sm sm:text-[11px] font-semibold leading-tight ${isCurrent ? 'text-foreground' : 'text-muted-foreground'}`}>{m.nickname}</span>
                                 {m.status === 'out_of_station' && (
-                                  <PauseCircle size={10} className="text-orange-400 ml-auto sm:ml-0" />
+                                  <PauseCircle size={10} className="text-amber-400 ml-auto sm:ml-0" />
                                 )}
                                 {isCurrent && (
-                                  <span className="text-[8px] font-bold bg-white/20 text-white px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0">
+                                  <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full whitespace-nowrap ml-auto sm:ml-0" style={{ backgroundColor: 'rgba(124,58,237,0.20)', color: '#a78bfa' }}>
                                     NOW
                                   </span>
                                 )}
@@ -1344,13 +1355,13 @@ export default function TasksPage() {
         })}
 
         {tasks.length === 0 && (
-          <Card className="border-dashed border-2 border-border/40 bg-transparent shadow-none">
-            <CardContent className="flex flex-col items-center justify-center py-16 px-6 text-center text-muted-foreground">
-              <ClipboardList size={44} className="mb-4 opacity-25" />
-              <p className="text-base font-bold">No Tasks Yet</p>
-              <p className="text-sm mt-1">Tap "New Task" above to create your first duty rotation.</p>
-            </CardContent>
-          </Card>
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-xl border border-dashed border-border/40">
+            <div className="w-14 h-14 rounded-2xl bg-violet-500/10 flex items-center justify-center mb-4">
+              <ClipboardList size={28} className="text-violet-400 opacity-70" />
+            </div>
+            <p className="text-base font-bold text-foreground">No tasks yet</p>
+            <p className="text-sm text-muted-foreground mt-1 max-w-[240px]">Add your first chore rotation — Habitiq handles who's up next.</p>
+          </div>
         )}
       </div>
 

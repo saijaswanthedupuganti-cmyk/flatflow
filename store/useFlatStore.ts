@@ -165,7 +165,8 @@ export type BillInstanceStatus =
 
 export interface BillInstance {
   id: string
-  templateId: string       // RecurringBill.id
+  templateId: string | null  // RecurringBill.id — null for one-time/manual bills
+  isOneTime?: boolean         // true for bills recorded directly without a recurring template
   month: string            // yyyy-MM
 
   // Snapshot from template at generation time
@@ -248,6 +249,7 @@ interface FlatState {
   flatId: string | null
   name: string | null
   joinMode: 'auto' | 'approval'
+  billingCycleDay: number      // day of month bills generate (1–28); flat-level setting
   subscription: FlatSubscription | null
   vacancy: VacancyListing | null
   members: Member[]
@@ -317,6 +319,21 @@ interface FlatState {
   // Flat Settings
   renameFlatAction: (newName: string) => Promise<void>
   setJoinMode: (mode: 'auto' | 'approval') => Promise<void>
+  setBillingCycleDay: (day: number) => Promise<void>
+
+  // One-time (reconciliation) bill instances — any member can record a bill they paid
+  addOneTimeBillInstance: (data: {
+    name: string
+    category: ExpenseCategory
+    amount: number
+    paidBy: string
+    participants: string[]
+    month: string
+    createdBy: string
+    splitMethod?: 'equal' | 'percent' | 'custom'
+    percentSplits?: Record<string, number>
+    customSplits?: Record<string, number>
+  }) => Promise<void>
   updateVacancy: (data: Partial<VacancyListing>) => Promise<void>
 
   // Join Requests (approval mode)
@@ -512,6 +529,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
   flatId: hasKeys ? null : 'FLAT-1234',
   name: hasKeys ? null : 'Bachelor Pad',
   joinMode: 'auto',
+  billingCycleDay: 1,
   subscription: null,
   vacancy: null,
   members: hasKeys ? [] : MOCK_MEMBERS,
@@ -537,6 +555,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       flatId: null,
       name: null,
       joinMode: 'auto',
+      billingCycleDay: 1,
       subscription: null,
       vacancy: null,
       members: [],
@@ -585,7 +604,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     }
 
     // Reset data for clean switch
-    set({ flatId, name: null, joinMode: 'auto', subscription: null, vacancy: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
+    set({ flatId, name: null, joinMode: 'auto', billingCycleDay: 1, subscription: null, vacancy: null, members: [], tasks: [], activityLog: [], swapRequests: [], joinRequests: [], expenses: [], settlements: [], recurringBills: [], billInstances: [], monthCycles: [], isSynced: false })
 
     // FLAT DOC LISTENER — flat name, joinMode, subscription
     const unsub0 = onSnapshot(doc(db, `flats/${flatId}`), async (snap) => {
@@ -608,6 +627,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+          billingCycleDay: (data.billingCycleDay as number) || 1,
           subscription: { status: 'trial', trialEndDate: trialEnd },
           vacancy: (data.vacancy as VacancyListing) ?? null,
         })
@@ -628,6 +648,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
         set({
           name: data.name || null,
           joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+          billingCycleDay: (data.billingCycleDay as number) || 1,
           subscription: { status: 'trial', trialEndDate: trialEnd },
           vacancy: (data.vacancy as VacancyListing) ?? null,
         })
@@ -643,6 +664,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       set({
         name: data.name || null,
         joinMode: (data.joinMode as 'auto' | 'approval') || 'auto',
+        billingCycleDay: (data.billingCycleDay as number) || 1,
         subscription: { status: effectiveStatus, trialEndDate, couponUsed },
         vacancy: (data.vacancy as VacancyListing) ?? null,
       })
@@ -1515,11 +1537,12 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       return false
     }
 
+    const cycleDay = Math.min(state.billingCycleDay ?? 1, new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate())
     const monthlyDue = state.recurringBills.filter(b =>
       b.active &&
       (b.recurrenceType ?? 'monthly') === 'monthly' &&
       b.lastGeneratedMonth !== month &&
-      today.getDate() >= b.billingDay
+      today.getDate() >= cycleDay
     )
 
     const nonMonthlyDue = state.recurringBills.filter(b =>
@@ -1635,19 +1658,78 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     // Optimistic update — clear instance immediately
     set(s => ({
       billInstances: s.billInstances.filter(b => b.id !== instanceId),
-      recurringBills: s.recurringBills.map(b =>
+      recurringBills: instance.templateId == null ? s.recurringBills : s.recurringBills.map(b =>
         b.id === instance.templateId ? { ...b, lastGeneratedMonth: '' } : b
       ),
     }))
 
     if (hasKeys && state.flatId) {
       await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`))
-      // Reset so the bill shows as DUE again and can be re-generated
-      await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${instance.templateId}`), {
-        lastGeneratedMonth: '',
-      })
+      // Reset so the bill shows as DUE again and can be re-generated (skip for one-time bills)
+      if (instance.templateId) {
+        await updateDoc(doc(db, `flats/${state.flatId}/recurringBills/${instance.templateId}`), {
+          lastGeneratedMonth: '',
+        })
+      }
     }
     await get().addActivity({ userId: uid, action: 'bill_skipped', details: `deleted and reset ${instance.name} — can be regenerated` })
+  },
+
+  setBillingCycleDay: async (day) => {
+    const state = get()
+    const clamped = Math.max(1, Math.min(28, Math.floor(day)))
+    set({ billingCycleDay: clamped })
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}`), { billingCycleDay: clamped })
+    }
+  },
+
+  addOneTimeBillInstance: async (data) => {
+    const state = get()
+    const today = new Date()
+    const splitMethod = data.splitMethod ?? 'equal'
+    let splits: Record<string, number>
+    if (splitMethod === 'percent' && data.percentSplits) {
+      splits = Object.fromEntries(
+        data.participants.map(uid => [uid, Math.round(data.amount * (data.percentSplits![uid] ?? 0) / 100 * 100) / 100])
+      )
+    } else if (splitMethod === 'custom' && data.customSplits) {
+      splits = Object.fromEntries(data.participants.map(uid => [uid, data.customSplits![uid] ?? 0]))
+    } else {
+      const count = data.participants.length || 1
+      const equalShare = Math.round(data.amount / count * 100) / 100
+      splits = Object.fromEntries(data.participants.map(uid => [uid, equalShare]))
+    }
+    const instance: BillInstance = {
+      id: crypto.randomUUID(),
+      templateId: null,
+      isOneTime: true,
+      month: data.month,
+      name: data.name,
+      category: data.category,
+      currency: 'INR',
+      amount: data.amount,
+      paidBy: data.paidBy,
+      participants: data.participants,
+      splits,
+      status: 'paid',          // already paid from personal funds
+      dueDate: data.month + '-01',
+      paidAt: today.toISOString(),
+      skippedReason: null,
+      generatedAt: today.toISOString(),
+      generatedBy: data.createdBy,
+    }
+    if (hasKeys && state.flatId) {
+      await setDoc(doc(db, `flats/${state.flatId}/billInstances/${instance.id}`), fs(instance))
+    } else {
+      set(s => ({ billInstances: [...s.billInstances, instance] }))
+    }
+    const payerName = state.members.find(m => m.uid === data.paidBy)?.nickname ?? data.paidBy
+    await get().addActivity({
+      userId: data.createdBy,
+      action: 'bill_generated',
+      details: `recorded ${data.name} ₹${data.amount} — paid by ${payerName}`,
+    })
   },
 
   closeMonth: async (month, confirmedSettlements, summary, carryForwardOut) => {

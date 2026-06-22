@@ -1,6 +1,7 @@
 "use client"
 import { useState, useMemo, useRef, useEffect } from 'react'
 import { createPortal } from 'react-dom'
+import MemberAvatar, { MemberChip } from '@/components/MemberAvatar'
 import {
   useFlatStore,
   type Expense, type Settlement, type RecurringBill,
@@ -26,27 +27,27 @@ import {
   Wallet, Inbox, Check, AlertCircle, RefreshCw, Pencil,
   Zap, Play, PauseCircle, LayoutList, CircleDollarSign, Clock,
   CalendarCheck, ArrowRight, ChevronRight, ChevronLeft, RotateCcw,
-  UserCircle, Repeat2, HelpCircle, Sparkles, History, ChevronDown, ChevronUp, MoreVertical,
+  UserCircle, Repeat2, HelpCircle, Sparkles, History, ChevronDown, ChevronUp, MoreVertical, Landmark,
 } from 'lucide-react'
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string; color: string }> = {
-  rent:        { label: 'Rent',               emoji: '🏠', color: 'bg-violet-100 dark:bg-violet-900/30' },
-  electricity: { label: 'Electricity',        emoji: '⚡', color: 'bg-yellow-100 dark:bg-yellow-900/30' },
-  water:       { label: 'Water',              emoji: '💧', color: 'bg-sky-100 dark:bg-sky-900/30' },
-  internet:    { label: 'Internet',           emoji: '📶', color: 'bg-blue-100 dark:bg-blue-900/30' },
-  gas:         { label: 'Gas / LPG',          emoji: '🔥', color: 'bg-orange-100 dark:bg-orange-900/30' },
-  maid:        { label: 'Maid / Housekeeping', emoji: '🧹', color: 'bg-green-100 dark:bg-green-900/30' },
-  cook:        { label: 'Cook',               emoji: '👨‍🍳', color: 'bg-amber-100 dark:bg-amber-900/30' },
-  gym:         { label: 'Gym',                emoji: '🏋️', color: 'bg-red-100 dark:bg-red-900/30' },
-  grocery:     { label: 'Groceries',          emoji: '🛒', color: 'bg-emerald-100 dark:bg-emerald-900/30' },
-  milk:        { label: 'Milk',               emoji: '🥛', color: 'bg-blue-50 dark:bg-blue-950/30' },
-  ac:          { label: 'AC / Cooling',       emoji: '❄️', color: 'bg-cyan-100 dark:bg-cyan-900/30' },
-  maintenance: { label: 'Maintenance',        emoji: '🔧', color: 'bg-slate-100 dark:bg-slate-800/40' },
-  food:        { label: 'Food',               emoji: '🍽️', color: 'bg-rose-100 dark:bg-rose-900/30' },
-  household:   { label: 'Household',          emoji: '📦', color: 'bg-stone-100 dark:bg-stone-800/40' },
-  other:       { label: 'Other',              emoji: '💰', color: 'bg-gray-100 dark:bg-white/[0.07]' },
+export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string; color: string; hex: string }> = {
+  rent:        { label: 'Rent',               emoji: '🏠', color: 'bg-violet-500/15',  hex: '#8b5cf6' },
+  electricity: { label: 'Electricity',        emoji: '⚡', color: 'bg-yellow-500/15',  hex: '#eab308' },
+  water:       { label: 'Water',              emoji: '💧', color: 'bg-sky-500/15',      hex: '#0ea5e9' },
+  internet:    { label: 'Internet',           emoji: '📶', color: 'bg-blue-500/15',     hex: '#3b82f6' },
+  gas:         { label: 'Gas / LPG',          emoji: '🔥', color: 'bg-orange-500/15',   hex: '#f97316' },
+  maid:        { label: 'Maid / Housekeeping', emoji: '🧹', color: 'bg-green-500/15',   hex: '#22c55e' },
+  cook:        { label: 'Cook',               emoji: '👨‍🍳', color: 'bg-amber-500/15',   hex: '#f59e0b' },
+  gym:         { label: 'Gym',                emoji: '🏋️', color: 'bg-red-500/15',      hex: '#ef4444' },
+  grocery:     { label: 'Groceries',          emoji: '🛒', color: 'bg-emerald-500/15',  hex: '#10b981' },
+  milk:        { label: 'Milk',               emoji: '🥛', color: 'bg-blue-400/15',     hex: '#60a5fa' },
+  ac:          { label: 'AC / Cooling',       emoji: '❄️', color: 'bg-cyan-500/15',     hex: '#06b6d4' },
+  maintenance: { label: 'Maintenance',        emoji: '🔧', color: 'bg-slate-500/15',    hex: '#64748b' },
+  food:        { label: 'Food',               emoji: '🍽️', color: 'bg-rose-500/15',     hex: '#f43f5e' },
+  household:   { label: 'Household',          emoji: '📦', color: 'bg-stone-500/15',    hex: '#78716c' },
+  other:       { label: 'Other',              emoji: '💰', color: 'bg-white/[0.07]',    hex: '#a09db0' },
 }
 
 const CURRENCIES: Currency[] = ['INR', 'USD', 'EUR', 'GBP', 'AED', 'SGD', 'AUD']
@@ -81,13 +82,13 @@ function cycleRange(monthKey: string) {
   return { startStr: fmt(start), endStr: fmt(end), daysTotal: end.getDate(), daysElapsed: elapsed }
 }
 
-function isBillDue(bill: RecurringBill): boolean {
+function isBillDue(bill: RecurringBill, flatCycleDay = 1): boolean {
   if (!bill.active) return false
   const today = new Date()
   const recurrenceType = bill.recurrenceType ?? 'monthly'
 
   if (recurrenceType === 'monthly') {
-    const effectiveDay = Math.min(bill.billingDay, daysInCurrentMonth())
+    const effectiveDay = Math.min(flatCycleDay, daysInCurrentMonth())
     return bill.lastGeneratedMonth !== currentMonthKey() && today.getDate() >= effectiveDay
   }
 
@@ -138,6 +139,8 @@ function Modal({ title, onClose, children }: { title: string; onClose: () => voi
     document.body,
   )
 }
+
+const AVATAR_COLORS = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500', 'bg-rose-500']
 
 // ── Add / Edit Expense Modal ─────────────────────────────────────────────────
 
@@ -221,7 +224,6 @@ function ExpenseModal({
   }
 
   const QUICK_CATS: ExpenseCategory[] = ['food', 'grocery', 'household', 'gas', 'maid', 'other']
-  const avatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500', 'bg-rose-500']
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
@@ -254,7 +256,7 @@ function ExpenseModal({
                     onClick={() => setForm(f => ({ ...f, category: cat, description: f.description || cfg.label }))}
                     className={[
                       'flex items-center gap-1.5 px-3 py-2 rounded-full text-[13px] font-medium transition-all cursor-pointer',
-                      sel ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                      sel ? 'bg-[#7c3aed] text-white' : 'bg-[#e9edff] text-[#7c3aed] hover:bg-[#dde2ff]',
                     ].join(' ')}
                   >
                     <span className="text-[15px] leading-none">{cfg.emoji}</span>
@@ -273,7 +275,7 @@ function ExpenseModal({
               onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
               placeholder="e.g. Dinner, Groceries, Cab…"
               maxLength={80}
-              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
             />
           </div>
 
@@ -289,13 +291,13 @@ function ExpenseModal({
                   type="number" min="0" placeholder="0"
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
-                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
                 />
               </div>
               <select
                 value={form.currency}
                 onChange={e => setForm(f => ({ ...f, currency: e.target.value as Currency }))}
-                className="bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-[13px] text-sm font-semibold text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+                className="bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-[13px] text-sm font-semibold text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25 cursor-pointer"
               >
                 {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
               </select>
@@ -316,13 +318,13 @@ function ExpenseModal({
                     className={[
                       'flex items-center gap-2 px-3 py-2 rounded-xl text-sm font-semibold transition-all cursor-pointer border',
                       sel
-                        ? 'bg-[#3525cd] border-[#3525cd] text-white shadow-sm'
+                        ? 'bg-[#7c3aed] border-[#7c3aed] text-white shadow-sm'
                         : 'bg-[#f1f3ff] dark:bg-white/[0.08] border-transparent text-[#464555] dark:text-white/70 hover:bg-[#e4e8ff] dark:hover:bg-white/[0.12]',
                     ].join(' ')}
                   >
                     <div className={[
                       'w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold shrink-0 text-white',
-                      sel ? 'bg-white/25' : avatarColors[idx % avatarColors.length],
+                      sel ? 'bg-white/25' : AVATAR_COLORS[idx % AVATAR_COLORS.length],
                     ].join(' ')}>
                       {m.nickname.charAt(0).toUpperCase()}
                     </div>
@@ -340,7 +342,7 @@ function ExpenseModal({
               type="date"
               value={form.date}
               onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
-              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 cursor-pointer"
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25 cursor-pointer"
             />
           </div>
 
@@ -353,7 +355,7 @@ function ExpenseModal({
                   ...f,
                   splitAmong: f.splitAmong.length === members.length ? [] : members.map(m => m.uid),
                 }))}
-                className="text-xs font-semibold text-[#3525cd] cursor-pointer hover:opacity-70 transition-opacity"
+                className="text-xs font-semibold text-[#7c3aed] cursor-pointer hover:opacity-70 transition-opacity"
               >
                 {form.splitAmong.length === members.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -369,7 +371,7 @@ function ExpenseModal({
                   >
                     <div className={[
                       'w-6 h-6 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all',
-                      checked ? 'bg-[#3525cd] border-[#3525cd]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
+                      checked ? 'bg-[#7c3aed] border-[#7c3aed]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
                     ].join(' ')}>
                       {checked && (
                         <svg width="11" height="8" viewBox="0 0 11 8" fill="none">
@@ -377,15 +379,13 @@ function ExpenseModal({
                         </svg>
                       )}
                     </div>
-                    <div className={['w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold text-white shrink-0', avatarColors[idx % avatarColors.length]].join(' ')}>
-                      {m.nickname.charAt(0).toUpperCase()}
-                    </div>
+                    <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="sm" showRing={checked} />
                     <div className="flex-1 flex items-center justify-between min-w-0">
                       <span className="text-[15px] text-[#141b2b] dark:text-white">
                         {m.uid === currentUserId ? m.nickname + ' (you)' : m.nickname}
                       </span>
                       {checked && totalAmount > 0 && form.splitType === 'equal' && (
-                        <span className="text-[13px] font-bold text-[#3525cd]">
+                        <span className="text-[13px] font-bold text-[#7c3aed]">
                           {CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}
                         </span>
                       )}
@@ -396,7 +396,7 @@ function ExpenseModal({
             </div>
             {selectedCount > 0 && totalAmount > 0 && (
               <p className="text-[12px] text-[#777587] text-center">
-                Equal split &mdash; each pays <span className="font-bold text-[#3525cd]">{CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}</span>
+                Equal split &mdash; each pays <span className="font-bold text-[#7c3aed]">{CURRENCY_SYMBOLS[form.currency]}{equalShare % 1 === 0 ? equalShare.toFixed(0) : equalShare.toFixed(2)}</span>
               </p>
             )}
           </div>
@@ -426,7 +426,7 @@ function ExpenseModal({
                         onClick={() => setForm(f => ({ ...f, splitType: t }))}
                         className={[
                           'flex-1 py-2 rounded-lg text-xs font-bold transition-all cursor-pointer',
-                          form.splitType === t ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                          form.splitType === t ? 'bg-[#7c3aed] text-white' : 'bg-[#e9edff] text-[#7c3aed] hover:bg-[#dde2ff]',
                         ].join(' ')}
                       >
                         {t === 'equal' ? 'Equal' : t === 'percent' ? 'By %' : 'Custom'}
@@ -450,12 +450,12 @@ function ExpenseModal({
                                 type="number" placeholder="0" min="0" max="100"
                                 value={form.percentSplits[uid]}
                                 onChange={e => setForm(f => ({ ...f, percentSplits: { ...f.percentSplits, [uid]: e.target.value } }))}
-                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 pr-7 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 pr-7 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
                               />
                               <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-[#777587]">%</span>
                             </div>
                             {pct > 0 && (
-                              <span className="text-xs font-bold text-[#3525cd] w-16 text-right shrink-0">
+                              <span className="text-xs font-bold text-[#7c3aed] w-16 text-right shrink-0">
                                 {CURRENCY_SYMBOLS[form.currency]}{share.toFixed(share % 1 === 0 ? 0 : 2)}
                               </span>
                             )}
@@ -483,7 +483,7 @@ function ExpenseModal({
                                 type="number" placeholder="0" min="0"
                                 value={form.customSplits[uid]}
                                 onChange={e => setForm(f => ({ ...f, customSplits: { ...f.customSplits, [uid]: e.target.value } }))}
-                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-7 pr-4 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-7 pr-4 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
                               />
                             </div>
                           </div>
@@ -505,17 +505,17 @@ function ExpenseModal({
                   value={form.note}
                   onChange={e => setForm(f => ({ ...f, note: e.target.value }))}
                   maxLength={200}
-                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
                 />
               </div>
 
               {/* Defer to next month */}
               {form.paidBy === currentUserId && (
-                <div className="bg-[#e9edff] dark:bg-[#3525cd]/15 rounded-[12px] p-4 flex gap-4">
+                <div className="bg-[#e9edff] dark:bg-[#7c3aed]/15 rounded-[12px] p-4 flex gap-4">
                   <div className="shrink-0 pt-0.5">
                     <button
                       onClick={() => setForm(f => ({ ...f, deferToNextMonth: !f.deferToNextMonth }))}
-                      className={['relative w-11 h-6 rounded-full transition-colors cursor-pointer', form.deferToNextMonth ? 'bg-[#3525cd]' : 'bg-gray-300 dark:bg-white/20'].join(' ')}
+                      className={['relative w-11 h-6 rounded-full transition-colors cursor-pointer', form.deferToNextMonth ? 'bg-[#7c3aed]' : 'bg-gray-300 dark:bg-white/20'].join(' ')}
                     >
                       <span className={['absolute top-[2px] w-5 h-5 bg-white rounded-full shadow transition-transform', form.deferToNextMonth ? 'translate-x-[22px]' : 'translate-x-[2px]'].join(' ')} />
                     </button>
@@ -544,7 +544,7 @@ function ExpenseModal({
           <button
             onClick={handleSave}
             disabled={saving || !form.description.trim() || totalAmount <= 0 || form.splitAmong.length === 0}
-            className="w-full flex items-center justify-center gap-2 bg-[#3525cd] hover:bg-[#2b1eb5] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full shadow-md transition-all cursor-pointer"
+            className="w-full flex items-center justify-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full shadow-md transition-all cursor-pointer"
           >
             {saving
               ? <><RefreshCw size={14} className="animate-spin" /> Saving...</>
@@ -728,7 +728,10 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, onEd
       >
         <div className="flex items-center gap-3">
           {/* Category icon */}
-          <div className={['w-10 h-10 rounded-[14px] flex items-center justify-center text-[18px] shrink-0', cfg?.color ?? 'bg-[#f1f3ff] dark:bg-white/[0.07]'].join(' ')}>
+          <div
+            className={['w-10 h-10 rounded-[14px] flex items-center justify-center text-[18px] shrink-0', cfg?.color ?? 'bg-white/[0.07]'].join(' ')}
+            style={cfg?.hex ? { boxShadow: `inset 0 0 0 1px ${cfg.hex}30` } : undefined}
+          >
             {cfg?.emoji ?? '💰'}
           </div>
 
@@ -797,15 +800,13 @@ function ExpenseRow({ expense, members, currentUserId, canDelete, onDelete, onEd
               const isYou   = uid === currentUserId
               return (
                 <div key={uid} className="flex items-center gap-2.5 px-3 py-2">
-                  <div className="w-6 h-6 rounded-full bg-[#e9edff] dark:bg-white/10 flex items-center justify-center text-[10px] font-extrabold text-[#3525cd] shrink-0">
-                    {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                  </div>
+                  <MemberAvatar uid={uid} nickname={m?.nickname ?? '?'} memberUids={members.map(x => x.uid)} size="xs" showRing />
                   <div className="flex-1 flex items-center gap-1.5 min-w-0">
                     <span className="text-[12px] font-semibold text-[#464555] dark:text-gray-300 truncate">
                       {isYou ? (m?.nickname ?? uid) + ' (you)' : m?.nickname ?? uid}
                     </span>
                     {isPayer && (
-                      <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAID</span>
+                      <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAID</span>
                     )}
                   </div>
                   <span className="text-[12.5px] font-bold text-[#141b2b] dark:text-foreground">
@@ -924,11 +925,12 @@ const SPLIT_METHOD_CONFIG: Record<SplitMethod, { label: string; desc: string }> 
 }
 
 function MonthlyBillModal({
-  members, currentUserId, initial, onSave, onClose,
+  members, currentUserId, initial, billingCycleDay, onSave, onClose,
 }: {
   members: { uid: string; nickname: string }[]
   currentUserId: string
   initial?: RecurringBill
+  billingCycleDay: number
   onSave: (data: Omit<RecurringBill, 'id' | 'createdAt' | 'currentPayerIndex' | 'lastGeneratedMonth' | 'lastGeneratedAt'>) => Promise<void>
   onClose: () => void
 }) {
@@ -938,13 +940,13 @@ function MonthlyBillModal({
     category:               (initial?.category ?? 'other') as ExpenseCategory,
     isVariable:             initial?.isVariable ?? false,
     amount:                 initial?.amount != null ? initial.amount.toString() : '',
-    billingDay:             initial?.billingDay?.toString() ?? '1',
     rotationQueue:          initial?.rotationQueue ?? members.map(m => m.uid),
     active:                 initial?.active ?? true,
     collectorId:            initial?.collectorId ?? currentUserId,
     recurrenceType:         (initial?.recurrenceType ?? 'monthly') as 'monthly' | 'every_n_days' | 'every_n_months' | 'yearly',
     recurrenceIntervalValue: initial?.recurrenceIntervalValue?.toString() ?? '90',
     billType:               (initial?.billType ?? 'prepaid') as 'prepaid' | 'postpaid',
+    pocketPayerUid:         initial?.fixedPayerUid ?? '',
   })
 
   const toggleMember = (uid: string) => setForm(f => ({
@@ -971,11 +973,11 @@ function MonthlyBillModal({
         isVariable:             form.isVariable,
         amount:                 form.isVariable ? null : parseFloat(form.amount),
         currency:               (initial?.currency ?? 'INR') as Currency,
-        billingDay:             1,
+        billingDay:             billingCycleDay,
         rotationQueue:          form.rotationQueue,
         participants:           form.rotationQueue,
-        payerMode:              'rotation',
-        fixedPayerUid:          undefined,
+        payerMode:              form.billType === 'prepaid' ? 'manual' : 'rotation',
+        fixedPayerUid:          form.billType === 'prepaid' && form.pocketPayerUid ? form.pocketPayerUid : undefined,
         splitMethod:            (initial?.splitMethod ?? 'equal') as SplitMethod,
         percentSplits:          initial?.percentSplits,
         customSplits:           initial?.customSplits,
@@ -998,8 +1000,6 @@ function MonthlyBillModal({
     'maid', 'cook', 'maintenance', 'electricity', 'water', 'internet', 'gym',
   ]
 
-  const billingDayOptions = [1, 5, 7, 10, 15, 20, 25, 28]
-
   const memberAvatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500']
 
   return createPortal(
@@ -1010,7 +1010,7 @@ function MonthlyBillModal({
         {/* Header */}
         <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
           <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">
-            {initial ? 'Edit Recurring Bill' : 'Add Recurring Bill'}
+            {initial ? 'Edit Monthly Bill' : 'Add Monthly Bill'}
           </h2>
           <button
             onClick={onClose}
@@ -1031,7 +1031,7 @@ function MonthlyBillModal({
               onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
               placeholder="e.g. Internet Bill"
               maxLength={50}
-              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-4 text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-4 text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
             />
           </div>
 
@@ -1048,7 +1048,7 @@ function MonthlyBillModal({
                     onClick={() => setForm(f => ({ ...f, category: cat, name: f.name || cfg.label }))}
                     className={[
                       'px-[14px] py-[7px] rounded-full text-sm font-medium tracking-[0.14px] transition-all cursor-pointer',
-                      isSelected ? 'bg-[#3525cd] text-white' : 'bg-[#e9edff] text-[#3525cd] hover:bg-[#dde2ff]',
+                      isSelected ? 'bg-[#7c3aed] text-white' : 'bg-[#e9edff] text-[#7c3aed] hover:bg-[#dde2ff]',
                     ].join(' ')}
                   >
                     {cfg.label}
@@ -1070,17 +1070,17 @@ function MonthlyBillModal({
                 className={[
                   'flex flex-col items-start gap-1 px-4 py-3 rounded-[12px] border-2 transition-all cursor-pointer text-left',
                   !form.isVariable
-                    ? 'border-[#3525cd] bg-[#3525cd]/5 dark:bg-[#3525cd]/10'
-                    : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#3525cd]/30',
+                    ? 'border-[#7c3aed] bg-[#7c3aed]/5 dark:bg-[#7c3aed]/10'
+                    : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#7c3aed]/30',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-2">
                   <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                    !form.isVariable ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
+                    !form.isVariable ? 'border-[#7c3aed]' : 'border-gray-300 dark:border-white/25',
                   ].join(' ')}>
-                    {!form.isVariable && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
+                    {!form.isVariable && <div className="w-2 h-2 rounded-full bg-[#7c3aed]" />}
                   </div>
-                  <span className={['text-sm font-semibold', !form.isVariable ? 'text-[#3525cd]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
+                  <span className={['text-sm font-semibold', !form.isVariable ? 'text-[#7c3aed]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
                     Fixed
                   </span>
                 </div>
@@ -1092,17 +1092,17 @@ function MonthlyBillModal({
                 className={[
                   'flex flex-col items-start gap-1 px-4 py-3 rounded-[12px] border-2 transition-all cursor-pointer text-left',
                   form.isVariable
-                    ? 'border-[#3525cd] bg-[#3525cd]/5 dark:bg-[#3525cd]/10'
-                    : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#3525cd]/30',
+                    ? 'border-[#7c3aed] bg-[#7c3aed]/5 dark:bg-[#7c3aed]/10'
+                    : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#7c3aed]/30',
                 ].join(' ')}
               >
                 <div className="flex items-center gap-2">
                   <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
-                    form.isVariable ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
+                    form.isVariable ? 'border-[#7c3aed]' : 'border-gray-300 dark:border-white/25',
                   ].join(' ')}>
-                    {form.isVariable && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
+                    {form.isVariable && <div className="w-2 h-2 rounded-full bg-[#7c3aed]" />}
                   </div>
-                  <span className={['text-sm font-semibold', form.isVariable ? 'text-[#3525cd]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
+                  <span className={['text-sm font-semibold', form.isVariable ? 'text-[#7c3aed]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
                     Variable
                   </span>
                 </div>
@@ -1120,7 +1120,7 @@ function MonthlyBillModal({
                   value={form.amount}
                   onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
                   placeholder="0.00"
-                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25"
+                  className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25"
                 />
               </div>
             ) : (
@@ -1150,8 +1150,8 @@ function MonthlyBillModal({
                   className={[
                     'py-2.5 px-3 rounded-[10px] text-sm font-medium text-left transition-all border cursor-pointer',
                     form.recurrenceType === opt.value
-                      ? 'bg-[#3525cd] text-white border-transparent'
-                      : 'bg-[#f1f3ff] dark:bg-white/[0.06] text-[#464555] dark:text-gray-300 border-transparent hover:border-[#3525cd]/30',
+                      ? 'bg-[#7c3aed] text-white border-transparent'
+                      : 'bg-[#f1f3ff] dark:bg-white/[0.06] text-[#464555] dark:text-gray-300 border-transparent hover:border-[#7c3aed]/30',
                   ].join(' ')}
                 >
                   {opt.label}
@@ -1166,7 +1166,7 @@ function MonthlyBillModal({
                   min="1"
                   value={form.recurrenceIntervalValue}
                   onChange={e => setForm(f => ({ ...f, recurrenceIntervalValue: e.target.value }))}
-                  className="w-20 bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#3525cd]/25 text-center"
+                  className="w-20 bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-3 py-2 text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25 text-center"
                 />
                 <span className="text-sm text-[#777587] dark:text-gray-400 shrink-0">
                   {form.recurrenceType === 'every_n_days' ? 'days' : 'months'}
@@ -1180,8 +1180,8 @@ function MonthlyBillModal({
             <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">How Is This Bill Paid?</label>
             <div className="grid grid-cols-2 gap-2">
               {([
-                { value: 'prepaid' as const, label: 'Paid From Personal Funds', desc: 'Someone pays the vendor first, then collects from flatmates' },
-                { value: 'postpaid' as const, label: 'Direct to Collector', desc: 'Members pay the monthly collector directly — no vendor advance' },
+                { value: 'prepaid' as const, label: 'Pocket Pay', desc: 'Someone pays the vendor from their pocket — auto-netted in the final monthly bill' },
+                { value: 'postpaid' as const, label: 'Collect & Pay', desc: 'Everyone pays the Treasurer their share — Treasurer settles with the vendor' },
               ]).map(opt => (
                 <button
                   key={opt.value}
@@ -1190,17 +1190,17 @@ function MonthlyBillModal({
                   className={[
                     'flex flex-col items-start gap-1 px-4 py-3 rounded-[12px] border-2 transition-all cursor-pointer text-left',
                     form.billType === opt.value
-                      ? 'border-[#3525cd] bg-[#3525cd]/5 dark:bg-[#3525cd]/10'
-                      : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#3525cd]/30',
+                      ? 'border-[#7c3aed] bg-[#7c3aed]/5 dark:bg-[#7c3aed]/10'
+                      : 'border-transparent bg-[#f1f3ff] dark:bg-white/[0.05] hover:border-[#7c3aed]/30',
                   ].join(' ')}
                 >
                   <div className="flex items-center gap-2">
                     <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0',
-                      form.billType === opt.value ? 'border-[#3525cd]' : 'border-gray-300 dark:border-white/25',
+                      form.billType === opt.value ? 'border-[#7c3aed]' : 'border-gray-300 dark:border-white/25',
                     ].join(' ')}>
-                      {form.billType === opt.value && <div className="w-2 h-2 rounded-full bg-[#3525cd]" />}
+                      {form.billType === opt.value && <div className="w-2 h-2 rounded-full bg-[#7c3aed]" />}
                     </div>
-                    <span className={['text-[11px] font-bold leading-tight', form.billType === opt.value ? 'text-[#3525cd]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
+                    <span className={['text-[11px] font-bold leading-tight', form.billType === opt.value ? 'text-[#7c3aed]' : 'text-[#464555] dark:text-gray-300'].join(' ')}>
                       {opt.label}
                     </span>
                   </div>
@@ -1211,15 +1211,63 @@ function MonthlyBillModal({
 
           </div>
 
-          {/* Who shares this bill — for prepaid these members also rotate paying the vendor */}
+          {/* Pocket Pay — who paid this bill? Pre-fills the generate pipeline */}
+          {form.billType === 'prepaid' && (
+            <div className="space-y-2.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">Who Paid This Bill?</label>
+                {form.pocketPayerUid && (
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, pocketPayerUid: '' }))}
+                    className="text-xs font-semibold text-[#777587] cursor-pointer hover:opacity-70 transition-opacity"
+                  >Clear</button>
+                )}
+              </div>
+              <p className="text-[11px] text-[#777587] dark:text-gray-400 -mt-1.5 leading-snug">
+                Select the person who paid the vendor from their own pocket. Their name is pre-filled when generating this bill.
+              </p>
+              <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-4 space-y-3">
+                {members.map((m, idx) => {
+                  const isPicked = form.pocketPayerUid === m.uid
+                  return (
+                    <button
+                      key={m.uid}
+                      type="button"
+                      onClick={() => setForm(f => ({ ...f, pocketPayerUid: isPicked ? '' : m.uid }))}
+                      className="flex items-center gap-3.5 w-full cursor-pointer"
+                    >
+                      <div className={[
+                        'w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                        isPicked ? 'border-[#7c3aed] bg-[#7c3aed]' : 'border-gray-300 dark:border-white/20',
+                      ].join(' ')}>
+                        {isPicked && <div className="w-2 h-2 rounded-full bg-white" />}
+                      </div>
+                      <div className={['w-8 h-8 rounded-full flex items-center justify-center text-sm font-bold shrink-0', memberAvatarColors[idx % memberAvatarColors.length]].join(' ')}>
+                        <span className="text-white">{m.nickname.charAt(0).toUpperCase()}</span>
+                      </div>
+                      <span className={['text-sm font-medium transition-colors', isPicked ? 'text-[#141b2b] dark:text-white' : 'text-[#777587]'].join(' ')}>
+                        {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
+                      </span>
+                      {isPicked && (
+                        <span className="ml-auto text-[10px] font-bold text-[#7c3aed] text-violet-400">💸 Paid this</span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Who splits this bill */}
           <div className="space-y-2.5">
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-[#464555] dark:text-gray-400">
-                {form.billType === 'prepaid' ? 'Who Takes Turns Paying & Splitting' : 'Split Among'}
+                Split Among
               </label>
               <button
                 onClick={selectAll}
-                className="text-xs font-semibold text-[#3525cd] cursor-pointer hover:opacity-70 transition-opacity"
+                className="text-xs font-semibold text-[#7c3aed] cursor-pointer hover:opacity-70 transition-opacity"
               >
                 {form.rotationQueue.length === members.length ? 'Deselect All' : 'Select All'}
               </button>
@@ -1235,7 +1283,7 @@ function MonthlyBillModal({
                   >
                     <div className={[
                       'w-5 h-5 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all',
-                      checked ? 'bg-[#3525cd] border-[#3525cd]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
+                      checked ? 'bg-[#7c3aed] border-[#7c3aed]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20',
                     ].join(' ')}>
                       {checked && (
                         <svg width="10" height="7" viewBox="0 0 11 8" fill="none">
@@ -1250,7 +1298,7 @@ function MonthlyBillModal({
                       {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
                     </span>
                     {checked && (
-                      <span className="ml-auto text-[10px] font-bold text-[#3525cd] dark:text-violet-400">✓</span>
+                      <span className="ml-auto text-[10px] font-bold text-[#7c3aed] text-violet-400">✓</span>
                     )}
                   </button>
                 )
@@ -1258,15 +1306,15 @@ function MonthlyBillModal({
             </div>
           </div>
 
-          {/* Collector note — monthly collector set at the flat level */}
+          {/* Treasurer note — set at the flat level, applies to all bills */}
           <div className="flex items-start gap-3 px-3 py-3 rounded-[12px] bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b]">
-            <div className="w-7 h-7 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0 mt-0.5">
-              <span className="text-white font-extrabold text-[11px]">C</span>
+            <div className="w-7 h-7 rounded-[10px] bg-[#7c3aed] flex items-center justify-center shrink-0 mt-0.5">
+              <Landmark size={14} className="text-white" />
             </div>
             <div>
-              <p className="text-[12px] font-bold text-[#3525cd] dark:text-[#8b9ef8]">Collector set at flat level</p>
+              <p className="text-[12px] font-bold text-[#7c3aed] dark:text-[#8b9ef8]">Treasurer set at flat level</p>
               <p className="text-[11px] text-[#777587] dark:text-gray-400 mt-0.5 leading-snug">
-                This bill will be handled by this month&apos;s collector. Change the collector from the Expenses page — it applies to all bills for the month.
+                The Treasurer collects dues from all flatmates this month. Change the Treasurer from the Expenses page — it applies to all bills for the month.
               </p>
             </div>
           </div>
@@ -1277,17 +1325,17 @@ function MonthlyBillModal({
         <div className="flex items-center justify-end gap-4 px-6 pt-5 pb-6 border-t border-black/[0.08] shrink-0">
           <button
             onClick={onClose}
-            className="px-6 py-3 text-sm font-medium text-[#3525cd] hover:opacity-70 transition-opacity cursor-pointer"
+            className="px-6 py-3 text-sm font-medium text-[#7c3aed] hover:opacity-70 transition-opacity cursor-pointer"
           >
             Cancel
           </button>
           <button
             onClick={handleSave}
             disabled={saving || !form.name.trim() || (!form.isVariable && !parseFloat(form.amount)) || form.rotationQueue.length === 0}
-            className="flex items-center gap-2 bg-[#3525cd] hover:bg-[#2b1eb5] disabled:opacity-40 text-white text-sm font-medium px-6 py-3 rounded-full shadow-md transition-all cursor-pointer disabled:cursor-not-allowed"
+            className="flex items-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-40 text-white text-sm font-medium px-6 py-3 rounded-full shadow-md transition-all cursor-pointer disabled:cursor-not-allowed"
           >
             {saving ? <RefreshCw size={14} className="animate-spin" /> : <Check size={14} />}
-            <span>{saving ? 'Saving...' : initial ? 'Save Changes' : 'Add to Household Bills'}</span>
+            <span>{saving ? 'Saving...' : initial ? 'Save Changes' : 'Add Monthly Bill'}</span>
           </button>
         </div>
 
@@ -1296,6 +1344,211 @@ function MonthlyBillModal({
     document.body,
   )
 }
+// ── One-Time Bill Modal ───────────────────────────────────────────────────────
+const ONE_TIME_BILL_QUICK_CATS: ExpenseCategory[] = ['maid', 'grocery', 'maintenance', 'electricity', 'gas', 'household', 'other']
+
+function OneTimeBillModal({
+  members, currentUserId, isAdmin, month, onSave, onClose,
+}: {
+  members: { uid: string; nickname: string }[]
+  currentUserId: string
+  isAdmin: boolean
+  month: string
+  onSave: (data: { name: string; category: ExpenseCategory; amount: number; paidBy: string; participants: string[]; month: string; createdBy: string; splitMethod?: 'equal' | 'percent' | 'custom'; percentSplits?: Record<string, number>; customSplits?: Record<string, number> }) => Promise<void>
+  onClose: () => void
+}) {
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+  const [form, setForm] = useState({
+    name: '',
+    category: 'other' as ExpenseCategory,
+    amount: '',
+    paidBy: currentUserId,
+    participants: members.map(m => m.uid),
+  })
+
+  const toggleParticipant = (uid: string) => setForm(f => ({
+    ...f,
+    participants: f.participants.includes(uid)
+      ? f.participants.filter(id => id !== uid)
+      : [...f.participants, uid],
+  }))
+
+  const totalAmt = parseFloat(form.amount) || 0
+  const shareAmt = form.participants.length > 0 ? totalAmt / form.participants.length : 0
+
+  const handleSave = async () => {
+    setError('')
+    if (!form.name.trim()) { setError('Enter a bill name.'); return }
+    if (!totalAmt || totalAmt <= 0) { setError('Enter a valid amount.'); return }
+    if (form.participants.length === 0) { setError('Select at least one person to split with.'); return }
+    setSaving(true)
+    try {
+      await onSave({ name: form.name.trim(), category: form.category, amount: totalAmt, paidBy: form.paidBy, participants: form.participants, month, createdBy: currentUserId })
+      onClose()
+    } catch {
+      setSaving(false)
+      setError('Failed to save. Try again.')
+    }
+  }
+
+
+
+  return createPortal(
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center">
+      <div className="absolute inset-0 bg-black/40 backdrop-blur-[2px]" onClick={onClose} />
+      <div className="relative bg-white dark:bg-[#1A202C] rounded-t-[24px] sm:rounded-[24px] w-full sm:max-w-[440px] shadow-[0px_10px_40px_-10px_rgba(0,0,0,0.18)] flex flex-col max-h-[92dvh]">
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
+          <div>
+            <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">Record a Bill Paid</h2>
+            <p className="text-[11px] text-[#777587] mt-0.5">Someone paid a shared bill from personal funds</p>
+          </div>
+          <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3ff] dark:hover:bg-white/10 transition-colors cursor-pointer">
+            <X size={14} className="text-[#777587]" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1 px-6 py-6 space-y-6">
+
+          {/* Category */}
+          <div className="space-y-2">
+            <label className="block text-[11px] font-semibold text-[#464555] dark:text-gray-400 uppercase tracking-[0.6px]">Category</label>
+            <div className="flex flex-wrap gap-2">
+              {ONE_TIME_BILL_QUICK_CATS.map(cat => {
+                const cfg = CATEGORY_CONFIG[cat]
+                const sel = form.category === cat
+                return (
+                  <button key={cat} onClick={() => setForm(f => ({ ...f, category: cat }))}
+                    className={['flex items-center gap-1.5 px-3 py-2 rounded-full text-[12px] font-medium transition-all cursor-pointer',
+                      sel ? 'bg-[#7c3aed] text-white' : 'bg-[#e9edff] text-[#7c3aed] hover:bg-[#dde2ff]'].join(' ')}>
+                    <span className="text-[14px]">{cfg.emoji}</span>{cfg.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* Name */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Bill Name</label>
+            <input value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
+              placeholder="e.g. Plumber, AC Repair, Grocery run"
+              maxLength={60}
+              className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25" />
+          </div>
+
+          {/* Amount */}
+          <div className="space-y-1.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Amount Paid (₹)</label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-[#777587] font-semibold text-base pointer-events-none">₹</span>
+              <input type="number" min="0" value={form.amount}
+                onChange={e => setForm(f => ({ ...f, amount: e.target.value }))}
+                placeholder="0"
+                className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg pl-8 pr-4 py-[13px] text-base text-[#141b2b] dark:text-white placeholder-[#777587] border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25" />
+            </div>
+          </div>
+
+          {/* ── WHO PAID? — EXPLICIT SEPARATION ────── */}
+          <div className="space-y-2.5">
+            <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Who Paid This Bill?</label>
+            <p className="text-[11px] text-[#777587] dark:text-gray-400 -mt-1">The person who paid from their own pocket</p>
+            {isAdmin ? (
+              <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-4 space-y-3">
+                {members.map((m, idx) => (
+                  <button key={m.uid} onClick={() => setForm(f => ({ ...f, paidBy: m.uid }))}
+                    className="flex items-center gap-3 w-full cursor-pointer group">
+                    <div className={['w-4 h-4 rounded-full border-2 flex items-center justify-center shrink-0 transition-all',
+                      form.paidBy === m.uid ? 'border-[#7c3aed]' : 'border-gray-300 dark:border-white/20'].join(' ')}>
+                      {form.paidBy === m.uid && <div className="w-2 h-2 rounded-full bg-[#7c3aed]" />}
+                    </div>
+                    <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="xs" showRing={form.paidBy === m.uid} />
+                    <span className={['text-sm font-medium transition-colors', form.paidBy === m.uid ? 'text-[#141b2b] dark:text-white font-semibold' : 'text-[#777587]'].join(' ')}>
+                      {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
+                    </span>
+                    {form.paidBy === m.uid && <span className="ml-auto text-[10px] font-bold text-[#7c3aed]">✓</span>}
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <div className="flex items-center gap-3 bg-[#f0f4ff] dark:bg-[#1a1f3a] rounded-[12px] px-4 py-3 border border-[#c7d7f5] dark:border-[#2d3a6b]">
+                <MemberAvatar uid={currentUserId} nickname={members.find(m => m.uid === currentUserId)?.nickname ?? 'You'} memberUids={members.map(x => x.uid)} size="sm" showRing />
+                <div>
+                  <p className="text-[13px] font-bold text-[#141b2b] dark:text-white">You</p>
+                  <p className="text-[11px] text-[#777587]">You&apos;re recording a bill you personally paid</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ── WHO SPLITS? — EXPLICIT SEPARATION ────── */}
+          <div className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div>
+                <label className="block text-xs font-semibold text-[#464555] dark:text-gray-400">Who Splits This Bill?</label>
+                <p className="text-[11px] text-[#777587] dark:text-gray-400 mt-0.5">Everyone who owes their share</p>
+              </div>
+              <button onClick={() => setForm(f => ({ ...f, participants: f.participants.length === members.length ? [] : members.map(m => m.uid) }))}
+                className="text-xs font-semibold text-[#7c3aed] cursor-pointer hover:opacity-70 transition-opacity">
+                {form.participants.length === members.length ? 'Deselect All' : 'Select All'}
+              </button>
+            </div>
+            <div className="bg-[#f1f3ff] dark:bg-white/[0.05] rounded-[12px] p-4 space-y-3">
+              {members.map((m, idx) => {
+                const checked = form.participants.includes(m.uid)
+                return (
+                  <button key={m.uid} onClick={() => toggleParticipant(m.uid)}
+                    className="flex items-center gap-3 w-full cursor-pointer">
+                    <div className={['w-5 h-5 rounded-[4px] border-2 flex items-center justify-center shrink-0 transition-all',
+                      checked ? 'bg-[#7c3aed] border-[#7c3aed]' : 'bg-white dark:bg-white/10 border-gray-300 dark:border-white/20'].join(' ')}>
+                      {checked && <svg width="10" height="7" viewBox="0 0 11 8" fill="none"><path d="M1 4L4 7L10 1" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/></svg>}
+                    </div>
+                    <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="xs" showRing={checked} />
+                    <span className={['text-sm font-medium', checked ? 'text-[#141b2b] dark:text-white' : 'text-[#777587]'].join(' ')}>
+                      {m.nickname}{m.uid === currentUserId ? ' (you)' : ''}
+                    </span>
+                    {checked && totalAmt > 0 && (
+                      <span className="ml-auto text-[11px] font-bold text-violet-400">₹{Math.round(shareAmt)}</span>
+                    )}
+                  </button>
+                )
+              })}
+            </div>
+            {totalAmt > 0 && form.participants.length > 0 && (
+              <p className="text-[11px] text-[#777587] text-center">
+                ₹{Math.round(shareAmt)} per person · {form.participants.length} people
+              </p>
+            )}
+          </div>
+
+        </div>
+
+        {/* Footer */}
+        <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0 space-y-3">
+          {error && (
+            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-50 dark:bg-red-950/30 border border-red-200 dark:border-red-900">
+              <AlertCircle size={14} className="text-red-600 shrink-0" />
+              <p className="text-xs font-semibold text-red-700 dark:text-red-300">{error}</p>
+            </div>
+          )}
+          <button onClick={handleSave}
+            disabled={saving || !form.name.trim() || totalAmt <= 0 || form.participants.length === 0}
+            className="w-full flex items-center justify-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full shadow-md transition-all cursor-pointer">
+            {saving
+              ? <><RefreshCw size={14} className="animate-spin" /> Saving...</>
+              : <><Check size={14} /> Record Bill{totalAmt > 0 ? ` ₹${Math.round(totalAmt)}` : ''}</>}
+          </button>
+        </div>
+
+      </div>
+    </div>,
+    document.body,
+  )
+}
+
 // ── Generate Bills Modal ─────────────────────────────────────────────────────
 
 function GenerateBillsModal({
@@ -1309,7 +1562,11 @@ function GenerateBillsModal({
 }) {
   const [amounts, setAmounts] = useState<Record<string, string>>({})
   const [manualPayers, setManualPayers] = useState<Record<string, string>>(() =>
-    Object.fromEntries(dueBills.filter(b => b.payerMode === 'manual').map(b => [b.id, b.rotationQueue[0] ?? '']))
+    Object.fromEntries(
+      dueBills
+        .filter(b => b.payerMode === 'manual' || b.billType === 'prepaid')
+        .map(b => [b.id, (b.fixedPayerUid || b.rotationQueue[0]) ?? ''])
+    )
   )
   const [selected, setSelected] = useState<Set<string>>(new Set(dueBills.map(b => b.id)))
   const [generating, setGenerating] = useState(false)
@@ -1329,9 +1586,11 @@ function GenerateBillsModal({
 
   const selectedBills = dueBills.filter(b => selected.has(b.id) && !done.has(b.id))
 
-  const canGenerate = selectedBills.length > 0 && selectedBills.every(b =>
-    (!b.isVariable && b.amount && b.amount > 0) || (b.isVariable && parseFloat(amounts[b.id]) > 0)
-  )
+  const canGenerate = selectedBills.length > 0 && selectedBills.every(b => {
+    const hasAmount = (!b.isVariable && b.amount && b.amount > 0) || (b.isVariable && parseFloat(amounts[b.id]) > 0)
+    const hasPayer = (b.billType !== 'prepaid' && b.payerMode !== 'manual') || !!manualPayers[b.id]
+    return hasAmount && hasPayer
+  })
 
   const handleGenerate = async () => {
     setGenerating(true)
@@ -1389,11 +1648,20 @@ function GenerateBillsModal({
                 <span className="text-xl shrink-0">{cfg?.emoji}</span>
 
                 <div className="flex-1 min-w-0 text-left">
-                  <p className="font-bold text-sm">{bill.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    Paid by <span className="font-semibold text-foreground">{payer?.nickname ?? '…'}</span>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="font-bold text-sm">{bill.name}</p>
+                    {bill.billType === 'prepaid'
+                      ? <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-violet-100 dark:bg-violet-900/30 text-violet-700 dark:text-violet-300 uppercase tracking-wide shrink-0">Pocket Pay</span>
+                      : <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 uppercase tracking-wide shrink-0">Collect & Pay</span>
+                    }
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {bill.billType === 'prepaid'
+                      ? <><span className="inline-flex items-center gap-0.5 font-extrabold text-violet-600 text-violet-400"><Wallet size={10} />{payer?.nickname ?? '…'} paid</span></>
+                      : <span className="inline-flex items-center gap-0.5"><Landmark size={10} />Treasurer collects</span>
+                    }
                     {!bill.isVariable && bill.amount ? ` · ${formatAmount(bill.amount, bill.currency)} total` : ''}
-                    {perPerson > 0 && ` · ${formatAmount(perPerson, bill.currency)} per person`}
+                    {perPerson > 0 && ` · ${formatAmount(perPerson, bill.currency)}/person`}
                   </p>
                 </div>
 
@@ -1402,17 +1670,17 @@ function GenerateBillsModal({
                 ) : null}
               </button>
 
-              {/* Manual payer: show selector */}
-              {bill.payerMode === 'manual' && isSelected && !isDone && (
-                <div className="px-4 pb-3 border-t border-border/50 pt-3">
-                  <Label className="text-xs font-bold text-muted-foreground mb-1.5 block">Who pays this month?</Label>
+              {/* Pocket Pay / manual: confirm who paid this month */}
+              {(bill.billType === 'prepaid' || bill.payerMode === 'manual') && isSelected && !isDone && (
+                <div className="px-4 pb-3 border-t border-violet-200/60 dark:border-violet-800/40 pt-3 bg-violet-50/40 dark:bg-violet-950/10">
+                  <Label className="text-xs font-bold text-violet-700 dark:text-violet-300 mb-1.5 block flex items-center gap-1"><Wallet size={11} />Who paid from pocket this month?</Label>
                   <div className="flex flex-wrap gap-2">
                     {bill.rotationQueue.map(uid => {
                       const m = members.find(x => x.uid === uid)
                       return (
                         <button key={uid} onClick={() => setManualPayers(p => ({ ...p, [bill.id]: uid }))}
                           className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                            manualPayers[bill.id] === uid ? 'bg-emerald-600 text-white border-emerald-600' : 'bg-secondary text-muted-foreground border-border'
+                            manualPayers[bill.id] === uid ? 'bg-violet-600 text-white border-violet-600' : 'bg-secondary text-muted-foreground border-border hover:border-violet-400'
                           }`}>
                           {uid === currentUserId ? `${m?.nickname} (you)` : m?.nickname ?? uid}
                         </button>
@@ -1917,8 +2185,6 @@ function FixedBillsBreakdownModal({
 }) {
   const activeBills = recurringBills.filter(b => b.active)
 
-  const avatarColors = ['bg-indigo-600', 'bg-violet-500', 'bg-slate-500', 'bg-teal-600', 'bg-orange-500', 'bg-rose-500']
-
   const totalCommitment = activeBills.reduce((s, b) => {
     const inst = billInstances.find(bi => bi.templateId === b.id && bi.month === monthKey)
     return s + (inst?.amount ?? b.amount ?? 0)
@@ -1978,7 +2244,7 @@ function FixedBillsBreakdownModal({
           {/* Two summary cards */}
           <div className="grid grid-cols-2 gap-3">
             {/* Total bills card — indigo */}
-            <div className="bg-[#3525cd] rounded-[20px] p-5 relative overflow-hidden shadow-[0px_10px_15px_-3px_rgba(53,37,205,0.25)]">
+            <div className="bg-[#7c3aed] rounded-[20px] p-5 relative overflow-hidden shadow-[0px_10px_15px_-3px_rgba(124,58,237,0.35)]">
               <div className="absolute top-[-12px] right-[-12px] w-20 h-20 rounded-full bg-white/10" />
               <div className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/10" />
               <p className="text-white/75 text-[11px] font-semibold uppercase tracking-widest relative">
@@ -2009,18 +2275,14 @@ function FixedBillsBreakdownModal({
                   {members.length} Residents
                 </p>
               </div>
-              <div className="flex items-center gap-1 mt-3">
+              <div className="flex items-center mt-3">
                 {members.slice(0, 5).map((m, i) => (
-                  <div
-                    key={m.uid}
-                    className={['w-8 h-8 rounded-full border-2 border-white dark:border-[#1A202C] flex items-center justify-center text-[11px] font-bold text-white shrink-0', avatarColors[i % avatarColors.length]].join(' ')}
-                    style={{ marginLeft: i > 0 ? '-8px' : '0' }}
-                  >
-                    {m.nickname.charAt(0).toUpperCase()}
+                  <div key={m.uid} style={{ marginLeft: i > 0 ? '-8px' : '0' }}>
+                    <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="sm" showRing />
                   </div>
                 ))}
                 {members.length > 5 && (
-                  <div className="w-8 h-8 rounded-full border-2 border-white dark:border-[#1A202C] bg-[#e9edff] flex items-center justify-center text-[10px] font-bold text-[#3525cd] shrink-0" style={{ marginLeft: '-8px' }}>
+                  <div className="w-8 h-8 rounded-full border border-border bg-secondary flex items-center justify-center text-[10px] font-bold text-muted-foreground shrink-0" style={{ marginLeft: '-8px' }}>
                     +{members.length - 5}
                   </div>
                 )}
@@ -2037,9 +2299,7 @@ function FixedBillsBreakdownModal({
                   {/* Person header */}
                   <div className="flex items-center justify-between px-5 pt-5 pb-4 border-b border-[rgba(199,196,216,0.3)]">
                     <div className="flex items-center gap-3">
-                      <div className={['w-11 h-11 rounded-full flex items-center justify-center text-base font-bold text-white shrink-0', avatarColors[idx % avatarColors.length]].join(' ')}>
-                        {member.nickname.charAt(0).toUpperCase()}
-                      </div>
+                      <MemberAvatar uid={member.uid} nickname={member.nickname} memberUids={members.map(m => m.uid)} size="md" showRing />
                       <div>
                         <p className="text-[#141b2b] dark:text-white text-[16px] font-semibold leading-tight">
                           {member.uid === currentUserId ? member.nickname + ' (you)' : member.nickname}
@@ -2056,7 +2316,7 @@ function FixedBillsBreakdownModal({
                       <span className={[
                         'inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full mt-1',
                         status === 'paid'
-                          ? 'bg-[rgba(53,37,205,0.1)] text-[#3525cd]'
+                          ? 'bg-[rgba(53,37,205,0.1)] text-[#7c3aed]'
                           : 'bg-[rgba(186,26,26,0.08)] text-[#ba1a1a]',
                       ].join(' ')}>
                         {status === 'paid' ? <Check size={9} /> : <AlertCircle size={9} />}
@@ -2099,7 +2359,7 @@ function FixedBillsBreakdownModal({
         <div className="px-6 pb-6 pt-4 border-t border-black/[0.08] shrink-0">
           <button
             onClick={onClose}
-            className="w-full bg-[#3525cd] hover:bg-[#2b1eb5] text-white text-sm font-semibold py-3 rounded-full transition-colors cursor-pointer"
+            className="w-full bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-sm font-semibold py-3 rounded-full transition-colors cursor-pointer"
           >
             Done
           </button>
@@ -2117,10 +2377,12 @@ export default function ExpensesPage() {
   const {
     name: flatName,
     expenses, settlements, recurringBills, billInstances, monthCycles, members,
+    billingCycleDay, setBillingCycleDay,
     addExpense, deleteExpense, updateExpense, addSettlement, deleteSettlement,
     resetMonthSplits, resetAllExpensesData,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, markBillCollected, skipBillInstance, deleteBillInstance,
+    addOneTimeBillInstance,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth, setMonthlyCollector,
   } = useFlatStore()
   const { user } = useAuthStore()
@@ -2206,6 +2468,8 @@ export default function ExpensesPage() {
   const iAmCollector = monthlyCollectorUid === currentUserId
   const [showChangeCollector, setShowChangeCollector] = useState(false)
   const [pendingCollectorUid, setPendingCollectorUid] = useState('')
+  const [showOneTimeBillModal, setShowOneTimeBillModal] = useState(false)
+  const [showCycleDayPicker, setShowCycleDayPicker] = useState(false)
 
   const balances = useMemo(
     () => computeBalances(currentUserId, expenses, settlements),
@@ -2315,7 +2579,7 @@ export default function ExpensesPage() {
     return Object.entries(groups).sort((a, b) => b[0].localeCompare(a[0]))
   }, [allSplitsFiltered])
 
-  const dueBills = useMemo(() => recurringBills.filter(isBillDue), [recurringBills])
+  const dueBills = useMemo(() => recurringBills.filter(b => isBillDue(b, billingCycleDay)), [recurringBills, billingCycleDay])
 
   // (auto-open of generate modal removed — admin uses Generate All button intentionally)
 
@@ -2371,7 +2635,7 @@ export default function ExpensesPage() {
         bi.currency === 'INR' &&
         bi.dueDate?.startsWith(key) &&
         (bi.status === 'split_generated' || bi.status === 'paid') &&
-        activeTemplateIds.has(bi.templateId)
+        bi.templateId != null && activeTemplateIds.has(bi.templateId)
       )
       .reduce((s, bi) => s + (bi.amount ?? 0), 0)
   }, [billInstances, recurringBills])
@@ -2860,7 +3124,7 @@ export default function ExpensesPage() {
           </button>
           <h1 className="text-[17px] font-bold text-[#021328] dark:text-foreground flex-1">{bill.name} Details</h1>
           {isAdmin && (
-            <button onClick={() => { setSelectedBillId(null); setEditBill(bill) }} className="text-[12px] font-bold text-[#3525cd] dark:text-violet-400 cursor-pointer">Edit</button>
+            <button onClick={() => { setSelectedBillId(null); setEditBill(bill) }} className="text-[12px] font-bold text-[#7c3aed] text-violet-400 cursor-pointer">Edit</button>
           )}
         </div>
         {/* Bill info card */}
@@ -2875,7 +3139,7 @@ export default function ExpensesPage() {
           <p className="text-[12px] text-muted-foreground">Due on {nextDue} &middot; Shared by {billParticipants.length} people</p>
           {myShare > 0 && (
             <div className="mt-3 pt-3 border-t border-border/50">
-              <p className="text-[13px] font-extrabold text-[#3525cd] dark:text-violet-400">Your Share: {formatAmount(myShare, bill.currency)}</p>
+              <p className="text-[13px] font-extrabold text-[#7c3aed] text-violet-400">Your Share: {formatAmount(myShare, bill.currency)}</p>
             </div>
           )}
         </div>
@@ -2934,7 +3198,7 @@ export default function ExpensesPage() {
         )}
         {/* Edit bill modal */}
         {editBill && (
-          <MonthlyBillModal members={members} currentUserId={currentUserId} initial={editBill}
+          <MonthlyBillModal members={members} currentUserId={currentUserId} initial={editBill} billingCycleDay={billingCycleDay}
             onSave={async (data) => { await updateRecurringBill(editBill.id, data) }}
             onClose={() => setEditBill(null)} />
         )}
@@ -3286,7 +3550,7 @@ export default function ExpensesPage() {
             <div className="flex items-center gap-2 mt-1 shrink-0">
               <button
                 onClick={() => can('add_expense') ? (isAdmin ? setShowExpenseTypePicker(true) : setShowAddExpense(true)) : (setUpsellFeature('add_expense'), setShowExpenseUpsell(true))}
-                className="flex items-center gap-1.5 bg-[#3786FB] hover:bg-[#2672e6] text-white text-[12px] font-bold px-3.5 py-2 rounded-full shadow-[0px_4px_12px_rgba(55,134,251,0.30)] transition-colors cursor-pointer"
+                className="flex items-center gap-1.5 bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[12px] font-bold px-3.5 py-2 rounded-full shadow-[0px_4px_12px_rgba(124,58,237,0.35)] transition-colors cursor-pointer"
               >
                 <Plus size={13} /> Add Expense
               </button>
@@ -3391,7 +3655,7 @@ export default function ExpensesPage() {
                 <p className="text-[13px] font-bold text-[#021328] dark:text-foreground">{daysElapsed} / {daysTotal} days</p>
                 <div className="w-24 h-1.5 bg-[#EDEDF0] dark:bg-white/10 rounded-full mt-1.5 overflow-hidden">
                   <div
-                    className={['h-full rounded-full transition-all', allSettled ? 'bg-emerald-500' : 'bg-[#3786FB]'].join(' ')}
+                    className={['h-full rounded-full transition-all', allSettled ? 'bg-emerald-500' : 'bg-[#7c3aed]'].join(' ')}
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
@@ -3455,7 +3719,7 @@ export default function ExpensesPage() {
         <button
           onClick={() => setActiveTab('daily')}
           className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer',
-            activeTab === 'daily' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'daily' ? 'bg-[#7c3aed] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ].join(' ')}
         >
           Daily Splits
@@ -3464,7 +3728,7 @@ export default function ExpensesPage() {
         <button
           onClick={() => setActiveTab('bills')}
           className={['flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-[10px] text-[13px] font-bold transition-all cursor-pointer',
-            activeTab === 'bills' ? 'bg-[#3786FB] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            activeTab === 'bills' ? 'bg-[#7c3aed] text-white shadow-sm' : 'text-muted-foreground hover:text-foreground',
           ].join(' ')}
         >
           Monthly Bills
@@ -3508,9 +3772,7 @@ export default function ExpensesPage() {
                           {i > 0 && <div className="h-px bg-border/25 mx-4" />}
                           <div className="flex items-center gap-3 px-4 py-3">
                             <button onClick={() => setShowPersonDetail(b.userId)} className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
-                              <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[12px] text-emerald-700 dark:text-emerald-300 shrink-0">
-                                {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                              </div>
+                              <MemberAvatar uid={b.userId} nickname={m?.nickname ?? '?'} memberUids={members.map(x => x.uid)} size="sm" showRing />
                               <div className="min-w-0">
                                 <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
                                 {isSettled ? (
@@ -3547,9 +3809,7 @@ export default function ExpensesPage() {
                         <div key={uid}>
                           {(i > 0 || balances.some(b => b.amount > 0)) && <div className="h-px bg-border/25 mx-4" />}
                           <div className="flex items-center gap-3 px-4 py-3">
-                            <div className="w-9 h-9 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center font-extrabold text-[12px] text-emerald-700 dark:text-emerald-300 shrink-0">
-                              {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                            </div>
+                            <MemberAvatar uid={uid} nickname={m?.nickname ?? '?'} memberUids={members.map(x => x.uid)} size="sm" showRing />
                             <div className="flex-1 min-w-0">
                               <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
                               <p className="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1"><Check size={9} /> Settled today</p>
@@ -3582,9 +3842,7 @@ export default function ExpensesPage() {
                           {i > 0 && <div className="h-px bg-border/25 mx-4" />}
                           <div className="flex items-center gap-3 px-4 py-3">
                             <button onClick={() => setShowPersonDetail(b.userId)} className="flex items-center gap-3 flex-1 min-w-0 text-left cursor-pointer">
-                              <div className="w-9 h-9 rounded-full bg-orange-100 dark:bg-orange-900/30 flex items-center justify-center font-extrabold text-[12px] text-orange-700 dark:text-orange-300 shrink-0">
-                                {(m?.nickname ?? '?').charAt(0).toUpperCase()}
-                              </div>
+                              <MemberAvatar uid={b.userId} nickname={m?.nickname ?? '?'} memberUids={members.map(x => x.uid)} size="sm" showRing />
                               <div className="min-w-0">
                                 <p className="text-[13px] font-bold text-[#021328] dark:text-foreground truncate">{m?.nickname ?? '…'}</p>
                                 <p className="text-[11px] font-semibold text-orange-500 dark:text-orange-400">Tap to see history</p>
@@ -3698,7 +3956,7 @@ export default function ExpensesPage() {
                   <p className="text-sm text-muted-foreground/60 mt-1 max-w-xs mb-4">
                     Record groceries, takeout, or any shared cost and split it automatically.
                   </p>
-                  <Button onClick={tryAddExpense} className="font-bold bg-[#3786FB] hover:bg-[#2672e6]">
+                  <Button onClick={tryAddExpense} className="font-bold bg-[#7c3aed] hover:bg-[#6d28d9]">
                     <Plus size={14} className="mr-1.5" /> Add Expense
                   </Button>
                 </CardContent>
@@ -3731,7 +3989,7 @@ export default function ExpensesPage() {
                 </div>
                 <button
                   onClick={() => setShowAllSplits(true)}
-                  className="w-full flex items-center justify-center gap-1.5 py-3 text-[12px] font-bold text-[#3786FB] hover:text-[#2672e6] transition-colors cursor-pointer"
+                  className="w-full flex items-center justify-center gap-1.5 py-3 text-[12px] font-bold text-[#7c3aed] text-violet-400 hover:text-violet-300 transition-colors cursor-pointer"
                 >
                   View all splits <ArrowRight size={13} />
                 </button>
@@ -3747,36 +4005,64 @@ export default function ExpensesPage() {
 
           {/* Admin action bar — Add bill + Generate All */}
           {isAdmin && (
-            <div className="flex gap-2">
-              {dueBills.length > 0 && (
-                <Button size="sm" className="font-semibold flex-1 bg-[#3786FB] hover:bg-[#2672e6] text-white" onClick={() => generateAllDueBills(currentMonthKey())}>
-                  <Zap size={13} className="mr-1" /> Generate All
+            <div className="space-y-2">
+              <div className="flex gap-2">
+                {dueBills.length > 0 && (
+                  <Button size="sm" className="font-semibold flex-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-[0px_3px_10px_rgba(124,58,237,0.30)]" onClick={() => generateAllDueBills(currentMonthKey())}>
+                    <Zap size={13} className="mr-1" /> Generate All
+                  </Button>
+                )}
+                {recurringBills.length === 0 && (
+                  <Button size="sm" variant="outline" className="font-semibold flex-1 border-[#7c3aed]/30 text-[#7c3aed] hover:bg-[#f0f4ff]" onClick={() => setShowQuickSetup(true)}>
+                    <Sparkles size={13} className="mr-1" /> Quick Setup
+                  </Button>
+                )}
+                <Button size="sm" className="font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white shadow-[0px_3px_10px_rgba(124,58,237,0.30)]" onClick={tryAddBill}>
+                  <Plus size={13} className="mr-1" /> Add Monthly Bill
                 </Button>
-              )}
-              {recurringBills.length === 0 && (
-                <Button size="sm" variant="outline" className="font-semibold flex-1" onClick={() => setShowQuickSetup(true)}>
-                  <Sparkles size={13} className="mr-1" /> Quick Setup
-                </Button>
-              )}
-              <Button size="sm" className="font-semibold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
-                <Plus size={13} className="mr-1" /> Add Recurring Bill
-              </Button>
+              </div>
+              {/* Billing cycle day pill */}
+              <div>
+                <button
+                  onClick={() => setShowCycleDayPicker(s => !s)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#f1f3ff] dark:bg-white/[0.05] border border-[#c7d7f5] dark:border-[#2d3a6b] text-[11px] font-bold text-[#7c3aed] dark:text-[#8b9ef8] cursor-pointer hover:bg-[#e4ebff] dark:hover:bg-white/10 transition-colors"
+                >
+                  <CalendarCheck size={11} />
+                  Cycle: {ordinal(billingCycleDay)} of each month
+                  <ChevronDown size={10} className={showCycleDayPicker ? 'rotate-180 transition-transform' : 'transition-transform'} />
+                </button>
+                {showCycleDayPicker && (
+                  <div className="mt-2 bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b] rounded-[12px] p-3 space-y-2">
+                    <p className="text-[10px] font-bold text-[#7c3aed] dark:text-[#8b9ef8] uppercase tracking-wide">Bills generate on the…</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[1, 5, 7, 10, 15, 20, 25, 28].map(d => (
+                        <button key={d} onClick={async () => { await setBillingCycleDay(d); setShowCycleDayPicker(false) }}
+                          className={['px-3 py-1.5 rounded-full text-[11px] font-bold cursor-pointer transition-all',
+                            billingCycleDay === d
+                              ? 'bg-[#7c3aed] text-white'
+                              : 'bg-white dark:bg-[#242b4e] text-[#7c3aed] dark:text-[#8b9ef8] border border-[#c7d7f5] dark:border-[#2d3a6b] hover:bg-[#eef2ff]',
+                          ].join(' ')}>
+                          {ordinal(d)}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 
-          {/* Collector chip — compact, below the toggle, change panel expands inline */}
+          {/* Treasurer chip — compact, below the toggle, change panel expands inline */}
           <div className="rounded-[12px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] overflow-hidden">
             <div className="flex items-center gap-2.5 px-3.5 py-2.5">
-              <div className="w-7 h-7 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
-                <span className="text-white font-extrabold text-[11px]">
-                  {(monthlyCollector?.nickname ?? 'A').charAt(0).toUpperCase()}
-                </span>
+              <div className="w-7 h-7 rounded-[10px] bg-[#7c3aed] flex items-center justify-center shrink-0">
+                <Landmark size={14} className="text-white" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wider leading-none">Monthly Collector</p>
+                <p className="text-[10px] font-bold text-[#7c3aed] dark:text-[#8b9ef8] uppercase tracking-wider leading-none">Treasurer</p>
                 <p className="text-[13px] font-extrabold text-[#141b2b] dark:text-white mt-0.5 leading-none">
                   {iAmCollector ? 'You' : (monthlyCollector?.nickname ?? 'Admin')}
-                  <span className="text-[10px] font-normal text-[#777587] dark:text-gray-400 ml-1.5">· collects dues this month</span>
+                  <span className="text-[10px] font-normal text-[#777587] dark:text-gray-400 ml-1.5">· collects all dues this month</span>
                 </p>
               </div>
               {isAdmin && (
@@ -3785,8 +4071,8 @@ export default function ExpensesPage() {
                   className={[
                     'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors cursor-pointer shrink-0',
                     showChangeCollector
-                      ? 'bg-[#3525cd] text-white border-[#3525cd]'
-                      : 'text-[#3525cd] dark:text-[#8b9ef8] border-[#c7d7f5] dark:border-[#3d4f8a] bg-white dark:bg-[#2d3a6b] hover:bg-[#eef2ff] dark:hover:bg-[#363f78]',
+                      ? 'bg-[#7c3aed] text-white border-[#7c3aed]'
+                      : 'text-[#7c3aed] dark:text-[#8b9ef8] border-[#c7d7f5] dark:border-[#3d4f8a] bg-white dark:bg-[#2d3a6b] hover:bg-[#eef2ff] dark:hover:bg-[#363f78]',
                   ].join(' ')}
                 >
                   {showChangeCollector ? 'Cancel' : 'Change ▾'}
@@ -3797,7 +4083,7 @@ export default function ExpensesPage() {
             {/* Inline change panel — expands when admin clicks Change */}
             {showChangeCollector && (
               <div className="border-t border-[#c7d7f5] dark:border-[#2d3a6b] px-3.5 py-3 space-y-2.5">
-                <p className="text-[10px] font-bold text-[#3525cd] dark:text-[#8b9ef8] uppercase tracking-wide">Pick this month&apos;s collector</p>
+                <p className="text-[10px] font-bold text-[#7c3aed] dark:text-[#8b9ef8] uppercase tracking-wide">Pick this month&apos;s Treasurer</p>
                 <div className="grid grid-cols-2 gap-1.5">
                   {members.filter(m => m.status !== 'inactive').map(m => (
                     <button
@@ -3806,12 +4092,12 @@ export default function ExpensesPage() {
                       className={[
                         'flex items-center gap-2 px-2.5 py-2 rounded-[10px] border text-left transition-all cursor-pointer',
                         pendingCollectorUid === m.uid
-                          ? 'border-[#3525cd] bg-[#3525cd] text-white'
+                          ? 'border-[#7c3aed] bg-[#7c3aed] text-white'
                           : 'border-[#c7d7f5] dark:border-[#2d3a6b] bg-white dark:bg-[#242b4e] text-[#141b2b] dark:text-white',
                       ].join(' ')}
                     >
                       <span className={['w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-extrabold shrink-0',
-                        pendingCollectorUid === m.uid ? 'bg-white/20 text-white' : 'bg-[#e8ecff] dark:bg-[#3525cd]/30 text-[#3525cd]',
+                        pendingCollectorUid === m.uid ? 'bg-white/20 text-white' : 'bg-[#e8ecff] dark:bg-[#7c3aed]/30 text-[#7c3aed]',
                       ].join(' ')}>
                         {m.nickname.charAt(0).toUpperCase()}
                       </span>
@@ -3823,47 +4109,73 @@ export default function ExpensesPage() {
                 </div>
                 <Button
                   size="sm"
-                  className="w-full font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white"
+                  className="w-full font-bold bg-[#7c3aed] hover:bg-[#6d28d9] text-white"
                   disabled={!pendingCollectorUid || pendingCollectorUid === monthlyCollectorUid}
                   onClick={async () => {
                     await setMonthlyCollector(currentMonthKey(), pendingCollectorUid)
                     setShowChangeCollector(false)
                   }}
                 >
-                  Confirm — Set {members.find(m => m.uid === pendingCollectorUid)?.nickname ?? '…'} as Collector
+                  Confirm — Set {members.find(m => m.uid === pendingCollectorUid)?.nickname ?? '…'} as Treasurer
                 </Button>
               </div>
             )}
           </div>
 
           <div className="grid grid-cols-3 gap-2">
-            {[
-              {
-                label: 'My Share',
-                value: myBillStats && myBillStats.totalShare > 0 ? formatAmount(myBillStats.totalShare, 'INR') : (myMonthlyShare > 0 ? formatAmount(myMonthlyShare, 'INR') : '--'),
-                sub: 'total bill splits',
-                dark: true,
-              },
-              {
-                label: 'Contributed',
-                value: myBillStats && myBillStats.contributions > 0 ? formatAmount(myBillStats.contributions, 'INR') : '--',
-                sub: 'paid on behalf',
-                dark: true,
-              },
-              {
-                label: iAmCollector ? 'You Collect' : 'Amount Due',
-                value: myBillStats ? (Math.abs(myBillStats.outstanding) >= 1 ? formatAmount(Math.abs(myBillStats.outstanding), 'INR') : '✓ Clear') : '--',
-                sub: iAmCollector ? 'from flatmates' : (myBillStats && myBillStats.outstanding < 0 ? 'collector owes you' : 'owe to collector'),
-                dark: false,
-              },
-            ].map(({ label, value, sub, dark }) => (
-              <div key={label} className={['p-3 rounded-[16px]', dark ? 'bg-gradient-to-br from-[#0D1117] to-[#1A202C] border border-white/[0.06] shadow-[0px_4px_16px_rgba(0,0,0,0.25)]' : 'bg-card border border-border shadow-sm'].join(' ')}>
-                <p className={['text-[10px] font-bold uppercase tracking-wider', dark ? 'text-[#999CA1]' : 'text-muted-foreground'].join(' ')}>{label}</p>
-                <p className={['text-sm font-extrabold mt-1 leading-none', dark ? 'text-white' : 'text-[#021328] dark:text-foreground'].join(' ')}>{value}</p>
-                <p className={['text-[10px] mt-0.5', dark ? 'text-[#4D515B]' : 'text-muted-foreground'].join(' ')}>{sub}</p>
-              </div>
-            ))}
+            {/* My Share — brand violet hero card */}
+            <div className="p-3 rounded-[16px] bg-[#7c3aed] shadow-[0px_4px_16px_rgba(53,37,205,0.25)]">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-violet-200/80">My Share</p>
+              <p className="text-sm font-extrabold mt-1 leading-none text-white">
+                {myBillStats && myBillStats.totalShare > 0 ? formatAmount(myBillStats.totalShare, 'INR') : (myMonthlyShare > 0 ? formatAmount(myMonthlyShare, 'INR') : '--')}
+              </p>
+              <p className="text-[10px] mt-0.5 text-violet-200/60">total bill splits</p>
+            </div>
+            {/* Contributed — light violet card */}
+            <div className="p-3 rounded-[16px] bg-[#f0f4ff] dark:bg-[#1a1f3a] border border-[#c7d7f5] dark:border-[#2d3a6b]">
+              <p className="text-[10px] font-bold uppercase tracking-wider text-[#7c3aed]/70 dark:text-violet-300/70">Contributed</p>
+              <p className="text-sm font-extrabold mt-1 leading-none text-[#7c3aed] dark:text-violet-300">
+                {myBillStats && myBillStats.contributions > 0 ? formatAmount(myBillStats.contributions, 'INR') : '--'}
+              </p>
+              <p className="text-[10px] mt-0.5 text-[#777587]">paid on behalf</p>
+            </div>
+            {/* Amount Due / To Collect — contextual color */}
+            {(() => {
+              const isSettled = myBillStats && Math.abs(myBillStats.outstanding) < 1
+              const isOwed = myBillStats && myBillStats.outstanding < 0
+              const value = myBillStats ? (Math.abs(myBillStats.outstanding) >= 1 ? formatAmount(Math.abs(myBillStats.outstanding), 'INR') : '✓ Clear') : '--'
+              const sub = iAmCollector ? 'from flatmates' : (isOwed ? 'Treasurer owes you' : 'owe to Treasurer')
+              return (
+                <div className={['p-3 rounded-[16px] border',
+                  isSettled ? 'bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800/40'
+                  : isOwed ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800/40'
+                  : 'bg-card border-border shadow-sm',
+                ].join(' ')}>
+                  <p className={['text-[10px] font-bold uppercase tracking-wider',
+                    isSettled ? 'text-emerald-600 dark:text-emerald-400'
+                    : isOwed ? 'text-amber-600 dark:text-amber-400'
+                    : 'text-muted-foreground',
+                  ].join(' ')}>{iAmCollector ? 'To Collect' : 'Amount Due'}</p>
+                  <p className={['text-sm font-extrabold mt-1 leading-none',
+                    isSettled ? 'text-emerald-700 dark:text-emerald-300'
+                    : isOwed ? 'text-amber-700 dark:text-amber-300'
+                    : 'text-[#021328] dark:text-foreground',
+                  ].join(' ')}>{value}</p>
+                  <p className="text-[10px] mt-0.5 text-muted-foreground">{sub}</p>
+                </div>
+              )
+            })()}
           </div>
+
+          {/* Record Bill Paid — members only, not admin */}
+          {!isAdmin && (
+            <button
+              onClick={() => setShowOneTimeBillModal(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 text-[12px] font-bold text-[#7c3aed] dark:text-[#8b9ef8] bg-[#f0f4ff] dark:bg-[#1a1f3a] hover:bg-[#e4ebff] dark:hover:bg-[#21284a] rounded-[12px] border border-[#c7d7f5] dark:border-[#2d3a6b] transition-colors cursor-pointer"
+            >
+              <Receipt size={13} /> Record a Bill I Paid
+            </button>
+          )}
 
           {/* View Resident Breakdown button — visible to everyone */}
           {recurringBills.filter(b => b.active).length > 0 && (
@@ -3872,7 +4184,7 @@ export default function ExpensesPage() {
               className="w-full flex items-center justify-between bg-[#f1f3ff] dark:bg-white/[0.05] hover:bg-[#e9edff] dark:hover:bg-white/[0.08] border border-[rgba(199,196,216,0.4)] rounded-[16px] px-4 py-3.5 transition-colors cursor-pointer"
             >
               <div className="flex items-center gap-3">
-                <div className="w-8 h-8 rounded-full bg-[#3525cd] flex items-center justify-center shrink-0">
+                <div className="w-8 h-8 rounded-full bg-[#7c3aed] flex items-center justify-center shrink-0">
                   <LayoutList size={13} className="text-white" />
                 </div>
                 <div className="text-left">
@@ -3880,23 +4192,23 @@ export default function ExpensesPage() {
                   <p className="text-[#777587] dark:text-gray-400 text-[11px] mt-0.5">See how bills are split per person</p>
                 </div>
               </div>
-              <ChevronRight size={16} className="text-[#3525cd] shrink-0" />
+              <ChevronRight size={16} className="text-[#7c3aed] shrink-0" />
             </button>
           )}
 
-          {/* Collector settlement panel — only visible to the month's collector */}
+          {/* Treasurer settlement panel — only visible to the month's Treasurer */}
           {iAmCollector && Object.keys(memberBillSummary).length > 0 && (() => {
             const others = members.filter(m => m.uid !== currentUserId && memberBillSummary[m.uid])
             if (!others.length) return null
             return (
               <div className="rounded-[16px] border border-violet-200 dark:border-violet-800/50 overflow-hidden">
-                <div className="flex items-center gap-2.5 px-4 py-3 bg-violet-50 dark:bg-violet-950/20 border-b border-violet-200 dark:border-violet-800/40">
-                  <div className="w-6 h-6 rounded-full bg-violet-600 flex items-center justify-center shrink-0">
-                    <span className="text-white font-extrabold text-[10px]">C</span>
+                <div className="flex items-center gap-2.5 px-4 py-3 bg-[#7c3aed] border-b border-[#6d28d9]">
+                  <div className="w-6 h-6 rounded-[8px] bg-white/20 flex items-center justify-center shrink-0">
+                    <CircleDollarSign size={13} className="text-white" />
                   </div>
-                  <div>
-                    <p className="text-[11px] font-extrabold text-violet-700 dark:text-violet-300 uppercase tracking-wide">Collection Dues</p>
-                    <p className="text-[10px] text-[#777587] dark:text-gray-400">Tap Mark Collected when a flatmate settles</p>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[11px] font-extrabold text-white uppercase tracking-wide">Treasurer Panel — Collect Dues</p>
+                    <p className="text-[10px] text-violet-200/70">Tap Mark Collected when a flatmate pays you</p>
                   </div>
                 </div>
                 <div className="divide-y divide-border/40 bg-card">
@@ -3905,9 +4217,7 @@ export default function ExpensesPage() {
                     const isSettledUp = Math.abs(s.outstanding) < 1
                     return (
                       <div key={m.uid} className="flex items-center gap-3 px-4 py-3">
-                        <div className="w-8 h-8 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[11px] font-extrabold text-[#3525cd] shrink-0">
-                          {m.nickname.charAt(0).toUpperCase()}
-                        </div>
+                        <MemberAvatar uid={m.uid} nickname={m.nickname} memberUids={members.map(x => x.uid)} size="sm" showRing />
                         <div className="flex-1 min-w-0">
                           <p className="text-[12px] font-bold text-[#021328] dark:text-foreground">{m.nickname}</p>
                           <p className="text-[10px] text-[#999CA1]">
@@ -3964,8 +4274,8 @@ export default function ExpensesPage() {
                     <Button variant="outline" className="font-semibold" onClick={() => setShowQuickSetup(true)}>
                       <Sparkles size={14} className="mr-1.5" /> Quick Setup
                     </Button>
-                    <Button className="font-bold bg-[#3525cd] hover:bg-[#2b1eb5] text-white" onClick={tryAddBill}>
-                      <Plus size={14} className="mr-1.5" /> Add Recurring Bill
+                    <Button className="font-bold bg-[#7c3aed] hover:bg-[#6d28d9] text-white" onClick={tryAddBill}>
+                      <Plus size={14} className="mr-1.5" /> Add Monthly Bill
                     </Button>
                   </div>
                 )}
@@ -3973,7 +4283,7 @@ export default function ExpensesPage() {
             </Card>
           ) : (
             <div className="space-y-3">
-              {recurringBills.filter(b => b.active).map(bill => {
+              {recurringBills.map(bill => {
                 const instance = billInstances.find(bi => bi.templateId === bill.id && bi.month === currentMonthKey()) ?? null
                 const cfg = CATEGORY_CONFIG[bill.category]
                 const isSettled = instance?.status === 'paid'
@@ -3993,10 +4303,12 @@ export default function ExpensesPage() {
 
                 const isExpanded = expandedBillId === bill.id
 
-                const statusAccent = isSettled
+                const statusAccent = !bill.active
+                  ? 'border-l-gray-300 dark:border-l-gray-600 opacity-60'
+                  : isSettled
                   ? 'border-l-emerald-400'
                   : !instance ? 'border-l-amber-400'
-                  : instance.status === 'split_generated' ? 'border-l-[#3786FB]'
+                  : instance.status === 'split_generated' ? 'border-l-violet-500'
                   : instance.status === 'overdue' ? 'border-l-red-400'
                   : 'border-l-transparent'
                 const payerNickname = members.find(m => m.uid === payerUid)?.nickname ?? '...'
@@ -4010,33 +4322,44 @@ export default function ExpensesPage() {
                       className="w-full flex items-center gap-3 px-4 py-3.5 text-left hover:bg-secondary/20 transition-colors cursor-pointer"
                       onClick={() => setExpandedBillId(isExpanded ? null : bill.id)}
                     >
-                      <div className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0',
-                        isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20' : 'bg-[#EEF5FF] dark:bg-secondary',
-                      ].join(' ')}>
+                      <div
+                        className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0',
+                          isSettled ? 'bg-emerald-500/15' : (cfg?.color ?? 'bg-white/[0.07]'),
+                        ].join(' ')}
+                        style={cfg?.hex && !isSettled ? { boxShadow: `inset 0 0 0 1px ${cfg.hex}30` } : undefined}
+                      >
                         {cfg?.emoji}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1.5 flex-wrap">
                           <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{bill.name}</p>
                           <span className={['text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide',
-                            isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
+                            !bill.active ? 'bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400'
+                            : isSettled ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-700 dark:text-emerald-300'
                             : !instance ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-400'
-                            : instance.status === 'split_generated' ? 'bg-[#EEF5FF] dark:bg-blue-950/20 text-[#3786FB]'
+                            : instance.status === 'split_generated' ? 'bg-violet-50 dark:bg-violet-950/20 text-violet-600 text-violet-400'
                             : instance.status === 'overdue' ? 'bg-red-50 dark:bg-red-950/20 text-red-600'
                             : 'bg-secondary text-muted-foreground',
                           ].join(' ')}>
-                            {isSettled ? '✓ Paid' : !instance ? 'Due' : instance.status === 'split_generated' ? 'Ready' : instance.status === 'overdue' ? 'Overdue' : instance.status === 'skipped' ? 'Skipped' : 'Pending'}
+                            {!bill.active ? 'Paused' : isSettled ? '✓ Paid' : !instance ? 'Due' : instance.status === 'split_generated' ? 'Ready' : instance.status === 'overdue' ? 'Overdue' : instance.status === 'skipped' ? 'Skipped' : 'Pending'}
+                          </span>
+                          <span className={['text-[9px] font-extrabold px-1.5 py-0.5 rounded-full shrink-0 uppercase tracking-wide',
+                            bill.billType === 'prepaid'
+                              ? 'bg-violet-100 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300'
+                              : 'bg-sky-100 dark:bg-sky-900/30 text-sky-600 dark:text-sky-300',
+                          ].join(' ')}>
+                            {bill.billType === 'prepaid' ? 'Pocket Pay' : 'Collect & Pay'}
                           </span>
                         </div>
                         <div className="flex items-center gap-1 mt-0.5 flex-wrap">
                           {isYouPayer
-                            ? <span className="text-[10.5px] font-extrabold text-[#3525cd] dark:text-violet-400">Managed by you</span>
+                            ? <span className="text-[10.5px] font-extrabold text-[#7c3aed] text-violet-400">Managed by you</span>
                             : <span className="text-[10.5px] text-[#999CA1]">Managed by {payerNickname}</span>
                           }
                           <span className="text-[#d0d2d8]">&middot;</span>
                           {isYouCollector
-                            ? <span className="text-[10.5px] font-extrabold text-violet-600 dark:text-violet-400">You collect dues</span>
-                            : <span className="text-[10.5px] text-[#999CA1]">Room Collector: {collectorNickname}</span>
+                            ? <span className="inline-flex items-center gap-0.5 text-[10.5px] font-extrabold text-violet-600 text-violet-400"><Landmark size={10} />You&apos;re the Treasurer</span>
+                            : <span className="inline-flex items-center gap-0.5 text-[10.5px] text-[#999CA1]"><Landmark size={10} />Treasurer: {collectorNickname}</span>
                           }
                           <span className="text-[#d0d2d8]">&middot;</span>
                           <span className="text-[10.5px] text-[#999CA1]">
@@ -4070,7 +4393,7 @@ export default function ExpensesPage() {
                     {/* View full details link */}
                     <button
                       onClick={(e) => { e.stopPropagation(); setSelectedBillId(bill.id) }}
-                      className="w-full text-center py-1.5 text-[11px] font-bold text-[#3786FB] border-t border-border/20 hover:bg-secondary/30 transition-colors cursor-pointer"
+                      className="w-full text-center py-1.5 text-[11px] font-bold text-[#7c3aed] text-violet-400 border-t border-border/20 hover:bg-secondary/30 transition-colors cursor-pointer"
                     >
                       View Details →
                     </button>
@@ -4088,7 +4411,7 @@ export default function ExpensesPage() {
                             {isYouPayer && instance?.amount && (
                               <div className="text-right">
                                 <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wide">You front</p>
-                                <p className="text-sm font-extrabold text-[#3525cd] dark:text-violet-400">{formatAmount(instance.amount, instance.currency)}</p>
+                                <p className="text-sm font-extrabold text-[#7c3aed] text-violet-400">{formatAmount(instance.amount, instance.currency)}</p>
                               </div>
                             )}
                           </div>
@@ -4124,8 +4447,8 @@ export default function ExpensesPage() {
                           <div className="border-t border-border/40 divide-y divide-border/30">
                             {instance && instance.status === 'split_generated' && (
                               <div className="px-4 py-2 bg-violet-50/60 dark:bg-violet-950/20 flex items-center gap-2">
-                                <span className="text-[9.5px] font-bold text-violet-600 dark:text-violet-400 uppercase tracking-wide">
-                                  Collection status — {isYouCollector ? 'mark who has paid you back' : `${collectorNickname} is collecting · mark yourself when paid`}
+                                <span className="text-[9.5px] font-bold text-violet-600 text-violet-400 uppercase tracking-wide">
+                                  Treasurer collection — {isYouCollector ? 'mark who has paid you' : `${collectorNickname} is Treasurer · mark when you&apos;ve paid them`}
                                 </span>
                               </div>
                             )}
@@ -4139,14 +4462,14 @@ export default function ExpensesPage() {
                               const showCollect    = instance && instance.status === 'split_generated' && !isTheCollector && (isYouCollector || isYou)
                               return (
                                 <div key={uid} className="flex items-center gap-2.5 px-4 py-2.5 bg-card">
-                                  <div className="w-7 h-7 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-extrabold text-[#3525cd] shrink-0">
+                                  <div className="w-7 h-7 rounded-full bg-[#EEF5FF] dark:bg-secondary flex items-center justify-center text-[10px] font-extrabold text-[#7c3aed] shrink-0">
                                     {nick(uid).charAt(0).toUpperCase()}
                                   </div>
                                   <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-1.5">
                                       <p className="text-xs font-semibold text-[#021328] dark:text-foreground truncate">{isYou ? 'You' : nick(uid)}</p>
                                       {isThePayer && (
-                                        <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAYS</span>
+                                        <span className="text-[9px] font-extrabold bg-violet-50 dark:bg-violet-900/20 text-violet-600 text-violet-400 px-1.5 py-0.5 rounded-full shrink-0">PAYS</span>
                                       )}
                                     </div>
                                     {share != null && (
@@ -4219,23 +4542,44 @@ export default function ExpensesPage() {
 
                         {/* Record vendor payment CTA — visible to the payer (admin or member) */}
                         {instance?.status === 'split_generated' && (isYouPayer || isAdmin) && (
-                          <div className="border-t border-[#3786FB]/20 bg-[#F0F6FF] dark:bg-blue-950/15 px-4 py-3 flex items-center justify-between gap-3">
+                          <div className={`border-t px-4 py-3 flex items-center justify-between gap-3 ${
+                            bill.billType === 'prepaid'
+                              ? 'border-violet-200/60 dark:border-violet-800/40 bg-violet-50/50 dark:bg-violet-950/15'
+                              : 'border-sky-200/60 dark:border-sky-800/40 bg-sky-50/50 dark:bg-sky-950/15'
+                          }`}>
                             <div className="flex items-center gap-2.5">
-                              <div className="w-8 h-8 rounded-full bg-[#3786FB]/15 flex items-center justify-center shrink-0">
-                                <Check size={14} className="text-[#3786FB]" />
+                              <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 ${
+                                bill.billType === 'prepaid' ? 'bg-violet-100 dark:bg-violet-900/30' : 'bg-sky-100 dark:bg-sky-900/30'
+                              }`}>
+                                {bill.billType === 'prepaid'
+                                  ? <Wallet size={14} className="text-violet-600 text-violet-400" />
+                                  : <Check size={14} className="text-sky-600 dark:text-sky-400" />
+                                }
                               </div>
                               <div>
                                 <p className="text-xs font-bold text-[#021328] dark:text-foreground">
-                                  {isYouPayer ? 'Paid from your personal funds?' : `${payerNickname} paid the vendor?`}
+                                  {bill.billType === 'prepaid'
+                                    ? isYouPayer ? 'Already paid from your pocket?' : `${payerNickname} paid from their pocket?`
+                                    : isYouPayer ? 'Paid the vendor / owner?' : `${payerNickname} paid the vendor / owner?`
+                                  }
                                 </p>
-                                <p className="text-[10px] text-[#999CA1]">Confirm vendor was paid · credits the payer in monthly balance</p>
+                                <p className="text-[10px] text-[#999CA1]">
+                                  {bill.billType === 'prepaid'
+                                    ? 'Confirm to net the amount in everyone\'s final monthly bill'
+                                    : 'Confirm the vendor was paid — closes this bill for the month'
+                                  }
+                                </p>
                               </div>
                             </div>
                             <button
                               onClick={() => markBillPaid(instance.id)}
-                              className="px-4 py-2 bg-[#3786FB] text-white text-[11px] font-extrabold rounded-full hover:bg-blue-600 active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm"
+                              className={`px-4 py-2 text-white text-[11px] font-extrabold rounded-full active:scale-95 transition-all cursor-pointer shrink-0 shadow-sm ${
+                                bill.billType === 'prepaid'
+                                  ? 'bg-[#7c3aed] hover:bg-[#6d28d9]'
+                                  : 'bg-sky-600 hover:bg-sky-700'
+                              }`}
                             >
-                              Confirm Payment
+                              {bill.billType === 'prepaid' ? 'Confirm Paid' : 'Mark Paid to Owner'}
                             </button>
                           </div>
                         )}
@@ -4282,11 +4626,23 @@ export default function ExpensesPage() {
                                       setEditingInstanceId(prev => prev === instance.id ? null : instance.id)
                                       setPendingAmounts(p => ({ ...p, [instance.id]: instance.amount?.toString() ?? '' }))
                                     }}
-                                    className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/20 transition-colors cursor-pointer"
+                                    className="flex-1 min-w-[120px] flex items-center justify-center gap-1.5 py-2.5 text-xs font-bold text-[#7c3aed] text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/20 transition-colors cursor-pointer"
                                   >
                                     <Pencil size={11} /> Edit Amount
                                   </button>
                                 )}
+                                {/* Active / Pause toggle */}
+                                <button
+                                  onClick={async () => updateRecurringBill(bill.id, { active: !bill.active })}
+                                  className={['flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2.5 text-xs font-semibold transition-colors border-l border-border/40 cursor-pointer',
+                                    bill.active
+                                      ? 'text-amber-500 hover:text-amber-700 hover:bg-amber-50 dark:hover:bg-amber-950/20'
+                                      : 'text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 dark:hover:bg-emerald-950/20',
+                                  ].join(' ')}
+                                  title={bill.active ? 'Pause this bill' : 'Resume this bill'}
+                                >
+                                  {bill.active ? <><PauseCircle size={11} /> Pause</> : <><Play size={11} /> Resume</>}
+                                </button>
                                 <button
                                   onClick={() => setEditBill(bill)}
                                   className="flex-1 min-w-[100px] flex items-center justify-center gap-1 py-2.5 text-xs font-semibold text-[#999CA1] hover:text-foreground hover:bg-secondary transition-colors border-l border-border/40 cursor-pointer"
@@ -4303,7 +4659,7 @@ export default function ExpensesPage() {
                               </div>
                               {/* Inline amount editor for split_generated instances */}
                               {instance && editingInstanceId === instance.id && (
-                                <div className="flex gap-2 px-3 py-2.5 border-t border-border/40 bg-blue-50/50 dark:bg-blue-950/10">
+                                <div className="flex gap-2 px-3 py-2.5 border-t border-border/40 bg-violet-50/50 dark:bg-violet-950/10">
                                   <div className="relative flex-1">
                                     <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground pointer-events-none">
                                       {CURRENCY_SYMBOLS[instance.currency]}
@@ -4312,7 +4668,7 @@ export default function ExpensesPage() {
                                       type="number" min="0" placeholder="0"
                                       value={pendingAmounts[instance.id] ?? ''}
                                       onChange={e => setPendingAmounts(p => ({ ...p, [instance.id]: e.target.value }))}
-                                      className="w-full bg-white dark:bg-white/10 rounded-lg pl-7 pr-3 py-2 text-sm border border-blue-200 dark:border-blue-700 outline-none focus:ring-2 focus:ring-blue-400/40"
+                                      className="w-full bg-white dark:bg-white/10 rounded-lg pl-7 pr-3 py-2 text-sm border border-violet-200 dark:border-violet-700 outline-none focus:ring-2 focus:ring-[#7c3aed]/30"
                                     />
                                   </div>
                                   <button
@@ -4421,30 +4777,6 @@ export default function ExpensesPage() {
             )
           })()}
 
-          {/* Admin cleanup — inactive bills */}
-          {isAdmin && recurringBills.filter(b => !b.active).length > 0 && (
-            <div className="rounded-[16px] border border-dashed border-red-200 dark:border-red-900/40 bg-red-50/40 dark:bg-red-950/10 px-4 py-3">
-              <div className="flex items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <p className="text-[12px] font-bold text-red-700 dark:text-red-400">
-                    {recurringBills.filter(b => !b.active).length} inactive bill{recurringBills.filter(b => !b.active).length > 1 ? 's' : ''} stored
-                  </p>
-                  <p className="text-[10px] text-red-500/70 dark:text-red-400/60 mt-0.5 truncate">
-                    {recurringBills.filter(b => !b.active).map(b => b.name).join(', ')}
-                  </p>
-                </div>
-                <button
-                  onClick={async () => {
-                    const inactive = recurringBills.filter(b => !b.active)
-                    for (const b of inactive) await deleteRecurringBill(b.id)
-                  }}
-                  className="shrink-0 text-[11px] font-bold text-red-600 hover:text-red-700 border border-red-300 dark:border-red-700 px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap"
-                >
-                  Delete all
-                </button>
-              </div>
-            </div>
-          )}
 
           {monthCycles.filter(mc => mc.status === 'closed').length > 0 && (
             <div className="space-y-2 pt-2">
@@ -4637,7 +4969,7 @@ export default function ExpensesPage() {
                 className="w-full text-left flex items-start gap-4 p-4 rounded-[18px] border-2 border-violet-500/20 bg-violet-500/5 hover:bg-violet-500/10 hover:border-violet-500/40 transition-all cursor-pointer group"
               >
                 <div className="w-11 h-11 rounded-[14px] bg-violet-500/15 group-hover:bg-violet-500/25 flex items-center justify-center shrink-0 transition-colors">
-                  <Repeat2 size={20} className="text-violet-600 dark:text-violet-400" />
+                  <Repeat2 size={20} className="text-violet-600 text-violet-400" />
                 </div>
                 <div className="pt-0.5">
                   <p className="text-[14px] font-black text-[#021328] dark:text-foreground">Monthly Bill</p>
@@ -4659,12 +4991,22 @@ export default function ExpensesPage() {
           onClose={() => setEditExpense(null)} />
       )}
       {showAddBill && (
-        <MonthlyBillModal members={members} currentUserId={currentUserId} onSave={_createSingle} onClose={() => setShowAddBill(false)} />
+        <MonthlyBillModal members={members} currentUserId={currentUserId} billingCycleDay={billingCycleDay} onSave={_createSingle} onClose={() => setShowAddBill(false)} />
       )}
       {editBill && (
-        <MonthlyBillModal members={members} currentUserId={currentUserId} initial={editBill}
+        <MonthlyBillModal members={members} currentUserId={currentUserId} initial={editBill} billingCycleDay={billingCycleDay}
           onSave={async (data) => { await updateRecurringBill(editBill.id, data) }}
           onClose={() => setEditBill(null)} />
+      )}
+      {showOneTimeBillModal && (
+        <OneTimeBillModal
+          members={members}
+          currentUserId={currentUserId}
+          isAdmin={!!isAdmin}
+          month={currentMonthKey()}
+          onSave={addOneTimeBillInstance}
+          onClose={() => setShowOneTimeBillModal(false)}
+        />
       )}
       {showExpenseUpsell && <SubscriptionUpsell feature={upsellFeature} onClose={() => setShowExpenseUpsell(false)} />}
 

@@ -1,11 +1,11 @@
 "use client"
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import {
   LayoutDashboard, ClipboardList, Users,
   Lightbulb, Info, ChevronRight, ShieldCheck, Repeat2, ChevronDown, Receipt,
-  Plus, X, RefreshCw, UserPlus, Crown, AlertTriangle, Ticket,
+  Mic, X, RefreshCw, UserPlus, Crown, AlertTriangle, Ticket,
 } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuthStore } from '@/store/useAuthStore'
@@ -18,6 +18,14 @@ import SubscriptionUpsell from '@/components/SubscriptionUpsell'
 import AdminWelcomeModal, { shouldShowAdminWelcome } from '@/components/AdminWelcomeModal'
 import RewardUnlockModal from '@/components/RewardUnlockModal'
 import { useRewardsStore } from '@/store/useRewardsStore'
+import VoiceButton from '@/components/VoiceButton'
+import VoiceListeningOverlay from '@/components/VoiceListeningOverlay'
+import VoiceResponseCard from '@/components/VoiceResponseCard'
+import VoiceFallbackModal from '@/components/VoiceFallbackModal'
+import { useVoiceAssistant } from '@/hooks/useVoiceAssistant'
+import { useVoiceProcessor } from '@/hooks/useVoiceProcessor'
+import { requestMicPermission } from '@/lib/voice/permissions'
+import { initTTS, tts } from '@/lib/voice/tts/speechSynthesis'
 
 const NAV_ITEMS = {
   main: [
@@ -54,6 +62,40 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [showQuickAdd, setShowQuickAdd] = useState(false)
   const [showLayoutUpsell, setShowLayoutUpsell] = useState(false)
   const [showAdminWelcome, setShowAdminWelcome] = useState(false)
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    if (typeof window === 'undefined') return true
+    return localStorage.getItem('habitiq-voice') !== 'false'
+  })
+  const [showFallback, setShowFallback] = useState(false)
+
+  const voice     = useVoiceAssistant()
+  const processor = useVoiceProcessor()
+
+  // Keep a mutable ref so the onTranscript callback always calls the latest process fn
+  const processRef = useRef(processor.process)
+  useEffect(() => { processRef.current = processor.process }, [processor.process])
+
+  // Register transcript handler once at layout level
+  useEffect(() => {
+    voice.onTranscript(({ transcript }) => { processRef.current(transcript) })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  // Reset voice state once the NLU processor finishes
+  const processorWasActive = useRef(false)
+  useEffect(() => {
+    if (processorWasActive.current && !processor.isProcessing) voice.reset()
+    processorWasActive.current = processor.isProcessing
+  }, [processor.isProcessing, voice.reset])
+
+  const handleVoiceTap = useCallback(async () => {
+    if (!voiceEnabled) return
+    if (!voice.isSupported) { setShowFallback(true); return }
+    // Start listening immediately — overlay appears right away, no silent wait
+    initTTS()
+    voice.startListening()
+    tts.speak("How can I help you?")
+  }, [voiceEnabled, voice.isSupported, voice.startListening])
 
   // Multi-flat warning: user is in > 1 flat but subscription is expired
   const multiFlat = allFlats.length > 1
@@ -138,11 +180,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const MobileNavLink = ({ href, icon: Icon, label, exact, badge }: typeof NAV_ITEMS.main[0] & { badge?: number }) => {
     const isActive = exact ? pathname === href : pathname.startsWith(href)
     return (
-      <Link href={href} className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-        <div className="relative">
-          <Icon size={22} />
+      <Link href={href} className={`relative flex flex-col items-center gap-1 px-3 py-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+        {isActive && (
+          <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-[3px] rounded-full bg-primary" />
+        )}
+        <div className={`relative p-1.5 rounded-xl transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
+          <Icon size={20} />
           {badge ? (
-            <span className="absolute -top-1 -right-1.5 bg-violet-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center leading-none">
+            <span className="absolute -top-0.5 -right-0.5 bg-violet-500 text-white text-[9px] font-extrabold w-4 h-4 rounded-full flex items-center justify-center leading-none">
               {badge}
             </span>
           ) : null}
@@ -236,6 +281,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           ))}
         </nav>
 
+        {/* Voice button — desktop sidebar */}
+        {voiceEnabled && (
+          <div className="px-3 pb-1">
+            <VoiceButton
+              size="sidebar"
+              onTap={handleVoiceTap}
+              isListening={voice.state.status === 'listening'}
+              isProcessing={voice.state.status === 'processing' || processor.isProcessing}
+              enabled={voiceEnabled}
+            />
+          </div>
+        )}
+
         {/* User Footer */}
         <div className="p-3 border-t border-border/60 space-y-2">
           <FlatSwitcher />
@@ -322,6 +380,23 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <AdminWelcomeModal flatId={authFlatId} onClose={() => setShowAdminWelcome(false)} />
       )}
 
+      {/* Voice — single instance at layout level covers all pages */}
+      <VoiceListeningOverlay
+        state={voice.state}
+        onStop={() => { voice.stopListening(); voice.reset() }}
+        response={processor.response}
+        onDismissResponse={processor.clearResponse}
+      />
+      <VoiceResponseCard
+        response={processor.response}
+        onDismiss={processor.clearResponse}
+      />
+      <VoiceFallbackModal
+        isOpen={showFallback}
+        onClose={() => setShowFallback(false)}
+        onSubmit={(text) => { void processor.process(text); setShowFallback(false) }}
+      />
+
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
       {/* 5 slots: Dashboard · Expenses · [+] FAB · Tasks(admin)/Members · Settings */}
       <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card/95 backdrop-blur border-t border-border/60 flex justify-around items-center px-2 py-2 z-50">
@@ -394,37 +469,47 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 ))}
               </AnimatePresence>
 
-              {/* FAB button */}
+              {/* FAB button — mic icon; tap = voice, long-press = petals (VoiceButton owns all interactions) */}
               <motion.button
-                onClick={() => setShowQuickAdd(v => !v)}
-                whileTap={{ scale: 0.9 }}
-                className="relative w-14 h-14 rounded-full flex items-center justify-center -mt-6 border-4 border-card z-50"
+                className="relative w-14 h-14 rounded-full flex items-center justify-center -mt-6 border-4 border-card z-50 outline-none select-none"
                 style={{
-                  background: showQuickAdd
+                  WebkitTapHighlightColor: 'transparent',
+                  background: (voice.state.status === 'listening' || voice.state.status === 'processing')
+                    ? 'linear-gradient(135deg, #4f46e5, #7c3aed)'
+                    : showQuickAdd
                     ? 'linear-gradient(135deg, #374151, #1f2937)'
                     : 'linear-gradient(135deg, #7c3aed, #4f46e5)',
-                  boxShadow: showQuickAdd
+                  boxShadow: (voice.state.status === 'listening')
+                    ? '0 4px 28px rgba(124,58,237,0.75)'
+                    : showQuickAdd
                     ? '0 4px 16px rgba(0,0,0,0.4)'
-                    : '0 4px 24px rgba(124,58,237,0.55), 0 0 0 0 rgba(124,58,237,0)',
+                    : '0 4px 24px rgba(124,58,237,0.55)',
                 }}
               >
-                {/* Pulse ring — only when closed */}
-                {!showQuickAdd && (
+                {/* Pulse ring — only when idle and closed */}
+                {!showQuickAdd && voice.state.status === 'idle' && (
                   <motion.span
                     className="absolute inset-0 rounded-full bg-primary"
                     animate={{ scale: [1, 1.6, 1.6], opacity: [0.5, 0, 0] }}
                     transition={{ duration: 2.2, repeat: Infinity, ease: 'easeOut' }}
                   />
                 )}
-                <motion.div
-                  animate={{ rotate: showQuickAdd ? 45 : 0 }}
-                  transition={{ type: 'spring', stiffness: 340, damping: 22 }}
-                >
-                  <Plus size={24} className="text-white" />
-                </motion.div>
+                <Mic size={22} className="text-white" />
+
+                {/* Voice overlay — short tap = voice, long-press (500ms) = petals */}
+                <VoiceButton
+                  size="fab"
+                  onTap={handleVoiceTap}
+                  onLongPress={() => setShowQuickAdd(v => !v)}
+                  isListening={voice.state.status === 'listening'}
+                  isProcessing={voice.state.status === 'processing' || processor.isProcessing}
+                  enabled={voiceEnabled}
+                />
               </motion.button>
 
-              <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">Quick Add</span>
+              <span className="text-[10px] font-semibold text-muted-foreground mt-0.5">
+                {voice.state.status === 'listening' ? 'Listening…' : voice.state.status === 'processing' ? 'Thinking…' : 'Voice'}
+              </span>
             </div>
           )
         })()}
@@ -436,13 +521,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {(() => {
           const isActive = pathname.startsWith('/dashboard/profile')
           return (
-            <Link href="/dashboard/profile" className={`flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
-              <div className="relative">
-                <div className={`w-[22px] h-[22px] rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${isActive ? 'bg-primary text-white' : 'bg-secondary text-foreground'}`}>
+            <Link href="/dashboard/profile" className={`relative flex flex-col items-center gap-1 px-3 py-1 transition-colors ${isActive ? 'text-primary' : 'text-muted-foreground'}`}>
+              {isActive && (
+                <span className="absolute -top-2 left-1/2 -translate-x-1/2 w-6 h-[3px] rounded-full bg-primary" />
+              )}
+              <div className={`relative p-1.5 rounded-xl transition-colors ${isActive ? 'bg-primary/10' : ''}`}>
+                <div className={`w-[20px] h-[20px] rounded-full flex items-center justify-center text-[10px] font-extrabold shrink-0 ${isActive ? 'bg-primary text-white' : 'bg-secondary text-foreground'}`}>
                   {user?.displayName?.charAt(0)?.toUpperCase() || 'U'}
                 </div>
                 {isPremium && !isActive && (
-                  <div className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
+                  <div className="absolute -top-0.5 -right-0.5 w-3.5 h-3.5 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}>
                     <Crown size={7} className="text-white" />
                   </div>
                 )}

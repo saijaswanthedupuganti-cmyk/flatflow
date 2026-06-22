@@ -32,6 +32,37 @@ export default function WaveformVisualizer({ isActive, width = 200, height = 36 
     const minH = 3
     const maxH = height - 4
 
+    function drawBar(i: number, normalised: number) {
+      if (!ctx) return
+      const h = minH + normalised * (maxH - minH)
+      const x = i * (barW + gap)
+      const y = (height - h) / 2
+      const r = Math.min(barW / 2, h / 2)
+
+      const grad = ctx.createLinearGradient(x, y, x, y + h)
+      grad.addColorStop(0, 'rgba(167, 139, 250, 0.95)')
+      grad.addColorStop(0.5, 'rgba(139, 92, 246, 0.80)')
+      grad.addColorStop(1, 'rgba(109, 40, 217, 0.45)')
+      ctx.fillStyle = grad
+
+      ctx.beginPath()
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(x, y, barW, h, r)
+      } else {
+        ctx.moveTo(x + r, y)
+        ctx.lineTo(x + barW - r, y)
+        ctx.arc(x + barW - r, y + r, r, -Math.PI / 2, 0)
+        ctx.lineTo(x + barW, y + h - r)
+        ctx.arc(x + barW - r, y + h - r, r, 0, Math.PI / 2)
+        ctx.lineTo(x + r, y + h)
+        ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI)
+        ctx.lineTo(x, y + r)
+        ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2)
+        ctx.closePath()
+      }
+      ctx.fill()
+    }
+
     function draw() {
       if (!ctx) return
       ctx.clearRect(0, 0, width, height)
@@ -49,35 +80,7 @@ export default function WaveformVisualizer({ isActive, width = 200, height = 36 
           Math.sin(tRef.current       + phase)        * 0.48 +
           Math.sin(tRef.current * 1.7 + phase * 1.3)  * 0.32 +
           Math.sin(tRef.current * 2.5 + phase * 0.75) * 0.20
-
-        const h = minH + ((n + 1) / 2) * (maxH - minH)
-        const x = i * (barW + gap)
-        const y = (height - h) / 2
-
-        const grad = ctx.createLinearGradient(x, y, x, y + h)
-        grad.addColorStop(0, 'rgba(167, 139, 250, 0.95)')
-        grad.addColorStop(0.5, 'rgba(139, 92, 246, 0.80)')
-        grad.addColorStop(1, 'rgba(109, 40, 217, 0.45)')
-        ctx.fillStyle = grad
-
-        ctx.beginPath()
-        const r = Math.min(barW / 2, h / 2)
-        // roundRect is Safari 15.4+ only — use arc fallback for older devices
-        if (typeof ctx.roundRect === 'function') {
-          ctx.roundRect(x, y, barW, h, r)
-        } else {
-          ctx.moveTo(x + r, y)
-          ctx.lineTo(x + barW - r, y)
-          ctx.arc(x + barW - r, y + r, r, -Math.PI / 2, 0)
-          ctx.lineTo(x + barW, y + h - r)
-          ctx.arc(x + barW - r, y + h - r, r, 0, Math.PI / 2)
-          ctx.lineTo(x + r, y + h)
-          ctx.arc(x + r, y + h - r, r, Math.PI / 2, Math.PI)
-          ctx.lineTo(x, y + r)
-          ctx.arc(x + r, y + r, r, Math.PI, -Math.PI / 2)
-          ctx.closePath()
-        }
-        ctx.fill()
+        drawBar(i, (n + 1) / 2)
       }
 
       frameRef.current = requestAnimationFrame(draw)

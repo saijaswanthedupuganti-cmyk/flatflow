@@ -59,16 +59,14 @@ export function useVoiceProcessor() {
       setResponse(voiceResponse)
 
       if (voiceResponse.speak) {
-        const ttsEnabled = typeof window === 'undefined'
-          ? false
-          : localStorage.getItem('habitiq-voice-tts') !== 'false'
-        if (ttsEnabled) tts.speak(voiceResponse.text)
+        tts.speak(voiceResponse.text)
       }
     } catch (err) {
       console.error('[VoiceProcessor]', err)
+      tts.speak("Something went wrong. Please try again.")
       setResponse({
         text: "Something went wrong. Please try again.",
-        speak: false,
+        speak: true,
         card: { type: 'error', action: 'UNKNOWN', title: 'Error — please try again', canUndo: false },
       })
     } finally {

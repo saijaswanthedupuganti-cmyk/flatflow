@@ -51,6 +51,10 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const hardTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const transcriptCbRef   = useRef<((r: VoiceResult) => void) | null>(null)
 
+  // Refs that mirror in-flight recognition session data — safe to read outside setState
+  const capturedTranscriptRef = useRef('')
+  const capturedConfidenceRef = useRef(0)
+
   const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
 
@@ -73,7 +77,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       return
     }
 
-    // Stop any ongoing session first
     stopListening()
 
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
@@ -81,10 +84,16 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
 
     recognition.continuous      = false  // single-utterance: auto-stops after speech pause
     recognition.interimResults  = true
-    recognition.lang            = 'en-IN'
-    recognition.maxAlternatives = 3
+    recognition.lang            = 'en-US' // en-US has broadest coverage; works well with Indian English
+    recognition.maxAlternatives = 1
 
-    // Domain grammar hints — improves accuracy for flat vocabulary
+    // Reset per-session capture refs
+    capturedTranscriptRef.current = ''
+    capturedConfidenceRef.current = 0
+
+    // Track whether onerror already fired so onend doesn't duplicate the TTS feedback
+    let hadError = false
+
     try {
       const GrammarList = (window as any).SpeechGrammarList || (window as any).webkitSpeechGrammarList
       if (GrammarList) {
@@ -112,7 +121,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       for (let i = event.resultIndex; i < event.results.length; i++) {
         const result = event.results[i]
         const best   = result[0]
-
         if (result.isFinal) {
           finalTranscript += best.transcript
           maxConfidence    = Math.max(maxConfidence, best.confidence ?? 0.8)
@@ -121,70 +129,80 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
         }
       }
 
-      setState(prev => ({
-        ...prev,
-        transcript:        finalTranscript   || prev.transcript,
-        interimTranscript,
-        confidence:        maxConfidence     || prev.confidence,
-      }))
-
-      // Schedule stop 1.5s after the last final result
       if (finalTranscript) {
+        capturedTranscriptRef.current += finalTranscript
+        capturedConfidenceRef.current  = maxConfidence
+        // Schedule stop 1.5s after the last final result
         clearTimers()
         silenceTimerRef.current = setTimeout(() => {
           if (recognitionRef.current) recognitionRef.current.stop()
         }, 1500)
       }
+
+      setState(prev => ({
+        ...prev,
+        transcript:        capturedTranscriptRef.current || prev.transcript,
+        interimTranscript,
+        confidence:        maxConfidence || prev.confidence,
+      }))
     }
 
     recognition.onerror = (event: any) => {
+      hadError = true
       clearTimers()
+      recognitionRef.current = null
       const voiceError = ERROR_MAP[event.error] ?? { code: 'network' as const, message: 'Something went wrong', recoverable: true }
-      // Speak the error so the user gets conversational feedback
+      setState(prev => ({ ...prev, status: 'error', error: voiceError }))
+      // Speak error feedback — TTS calls are outside setState (safe)
       if (event.error === 'no-speech') {
-        tts.speak("I didn't catch that. Tap the mic and try again.")
+        tts.speak("I didn't catch that. Try again.")
       } else if (event.error === 'not-allowed') {
         tts.speak("Microphone access is blocked. Please allow it in your browser settings.")
+      } else if (event.error !== 'aborted') {
+        tts.speak("Something went wrong. Tap the mic and try again.")
       }
-      setState(prev => ({ ...prev, status: 'error', error: voiceError }))
-      recognitionRef.current = null
     }
 
     recognition.onend = () => {
       clearTimers()
       recognitionRef.current = null
-      setState(prev => {
-        if (prev.transcript && transcriptCbRef.current) {
-          transcriptCbRef.current({ transcript: prev.transcript, confidence: prev.confidence })
-          return { ...prev, status: 'processing' }
-        }
-        // Ended with no transcript and no error — user likely didn't speak
-        if (prev.status === 'listening') {
-          tts.speak("I didn't hear anything. Tap the mic and say your command.")
-          return { ...prev, status: 'idle' }
-        }
-        return prev.status === 'error' ? prev : { ...prev, status: 'idle' }
-      })
+
+      const captured    = capturedTranscriptRef.current
+      const confidence  = capturedConfidenceRef.current
+      capturedTranscriptRef.current = ''
+      capturedConfidenceRef.current = 0
+
+      if (captured) {
+        // Have a transcript — hand off to NLU processor and show "thinking" state
+        setState(prev => ({ ...prev, status: 'processing', interimTranscript: '' }))
+        // Call the processor callback OUTSIDE setState (safe side effect)
+        transcriptCbRef.current?.({ transcript: captured, confidence: confidence || 0.8 })
+        return
+      }
+
+      // No transcript and no error already handled — user didn't speak
+      setState(prev => prev.status === 'error' ? prev : { ...prev, status: 'idle', interimTranscript: '' })
+      if (!hadError) {
+        tts.speak("I didn't hear anything. Tap the mic and say your command.")
+      }
     }
 
-    // Show the overlay immediately — don't wait for onstart (which fires only
-    // after the browser permission prompt is dismissed on first use)
+    // Show overlay immediately — don't wait for onstart
     setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
 
     recognitionRef.current = recognition
     try {
       recognition.start()
     } catch {
-      // start() can throw if called while another instance is running
       setState(prev => ({ ...prev, status: 'idle' }))
       recognitionRef.current = null
       return
     }
 
-    // Hard stop after 10 seconds regardless
+    // Hard stop after 12 seconds regardless
     hardTimerRef.current = setTimeout(() => {
       if (recognitionRef.current) recognitionRef.current.stop()
-    }, 10_000)
+    }, 12_000)
   }, [isSupported, stopListening])
 
   const reset = useCallback(() => {
@@ -192,12 +210,10 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     setState(IDLE)
   }, [stopListening])
 
-  // Register transcript callback — called by VoiceButton once NLU is wired (Sprint 2)
   const onTranscript = useCallback((cb: (result: VoiceResult) => void) => {
     transcriptCbRef.current = cb
   }, [])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       clearTimers()

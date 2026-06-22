@@ -218,16 +218,21 @@ export default function VoiceListeningOverlay({ state, onStop, response, onDismi
             </div>
 
             {/* Status label */}
-            <p
-              className="text-[11px] font-bold uppercase tracking-[0.14em]"
-              style={{ color: isResponding ? '#a78bfa' : state.status === 'listening' ? '#a78bfa' : 'rgba(167,139,250,0.6)' }}
-            >
-              {isResponding
-                ? (ACTION_LABEL[response?.card.action ?? ''] ?? 'Habitiq')
-                : state.status === 'listening'
-                ? 'Listening'
-                : 'Thinking…'}
-            </p>
+            <div className="flex items-center gap-2">
+              {state.status === 'listening' && !isResponding && (
+                <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
+              )}
+              <p
+                className="text-[11px] font-bold uppercase tracking-[0.14em]"
+                style={{ color: isResponding ? '#a78bfa' : state.status === 'listening' ? '#a78bfa' : 'rgba(167,139,250,0.6)' }}
+              >
+                {isResponding
+                  ? (ACTION_LABEL[response?.card.action ?? ''] ?? 'Habitiq')
+                  : state.status === 'listening'
+                  ? 'Listening…'
+                  : 'Thinking…'}
+              </p>
+            </div>
 
             {/* Content area — switches between transcript and response */}
             <div className="w-full text-center" style={{ minHeight: 64 }}>
@@ -265,15 +270,19 @@ export default function VoiceListeningOverlay({ state, onStop, response, onDismi
                     {state.interimTranscript || state.transcript}
                   </motion.p>
                 ) : state.status === 'listening' ? (
-                  <motion.p
+                  <motion.div
                     key="prompt"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    className="text-[15px]"
-                    style={{ color: 'rgba(244,243,248,0.3)', fontStyle: 'italic' }}
+                    className="space-y-1"
                   >
-                    Say something…
-                  </motion.p>
+                    <p className="text-[15px]" style={{ color: 'rgba(244,243,248,0.35)', fontStyle: 'italic' }}>
+                      Speak now…
+                    </p>
+                    <p className="text-[11px]" style={{ color: 'rgba(244,243,248,0.18)' }}>
+                      e.g. "Kitchen done" · "Add 500 for groceries"
+                    </p>
+                  </motion.div>
                 ) : state.transcript ? (
                   <motion.p
                     key="processing"

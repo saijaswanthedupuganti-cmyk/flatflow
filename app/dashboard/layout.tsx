@@ -93,7 +93,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const startVoice = useCallback(() => {
     initTTS()
     voice.startListening()
-    setTimeout(() => tts.speak("How can I help you?"), 120)
   }, [voice.startListening])
 
   const handleVoiceTap = useCallback(async () => {
@@ -101,7 +100,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!voice.isSupported) { setShowFallback(true); return }
     // Check if mic permission was already granted in a previous session
     const stored = typeof window !== 'undefined' ? localStorage.getItem('habitiq-mic-perm') : null
-    if (stored === 'granted') {
+    if (stored !== null) {
       startVoice()
     } else {
       setShowMicPermission(true)

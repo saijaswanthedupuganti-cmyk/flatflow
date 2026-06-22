@@ -48,8 +48,7 @@ export function formatResponse(result: ActionResult): VoiceResponse {
 
   return {
     text: result.message,
-    // Only speak successful responses — questions/errors require screen reading
-    speak: result.success,
+    speak: true, // always speak — user must hear a response, not just see a card
     card: {
       type: cardType,
       action: result.action,

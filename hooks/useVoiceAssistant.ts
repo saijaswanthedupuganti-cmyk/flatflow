@@ -1,5 +1,6 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from 'react'
+import { tts } from '@/lib/voice/tts/speechSynthesis'
 
 export type VoiceStatus = 'idle' | 'listening' | 'processing' | 'responding' | 'error'
 
@@ -78,7 +79,7 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognitionAPI()
 
-    recognition.continuous      = true
+    recognition.continuous      = false  // single-utterance: auto-stops after speech pause
     recognition.interimResults  = true
     recognition.lang            = 'en-IN'
     recognition.maxAlternatives = 3
@@ -139,6 +140,12 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     recognition.onerror = (event: any) => {
       clearTimers()
       const voiceError = ERROR_MAP[event.error] ?? { code: 'network' as const, message: 'Something went wrong', recoverable: true }
+      // Speak the error so the user gets conversational feedback
+      if (event.error === 'no-speech') {
+        tts.speak("I didn't catch that. Tap the mic and try again.")
+      } else if (event.error === 'not-allowed') {
+        tts.speak("Microphone access is blocked. Please allow it in your browser settings.")
+      }
       setState(prev => ({ ...prev, status: 'error', error: voiceError }))
       recognitionRef.current = null
     }
@@ -151,7 +158,11 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
           transcriptCbRef.current({ transcript: prev.transcript, confidence: prev.confidence })
           return { ...prev, status: 'processing' }
         }
-        // No transcript — back to idle (or keep error if already errored)
+        // Ended with no transcript and no error — user likely didn't speak
+        if (prev.status === 'listening') {
+          tts.speak("I didn't hear anything. Tap the mic and say your command.")
+          return { ...prev, status: 'idle' }
+        }
         return prev.status === 'error' ? prev : { ...prev, status: 'idle' }
       })
     }

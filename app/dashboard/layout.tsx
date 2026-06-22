@@ -409,7 +409,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       />
       <MicPermissionModal
         isOpen={showMicPermission}
-        onGranted={() => { setShowMicPermission(false); startVoice() }}
+        onAllow={() => { setShowMicPermission(false); startVoice() }}
         onDismiss={() => setShowMicPermission(false)}
       />
 

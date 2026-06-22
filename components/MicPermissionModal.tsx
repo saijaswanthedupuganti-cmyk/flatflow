@@ -1,29 +1,19 @@
 "use client"
-import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Mic, X } from 'lucide-react'
-import { requestMicPermission } from '@/lib/voice/permissions'
 
 interface Props {
   isOpen: boolean
-  onGranted: () => void
+  onAllow: () => void   // called synchronously — caller starts recognition immediately
   onDismiss: () => void
 }
 
-export default function MicPermissionModal({ isOpen, onGranted, onDismiss }: Props) {
-  const [asking, setAsking] = useState(false)
-  const [denied, setDenied] = useState(false)
-
-  const handleAllow = async () => {
-    setAsking(true)
-    const result = await requestMicPermission()
-    setAsking(false)
-    if (result === 'granted') {
-      localStorage.setItem('habitiq-mic-perm', 'granted')
-      onGranted()
-    } else {
-      setDenied(true)
-    }
+export default function MicPermissionModal({ isOpen, onAllow, onDismiss }: Props) {
+  // Synchronous — no await, preserves the browser user-gesture context so
+  // SpeechRecognition.start() is allowed to run without being blocked by Chrome.
+  const handleAllow = () => {
+    localStorage.setItem('habitiq-mic-perm', 'asked')
+    onAllow()
   }
 
   return (
@@ -51,21 +41,20 @@ export default function MicPermissionModal({ isOpen, onGranted, onDismiss }: Pro
               <div className="w-10 h-1 rounded-full bg-border" />
             </div>
 
-            <div className="px-6 pt-4 pb-8 flex flex-col items-center text-center gap-5">
-              {/* Close */}
+            <div className="px-6 pt-4 pb-8 flex flex-col items-center text-center gap-5 relative">
               <button
                 onClick={onDismiss}
-                className="absolute top-5 right-5 p-2 rounded-xl hover:bg-secondary transition-colors cursor-pointer"
+                className="absolute top-0 right-0 p-2 rounded-xl hover:bg-secondary transition-colors cursor-pointer"
               >
                 <X size={16} className="text-muted-foreground" />
               </button>
 
-              {/* Mic icon with pulse ring */}
+              {/* Pulsing mic icon */}
               <div className="relative flex items-center justify-center mt-2">
                 <motion.div
                   className="absolute rounded-full"
                   style={{ inset: -14, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.25)' }}
-                  animate={{ scale: [1, 1.15, 1], opacity: [0.6, 0.2, 0.6] }}
+                  animate={{ scale: [1, 1.18, 1], opacity: [0.7, 0.2, 0.7] }}
                   transition={{ duration: 2.2, repeat: Infinity, ease: 'easeInOut' }}
                 />
                 <div
@@ -76,53 +65,34 @@ export default function MicPermissionModal({ isOpen, onGranted, onDismiss }: Pro
                 </div>
               </div>
 
-              {denied ? (
-                <>
-                  <div>
-                    <p className="text-base font-bold text-foreground">Microphone blocked</p>
-                    <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
-                      Enable microphone access in your browser settings, then try again.
-                    </p>
-                  </div>
-                  <button
-                    onClick={onDismiss}
-                    className="w-full py-3.5 rounded-2xl text-sm font-semibold text-foreground transition-colors cursor-pointer"
-                    style={{ background: 'var(--secondary)' }}
-                  >
-                    Got it
-                  </button>
-                </>
-              ) : (
-                <>
-                  <div>
-                    <p className="text-base font-bold text-foreground">Allow microphone access</p>
-                    <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed max-w-xs">
-                      Habitiq uses your mic to hear commands like "Add ₹500 for groceries" or "Kitchen done" — hands-free.
-                    </p>
-                  </div>
+              <div>
+                <p className="text-base font-bold text-foreground">Use your voice</p>
+                <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed max-w-xs">
+                  Say things like <span className="text-foreground/70 font-medium">"Add ₹500 for groceries"</span>,{' '}
+                  <span className="text-foreground/70 font-medium">"Kitchen done"</span>, or{' '}
+                  <span className="text-foreground/70 font-medium">"What are my tasks?"</span>
+                </p>
+              </div>
 
-                  <div className="w-full flex flex-col gap-2.5">
-                    <button
-                      onClick={handleAllow}
-                      disabled={asking}
-                      className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-all cursor-pointer disabled:opacity-60"
-                      style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
-                    >
-                      {asking ? 'Requesting access…' : 'Allow microphone'}
-                    </button>
-                    <button
-                      onClick={onDismiss}
-                      className="w-full py-3 rounded-2xl text-sm font-medium text-muted-foreground transition-colors hover:text-foreground cursor-pointer"
-                    >
-                      Not now
-                    </button>
-                  </div>
+              <div className="w-full flex flex-col gap-2.5">
+                <button
+                  onClick={handleAllow}
+                  className="w-full py-3.5 rounded-2xl text-sm font-semibold text-white transition-all cursor-pointer"
+                  style={{ background: 'linear-gradient(135deg, #7c3aed, #4f46e5)' }}
+                >
+                  Continue
+                </button>
+                <button
+                  onClick={onDismiss}
+                  className="w-full py-3 rounded-2xl text-sm font-medium text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                >
+                  Not now
+                </button>
+              </div>
 
-                  <p className="text-[11px] text-muted-foreground/60 leading-relaxed max-w-xs">
-                    Your voice is processed on-device. Nothing is stored or sent to any server.
-                  </p>
-                </>
-              )}
+              <p className="text-[11px] text-muted-foreground/50 leading-relaxed">
+                Your browser will ask for microphone permission once.
+              </p>
             </div>
           </motion.div>
         </>

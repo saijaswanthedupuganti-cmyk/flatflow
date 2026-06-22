@@ -156,8 +156,19 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       })
     }
 
+    // Show the overlay immediately — don't wait for onstart (which fires only
+    // after the browser permission prompt is dismissed on first use)
+    setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
+
     recognitionRef.current = recognition
-    recognition.start()
+    try {
+      recognition.start()
+    } catch {
+      // start() can throw if called while another instance is running
+      setState(prev => ({ ...prev, status: 'idle' }))
+      recognitionRef.current = null
+      return
+    }
 
     // Hard stop after 10 seconds regardless
     hardTimerRef.current = setTimeout(() => {

@@ -69,6 +69,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   })
   const [showFallback, setShowFallback] = useState(false)
   const [showMicPermission, setShowMicPermission] = useState(false)
+  const [micBlocked, setMicBlocked] = useState(false)
 
   const voice     = useVoiceAssistant()
   const processor = useVoiceProcessor()
@@ -89,6 +90,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (processorWasActive.current && !processor.isProcessing) voice.reset()
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
+
+  // When the browser has blocked mic access, clear the stored permission flag
+  // (so the modal shows on next tap) and surface a visual banner.
+  useEffect(() => {
+    if (voice.state.error?.code !== 'not-allowed') return
+    localStorage.removeItem('habitiq-mic-perm')
+    setMicBlocked(true)
+    const t = setTimeout(() => setMicBlocked(false), 6000)
+    voice.reset()
+    return () => clearTimeout(t)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [voice.state.error?.code])
 
   const startVoice = useCallback(() => {
     initTTS()
@@ -414,6 +427,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onAllow={() => { setShowMicPermission(false); startVoice() }}
         onDismiss={() => setShowMicPermission(false)}
       />
+
+      {/* Mic blocked banner — shown when browser has denied mic access */}
+      {micBlocked && (
+        <div
+          className="fixed bottom-[88px] left-3 right-3 md:left-auto md:right-5 md:w-80 z-[60] rounded-2xl px-4 py-3.5 flex items-start gap-3 shadow-xl"
+          style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.28)', backdropFilter: 'blur(20px)' }}
+        >
+          <span className="text-lg leading-none mt-0.5">🎙️</span>
+          <div>
+            <p className="text-sm font-semibold text-foreground">Microphone blocked</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Tap the lock icon in your browser's address bar and allow microphone access, then try again.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
       {/* 5 slots: Dashboard · Expenses · [+] FAB · Tasks(admin)/Members · Settings */}

@@ -91,15 +91,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
 
-  // When the browser has blocked mic access, clear the stored permission flag
-  // (so the modal shows on next tap) and surface a visual banner.
+  // When SpeechRecognition fires not-allowed, check the real permission state.
+  // If actually denied → show "blocked, go to settings" + clear stored flag.
+  // If granted/prompt → the gesture context was lost; just reset silently so
+  // the user can tap again (no false "blocked" message).
   useEffect(() => {
     if (voice.state.error?.code !== 'not-allowed') return
-    localStorage.removeItem('habitiq-mic-perm')
-    setMicBlocked(true)
-    const t = setTimeout(() => setMicBlocked(false), 6000)
     voice.reset()
-    return () => clearTimeout(t)
+    const check = async () => {
+      let isDenied = false
+      try {
+        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+        isDenied = result.state === 'denied'
+      } catch { isDenied = false }
+
+      if (isDenied) {
+        localStorage.removeItem('habitiq-mic-perm')
+        setMicBlocked(true)
+        setTimeout(() => setMicBlocked(false), 6000)
+      }
+      // If not denied (granted/prompt), gesture context was the issue — tap again works.
+    }
+    void check()
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [voice.state.error?.code])
 
@@ -108,7 +121,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     voice.startListening()
   }, [voice.startListening])
 
-  const handleVoiceTap = useCallback(async () => {
+  const handleVoiceTap = useCallback(() => {
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
     // Don't start until Firestore has synced — otherwise voice context is empty

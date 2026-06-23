@@ -13,44 +13,22 @@ interface Props {
   onDismissResponse?: () => void
 }
 
-const ACTION_LABEL: Record<string, string> = {
-  CREATE_EXPENSE: 'Expense Added',
-  COMPLETE_TASK:  'Task Done',
-  CREATE_TASK:    'Task Created',
-  QUERY_BALANCE:  'Balance',
-  QUERY_TASKS:    'Tasks',
-  REQUEST_SWAP:   'Swap Requested',
-  QUERY_STATUS:   'Status',
-  GREETING:       'Hey there',
-  UNKNOWN:        'Habitiq',
-}
-
 export default function VoiceListeningOverlay({ state, onStop, response, onDismissResponse }: Props) {
   const isResponding = !!response
-  const visible = state.status === 'listening' || state.status === 'processing' || isResponding
-
-  // Auto-dismiss response after 5 s
-  useEffect(() => {
-    if (!isResponding) return
-    const t = setTimeout(() => onDismissResponse?.(), 5000)
-    return () => clearTimeout(t)
-  }, [isResponding, onDismissResponse])
+  // Overlay only shows while actively listening or processing — NOT during response.
+  // Response display is handled by VoiceResponseCard (non-blocking floating card).
+  // Keeping the overlay up during isResponding blocks all tap targets behind it.
+  const visible = state.status === 'listening' || state.status === 'processing'
 
   // Close overlay if window loses focus (e.g. tab switch) while listening
   useEffect(() => {
     if (!visible) return
-    const handleBlur = () => { if (!isResponding) onStop() }
+    const handleBlur = () => onStop()
     window.addEventListener('blur', handleBlur)
     return () => window.removeEventListener('blur', handleBlur)
-  }, [visible, isResponding, onStop])
+  }, [visible, onStop])
 
-  const handleClose = () => {
-    if (isResponding) {
-      onDismissResponse?.()
-    } else {
-      onStop()
-    }
-  }
+  const handleClose = () => { onStop() }
 
   return (
     <AnimatePresence>
@@ -219,46 +197,21 @@ export default function VoiceListeningOverlay({ state, onStop, response, onDismi
 
             {/* Status label */}
             <div className="flex items-center gap-2">
-              {state.status === 'listening' && !isResponding && (
+              {state.status === 'listening' && (
                 <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse shrink-0" />
               )}
               <p
                 className="text-[11px] font-bold uppercase tracking-[0.14em]"
-                style={{ color: isResponding ? '#a78bfa' : state.status === 'listening' ? '#a78bfa' : 'rgba(167,139,250,0.6)' }}
+                style={{ color: state.status === 'listening' ? '#a78bfa' : 'rgba(167,139,250,0.6)' }}
               >
-                {isResponding
-                  ? (ACTION_LABEL[response?.card.action ?? ''] ?? 'Habitiq')
-                  : state.status === 'listening'
-                  ? 'Listening…'
-                  : 'Thinking…'}
+                {state.status === 'listening' ? 'Listening…' : 'Thinking…'}
               </p>
             </div>
 
-            {/* Content area — switches between transcript and response */}
+            {/* Content area */}
             <div className="w-full text-center" style={{ minHeight: 64 }}>
               <AnimatePresence mode="wait">
-                {isResponding && response ? (
-                  <motion.div
-                    key="response"
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -4 }}
-                    transition={{ duration: 0.3 }}
-                    className="space-y-1"
-                  >
-                    <p
-                      className="text-[18px] font-semibold leading-snug"
-                      style={{ color: '#f4f3f8' }}
-                    >
-                      {response.text}
-                    </p>
-                    {response.card.subtitle && (
-                      <p className="text-[13px]" style={{ color: 'rgba(244,243,248,0.42)' }}>
-                        {response.card.subtitle}
-                      </p>
-                    )}
-                  </motion.div>
-                ) : state.status === 'listening' && (state.interimTranscript || state.transcript) ? (
+                {state.status === 'listening' && (state.interimTranscript || state.transcript) ? (
                   <motion.p
                     key="transcript"
                     initial={{ opacity: 0, y: 4 }}
@@ -312,18 +265,7 @@ export default function VoiceListeningOverlay({ state, onStop, response, onDismi
             </AnimatePresence>
 
             {/* Action hint */}
-            {isResponding ? (
-              <motion.button
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                transition={{ delay: 0.4 }}
-                onClick={handleClose}
-                className="text-[12px] font-medium cursor-pointer transition-colors hover:text-violet-300"
-                style={{ color: 'rgba(167,139,250,0.45)' }}
-              >
-                Got it
-              </motion.button>
-            ) : state.status === 'listening' ? (
+            {state.status === 'listening' && (
               <motion.button
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
@@ -334,17 +276,14 @@ export default function VoiceListeningOverlay({ state, onStop, response, onDismi
               >
                 Tap to stop
               </motion.button>
-            ) : null}
-
-            {/* Hint text — only when idle/listening */}
-            {!isResponding && (
-              <p
-                className="text-[11px] text-center leading-relaxed"
-                style={{ color: 'rgba(255,255,255,0.18)' }}
-              >
-                "Kitchen done" · "Add 500 for groceries" · "How much does Bhanu owe?"
-              </p>
             )}
+
+            <p
+              className="text-[11px] text-center leading-relaxed"
+              style={{ color: 'rgba(255,255,255,0.18)' }}
+            >
+              "Kitchen done" · "Add 500 for groceries" · "How much does Bhanu owe?"
+            </p>
           </motion.div>
         </motion.div>
       )}

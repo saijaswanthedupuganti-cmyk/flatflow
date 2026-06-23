@@ -98,6 +98,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleVoiceTap = useCallback(async () => {
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
+    // Don't start until Firestore has synced — otherwise voice context is empty
+    // and the assistant will incorrectly say "no tasks / no members found".
+    if (!isSynced) return
     // Check if mic permission was already granted in a previous session
     const stored = typeof window !== 'undefined' ? localStorage.getItem('habitiq-mic-perm') : null
     if (stored !== null) {
@@ -105,7 +108,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     } else {
       setShowMicPermission(true)
     }
-  }, [voiceEnabled, voice.isSupported, startVoice])
+  }, [voiceEnabled, voice.isSupported, isSynced, startVoice])
 
   // Multi-flat warning: user is in > 1 flat but subscription is expired
   const multiFlat = allFlats.length > 1

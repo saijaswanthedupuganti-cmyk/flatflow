@@ -187,9 +187,9 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       }
     }
 
-    // Show overlay immediately — don't wait for onstart
-    setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
-
+    // Start recognition first — setState BEFORE recognition.start() breaks the
+    // browser user gesture context in React 19, causing spurious not-allowed errors
+    // even when mic permission is granted.
     recognitionRef.current = recognition
     try {
       recognition.start()
@@ -198,6 +198,8 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       recognitionRef.current = null
       return
     }
+    // Show overlay after successful start (onstart fires async; this is instant)
+    setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
 
     // Hard stop after 12 seconds regardless
     hardTimerRef.current = setTimeout(() => {

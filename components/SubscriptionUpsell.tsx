@@ -3,9 +3,10 @@ import { useState, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import {
   X, Ticket, ShieldCheck, Loader2, AlertTriangle,
-  ClipboardList, LayoutDashboard, Receipt, CheckCircle2, Lock, Crown, Sparkles,
+  ClipboardList, LayoutDashboard, Receipt, CheckCircle2, Lock, Crown, Sparkles, UserCheck,
 } from 'lucide-react'
 import { useFlatStore } from '@/store/useFlatStore'
+import { useAuthStore } from '@/store/useAuthStore'
 import { validateAndRedeemCoupon } from '@/lib/couponService'
 import type { GatedFeature } from '@/hooks/useSubscription'
 
@@ -256,6 +257,29 @@ function CelebrationView({ days, onClose }: { days: number; onClose: () => void 
   )
 }
 
+/* ── Non-admin notice ────────────────────────────────────────────────────── */
+function NonAdminNotice({ adminName, onClose }: { adminName: string; onClose: () => void }) {
+  return (
+    <div className="px-5 py-5 space-y-4">
+      <div className="flex items-start gap-3 px-4 py-3.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
+        <UserCheck size={16} className="text-primary mt-0.5 shrink-0" />
+        <div>
+          <p className="text-[13px] font-bold text-foreground">Only admins can apply coupons</p>
+          <p className="text-[12px] text-muted-foreground mt-0.5 leading-relaxed">
+            Ask <span className="font-semibold text-foreground">{adminName}</span> to enter the coupon code — it unlocks premium for the whole flat.
+          </p>
+        </div>
+      </div>
+      <button
+        onClick={onClose}
+        className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+      >
+        Got it
+      </button>
+    </div>
+  )
+}
+
 /* ── Main export ──────────────────────────────────────────────────────────── */
 interface Props {
   feature: GatedFeature
@@ -264,11 +288,18 @@ interface Props {
 
 export default function SubscriptionUpsell({ feature, onClose }: Props) {
   const flatId = useFlatStore(s => s.flatId)
+  const members = useFlatStore(s => s.members)
+  const { user } = useAuthStore()
   const [mounted, setMounted] = useState(false)
   const [celebrated, setCelebrated] = useState(false)
   const [unlockedDays, setUnlockedDays] = useState(0)
 
   useEffect(() => { setMounted(true) }, [])
+
+  const currentMember = members.find(m => m.uid === user?.uid)
+  const isAdmin = currentMember?.role === 'admin'
+  const adminMember = members.find(m => m.role === 'admin')
+  const adminName = adminMember?.nickname ?? 'your flat admin'
   if (!mounted || !flatId) return null
 
   if (celebrated) {
@@ -335,28 +366,32 @@ export default function SubscriptionUpsell({ feature, onClose }: Props) {
         </div>
 
         {/* Coupon input + actions */}
-        <div className="px-5 py-5 space-y-4">
-          <CouponForm
-            flatId={flatId}
-            onSuccess={(days) => {
-              setUnlockedDays(days)
-              setCelebrated(true)
-            }}
-          />
-          {/* Free welcome code hint */}
-          <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.07)', border: '1px dashed rgba(99,102,241,0.25)' }}>
-            <Ticket size={13} className="text-primary shrink-0" />
-            <p className="text-[12px] text-muted-foreground leading-snug">
-              Try <span className="font-extrabold text-foreground tracking-widest font-mono">HAB-WELCOME</span> — free for all early users. Unlocks 90 days.
-            </p>
+        {isAdmin ? (
+          <div className="px-5 py-5 space-y-4">
+            <CouponForm
+              flatId={flatId}
+              onSuccess={(days) => {
+                setUnlockedDays(days)
+                setCelebrated(true)
+              }}
+            />
+            {/* Free welcome code hint */}
+            <div className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl" style={{ background: 'rgba(99,102,241,0.07)', border: '1px dashed rgba(99,102,241,0.25)' }}>
+              <Ticket size={13} className="text-primary shrink-0" />
+              <p className="text-[12px] text-muted-foreground leading-snug">
+                Try <span className="font-extrabold text-foreground tracking-widest font-mono">HAB-WELCOME</span> — free for all early users. Unlocks 90 days.
+              </p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+            >
+              Continue with limited access
+            </button>
           </div>
-          <button
-            onClick={onClose}
-            className="w-full py-2 text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
-          >
-            Continue with limited access
-          </button>
-        </div>
+        ) : (
+          <NonAdminNotice adminName={adminName} onClose={onClose} />
+        )}
 
       </div>
     </div>

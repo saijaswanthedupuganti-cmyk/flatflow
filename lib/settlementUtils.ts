@@ -158,10 +158,11 @@ export function computeMemberBillSummary(
     return result[uid]
   }
 
-  // Accumulate each member's bill share (all non-skipped instances)
+  // Accumulate each member's bill share (all non-skipped, admin-approved instances)
   for (const instance of billInstances) {
     if (instance.month !== month) continue
     if (instance.status === 'skipped') continue
+    if (instance.status === 'member_submitted') continue  // not yet admin-approved
     if (!instance.splits || instance.currency !== 'INR') continue
 
     for (const uid of instance.participants) {
@@ -272,6 +273,7 @@ export function buildMonthSummary(
   for (const b of billInstances) {
     if (b.month !== month) continue
     if (b.status === 'skipped') continue
+    if (b.status === 'member_submitted') continue  // not yet admin-approved
     if (b.status === 'pending') { pendingVariableBills++; continue }
     if (b.status === 'split_generated' || b.status === 'overdue') unpaidBillsCount++
     if (b.currency === 'INR' && b.amount) totalBillsINR += b.amount

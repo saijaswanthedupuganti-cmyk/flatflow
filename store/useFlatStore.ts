@@ -157,11 +157,12 @@ export interface RecurringBill {
 // Templates (RecurringBill) are configurations. Instances are the transactions.
 
 export type BillInstanceStatus =
-  | 'pending'          // variable bill: billing day arrived, amount not yet entered
-  | 'split_generated'  // amount confirmed, splits computed, members notified
-  | 'paid'             // payer confirmed payment to landlord / utility company
-  | 'overdue'          // past due date and not yet paid
-  | 'skipped'          // admin explicitly skipped this bill for this month
+  | 'pending'           // variable bill: billing day arrived, amount not yet entered
+  | 'split_generated'   // amount confirmed, splits computed, members notified
+  | 'paid'              // payer confirmed payment to landlord / utility company
+  | 'overdue'           // past due date and not yet paid
+  | 'skipped'           // admin explicitly skipped this bill for this month
+  | 'member_submitted'  // member recorded a bill they paid; awaiting admin approval
 
 export interface BillInstance {
   id: string
@@ -320,6 +321,10 @@ interface FlatState {
   renameFlatAction: (newName: string) => Promise<void>
   setJoinMode: (mode: 'auto' | 'approval') => Promise<void>
   setBillingCycleDay: (day: number) => Promise<void>
+
+  // Member-submitted bill approval — admin only
+  approveMemberBill: (instanceId: string) => Promise<void>
+  rejectMemberBill: (instanceId: string) => Promise<void>
 
   // One-time (reconciliation) bill instances — any member can record a bill they paid
   addOneTimeBillInstance: (data: {
@@ -1712,9 +1717,9 @@ export const useFlatStore = create<FlatState>((set, get) => ({
       paidBy: data.paidBy,
       participants: data.participants,
       splits,
-      status: 'paid',          // already paid from personal funds
+      status: 'member_submitted', // queued; enters pipeline only after admin approves
       dueDate: data.month + '-01',
-      paidAt: today.toISOString(),
+      paidAt: null,              // set when admin approves
       skippedReason: null,
       generatedAt: today.toISOString(),
       generatedBy: data.createdBy,
@@ -1728,8 +1733,43 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     await get().addActivity({
       userId: data.createdBy,
       action: 'bill_generated',
-      details: `recorded ${data.name} ₹${data.amount} — paid by ${payerName}`,
+      details: `submitted "${data.name}" ₹${data.amount} for admin approval — paid by ${payerName}`,
     })
+  },
+
+  approveMemberBill: async (instanceId) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    if (!instance) return
+    const changes = { status: 'paid' as BillInstanceStatus, paidAt: new Date().toISOString() }
+    if (hasKeys && state.flatId) {
+      await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
+    } else {
+      set(s => ({ billInstances: s.billInstances.map(b => b.id === instanceId ? { ...b, ...changes } : b) }))
+    }
+    const submitter = state.members.find(m => m.uid === instance.generatedBy)
+    void get().addActivity({
+      userId: useAuthStore.getState().user?.uid ?? instance.generatedBy,
+      action: 'bill_paid',
+      details: `approved "${instance.name}" ₹${instance.amount ?? 0} submitted by ${submitter?.nickname ?? 'member'}`,
+    })
+  },
+
+  rejectMemberBill: async (instanceId) => {
+    const state = get()
+    const instance = state.billInstances.find(b => b.id === instanceId)
+    if (hasKeys && state.flatId) {
+      await deleteDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`))
+    } else {
+      set(s => ({ billInstances: s.billInstances.filter(b => b.id !== instanceId) }))
+    }
+    if (instance) {
+      void get().addActivity({
+        userId: useAuthStore.getState().user?.uid ?? instance.generatedBy,
+        action: 'bill_deleted',
+        details: `rejected "${instance.name}" submitted by member`,
+      })
+    }
   },
 
   closeMonth: async (month, confirmedSettlements, summary, carryForwardOut) => {

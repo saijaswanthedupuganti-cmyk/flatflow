@@ -1405,7 +1405,7 @@ function OneTimeBillModal({
         <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-black/[0.08] shrink-0">
           <div>
             <h2 className="text-[20px] font-semibold text-[#141b2b] dark:text-white leading-7">Record a Bill Paid</h2>
-            <p className="text-[11px] text-[#777587] mt-0.5">Someone paid a shared bill from personal funds</p>
+            <p className="text-[11px] text-[#777587] mt-0.5">Submitted for admin approval — becomes a bill once approved</p>
           </div>
           <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center hover:bg-[#f1f3ff] dark:hover:bg-white/10 transition-colors cursor-pointer">
             <X size={14} className="text-[#777587]" />
@@ -1540,8 +1540,8 @@ function OneTimeBillModal({
             disabled={saving || !form.name.trim() || totalAmt <= 0 || form.participants.length === 0}
             className="w-full flex items-center justify-center gap-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-40 disabled:cursor-not-allowed text-white font-semibold py-3.5 rounded-full shadow-md transition-all cursor-pointer">
             {saving
-              ? <><RefreshCw size={14} className="animate-spin" /> Saving...</>
-              : <><Check size={14} /> Record Bill{totalAmt > 0 ? ` ₹${Math.round(totalAmt)}` : ''}</>}
+              ? <><RefreshCw size={14} className="animate-spin" /> Submitting...</>
+              : <><Check size={14} /> Submit for Approval{totalAmt > 0 ? ` · ₹${Math.round(totalAmt)}` : ''}</>}
           </button>
         </div>
 
@@ -2384,7 +2384,7 @@ export default function ExpensesPage() {
     resetMonthSplits, resetAllExpensesData,
     createRecurringBill, updateRecurringBill, deleteRecurringBill,
     generateBill, generateAllDueBills, confirmBillAmount, editBillInstanceAmount, markBillPaid, markBillCollected, skipBillInstance, deleteBillInstance,
-    addOneTimeBillInstance,
+    addOneTimeBillInstance, approveMemberBill, rejectMemberBill,
     createRecurringBill: _createSingle, bulkCreateRecurringBills, closeMonth, setMonthlyCollector,
   } = useFlatStore()
   const { user } = useAuthStore()
@@ -3734,7 +3734,7 @@ export default function ExpensesPage() {
           ].join(' ')}
         >
           Monthly Bills
-          {dueBills.length > 0 && activeTab !== 'bills' && <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />}
+          {(dueBills.length > 0 || (isAdmin && billInstances.some(b => b.status === 'member_submitted' && b.month === currentMonthKey()))) && activeTab !== 'bills' && <span className="w-1.5 h-1.5 bg-amber-400 rounded-full shrink-0" />}
         </button>
       </div>
 
@@ -4053,6 +4053,57 @@ export default function ExpensesPage() {
               </div>
             </div>
           )}
+
+          {/* ── Pending Member Bills — admin approval queue ──────────────── */}
+          {isAdmin && (() => {
+            const pending = billInstances.filter(b =>
+              b.status === 'member_submitted' && b.month === currentMonthKey()
+            )
+            if (!pending.length) return null
+            return (
+              <div className="rounded-[16px] border-2 border-amber-300 dark:border-amber-600 overflow-hidden">
+                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-950/30">
+                  <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
+                  <p className="text-[12px] font-bold text-amber-700 dark:text-amber-300 flex-1">
+                    {pending.length} member bill{pending.length > 1 ? 's' : ''} awaiting your approval
+                  </p>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {pending.map(inst => {
+                    const submitter = members.find(m => m.uid === inst.generatedBy)
+                    const payer = members.find(m => m.uid === inst.paidBy)
+                    const cfg = CATEGORY_CONFIG[inst.category]
+                    return (
+                      <div key={inst.id} className="px-4 py-3.5 bg-card flex items-center gap-3">
+                        <span className="text-[20px] shrink-0">{cfg?.emoji ?? '📄'}</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-bold text-foreground truncate">{inst.name}</p>
+                          <p className="text-[11px] text-muted-foreground mt-0.5">
+                            ₹{inst.amount?.toLocaleString('en-IN') ?? '—'} · paid by <span className="font-semibold">{payer?.nickname ?? '…'}</span>
+                            {submitter && submitter.uid !== payer?.uid && <> · submitted by <span className="font-semibold">{submitter.nickname}</span></>}
+                          </p>
+                        </div>
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => rejectMemberBill(inst.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold text-red-600 border border-red-200 dark:border-red-800 rounded-full hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                          <button
+                            onClick={() => approveMemberBill(inst.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold text-white bg-[#7c3aed] rounded-full hover:bg-[#6d28d9] transition-colors cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
 
           {/* Treasurer chip — compact, below the toggle, change panel expands inline */}
           <div className="rounded-[12px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] overflow-hidden">

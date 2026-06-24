@@ -1741,12 +1741,29 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     const state = get()
     const instance = state.billInstances.find(b => b.id === instanceId)
     if (!instance) return
+
+    const finalAmount = overrides?.amount ?? instance.amount ?? 0
+    const finalPaidBy = overrides?.paidBy ?? instance.paidBy
+    const participants = instance.participants ?? []
+
+    // Recalculate splits whenever amount or payer changes so balance accounting stays accurate.
+    // One-time member bills always use equal split — recompute based on final amount.
+    let finalSplits: Record<string, number> = instance.splits ?? {}
+    if (
+      participants.length > 0 &&
+      (overrides?.amount != null || overrides?.paidBy != null)
+    ) {
+      const equalShare = Math.round(finalAmount / participants.length * 100) / 100
+      finalSplits = Object.fromEntries(participants.map(uid => [uid, equalShare]))
+    }
+
     const changes: Partial<BillInstance> & { status: BillInstanceStatus; paidAt: string } = {
       status: 'paid',
       paidAt: new Date().toISOString(),
-      ...(overrides?.name   && { name:   overrides.name }),
-      ...(overrides?.amount && { amount: overrides.amount }),
-      ...(overrides?.paidBy && { paidBy: overrides.paidBy }),
+      amount: finalAmount,
+      paidBy: finalPaidBy,
+      splits: finalSplits,
+      ...(overrides?.name && { name: overrides.name }),
     }
     if (hasKeys && state.flatId) {
       await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
@@ -1757,7 +1774,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     void get().addActivity({
       userId: useAuthStore.getState().user?.uid ?? instance.generatedBy,
       action: 'bill_paid',
-      details: `approved "${changes.name ?? instance.name}" ₹${changes.amount ?? instance.amount ?? 0} submitted by ${submitter?.nickname ?? 'member'}`,
+      details: `approved "${changes.name ?? instance.name}" ₹${finalAmount} submitted by ${submitter?.nickname ?? 'member'}`,
     })
   },
 

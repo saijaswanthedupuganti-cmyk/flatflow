@@ -188,6 +188,7 @@ function ExpenseModal({
     setError('')
     if (!form.description.trim()) { setError('Add a description.'); return }
     if (!totalAmount || totalAmount <= 0) { setError('Enter a valid amount.'); return }
+    if (form.date > todayStr()) { setError("Expense date can't be in the future."); return }
     if (form.splitAmong.length === 0) { setError('Select at least one person to split with.'); return }
     if (form.splitType === 'custom' && !customOk) {
       setError('Custom splits must add up to the total.'); return
@@ -341,6 +342,7 @@ function ExpenseModal({
             <input
               type="date"
               value={form.date}
+              max={todayStr()}
               onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
               className="w-full bg-[#f1f3ff] dark:bg-white/[0.08] rounded-lg px-4 py-[13px] text-sm text-[#141b2b] dark:text-white border-0 outline-none focus:ring-2 focus:ring-[#7c3aed]/25 cursor-pointer"
             />

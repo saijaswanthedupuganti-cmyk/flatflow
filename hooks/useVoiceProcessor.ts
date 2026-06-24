@@ -8,6 +8,8 @@ import { extractEntities } from '@/lib/voice/nlu/entityExtractor'
 import { routeVoiceAction } from '@/lib/voice/actions/actionRouter'
 import { formatResponse, type VoiceResponse } from '@/lib/voice/response/responseFormatter'
 import { tts } from '@/lib/voice/tts/speechSynthesis'
+import { useVoiceContext } from '@/hooks/useVoiceContext'
+import { logVoiceEvent } from '@/lib/voice/analytics'
 
 export type { VoiceResponse }
 
@@ -17,11 +19,13 @@ export function useVoiceProcessor() {
 
   const { members, tasks, expenses, name: flatName, isSynced, markTaskCompleted, addExpense, createSwapRequest, createTask } = useFlatStore()
   const { user, flatId } = useAuthStore()
+  const { defaultIntent } = useVoiceContext()
 
   const process = useCallback(async (transcript: string) => {
     if (!user?.uid || !flatId) return
 
     setIsProcessing(true)
+    const startTime = performance.now()
     try {
       // Always build fresh context when the store is synced and has real data.
       // The cache is only used as a fallback when the store isn't ready yet so we
@@ -43,7 +47,11 @@ export function useVoiceProcessor() {
       }
 
       // NLU
-      const intent   = classifyIntent(transcript)
+      let intent = classifyIntent(transcript)
+      // Fallback to contextual default if highly ambiguous and short
+      if (intent === 'UNKNOWN' && transcript.split(' ').length <= 2) {
+        intent = defaultIntent
+      }
       const entities = extractEntities(transcript, context)
 
       // Execute action
@@ -61,8 +69,22 @@ export function useVoiceProcessor() {
       if (voiceResponse.speak) {
         tts.speak(voiceResponse.text)
       }
+
+      logVoiceEvent({
+        intent,
+        success: result.success,
+        latencyMs: performance.now() - startTime
+      })
     } catch (err) {
       console.error('[VoiceProcessor]', err)
+      
+      logVoiceEvent({
+        intent: 'UNKNOWN',
+        success: false,
+        latencyMs: performance.now() - startTime,
+        errorCode: err instanceof Error ? err.message : 'Unknown error'
+      })
+
       tts.speak("Something went wrong. Please try again.")
       setResponse({
         text: "Something went wrong. Please try again.",

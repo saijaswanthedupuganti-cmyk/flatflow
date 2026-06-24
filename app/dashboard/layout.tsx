@@ -68,8 +68,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return localStorage.getItem('habitiq-voice') !== 'false'
   })
   const [showFallback, setShowFallback] = useState(false)
-  const [showMicPermission, setShowMicPermission] = useState(false)
-  const [micBlocked, setMicBlocked] = useState(false)
 
   const voice     = useVoiceAssistant()
   const processor = useVoiceProcessor()
@@ -91,30 +89,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
 
-  // When SpeechRecognition fires not-allowed, check the real permission state.
-  // If actually denied → show "blocked, go to settings" + clear stored flag.
-  // If granted/prompt → the gesture context was lost; just reset silently so
-  // the user can tap again (no false "blocked" message).
-  useEffect(() => {
-    if (voice.state.error?.code !== 'not-allowed') return
-    voice.reset()
-    const check = async () => {
-      let isDenied = false
-      try {
-        const result = await navigator.permissions.query({ name: 'microphone' as PermissionName })
-        isDenied = result.state === 'denied'
-      } catch { isDenied = false }
-
-      if (isDenied) {
-        localStorage.removeItem('habitiq-mic-perm')
-        setMicBlocked(true)
-        setTimeout(() => setMicBlocked(false), 6000)
-      }
-      // If not denied (granted/prompt), gesture context was the issue — tap again works.
-    }
-    void check()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [voice.state.error?.code])
+  // When SpeechRecognition fires an error, VoiceAssistant handles it natively now.
 
   const startVoice = useCallback(() => {
     initTTS()
@@ -124,16 +99,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const handleVoiceTap = useCallback(() => {
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
-    // Don't start until Firestore has synced — otherwise voice context is empty
-    // and the assistant will incorrectly say "no tasks / no members found".
+    // Don't start until Firestore has synced
     if (!isSynced) return
-    // Check if mic permission was already granted in a previous session
-    const stored = typeof window !== 'undefined' ? localStorage.getItem('habitiq-mic-perm') : null
-    if (stored !== null) {
-      startVoice()
-    } else {
-      setShowMicPermission(true)
-    }
+
+    startVoice()
   }, [voiceEnabled, voice.isSupported, isSynced, startVoice])
 
   // Multi-flat warning: user is in > 1 flat but subscription is expired
@@ -434,28 +403,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         isOpen={showFallback}
         onClose={() => setShowFallback(false)}
         onSubmit={(text) => { void processor.process(text); setShowFallback(false) }}
+        onRetryMic={handleVoiceTap}
       />
-      <MicPermissionModal
-        isOpen={showMicPermission}
-        onAllow={() => { setShowMicPermission(false); startVoice() }}
-        onDismiss={() => setShowMicPermission(false)}
-      />
-
-      {/* Mic blocked banner — shown when browser has denied mic access */}
-      {micBlocked && (
-        <div
-          className="fixed bottom-[88px] left-3 right-3 md:left-auto md:right-5 md:w-80 z-[60] rounded-2xl px-4 py-3.5 flex items-start gap-3 shadow-xl"
-          style={{ background: 'rgba(239,68,68,0.10)', border: '1px solid rgba(239,68,68,0.28)', backdropFilter: 'blur(20px)' }}
-        >
-          <span className="text-lg leading-none mt-0.5">🎙️</span>
-          <div>
-            <p className="text-sm font-semibold text-foreground">Microphone blocked</p>
-            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
-              Tap the lock icon in your browser's address bar and allow microphone access, then try again.
-            </p>
-          </div>
-        </div>
-      )}
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}
       {/* 5 slots: Dashboard · Expenses · [+] FAB · Tasks(admin)/Members · Settings */}

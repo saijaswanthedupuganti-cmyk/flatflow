@@ -8,6 +8,7 @@ import {
   Sun, Moon, Shield, User, Info,
   LogOut, AlertTriangle, DoorOpen, ShieldCheck, X,
   Download, Smartphone, Share, CheckCircle2,
+  Mic, ChevronRight
 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { usePWA } from '@/contexts/PWAContext'
@@ -336,6 +337,29 @@ export default function SettingsPage() {
               </button>
             </div>
           </CardContent>
+        </Card>
+
+        {/* ── Voice Assistant ────────────────────────────────────────────── */}
+        <Card 
+          className="shadow-sm hover:border-violet-500/50 transition-colors cursor-pointer group" 
+          onClick={() => router.push('/dashboard/settings/voice')}
+        >
+          <CardHeader className="py-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Mic size={18} className="text-violet-500" />
+                  Voice Assistant
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  Configure voice commands, text-to-speech, and transcripts.
+                </CardDescription>
+              </div>
+              <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center group-hover:bg-violet-500/10 transition-colors">
+                <ChevronRight size={16} className="text-muted-foreground group-hover:text-violet-600" />
+              </div>
+            </div>
+          </CardHeader>
         </Card>
 
         {/* ── Install App ──────────────────────────────────────────────── */}

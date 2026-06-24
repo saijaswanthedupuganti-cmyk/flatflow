@@ -15,9 +15,11 @@ export async function getMicPermissionState(): Promise<MicPermissionState> {
 
 export async function requestMicPermission(): Promise<MicPermissionState> {
   const current = await getMicPermissionState()
-  if (current === 'granted')       return 'granted'
   if (current === 'not-supported') return 'not-supported'
 
+  // ALWAYS request getUserMedia, even if current === 'granted'.
+  // Chromium has a bug on localhost where SpeechRecognition fails silently with not-allowed
+  // unless the audio hardware stream is explicitly unlocked immediately before starting.
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
     // Release the stream immediately — we just needed the permission

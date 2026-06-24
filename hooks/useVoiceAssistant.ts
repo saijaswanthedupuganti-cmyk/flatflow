@@ -1,6 +1,7 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { tts } from '@/lib/voice/tts/speechSynthesis'
+import { requestMicPermission } from '@/lib/voice/permissions'
 
 export type VoiceStatus = 'idle' | 'listening' | 'processing' | 'responding' | 'error'
 
@@ -66,18 +67,26 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const stopListening = useCallback(() => {
     clearTimers()
     if (recognitionRef.current) {
-      try { recognitionRef.current.stop() } catch { /* already stopped */ }
+      const rec = recognitionRef.current
       recognitionRef.current = null
+      rec.onstart = null
+      rec.onresult = null
+      rec.onerror = null
+      rec.onend = null
+      try { rec.abort() } catch { /* ignore */ }
     }
   }, [])
 
-  const startListening = useCallback(() => {
+  const startListening = useCallback(async () => {
     if (!isSupported) {
       setState(prev => ({ ...prev, status: 'error', error: { code: 'not-supported', message: 'Voice is not supported on this device', recoverable: false } }))
       return
     }
 
     stopListening()
+
+    // Immediately show the listening overlay (Gemini graphic) while we negotiate permissions
+    setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
 
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognitionAPI()
@@ -157,7 +166,8 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       if (event.error === 'no-speech') {
         tts.speak("I didn't catch that. Try again.")
       } else if (event.error === 'not-allowed') {
-        tts.speak("Microphone access is blocked. Please allow it in your browser settings.")
+        // Mute this TTS error! The UI will show a fallback or banner instead.
+        // Users find the repeating "Microphone access is blocked" very annoying.
       } else if (event.error !== 'aborted') {
         tts.speak("Something went wrong. Tap the mic and try again.")
       }
@@ -187,9 +197,18 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       }
     }
 
-    // Start recognition first — setState BEFORE recognition.start() breaks the
-    // browser user gesture context in React 19, causing spurious not-allowed errors
-    // even when mic permission is granted.
+    // Force an audio stream unlock first. This prevents Chrome from silently 
+    // rejecting SpeechRecognition on localhost or when gesture contexts break.
+    const perm = await requestMicPermission()
+    if (perm !== 'granted') {
+      setState(prev => ({ ...prev, status: 'error', error: { code: 'not-allowed', message: 'Microphone access denied', recoverable: true } }))
+      tts.speak("I need microphone access to hear you. Please allow it in your browser settings.")
+      
+      // Auto-hide the visualizer after saying the error
+      setTimeout(() => setState(prev => (prev.status === 'error' ? IDLE : prev)), 4000)
+      return
+    }
+
     recognitionRef.current = recognition
     try {
       recognition.start()
@@ -198,8 +217,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       recognitionRef.current = null
       return
     }
-    // Show overlay after successful start (onstart fires async; this is instant)
-    setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
 
     // Hard stop after 12 seconds regardless
     hardTimerRef.current = setTimeout(() => {

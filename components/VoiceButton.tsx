@@ -29,13 +29,24 @@ export default function VoiceButton({ onTap, onLongPress, size, isListening, isP
     }, LONG_PRESS_MS)
   }, [enabled, onLongPress])
 
-  const handlePointerUp = useCallback(() => {
+  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     if (timerRef.current) {
       clearTimeout(timerRef.current)
       timerRef.current = null
     }
-    if (!longPressedRef.current && enabled) onTap()
-    longPressedRef.current = false
+    // Do not call onTap here. onClick will handle it so we keep a native user-gesture.
+    // Delay clearing longPressedRef so onClick knows if this was a long press.
+    setTimeout(() => {
+      longPressedRef.current = false
+    }, 0)
+  }, [])
+
+  const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (enabled) e.stopPropagation()
+    if (!enabled) return
+    if (!longPressedRef.current) {
+      onTap()
+    }
   }, [enabled, onTap])
 
   const handlePointerLeave = useCallback(() => {
@@ -112,7 +123,7 @@ export default function VoiceButton({ onTap, onLongPress, size, isListening, isP
         onPointerLeave={handlePointerLeave}
         onPointerCancel={handlePointerCancel}
         onContextMenu={e => e.preventDefault()}
-        onClick={e => { if (enabled) e.stopPropagation() }}
+        onClick={handleClick}
         style={{ touchAction: 'none', WebkitTapHighlightColor: 'transparent' }}
         aria-label="Tap to ask Habitiq, hold for quick add"
         role="button"

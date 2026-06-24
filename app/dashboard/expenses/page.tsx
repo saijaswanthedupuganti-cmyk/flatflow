@@ -4054,56 +4054,6 @@ export default function ExpensesPage() {
             </div>
           )}
 
-          {/* ── Pending Member Bills — admin approval queue ──────────────── */}
-          {isAdmin && (() => {
-            const pending = billInstances.filter(b =>
-              b.status === 'member_submitted' && b.month === currentMonthKey()
-            )
-            if (!pending.length) return null
-            return (
-              <div className="rounded-[16px] border-2 border-amber-300 dark:border-amber-600 overflow-hidden">
-                <div className="flex items-center gap-2 px-4 py-3 bg-amber-50 dark:bg-amber-950/30">
-                  <AlertCircle size={14} className="text-amber-600 dark:text-amber-400 shrink-0" />
-                  <p className="text-[12px] font-bold text-amber-700 dark:text-amber-300 flex-1">
-                    {pending.length} member bill{pending.length > 1 ? 's' : ''} awaiting your approval
-                  </p>
-                </div>
-                <div className="divide-y divide-border/40">
-                  {pending.map(inst => {
-                    const submitter = members.find(m => m.uid === inst.generatedBy)
-                    const payer = members.find(m => m.uid === inst.paidBy)
-                    const cfg = CATEGORY_CONFIG[inst.category]
-                    return (
-                      <div key={inst.id} className="px-4 py-3.5 bg-card flex items-center gap-3">
-                        <span className="text-[20px] shrink-0">{cfg?.emoji ?? '📄'}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[13px] font-bold text-foreground truncate">{inst.name}</p>
-                          <p className="text-[11px] text-muted-foreground mt-0.5">
-                            ₹{inst.amount?.toLocaleString('en-IN') ?? '—'} · paid by <span className="font-semibold">{payer?.nickname ?? '…'}</span>
-                            {submitter && submitter.uid !== payer?.uid && <> · submitted by <span className="font-semibold">{submitter.nickname}</span></>}
-                          </p>
-                        </div>
-                        <div className="flex gap-2 shrink-0">
-                          <button
-                            onClick={() => rejectMemberBill(inst.id)}
-                            className="px-3 py-1.5 text-[11px] font-bold text-red-600 border border-red-200 dark:border-red-800 rounded-full hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
-                          >
-                            Reject
-                          </button>
-                          <button
-                            onClick={() => approveMemberBill(inst.id)}
-                            className="px-3 py-1.5 text-[11px] font-bold text-white bg-[#7c3aed] rounded-full hover:bg-[#6d28d9] transition-colors cursor-pointer"
-                          >
-                            Approve
-                          </button>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-            )
-          })()}
 
           {/* Treasurer chip — compact, below the toggle, change panel expands inline */}
           <div className="rounded-[12px] border border-[#c7d7f5] dark:border-[#2d3a6b] bg-[#f0f4ff] dark:bg-[#1a1f3a] overflow-hidden">
@@ -4314,7 +4264,7 @@ export default function ExpensesPage() {
           })()}
 
 
-          {recurringBills.filter(b => b.active).length === 0 ? (
+          {recurringBills.filter(b => b.active).length === 0 && !billInstances.some(b => b.status === 'member_submitted' && b.month === currentMonthKey()) ? (
             <Card className="border-dashed border-2">
               <CardContent className="flex flex-col items-center justify-center p-8 text-center">
                 <RefreshCw size={28} className="text-muted-foreground/20 mb-2.5" />
@@ -4753,6 +4703,50 @@ export default function ExpensesPage() {
                         )}
                       </>
                     )}
+                  </div>
+                )
+              })}
+              {/* ── Member-submitted bills (in the pipeline, pending admin generate) ── */}
+              {billInstances.filter(b => b.status === 'member_submitted' && b.month === currentMonthKey()).map(inst => {
+                const submitter = members.find(m => m.uid === inst.generatedBy)
+                const cfg = CATEGORY_CONFIG[inst.category]
+                return (
+                  <div key={inst.id} className="rounded-[20px] shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] overflow-hidden bg-card border border-border/50 border-l-4 border-l-violet-400">
+                    <div className="flex items-center gap-3 px-4 py-3.5">
+                      <div
+                        className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0', cfg?.color ?? 'bg-white/[0.07]'].join(' ')}
+                        style={cfg?.hex ? { boxShadow: `inset 0 0 0 1px ${cfg.hex}30` } : undefined}
+                      >
+                        {cfg?.emoji ?? '📄'}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <p className="text-[13.5px] font-bold text-[#021328] dark:text-foreground truncate">{inst.name}</p>
+                          <span className="text-[9.5px] font-extrabold px-1.5 py-0.5 rounded-full bg-violet-50 dark:bg-violet-950/20 text-violet-600 dark:text-violet-400 uppercase tracking-wide shrink-0">
+                            Submitted
+                          </span>
+                        </div>
+                        <p className="text-[10.5px] text-[#999CA1] mt-0.5">
+                          ₹{inst.amount?.toLocaleString('en-IN') ?? '—'} · submitted by <span className="font-semibold">{submitter?.nickname ?? '…'}</span>
+                        </p>
+                      </div>
+                      {isAdmin && (
+                        <div className="flex gap-2 shrink-0">
+                          <button
+                            onClick={() => rejectMemberBill(inst.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold text-red-600 border border-red-200 dark:border-red-800 rounded-full hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                          >
+                            Remove
+                          </button>
+                          <button
+                            onClick={() => approveMemberBill(inst.id)}
+                            className="px-3 py-1.5 text-[11px] font-bold text-white bg-[#7c3aed] rounded-full hover:bg-[#6d28d9] transition-colors cursor-pointer"
+                          >
+                            Generate
+                          </button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 )
               })}

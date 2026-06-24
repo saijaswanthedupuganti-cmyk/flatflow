@@ -1,12 +1,13 @@
 "use client"
 import { useEffect, useRef, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { X, Send } from 'lucide-react'
+import { X, Send, Mic } from 'lucide-react'
 
 interface Props {
   isOpen: boolean
   onClose: () => void
   onSubmit: (text: string) => void
+  onRetryMic?: () => void
 }
 
 const EXAMPLES = [
@@ -16,7 +17,7 @@ const EXAMPLES = [
   'What are my tasks?',
 ]
 
-export default function VoiceFallbackModal({ isOpen, onClose, onSubmit }: Props) {
+export default function VoiceFallbackModal({ isOpen, onClose, onSubmit, onRetryMic }: Props) {
   const [text, setText] = useState('')
   const inputRef = useRef<HTMLInputElement>(null)
 
@@ -88,6 +89,19 @@ export default function VoiceFallbackModal({ isOpen, onClose, onSubmit }: Props)
                   className="flex-1 rounded-xl px-4 py-3 text-sm text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus:ring-2 focus:ring-primary/30"
                   style={{ background: 'var(--secondary)', border: '1px solid var(--border)' }}
                 />
+                
+                {onRetryMic && (
+                  <button
+                    onClick={() => {
+                      onClose()
+                      onRetryMic()
+                    }}
+                    className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 border border-border text-muted-foreground hover:text-foreground hover:bg-secondary transition-colors cursor-pointer"
+                  >
+                    <Mic size={18} />
+                  </button>
+                )}
+
                 <button
                   onClick={handleSubmit}
                   disabled={!text.trim()}

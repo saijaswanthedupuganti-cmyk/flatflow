@@ -25,7 +25,6 @@ import VoiceFallbackModal from '@/components/VoiceFallbackModal'
 import MicPermissionModal from '@/components/MicPermissionModal'
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant'
 import { useVoiceProcessor } from '@/hooks/useVoiceProcessor'
-import { requestMicPermission } from '@/lib/voice/permissions'
 import { initTTS, tts } from '@/lib/voice/tts/speechSynthesis'
 
 const NAV_ITEMS = {

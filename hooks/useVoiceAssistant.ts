@@ -1,7 +1,6 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { tts } from '@/lib/voice/tts/speechSynthesis'
-import { getMicPermissionState } from '@/lib/voice/permissions'
 
 export type VoiceStatus = 'idle' | 'listening' | 'processing' | 'responding' | 'error'
 
@@ -34,11 +33,11 @@ interface UseVoiceAssistantReturn {
 }
 
 const ERROR_MAP: Record<string, VoiceError> = {
-  'no-speech':     { code: 'no-speech',     message: "Didn't hear anything — try again?",          recoverable: true  },
+  'no-speech':     { code: 'no-speech',     message: "Didn't hear anything — try again",           recoverable: true  },
   'audio-capture': { code: 'audio-capture', message: 'Microphone not found',                        recoverable: false },
-  'not-allowed':   { code: 'not-allowed',   message: 'Microphone access denied — enable in settings', recoverable: true },
-  'network':       { code: 'network',       message: 'Connection issue — try again',                recoverable: true  },
-  'aborted':       { code: 'aborted',       message: 'Cancelled',                                   recoverable: true  },
+  'not-allowed':   { code: 'not-allowed',   message: 'Microphone blocked — allow it in settings',   recoverable: true  },
+  'network':       { code: 'network',       message: 'Network error — check your connection',        recoverable: true  },
+  'aborted':       { code: 'aborted',       message: 'Cancelled',                                    recoverable: true  },
 }
 
 const IDLE: VoiceState = {
@@ -52,7 +51,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
   const hardTimerRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
   const transcriptCbRef   = useRef<((r: VoiceResult) => void) | null>(null)
 
-  // Refs that mirror in-flight recognition session data — safe to read outside setState
   const capturedTranscriptRef = useRef('')
   const capturedConfidenceRef = useRef(0)
 
@@ -77,46 +75,52 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
     }
   }, [])
 
-  const startListening = useCallback(async () => {
+  // IMPORTANT: startListening must be SYNCHRONOUS — no async/await before recognition.start().
+  // Chrome (desktop and Android) gates SpeechRecognition behind the user-gesture context.
+  // Any await before recognition.start() breaks that context, causing silent not-allowed.
+  // The browser's own "Allow microphone?" dialog fires from recognition.start() natively,
+  // exactly like ChatGPT/Gemini — no getUserMedia pre-call needed.
+  const startListening = useCallback(() => {
     if (!isSupported) {
-      setState(prev => ({ ...prev, status: 'error', error: { code: 'not-supported', message: 'Voice is not supported on this device', recoverable: false } }))
+      setState(prev => ({
+        ...prev,
+        status: 'error',
+        error: { code: 'not-supported', message: 'Voice not supported on this device', recoverable: false },
+      }))
       return
     }
 
     stopListening()
 
-    // Immediately show the listening overlay (Gemini graphic) while we negotiate permissions
     setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
 
     const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
     const recognition = new SpeechRecognitionAPI()
 
-    recognition.continuous      = false  // single-utterance: auto-stops after speech pause
+    recognition.continuous      = false
     recognition.interimResults  = true
-    recognition.lang            = 'en-US' // en-US has broadest coverage; works well with Indian English
+    recognition.lang            = 'en-US'
     recognition.maxAlternatives = 1
 
-    // Reset per-session capture refs
     capturedTranscriptRef.current = ''
     capturedConfidenceRef.current = 0
 
-    // Track whether onerror already fired so onend doesn't duplicate the TTS feedback
     let hadError = false
 
     try {
       const GrammarList = (window as any).SpeechGrammarList || (window as any).webkitSpeechGrammarList
       if (GrammarList) {
-        const grammar = new GrammarList()
-        grammar.addFromString(
+        const g = new GrammarList()
+        g.addFromString(
           '#JSGF V1.0; grammar habitiq; ' +
           'public <task> = kitchen | bathroom | cleaning | dishes | garbage | laundry | cooking | dusting | sweeping | mopping; ' +
           'public <action> = done | completed | finished | add | spend | spent | split | pay | paid | owe | how much | what | who; ' +
           'public <currency> = rupees | rupee | rs | bucks;',
-          1
+          1,
         )
-        recognition.grammars = grammar
+        recognition.grammars = g
       }
-    } catch { /* grammar not supported — continue without */ }
+    } catch { /* grammar hint not supported — fine */ }
 
     recognition.onstart = () => {
       setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
@@ -141,7 +145,6 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       if (finalTranscript) {
         capturedTranscriptRef.current += finalTranscript
         capturedConfidenceRef.current  = maxConfidence
-        // Schedule stop 1.5s after the last final result
         clearTimers()
         silenceTimerRef.current = setTimeout(() => {
           if (recognitionRef.current) recognitionRef.current.stop()
@@ -160,16 +163,26 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       hadError = true
       clearTimers()
       recognitionRef.current = null
-      const voiceError = ERROR_MAP[event.error] ?? { code: 'network' as const, message: 'Something went wrong', recoverable: true }
+
+      const voiceError = ERROR_MAP[event.error] ?? {
+        code: 'network' as const,
+        message: 'Something went wrong',
+        recoverable: true,
+      }
       setState(prev => ({ ...prev, status: 'error', error: voiceError }))
-      // Speak error feedback — TTS calls are outside setState (safe)
-      if (event.error === 'no-speech') {
-        tts.speak("I didn't catch that. Try again.")
-      } else if (event.error === 'not-allowed') {
-        // Mute this TTS error! The UI will show a fallback or banner instead.
-        // Users find the repeating "Microphone access is blocked" very annoying.
+
+      if (event.error === 'not-allowed' || event.error === 'audio-capture') {
+        tts.speak('Microphone access is blocked. Please allow microphone in your browser settings.')
+        setTimeout(() => setState(prev => prev.status === 'error' ? IDLE : prev), 5000)
+      } else if (event.error === 'no-speech') {
+        tts.speak("Didn't catch that. Tap the mic and try again.")
+        setTimeout(() => setState(prev => prev.status === 'error' ? IDLE : prev), 3000)
+      } else if (event.error === 'network') {
+        tts.speak('Network error. Check your connection and try again.')
+        setTimeout(() => setState(prev => prev.status === 'error' ? IDLE : prev), 3000)
       } else if (event.error !== 'aborted') {
-        tts.speak("Something went wrong. Tap the mic and try again.")
+        tts.speak('Something went wrong. Tap the mic to try again.')
+        setTimeout(() => setState(prev => prev.status === 'error' ? IDLE : prev), 3000)
       }
     }
 
@@ -177,49 +190,33 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       clearTimers()
       recognitionRef.current = null
 
-      const captured    = capturedTranscriptRef.current
-      const confidence  = capturedConfidenceRef.current
+      const captured   = capturedTranscriptRef.current
+      const confidence = capturedConfidenceRef.current
       capturedTranscriptRef.current = ''
       capturedConfidenceRef.current = 0
 
       if (captured) {
-        // Have a transcript — hand off to NLU processor and show "thinking" state
         setState(prev => ({ ...prev, status: 'processing', interimTranscript: '' }))
-        // Call the processor callback OUTSIDE setState (safe side effect)
         transcriptCbRef.current?.({ transcript: captured, confidence: confidence || 0.8 })
         return
       }
 
-      // No transcript and no error already handled — user didn't speak
       setState(prev => prev.status === 'error' ? prev : { ...prev, status: 'idle', interimTranscript: '' })
       if (!hadError) {
         tts.speak("I didn't hear anything. Tap the mic and say your command.")
       }
     }
 
-    // Only block if mic is explicitly denied. For 'granted' / 'prompt' / unknown,
-    // let SpeechRecognition manage its own mic acquisition — calling getUserMedia
-    // first and stopping the tracks causes a race on Android Chrome where the mic
-    // is in mid-release when recognition.start() fires, producing silent onend with
-    // no transcript. iOS is unaffected (different audio session model), which is
-    // why this bug only showed on Android.
-    const permState = await getMicPermissionState()
-    if (permState === 'denied') {
-      setState(prev => ({ ...prev, status: 'error', error: { code: 'not-allowed', message: 'Microphone access denied', recoverable: true } }))
-      setTimeout(() => setState(prev => (prev.status === 'error' ? IDLE : prev)), 4000)
-      return
-    }
-
     recognitionRef.current = recognition
+
+    // Called synchronously inside user gesture — browser shows native permission dialog if needed.
     try {
       recognition.start()
     } catch {
-      setState(prev => ({ ...prev, status: 'idle' }))
+      setState(IDLE)
       recognitionRef.current = null
-      return
     }
 
-    // Hard stop after 12 seconds regardless
     hardTimerRef.current = setTimeout(() => {
       if (recognitionRef.current) recognitionRef.current.stop()
     }, 12_000)

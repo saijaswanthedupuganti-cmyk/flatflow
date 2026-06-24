@@ -18,7 +18,7 @@ export interface MonthSummary {
 // ── Per-member bill summary for the collector view ────────────────────────────
 export interface MemberBillSummary {
   totalShare: number        // sum of all bill splits owed by this member this month
-  contributions: number     // net credit from bills this member personally paid (paid amount minus own share)
+  contributions: number     // full amount this member paid to vendors from pocket (includes own share)
   settled: number           // amount already paid to/from the collector via settlements
   outstanding: number       // totalShare - contributions - settled (positive = owes collector)
 }
@@ -169,14 +169,11 @@ export function computeMemberBillSummary(
       if (share > 0) ensure(uid).totalShare += share
     }
 
-    // If someone actually paid the vendor, credit their contribution
-    // contribution = what they paid externally minus their own share
+    // If someone paid the vendor, credit the full amount they paid from pocket.
+    // Their own share is already in totalShare above, so contributions = full amount
+    // ensures outstanding = 0 for a payer whose share equals what they paid.
     if (instance.status === 'paid' && instance.amount != null && instance.amount > 0) {
-      const ownShare = instance.splits[instance.paidBy] ?? 0
-      const roomCredit = instance.amount - ownShare
-      if (roomCredit > 0.5) {
-        ensure(instance.paidBy).contributions += roomCredit
-      }
+      ensure(instance.paidBy).contributions += instance.amount
     }
   }
 

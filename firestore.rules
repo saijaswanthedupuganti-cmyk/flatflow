@@ -238,10 +238,13 @@ service cloud.firestore {
         // Admin can update any field (skip, edit amount, etc.)
         // Payer can mark paid and update collection tracking
         // Designated collector can update collection tracking
+        // Any member can self-mark their own collectedFrom entry (tap Pending → Received)
         allow update: if isAdmin(flatId)
           || (isMember(flatId) && resource.data.paidBy == request.auth.uid
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'collectedFrom']))
           || (isMember(flatId) && resource.data.collectorId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collectedFrom']))
+          || (isMember(flatId)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collectedFrom']));
         // Admin can delete (needed for flat deletion)
         allow delete: if isAdmin(flatId);

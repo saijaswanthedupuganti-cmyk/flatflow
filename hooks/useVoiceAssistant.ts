@@ -1,7 +1,7 @@
 "use client"
 import { useState, useCallback, useRef, useEffect } from 'react'
 import { tts } from '@/lib/voice/tts/speechSynthesis'
-import { requestMicPermission } from '@/lib/voice/permissions'
+import { getMicPermissionState } from '@/lib/voice/permissions'
 
 export type VoiceStatus = 'idle' | 'listening' | 'processing' | 'responding' | 'error'
 
@@ -197,14 +197,15 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       }
     }
 
-    // Force an audio stream unlock first. This prevents Chrome from silently 
-    // rejecting SpeechRecognition on localhost or when gesture contexts break.
-    const perm = await requestMicPermission()
-    if (perm !== 'granted') {
+    // Only block if mic is explicitly denied. For 'granted' / 'prompt' / unknown,
+    // let SpeechRecognition manage its own mic acquisition — calling getUserMedia
+    // first and stopping the tracks causes a race on Android Chrome where the mic
+    // is in mid-release when recognition.start() fires, producing silent onend with
+    // no transcript. iOS is unaffected (different audio session model), which is
+    // why this bug only showed on Android.
+    const permState = await getMicPermissionState()
+    if (permState === 'denied') {
       setState(prev => ({ ...prev, status: 'error', error: { code: 'not-allowed', message: 'Microphone access denied', recoverable: true } }))
-      tts.speak("I need microphone access to hear you. Please allow it in your browser settings.")
-      
-      // Auto-hide the visualizer after saying the error
       setTimeout(() => setState(prev => (prev.status === 'error' ? IDLE : prev)), 4000)
       return
     }

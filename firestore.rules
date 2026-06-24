@@ -233,8 +233,12 @@ service cloud.firestore {
         // All members can read
         allow read: if isMember(flatId);
         // Admin creates instances (via generateBill)
-        allow create: if isAdmin(flatId)
-          && request.resource.data.generatedBy == request.auth.uid;
+        // Members can record a one-time bill they personally paid (Record a Bill I Paid)
+        allow create: if (isAdmin(flatId) && request.resource.data.generatedBy == request.auth.uid)
+          || (isMember(flatId)
+              && request.resource.data.isOneTime == true
+              && request.resource.data.generatedBy == request.auth.uid
+              && request.resource.data.paidBy == request.auth.uid);
         // Admin can update any field (skip, edit amount, etc.)
         // Payer can mark paid and update collection tracking
         // Designated collector can update collection tracking

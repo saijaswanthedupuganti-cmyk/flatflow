@@ -323,7 +323,7 @@ interface FlatState {
   setBillingCycleDay: (day: number) => Promise<void>
 
   // Member-submitted bill approval — admin only
-  approveMemberBill: (instanceId: string) => Promise<void>
+  approveMemberBill: (instanceId: string, overrides?: { name?: string; amount?: number; paidBy?: string }) => Promise<void>
   rejectMemberBill: (instanceId: string) => Promise<void>
 
   // One-time (reconciliation) bill instances — any member can record a bill they paid
@@ -1737,11 +1737,17 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     })
   },
 
-  approveMemberBill: async (instanceId) => {
+  approveMemberBill: async (instanceId, overrides) => {
     const state = get()
     const instance = state.billInstances.find(b => b.id === instanceId)
     if (!instance) return
-    const changes = { status: 'paid' as BillInstanceStatus, paidAt: new Date().toISOString() }
+    const changes: Partial<BillInstance> & { status: BillInstanceStatus; paidAt: string } = {
+      status: 'paid',
+      paidAt: new Date().toISOString(),
+      ...(overrides?.name   && { name:   overrides.name }),
+      ...(overrides?.amount && { amount: overrides.amount }),
+      ...(overrides?.paidBy && { paidBy: overrides.paidBy }),
+    }
     if (hasKeys && state.flatId) {
       await updateDoc(doc(db, `flats/${state.flatId}/billInstances/${instanceId}`), changes)
     } else {
@@ -1751,7 +1757,7 @@ export const useFlatStore = create<FlatState>((set, get) => ({
     void get().addActivity({
       userId: useAuthStore.getState().user?.uid ?? instance.generatedBy,
       action: 'bill_paid',
-      details: `approved "${instance.name}" ₹${instance.amount ?? 0} submitted by ${submitter?.nickname ?? 'member'}`,
+      details: `approved "${changes.name ?? instance.name}" ₹${changes.amount ?? instance.amount ?? 0} submitted by ${submitter?.nickname ?? 'member'}`,
     })
   },
 

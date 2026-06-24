@@ -2438,6 +2438,8 @@ export default function ExpensesPage() {
   const [pendingAmounts, setPendingAmounts]      = useState<Record<string, string>>({})
   const [confirmingAmount, setConfirmingAmount]  = useState<string | null>(null)
   const [editingInstanceId, setEditingInstanceId] = useState<string | null>(null)
+  const [expandedMemberBillId, setExpandedMemberBillId] = useState<string | null>(null)
+  const [memberBillEdits, setMemberBillEdits] = useState<Record<string, { name: string; amount: string; payerUid: string }>>({})
   const [showResetConfirm, setShowResetConfirm] = useState(false)
   const [resetting, setResetting] = useState(false)
   const [showSplitsMenu, setShowSplitsMenu] = useState(false)
@@ -4710,9 +4712,22 @@ export default function ExpensesPage() {
               {billInstances.filter(b => b.status === 'member_submitted' && b.month === currentMonthKey()).map(inst => {
                 const submitter = members.find(m => m.uid === inst.generatedBy)
                 const cfg = CATEGORY_CONFIG[inst.category]
+                const isExpanded = expandedMemberBillId === inst.id
+                const edits = memberBillEdits[inst.id]
+                const editName    = edits?.name    ?? inst.name
+                const editAmount  = edits?.amount  ?? inst.amount?.toString() ?? ''
+                const editPayerUid = edits?.payerUid ?? inst.paidBy ?? inst.generatedBy
+                const patchEdits = (patch: Partial<{ name: string; amount: string; payerUid: string }>) =>
+                  setMemberBillEdits(prev => ({ ...prev, [inst.id]: { name: editName, amount: editAmount, payerUid: editPayerUid, ...patch } }))
+
                 return (
                   <div key={inst.id} className="rounded-[20px] shadow-[0px_4px_16px_0px_rgba(0,0,0,0.08)] overflow-hidden bg-card border border-border/50 border-l-4 border-l-violet-400">
-                    <div className="flex items-center gap-3 px-4 py-3.5">
+                    {/* Header — clickable to expand for editing */}
+                    <button
+                      type="button"
+                      onClick={() => setExpandedMemberBillId(prev => prev === inst.id ? null : inst.id)}
+                      className="w-full flex items-center gap-3 px-4 py-3.5 text-left"
+                    >
                       <div
                         className={['w-10 h-10 rounded-[12px] flex items-center justify-center text-xl shrink-0', cfg?.color ?? 'bg-white/[0.07]'].join(' ')}
                         style={cfg?.hex ? { boxShadow: `inset 0 0 0 1px ${cfg.hex}30` } : undefined}
@@ -4727,26 +4742,94 @@ export default function ExpensesPage() {
                           </span>
                         </div>
                         <p className="text-[10.5px] text-[#999CA1] mt-0.5">
-                          ₹{inst.amount?.toLocaleString('en-IN') ?? '—'} · submitted by <span className="font-semibold">{submitter?.nickname ?? '…'}</span>
+                          ₹{inst.amount?.toLocaleString('en-IN') ?? '—'} · by <span className="font-semibold">{submitter?.nickname ?? '…'}</span>
                         </p>
                       </div>
-                      {isAdmin && (
-                        <div className="flex gap-2 shrink-0">
+                      <ChevronDown size={14} className={['text-[#999CA1] transition-transform shrink-0', isExpanded ? 'rotate-180' : ''].join(' ')} />
+                    </button>
+
+                    {/* Expanded: edit fields + action buttons */}
+                    {isExpanded && isAdmin && (
+                      <>
+                        <div className="px-4 py-3 border-t border-border/40 space-y-3 bg-secondary/10">
+                          {/* Bill Name */}
+                          <div>
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-1">Bill Name</p>
+                            <input
+                              type="text"
+                              value={editName}
+                              onChange={e => patchEdits({ name: e.target.value })}
+                              className="w-full rounded-[10px] bg-card border border-border/60 px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                            />
+                          </div>
+                          {/* Amount */}
+                          <div>
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-1">Amount (₹)</p>
+                            <input
+                              type="number"
+                              min="1"
+                              value={editAmount}
+                              onChange={e => patchEdits({ amount: e.target.value })}
+                              className="w-full rounded-[10px] bg-card border border-border/60 px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                            />
+                          </div>
+                          {/* Paid By */}
+                          <div>
+                            <p className="text-[9.5px] font-bold text-[#999CA1] uppercase tracking-wider mb-1">Paid By</p>
+                            <select
+                              value={editPayerUid}
+                              onChange={e => patchEdits({ payerUid: e.target.value })}
+                              className="w-full rounded-[10px] bg-card border border-border/60 px-3 py-2 text-sm font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-violet-500/30"
+                            >
+                              {members.map(m => <option key={m.uid} value={m.uid}>{m.nickname}</option>)}
+                            </select>
+                            <p className="text-[10px] text-[#999CA1] mt-1.5">
+                              Added by <span className="font-semibold text-foreground">{submitter?.nickname ?? '…'}</span> — verify before generating
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex border-t border-border/40">
                           <button
                             onClick={() => rejectMemberBill(inst.id)}
-                            className="px-3 py-1.5 text-[11px] font-bold text-red-600 border border-red-200 dark:border-red-800 rounded-full hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors cursor-pointer"
+                            className="flex-1 py-2.5 text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
                           >
                             Remove
                           </button>
                           <button
-                            onClick={() => approveMemberBill(inst.id)}
-                            className="px-3 py-1.5 text-[11px] font-bold text-white bg-[#7c3aed] rounded-full hover:bg-[#6d28d9] transition-colors cursor-pointer"
+                            onClick={async () => {
+                              const amt = parseFloat(editAmount)
+                              await approveMemberBill(inst.id, {
+                                name:   editName.trim() || undefined,
+                                amount: amt > 0 ? amt : undefined,
+                                paidBy: editPayerUid || undefined,
+                              })
+                              setExpandedMemberBillId(null)
+                            }}
+                            className="flex-1 py-2.5 text-[11px] font-bold text-white bg-[#7c3aed] hover:bg-[#6d28d9] border-l border-border/40 transition-colors cursor-pointer"
                           >
                             Generate
                           </button>
                         </div>
-                      )}
-                    </div>
+                      </>
+                    )}
+
+                    {/* Collapsed admin actions — quick path without editing */}
+                    {!isExpanded && isAdmin && (
+                      <div className="flex border-t border-border/40">
+                        <button
+                          onClick={e => { e.stopPropagation(); rejectMemberBill(inst.id) }}
+                          className="flex-1 py-2.5 text-[11px] font-bold text-red-500 hover:bg-red-50 dark:hover:bg-red-950/20 transition-colors cursor-pointer"
+                        >
+                          Remove
+                        </button>
+                        <button
+                          onClick={e => { e.stopPropagation(); approveMemberBill(inst.id) }}
+                          className="flex-1 py-2.5 text-[11px] font-bold text-white bg-[#7c3aed] hover:bg-[#6d28d9] border-l border-border/40 transition-colors cursor-pointer"
+                        >
+                          Generate
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )
               })}

@@ -33,11 +33,12 @@ interface UseVoiceAssistantReturn {
 }
 
 const ERROR_MAP: Record<string, VoiceError> = {
-  'no-speech':     { code: 'no-speech',     message: "Didn't hear anything — try again",           recoverable: true  },
-  'audio-capture': { code: 'audio-capture', message: 'Microphone not found',                        recoverable: false },
-  'not-allowed':   { code: 'not-allowed',   message: 'Microphone blocked — allow it in settings',   recoverable: true  },
-  'network':       { code: 'network',       message: 'Network error — check your connection',        recoverable: true  },
-  'aborted':       { code: 'aborted',       message: 'Cancelled',                                    recoverable: true  },
+  'no-speech':          { code: 'no-speech',     message: "Didn't hear anything — try again",           recoverable: true  },
+  'audio-capture':      { code: 'audio-capture', message: 'Microphone not found',                        recoverable: false },
+  'not-allowed':        { code: 'not-allowed',   message: 'Microphone blocked — allow it in settings',   recoverable: true  },
+  'service-not-allowed':{ code: 'not-allowed',   message: 'Microphone blocked — allow it in settings',   recoverable: true  },
+  'network':            { code: 'network',       message: 'Speech recognition needs internet access',     recoverable: true  },
+  'aborted':            { code: 'aborted',       message: 'Cancelled',                                    recoverable: true  },
 }
 
 const IDLE: VoiceState = {

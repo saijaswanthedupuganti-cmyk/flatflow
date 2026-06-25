@@ -22,7 +22,7 @@ import VoiceButton from '@/components/VoiceButton'
 import VoiceListeningOverlay from '@/components/VoiceListeningOverlay'
 import VoiceResponseCard from '@/components/VoiceResponseCard'
 import VoiceFallbackModal from '@/components/VoiceFallbackModal'
-import MicPermissionModal from '@/components/MicPermissionModal'
+import MicPermissionModal, { type MicModalMode } from '@/components/MicPermissionModal'
 import { useVoiceAssistant } from '@/hooks/useVoiceAssistant'
 import { useVoiceProcessor } from '@/hooks/useVoiceProcessor'
 import { initTTS, tts } from '@/lib/voice/tts/speechSynthesis'
@@ -67,6 +67,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return localStorage.getItem('habitiq-voice') !== 'false'
   })
   const [showFallback, setShowFallback] = useState(false)
+  const [micModal, setMicModal] = useState<MicModalMode | null>(null)
+  // Tracks whether the browser has already denied mic at the site level.
+  // Populated asynchronously — used to skip recognition and show the fix guide directly.
+  const micDeniedRef = useRef(false)
 
   const voice     = useVoiceAssistant()
   const processor = useVoiceProcessor()
@@ -88,18 +92,43 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
 
-  // Automatically trigger the typing fallback modal if the device/OS permanently blocks the microphone.
+  // Route voice errors to the right modal based on error type and device capability.
   useEffect(() => {
-    if (voice.state.status === 'error' && voice.state.error) {
-      if (['not-allowed', 'audio-capture', 'not-supported'].includes(voice.state.error.code)) {
-        // Add a slight delay to allow the overlay to close smoothly before popping the modal
-        const t = setTimeout(() => setShowFallback(true), 400)
-        return () => clearTimeout(t)
-      }
-    }
-  }, [voice.state.status, voice.state.error])
+    if (voice.state.status !== 'error' || !voice.state.error) return
+    const { code } = voice.state.error
 
-  // When SpeechRecognition fires an error, VoiceAssistant handles it natively now.
+    const t = setTimeout(() => {
+      if (code === 'not-supported') {
+        // Device genuinely can't do voice → typing fallback
+        setShowFallback(true)
+      } else if ((code === 'not-allowed' || code === 'audio-capture') && voice.isSupported) {
+        // Device supports voice but Chrome blocked the site — show Chrome fix guide
+        setMicModal('blocked')
+      } else if (code === 'not-allowed' || code === 'audio-capture') {
+        // Not supported at all
+        setShowFallback(true)
+      } else if (code === 'network') {
+        // Google Speech API unreachable — show network help
+        setMicModal('network')
+      }
+      // no-speech / aborted: handled by TTS + auto-reset in useVoiceAssistant
+    }, 400)
+
+    return () => clearTimeout(t)
+  }, [voice.state.status, voice.state.error, voice.isSupported])
+
+  // Proactively query mic permission so we can show the fix guide before starting
+  // recognition, avoiding a confusing silent failure on Android Chrome.
+  useEffect(() => {
+    if (typeof navigator === 'undefined' || !navigator.permissions) return
+    navigator.permissions
+      .query({ name: 'microphone' as PermissionName })
+      .then(result => {
+        micDeniedRef.current = result.state === 'denied'
+        result.onchange = () => { micDeniedRef.current = result.state === 'denied' }
+      })
+      .catch(() => {})
+  }, [])
 
   const startVoice = useCallback(() => {
     initTTS()
@@ -111,6 +140,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
     if (!isSynced) return
+
+    // If we already know Chrome blocked the mic at site level, skip recognition
+    // and go straight to the fix guide. Avoids the confusing "nothing happens" UX.
+    if (micDeniedRef.current) { setMicModal('blocked'); return }
 
     setShowQuickAdd(false)  // close petals before opening mic
     startVoice()
@@ -415,6 +448,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         onClose={() => setShowFallback(false)}
         onSubmit={(text) => { void processor.process(text); setShowFallback(false) }}
         onRetryMic={handleVoiceTap}
+      />
+      <MicPermissionModal
+        isOpen={!!micModal}
+        mode={micModal ?? 'blocked'}
+        onAllow={() => { setMicModal(null); startVoice() }}
+        onDismiss={() => setMicModal(null)}
+        onTypeInstead={() => { setMicModal(null); setShowFallback(true) }}
       />
 
       {/* ── Mobile Bottom Nav ─────────────────────────── */}

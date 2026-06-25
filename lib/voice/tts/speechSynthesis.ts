@@ -48,6 +48,21 @@ class VoiceSynthesizer {
     this.synth.speak(utterance)
   }
 
+  // Must be called synchronously inside a user-gesture handler (click/tap).
+  // Primes the audio context so async speak() calls work on iOS/Android.
+  unlock(): void {
+    if (!this.isAvailable) return
+    if (!this.synth) this.init()
+    try {
+      const u = new SpeechSynthesisUtterance(' ')
+      u.volume = 0
+      u.rate   = 10
+      this.synth!.cancel()
+      this.synth!.speak(u)
+      setTimeout(() => this.synth?.cancel(), 50)
+    } catch { /* ignore */ }
+  }
+
   stop(): void {
     this.synth?.cancel()
   }

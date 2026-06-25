@@ -88,19 +88,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     processorWasActive.current = processor.isProcessing
   }, [processor.isProcessing, voice.reset])
 
+  // Automatically trigger the typing fallback modal if the device/OS permanently blocks the microphone.
+  useEffect(() => {
+    if (voice.state.status === 'error' && voice.state.error) {
+      if (['not-allowed', 'audio-capture', 'not-supported'].includes(voice.state.error.code)) {
+        // Add a slight delay to allow the overlay to close smoothly before popping the modal
+        const t = setTimeout(() => setShowFallback(true), 400)
+        return () => clearTimeout(t)
+      }
+    }
+  }, [voice.state.status, voice.state.error])
+
   // When SpeechRecognition fires an error, VoiceAssistant handles it natively now.
 
   const startVoice = useCallback(() => {
     initTTS()
+    tts.unlock()  // prime audio context synchronously in user gesture (iOS/Android fix)
     voice.startListening()
   }, [voice.startListening])
 
   const handleVoiceTap = useCallback(() => {
     if (!voiceEnabled) return
     if (!voice.isSupported) { setShowFallback(true); return }
-    // Don't start until Firestore has synced
     if (!isSynced) return
 
+    setShowQuickAdd(false)  // close petals before opening mic
     startVoice()
   }, [voiceEnabled, voice.isSupported, isSynced, startVoice])
 
@@ -508,7 +520,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
                 <VoiceButton
                   size="fab"
                   onTap={handleVoiceTap}
-                  onLongPress={() => setShowQuickAdd(v => !v)}
+                  onLongPress={voice.state.status === 'idle' ? () => setShowQuickAdd(v => !v) : undefined}
                   isListening={voice.state.status === 'listening'}
                   isProcessing={voice.state.status === 'processing' || processor.isProcessing}
                   enabled={voiceEnabled}

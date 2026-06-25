@@ -53,6 +53,9 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
 
   const capturedTranscriptRef = useRef('')
   const capturedConfidenceRef = useRef(0)
+  // Tracks the last interim result so we can fall back to it if the browser
+  // never fires isFinal:true before onend (common on Android Chrome).
+  const lastInterimRef = useRef('')
 
   const isSupported = typeof window !== 'undefined' &&
     ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)
@@ -104,23 +107,14 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
 
     capturedTranscriptRef.current = ''
     capturedConfidenceRef.current = 0
+    lastInterimRef.current = ''
 
     let hadError = false
 
-    try {
-      const GrammarList = (window as any).SpeechGrammarList || (window as any).webkitSpeechGrammarList
-      if (GrammarList) {
-        const g = new GrammarList()
-        g.addFromString(
-          '#JSGF V1.0; grammar habitiq; ' +
-          'public <task> = kitchen | bathroom | cleaning | dishes | garbage | laundry | cooking | dusting | sweeping | mopping; ' +
-          'public <action> = done | completed | finished | add | spend | spent | split | pay | paid | owe | how much | what | who; ' +
-          'public <currency> = rupees | rupee | rs | bucks;',
-          1,
-        )
-        recognition.grammars = g
-      }
-    } catch { /* grammar hint not supported — fine */ }
+    // Note: We intentionally omit SpeechGrammarList here.
+    // On many versions of Android Chrome, attempting to use SpeechGrammarList 
+    // completely breaks the SpeechRecognition engine, causing it to instantly 
+    // abort with an 'audio-capture' or 'not-allowed' error.
 
     recognition.onstart = () => {
       setState({ status: 'listening', transcript: '', interimTranscript: '', confidence: 0, error: null })
@@ -145,10 +139,14 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       if (finalTranscript) {
         capturedTranscriptRef.current += finalTranscript
         capturedConfidenceRef.current  = maxConfidence
+        lastInterimRef.current = ''
         clearTimers()
         silenceTimerRef.current = setTimeout(() => {
           if (recognitionRef.current) recognitionRef.current.stop()
         }, 1500)
+      } else if (interimTranscript) {
+        // Keep latest interim so onend can fall back to it (Android Chrome fix)
+        lastInterimRef.current = interimTranscript
       }
 
       setState(prev => ({
@@ -190,10 +188,12 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
       clearTimers()
       recognitionRef.current = null
 
-      const captured   = capturedTranscriptRef.current
+      // Android Chrome often never fires isFinal:true — fall back to last interim.
+      const captured   = capturedTranscriptRef.current || lastInterimRef.current
       const confidence = capturedConfidenceRef.current
       capturedTranscriptRef.current = ''
       capturedConfidenceRef.current = 0
+      lastInterimRef.current = ''
 
       if (captured) {
         setState(prev => ({ ...prev, status: 'processing', interimTranscript: '' }))
@@ -209,7 +209,10 @@ export function useVoiceAssistant(): UseVoiceAssistantReturn {
 
     recognitionRef.current = recognition
 
-    // Called synchronously inside user gesture — browser shows native permission dialog if needed.
+    // IMPORTANT: startListening must be SYNCHRONOUS — no async/await before recognition.start().
+    // Chrome (desktop and Android) gates SpeechRecognition behind the user-gesture context.
+    // Any await before recognition.start() breaks that context, causing silent not-allowed.
+    // The browser's own "Allow microphone?" dialog fires from recognition.start() natively.
     try {
       recognition.start()
     } catch {

@@ -240,6 +240,16 @@ const SORTED_PATTERNS = [...INTENT_PATTERNS].sort((a, b) => b.priority - a.prior
 export function classifyIntent(transcript: string): IntentType {
   const normalised = transcript.toLowerCase().trim().replace(/[^a-z0-9\s]/g, ' ').replace(/\s+/g, ' ')
 
+  // Pre-pass: "add [number]" → CREATE_EXPENSE (beats the "balance" QUERY_BALANCE trigger)
+  // Excludes task/duty creation so "add task 500" still routes to CREATE_TASK.
+  if (
+    /\badd\b/.test(normalised) &&
+    /\d/.test(normalised) &&
+    !/\b(task|duty|duties|chore)\b/.test(normalised)
+  ) {
+    return 'CREATE_EXPENSE'
+  }
+
   for (const { intent, triggers } of SORTED_PATTERNS) {
     for (const trigger of triggers) {
       if (fuzzyMatch(normalised, trigger)) return intent

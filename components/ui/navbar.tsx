@@ -505,10 +505,12 @@ function MobileMenu({
           {/* Close */}
           <div className="flex items-center justify-between px-5 pt-5 pb-2">
             <a href="#" className="flex items-center gap-2.5" onClick={onClose}>
-              <div className="w-8 h-8 rounded-[9px] flex items-center justify-center"
-                style={{ background: "linear-gradient(135deg,#7c3aed,#4f46e5)", boxShadow: "0 0 16px rgba(124,58,237,0.4)" }}>
-                <span className="text-white font-black text-sm" style={{ display: "block", transform: "rotate(-6deg)" }}>H</span>
-              </div>
+              <img
+                src="/habitiq-app-icon.png"
+                alt="Habitiq"
+                className="w-8 h-8 rounded-[9px] object-cover"
+                style={{ boxShadow: "0 0 16px rgba(124,58,237,0.4)" }}
+              />
               <span className="text-white font-bold text-[15px] tracking-tight">Habitiq</span>
             </a>
             <motion.button
@@ -654,25 +656,18 @@ export function Navbar() {
             {/* ── Logo ────────────────────────────────────────── */}
             <a href="#" className="flex items-center gap-2.5 shrink-0 group cursor-pointer">
               <div className="relative">
-                {/* Glow halo */}
                 <motion.div
                   className="absolute inset-0 rounded-[10px] pointer-events-none"
-                  animate={{ opacity: [0.5, 0.85, 0.5] }}
+                  animate={{ opacity: [0.4, 0.75, 0.4] }}
                   transition={{ duration: 3, repeat: Infinity, ease: "easeInOut" }}
-                  style={{ boxShadow: "0 0 24px rgba(124,58,237,0.55)" }}
+                  style={{ boxShadow: "0 0 20px rgba(124,58,237,0.5)" }}
                 />
-                <div
-                  className="w-9 h-9 rounded-[10px] flex items-center justify-center relative z-10"
-                  style={{
-                    background: "linear-gradient(135deg, #7c3aed 0%, #4f46e5 100%)",
-                    transform:  "rotate(6deg)",
-                    boxShadow:  "0 4px 14px rgba(124,58,237,0.5), 0 0 0 1px rgba(255,255,255,0.12) inset",
-                  }}
-                >
-                  <span className="text-white font-black text-sm" style={{ display: "block", transform: "rotate(-6deg)" }}>
-                    H
-                  </span>
-                </div>
+                <img
+                  src="/habitiq-app-icon.png"
+                  alt="Habitiq"
+                  className="w-9 h-9 rounded-[10px] object-cover relative z-10"
+                  style={{ boxShadow: "0 4px 14px rgba(124,58,237,0.45)" }}
+                />
               </div>
               <span className="text-white font-bold text-[15px] tracking-tight group-hover:text-white/90 transition-colors">
                 Habitiq

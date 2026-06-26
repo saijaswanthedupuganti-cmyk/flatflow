@@ -10,21 +10,20 @@ import TestimonialSlider, { type Testimonial } from '@/components/ui/testimonial
 const BG      = '#08080C'
 const SURFACE = '#0F0F15'
 const BORDER  = 'rgba(255,255,255,0.07)'
-const BLUE    = '#2563EB'
+const BLUE    = '#2563EB'   // used inside app screen mockups only
 const BLUE_L  = '#60A5FA'
 const GREEN_L = '#34D399'
-const PURPLE  = '#7C3AED'
+const PURPLE  = '#7C3AED'  // brand primary — used for all landing CTAs
 const PURPLE_L= '#A78BFA'
 
 // ── Easing ────────────────────────────────────────────────────────────────────
 const EASE: [number, number, number, number] = [0.22, 1, 0.36, 1]
 
 // ── Phone frame ────────────────────────────────────────────────────────────────
-// W scales with viewport: ~220px on small phones, 264px on desktop
-function PhoneFrame({ children, glow = 'rgba(37,99,235,0.22)' }: { children: ReactNode; glow?: string }) {
-  const W = 'min(264px, 58vw)'
+// Fixed 264px design, CSS-scaled down on mobile so content stays crisp
+function PhoneFrame({ children, glow = 'rgba(124,58,237,0.22)' }: { children: ReactNode; glow?: string }) {
   return (
-    <div className="relative shrink-0" style={{ width: W }}>
+    <div className="phone-frame relative shrink-0" style={{ width: '264px' }}>
       {/* Ambient glow under phone */}
       <div className="absolute pointer-events-none" style={{
         bottom: '-28px', left: '50%', transform: 'translateX(-50%)',
@@ -774,27 +773,90 @@ function DesktopShowcase() {
   )
 }
 
+// ── Flat Finder Screen ────────────────────────────────────────────────────────
+function FlatFinderScreen() {
+  const listings = [
+    { i:'R', c:'#7C3AED', name:'2BHK in Koramangala', price:'₹8,500/mo', loc:'Bengaluru', compat:94, verified:true },
+    { i:'A', c:'#2563EB', name:'1BHK near Madhapur',  price:'₹6,200/mo', loc:'Hyderabad', compat:87, verified:true },
+    { i:'S', c:'#059669', name:'Studio in Bandra',     price:'₹12,000/mo',loc:'Mumbai',    compat:81, verified:false },
+  ]
+  return (
+    <div style={{ background:'#09090D', display:'flex', flexDirection:'column', minHeight:'518px' }}>
+      <StatusBar />
+      <div style={{ padding:'4px 14px 8px' }}>
+        <p style={{ fontSize:'18px', fontWeight:'800', color:'white', lineHeight:1.1 }}>Find a Flat</p>
+        <p style={{ fontSize:'8px', color:'rgba(255,255,255,0.35)', marginTop:'2px' }}>Verified rooms near you</p>
+      </div>
+      {/* Search bar */}
+      <div style={{ margin:'0 14px 8px', padding:'7px 10px', borderRadius:'10px', background:'rgba(255,255,255,0.05)', border:'1px solid rgba(255,255,255,0.09)', display:'flex', alignItems:'center', gap:'6px' }}>
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.3)" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+        <span style={{ fontSize:'9px', color:'rgba(255,255,255,0.25)', flex:1 }}>Search city, area...</span>
+        <div style={{ padding:'3px 7px', borderRadius:'6px', background:'rgba(124,58,237,0.18)', border:'1px solid rgba(124,58,237,0.3)' }}>
+          <span style={{ fontSize:'7px', fontWeight:'700', color:'#A78BFA' }}>Filter</span>
+        </div>
+      </div>
+      {/* AI match banner */}
+      <div style={{ margin:'0 14px 10px', padding:'8px 10px', borderRadius:'10px', background:'linear-gradient(135deg,rgba(124,58,237,0.16),rgba(79,70,229,0.08))', border:'1px solid rgba(124,58,237,0.25)', display:'flex', alignItems:'center', gap:'8px' }}>
+        <div style={{ width:'24px', height:'24px', borderRadius:'50%', background:'rgba(124,58,237,0.25)', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#A78BFA" strokeWidth="2.2" strokeLinecap="round"><path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26Z"/></svg>
+        </div>
+        <div>
+          <p style={{ fontSize:'9px', fontWeight:'700', color:'white' }}>AI Compatibility Matching</p>
+          <p style={{ fontSize:'7px', color:'rgba(255,255,255,0.38)' }}>Scores based on habits, schedule & lifestyle</p>
+        </div>
+      </div>
+      <p style={{ fontSize:'6.5px', fontWeight:'700', color:'rgba(255,255,255,0.25)', letterSpacing:'0.1em', padding:'0 14px 6px' }}>NEARBY LISTINGS</p>
+      <div style={{ flex:1, padding:'0 14px', display:'flex', flexDirection:'column', gap:'6px', overflow:'hidden' }}>
+        {listings.map(l => (
+          <div key={l.name} style={{ padding:'9px 10px', borderRadius:'12px', background:'rgba(255,255,255,0.03)', border:'1px solid rgba(255,255,255,0.07)' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'8px' }}>
+              <div style={{ width:'36px', height:'36px', borderRadius:'8px', background:`${l.c}28`, border:`1px solid ${l.c}40`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, fontSize:'14px', fontWeight:'800', color:l.c }}>{l.i}</div>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'4px', marginBottom:'1px' }}>
+                  <p style={{ fontSize:'9.5px', fontWeight:'700', color:'white', overflow:'hidden', whiteSpace:'nowrap', textOverflow:'ellipsis' }}>{l.name}</p>
+                  {l.verified && <div style={{ flexShrink:0, width:'12px', height:'12px', borderRadius:'50%', background:'rgba(16,185,129,0.18)', display:'flex', alignItems:'center', justifyContent:'center' }}><svg width="6" height="6" viewBox="0 0 24 24" fill="none" stroke="#34D399" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg></div>}
+                </div>
+                <p style={{ fontSize:'7.5px', color:'rgba(255,255,255,0.32)', marginBottom:'3px' }}>{l.loc}</p>
+                <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                  <p style={{ fontSize:'10px', fontWeight:'800', color:'white' }}>{l.price}</p>
+                  <div style={{ padding:'2px 6px', borderRadius:'6px', background:'rgba(124,58,237,0.15)', border:'1px solid rgba(124,58,237,0.25)' }}>
+                    <span style={{ fontSize:'7px', fontWeight:'700', color:'#A78BFA' }}>{l.compat}% match</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <BottomNav5 active="profile" />
+    </div>
+  )
+}
+
 // ── Cycling phone ─────────────────────────────────────────────────────────────
-const SCREEN_IDS = ['dashboard', 'expenses', 'swaps'] as const
+const SCREEN_IDS = ['dashboard', 'flatfinder', 'expenses', 'swaps'] as const
 type ScreenId = (typeof SCREEN_IDS)[number]
 const SCREEN_META: Record<ScreenId, { label: string; glow: string }> = {
-  dashboard: { label:'Duty Dashboard', glow:'rgba(194,65,12,0.3)'  },
-  expenses:  { label:'Expenses Hub',   glow:'rgba(5,150,105,0.25)' },
-  swaps:     { label:'Swap Requests',  glow:'rgba(79,70,229,0.25)' },
+  dashboard:  { label:'Duty Dashboard',  glow:'rgba(194,65,12,0.3)'   },
+  flatfinder: { label:'Flat Finder',     glow:'rgba(124,58,237,0.28)' },
+  expenses:   { label:'Expenses Hub',    glow:'rgba(5,150,105,0.25)'  },
+  swaps:      { label:'Swap Requests',   glow:'rgba(79,70,229,0.25)'  },
 }
 
 function ScreenContent({ id }: { id: ScreenId }) {
-  if (id === 'dashboard') return <DashboardScreen />
-  if (id === 'expenses')  return <ExpensesScreen />
+  if (id === 'dashboard')  return <DashboardScreen />
+  if (id === 'flatfinder') return <FlatFinderScreen />
+  if (id === 'expenses')   return <ExpensesScreen />
   return <SwapsScreen />
 }
 
 function CyclingPhone() {
   const [idx, setIdx] = useState(0)
+  const N = SCREEN_IDS.length
   useEffect(() => {
-    const t = setInterval(() => setIdx(i => (i + 1) % 3), 3400)
+    const t = setInterval(() => setIdx(i => (i + 1) % N), 3400)
     return () => clearInterval(t)
-  }, [])
+  }, [N])
   const id = SCREEN_IDS[idx]
   return (
     <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'24px' }}>
@@ -815,7 +877,7 @@ function CyclingPhone() {
         <div style={{ display:'flex', gap:'6px' }}>
           {SCREEN_IDS.map((_, i) => (
             <button key={i} onClick={() => setIdx(i)}
-              style={{ height:'4px', width:i===idx?'22px':'4px', borderRadius:'2px', background:i===idx?BLUE:'rgba(255,255,255,0.18)', transition:'all 0.3s', cursor:'pointer', border:'none', padding:0 }} />
+              style={{ height:'4px', width:i===idx?'22px':'4px', borderRadius:'2px', background:i===idx?PURPLE:'rgba(255,255,255,0.18)', transition:'all 0.3s', cursor:'pointer', border:'none', padding:0 }} />
           ))}
         </div>
       </div>
@@ -842,35 +904,34 @@ function Hero() {
         <div className="flex-1 max-w-[600px] text-center lg:text-left">
           <motion.div initial={{ opacity:0, y:8 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.4 }}
             className="inline-flex items-center gap-2 mb-8 px-3.5 py-1.5 rounded-full"
-            style={{ border:`1px solid ${BLUE}40`, background:`${BLUE}10` }}>
+            style={{ border:`1px solid ${PURPLE}40`, background:`${PURPLE}12` }}>
             <motion.span animate={{ opacity:[1,0.35,1] }} transition={{ duration:2, repeat:Infinity }}
               style={{ width:'6px', height:'6px', borderRadius:'50%', background:GREEN_L, display:'inline-block' }} />
-            <span style={{ fontSize:'11px', fontWeight:'700', color:BLUE_L, letterSpacing:'0.12em', textTransform:'uppercase' }}>
-              Free · No app download · Works worldwide
+            <span style={{ fontSize:'11px', fontWeight:'700', color:PURPLE_L, letterSpacing:'0.12em', textTransform:'uppercase' }}>
+              Find flats · Manage duties · Split bills · 100% free
             </span>
           </motion.div>
 
           <motion.h1 initial={{ opacity:0, y:32 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.85, delay:0.1, ease:EASE }}
             className="text-white font-black leading-none mb-6"
-            style={{ fontSize:'clamp(3rem,6.5vw,5.75rem)', letterSpacing:'-0.04em', fontFamily:'var(--font-inter)' }}>
-            Run your flat.<br />
-            <span style={{ background:'linear-gradient(120deg,#FB923C 0%,#EC4899 45%,#60A5FA 100%)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
-              Without the drama.
+            style={{ fontSize:'clamp(2.8rem,6.5vw,5.75rem)', letterSpacing:'-0.04em', fontFamily:'var(--font-inter)' }}>
+            Find your flat.<br />
+            <span style={{ background:'linear-gradient(120deg,#A78BFA 0%,#7C3AED 45%,#60A5FA 100%)', WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent', backgroundClip:'text' }}>
+              Run it without drama.
             </span>
           </motion.h1>
 
           <motion.p initial={{ opacity:0, y:20 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.75, delay:0.22, ease:EASE }}
             className="leading-relaxed mb-10 max-w-[480px] mx-auto lg:mx-0"
             style={{ fontSize:'1.125rem', color:'rgba(255,255,255,0.42)', fontFamily:'var(--font-inter)' }}>
-            Duties rotate automatically. Bills split fairly. Swaps handled in-app.
-            Your flat manages itself — you just live in it.
+            Browse verified flats. Match with compatible flatmates. Duties rotate automatically, bills split fairly — your flat runs itself.
           </motion.p>
 
           <motion.div initial={{ opacity:0, y:12 }} animate={{ opacity:1, y:0 }} transition={{ duration:0.65, delay:0.3, ease:EASE }}
             className="flex flex-row gap-2 sm:gap-3 justify-center lg:justify-start mb-10">
             <motion.a href="#get-started" whileHover={{ scale:1.03 }} whileTap={{ scale:0.97 }}
               className="flex items-center justify-center gap-2.5 font-bold text-sm text-white h-12 px-7 rounded-2xl cursor-pointer"
-              style={{ background:BLUE, boxShadow:`0 0 0 1px rgba(37,99,235,0.55),0 12px 32px rgba(37,99,235,0.42)` }}>
+              style={{ background:`linear-gradient(135deg,${PURPLE},#4F46E5)`, boxShadow:`0 0 0 1px rgba(124,58,237,0.5),0 12px 32px rgba(124,58,237,0.4)` }}>
               Get Started Free <ArrowRight size={14} />
             </motion.a>
             <motion.a href="#features" whileHover={{ scale:1.02 }} whileTap={{ scale:0.97 }}
@@ -891,7 +952,7 @@ function Hero() {
             </div>
             <div>
               <div style={{ display:'flex', gap:'2px', marginBottom:'4px' }}>
-                {[...Array(5)].map((_,j) => <Star key={j} size={11} fill={BLUE} style={{ color:BLUE }} />)}
+                {[...Array(5)].map((_,j) => <Star key={j} size={11} fill={PURPLE_L} style={{ color:PURPLE_L }} />)}
               </div>
               <p style={{ fontSize:'11px', color:'rgba(255,255,255,0.28)' }}>Trusted by 20+ flats worldwide</p>
             </div>
@@ -917,7 +978,7 @@ function Hero() {
 }
 
 // ── Marquee ───────────────────────────────────────────────────────────────────
-const MARQUEE_ITEMS = ['Duty Rotation','Expense Splitting','Real-Time Sync','Swap Requests','Fair Rotation','Audit Trail','Bill Splitting','Settlement Tracking','Auto-Assignment','Reliability Scores']
+const MARQUEE_ITEMS = ['Flat Finder','Duty Rotation','Expense Splitting','AI Matching','Real-Time Sync','Swap Requests','Verified Profiles','Bill Splitting','Compatibility Scores','Settlement Tracking','Auto-Assignment','Reliability Scores']
 
 function Marquee() {
   const all = [...MARQUEE_ITEMS, ...MARQUEE_ITEMS]
@@ -985,21 +1046,26 @@ function Chapter({ badge, badgeColor, headline, body, proof, glow, screen, flip=
 function Features() {
   return (
     <div id="features">
+      <Chapter badge="Flat Finder" badgeColor={PURPLE}
+        headline="Find your kind of flat."
+        body="Browse verified rooms near you. Filter by budget, location, and lifestyle. See your AI compatibility score before you even message the flat — so every match is worth pursuing."
+        proof='"Found my current flat in 20 minutes. The 94% compatibility score was accurate — we get along perfectly. — Rahul M., Koramangala"'
+        glow="rgba(124,58,237,0.22)" screen={<FlatFinderScreen />} flip={false} />
       <Chapter badge="Duty Rotation" badgeColor={BLUE}
         headline="The rota that runs itself."
         body="Define every task once. Set the queue. Habitiq assigns the next person the moment one cycle ends — no calendar, no group chat, no nagging required."
         proof='"Set up Garbage rotation in 2 minutes. MADKING was auto-assigned. Done. — Ayyapa Nilayam flat, Bengaluru"'
-        glow="rgba(37,99,235,0.2)" screen={<DashboardScreen />} flip={false} />
+        glow="rgba(37,99,235,0.2)" screen={<DashboardScreen />} flip={true} />
       <Chapter badge="Expense Splitting" badgeColor="#059669"
         headline="Every rupee, accounted for."
         body="Log any shared expense. Habitiq splits it, tracks who paid, who owes, and how much. The balance updates in real time — visible to everyone in the flat."
         proof='"Sundy food ₹5,000 split 8 ways. No debate. Everyone could see it instantly. — Jaswanth EVS, Hyderabad"'
-        glow="rgba(5,150,105,0.2)" screen={<ExpensesScreen />} flip={true} />
-      <Chapter badge="Swap Requests" badgeColor={PURPLE}
+        glow="rgba(5,150,105,0.2)" screen={<ExpensesScreen />} flip={false} />
+      <Chapter badge="Swap Requests" badgeColor="#A78BFA"
         headline="Life happens. Cover yourself in two taps."
         body="Can't do your task? Send a swap request. Your flatmate gets notified, accepts or declines in-app. The system logs it officially. No WhatsApp thread needed."
         proof='"I had a family event. Sent a swap, MADKING accepted. No awkwardness. Recorded. Done. — Edupuganti Venkata, Pune"'
-        glow="rgba(124,58,237,0.2)" screen={<SwapsScreen />} flip={false} />
+        glow="rgba(124,58,237,0.2)" screen={<SwapsScreen />} flip={true} />
     </div>
   )
 }
@@ -1075,12 +1141,12 @@ function Testimonials() {
 
 // ── FAQ ────────────────────────────────────────────────────────────────────────
 const FAQS = [
-  { q:'Is Habitiq really free?', a:"Yes — completely. No credit card required. All features: duty rotation, expense splitting, bill tracking, swap requests, audit log — all free during our trial phase. We'll give you plenty of notice before anything changes." },
-  { q:'How is Habitiq different from Splitwise?', a:"Splitwise only tracks money. Habitiq manages the flat. Duty rotation, automated assignment, swap request system, monthly fixed bills, and settlement tracking — Splitwise does one of these. Habitiq does all five, in one place." },
+  { q:'What is the Flat Finder?', a:"Flat Finder lets you browse verified room listings near you and see an AI compatibility score for each one — based on lifestyle, schedule, and habits. You don't have to meet 10 strangers to figure out compatibility. Habitiq scores it for you upfront, so every conversation is worth having." },
+  { q:'Is Habitiq really free?', a:"Yes — completely. No credit card required. All features: flat finder, duty rotation, expense splitting, bill tracking, swap requests, audit log — all free during our trial phase. We'll give you plenty of notice before anything changes." },
+  { q:'How is Habitiq different from Splitwise?', a:"Splitwise only tracks money. Habitiq manages the flat — and now helps you find one. Flat Finder, duty rotation, automated assignment, swap requests, monthly fixed bills, settlement tracking — Splitwise does one of these. Habitiq does all of it, in one place." },
   { q:'How does the rotation actually work?', a:"You define tasks (cleaning, cooking, trash), add flatmates to the queue, and set the frequency. Habitiq auto-assigns the next person when a task is completed or the cycle resets. Members can send swap requests if they're unavailable — all logged officially." },
   { q:"Does my flatmate need to install an app?", a:"No. Habitiq is a PWA — it works in the browser. Flatmates open a link, sign in with Google, and they're in. They can add it to their home screen for a native feel. No App Store. No Play Store. Just a link." },
   { q:'Which cities is Habitiq used in?', a:"Habitiq is used worldwide — Bengaluru, Hyderabad, Pune, Mumbai, Delhi, and Chennai in India; London and Manchester in the UK; Sydney and Melbourne in Australia; Singapore, Toronto, and beyond. Any shared living setup works anywhere — flats, PGs, house shares, co-living, and student accommodation." },
-  { q:'Does Habitiq work outside India?', a:"Yes — Habitiq works for any shared flat, house share, or co-living space in any country. The chore rotation, bill splitting, and swap request system work the same whether you're in London, Sydney, New York, Singapore, or Bengaluru. No country restrictions, no local setup needed." },
 ]
 
 function FAQ() {
@@ -1091,7 +1157,7 @@ function FAQ() {
         <motion.div style={{ marginBottom:'44px', textAlign:'center' }}
           initial={{ opacity:0, y:20 }} whileInView={{ opacity:1, y:0 }}
           viewport={{ once:true, margin:'-80px' }} transition={{ duration:0.7, ease:EASE }}>
-          <span style={{ display:'inline-block', marginBottom:'16px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.14em', textTransform:'uppercase', padding:'6px 14px', borderRadius:'9999px', color:BLUE_L, background:`${BLUE}12`, border:`1px solid ${BLUE}28` }}>Questions</span>
+          <span style={{ display:'inline-block', marginBottom:'16px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.14em', textTransform:'uppercase', padding:'6px 14px', borderRadius:'9999px', color:PURPLE_L, background:`${PURPLE}12`, border:`1px solid ${PURPLE}28` }}>Questions</span>
           <h2 className="font-black text-white" style={{ fontSize:'clamp(1.8rem,3.5vw,2.75rem)', letterSpacing:'-0.035em', fontFamily:'var(--font-inter)' }}>Answers, upfront.</h2>
         </motion.div>
         <div style={{ display:'flex', flexDirection:'column', gap:'8px' }}>
@@ -1135,24 +1201,24 @@ function GetStarted() {
       <div style={{ position:'relative', zIndex:1, maxWidth:'1120px', margin:'0 auto' }} className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-start">
         <motion.div initial={{ opacity:0, x:-40 }} whileInView={{ opacity:1, x:0 }}
           viewport={{ once:true, margin:'-80px' }} transition={{ duration:0.85, ease:EASE }}>
-          <span style={{ display:'inline-block', marginBottom:'20px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.14em', textTransform:'uppercase', padding:'6px 14px', borderRadius:'9999px', color:BLUE_L, background:`${BLUE}12`, border:`1px solid ${BLUE}28` }}>Start free</span>
+          <span style={{ display:'inline-block', marginBottom:'20px', fontSize:'11px', fontWeight:'700', letterSpacing:'0.14em', textTransform:'uppercase', padding:'6px 14px', borderRadius:'9999px', color:PURPLE_L, background:`${PURPLE}12`, border:`1px solid ${PURPLE}28` }}>Start free</span>
           <h2 className="font-black text-white leading-[1.02] mb-5"
             style={{ fontSize:'clamp(2rem,4vw,3.25rem)', letterSpacing:'-0.035em', fontFamily:'var(--font-inter)' }}>
-            Your flat deserves<br />a proper system.
+            Find your flat.<br />Then run it right.
           </h2>
           <p style={{ fontSize:'16px', marginBottom:'40px', lineHeight:1.7, maxWidth:'360px', color:'rgba(255,255,255,0.36)', fontFamily:'var(--font-inter)' }}>
-            Create your flat or join your flatmates. No payment, no install, no friction — under 2 minutes.
+            Browse rooms, match with flatmates, and set up your flat in under 2 minutes. No payment, no install, no friction.
           </p>
           <ul style={{ display:'flex', flexDirection:'column', gap:'16px' }}>
             {[
+              'Flat Finder — browse verified rooms with AI compatibility scores',
               'Duty rotation runs automatically — no daily management',
               'Expenses split to the rupee across all flatmates',
-              'Swap requests handled officially, in-app',
               'Works on any phone — no app download needed',
             ].map(item => (
               <li key={item} style={{ display:'flex', alignItems:'center', gap:'12px' }}>
-                <div style={{ width:'20px', height:'20px', borderRadius:'50%', background:`${BLUE}20`, border:`1px solid ${BLUE}38`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
-                  <Check size={9} style={{ color:BLUE }} />
+                <div style={{ width:'20px', height:'20px', borderRadius:'50%', background:`${PURPLE}20`, border:`1px solid ${PURPLE}38`, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                  <Check size={9} style={{ color:PURPLE_L }} />
                 </div>
                 <span style={{ fontSize:'14px', color:'rgba(255,255,255,0.44)' }}>{item}</span>
               </li>
@@ -1181,9 +1247,12 @@ function Footer() {
       <div style={{ maxWidth:'1120px', margin:'0 auto' }}>
         <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-14">
           <div className="lg:col-span-2">
-            <img src="/habitiq-logo.svg" alt="Habitiq" className="h-7 w-auto brightness-0 invert mb-4" />
+            <div style={{ display:'flex', alignItems:'center', gap:'10px', marginBottom:'16px' }}>
+              <img src="/habitiq-app-icon.png" alt="Habitiq" style={{ width:'32px', height:'32px', borderRadius:'8px', objectFit:'cover' }} />
+              <span style={{ fontSize:'16px', fontWeight:'700', color:'white', letterSpacing:'-0.02em' }}>Habitiq</span>
+            </div>
             <p style={{ fontSize:'14px', lineHeight:1.6, maxWidth:'280px', color:'rgba(255,255,255,0.22)' }}>
-              The operating system for shared flats. Duties rotate. Bills split. Flatmates stop arguing.
+              Find your flat. Manage shared living. Duties rotate, bills split, flatmates stop arguing.
             </p>
             <div style={{ display:'flex', alignItems:'center', gap:'6px', marginTop:'16px' }}>
               <div style={{ width:'6px', height:'6px', borderRadius:'50%', background:GREEN_L }} />
@@ -1221,7 +1290,14 @@ function Footer() {
 export default function LandingPage() {
   return (
     <div style={{ minHeight:'100svh', background:BG, fontFamily:'var(--font-inter)', WebkitFontSmoothing:'antialiased' }}>
-      <style>{`@keyframes mq { from { transform:translateX(0) } to { transform:translateX(-50%) } }`}</style>
+      <style>{`
+        @keyframes mq { from { transform:translateX(0) } to { transform:translateX(-50%) } }
+        .phone-frame { transform-origin: top center; }
+        @media (max-width: 360px) { .phone-frame { transform: scale(0.70); margin-bottom: -171px; } }
+        @media (min-width: 361px) and (max-width: 430px) { .phone-frame { transform: scale(0.78); margin-bottom: -125px; } }
+        @media (min-width: 431px) and (max-width: 600px) { .phone-frame { transform: scale(0.88); margin-bottom: -68px; } }
+        @media (min-width: 601px) and (max-width: 1023px) { .phone-frame { transform: scale(0.94); margin-bottom: -34px; } }
+      `}</style>
       <Navbar />
       <main>
         <Hero />

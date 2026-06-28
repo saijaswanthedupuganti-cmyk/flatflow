@@ -1,13 +1,13 @@
-﻿# Habitiq — Project Documentation
+# Habitiq — Project Documentation
 
 > **Product:** Habitiq
-> **Version:** v0.4.3 (Rewards Wallet — 5-task streak, brand coupons, unlock modal)
+> **Version:** v0.5.0 (Voice Assistant + Member Bills + Flat Board + Landing Redesign)
 > **Project folder:** C:\garbage
 > **Live URL:** https://habitiq.app
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Domain:** habitiq.app (canonical — live as of 17 June 2026)
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 19 June 2026 (Session 4)
+> **Last Updated:** 29 June 2026 (Session 8)
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
 See also: [[About Sai]]
@@ -27,6 +27,8 @@ Shared living management platform that automates household duty rotation among f
 | "I forgot" | No accountability | Overdue tracking + reliability score |
 | Admin burden | One person does everything | All members self-manage |
 | Swap needed | WhatsApp chaos | In-app swap request + accept/decline |
+| Who paid the bills? | WhatsApp, memory | Member-submitted bills + collection tracking |
+| Finding a flat | Browse random listings | Flat Board with lifestyle compatibility |
 
 ### Existing Solutions and Why They Fail
 
@@ -55,6 +57,7 @@ Shared living management platform that automates household duty rotation among f
 - "No more 'whose turn is it?'"
 - "Your shared space, on autopilot."
 - "Fair duties. Zero arguments."
+- **New (June 26):** "Find your flat. Run it without drama."
 
 ### Brand Voice
 Direct and confident. Conversational — speaks like a flatmate. Calm, not hype. Specific over vague.
@@ -63,14 +66,14 @@ Direct and confident. Conversational — speaks like a flatmate. Calm, not hype.
 **Does NOT sound like:** "Leverage synergies to optimise household workflows." ✗
 
 ### Visual Identity
-- Primary colour: Violet/Indigo — #7c3aed to #4338ca
-- Background: Deep black #0a0a0a (dark) / clean white (light)
-- Logo: House icon + rotation arrow
-- Font: Inter
-- Motion: Orbiting dots on loading screen (visual metaphor for the rotation engine)
+- Primary colour: Violet/Indigo — #7c3aed
+- Background: Deep warm-dark #0c0b0f (dark canvas with violet tint)
+- Logo: New app icon (habitiq-app-icon.png) — used in navbar, mobile menu, footer
+- Font: Inter (font-feature-settings: ss03 for friendly digits)
+- Motion: Orbiting dots + interlocking panel shards on loading screen
 
 ### Positioning
-Habitiq owns the operational backbone of co-living — who does what, when, whether it got done. Not a chat app (WhatsApp). Not an expense tracker (Splitwise). Not a to-do app (Todoist). A category it defines: **intelligent shared living management**.
+Habitiq owns the operational backbone of co-living — who does what, when, whether it got done, who paid the bills, who your flatmates are. Not a chat app (WhatsApp). Not an expense tracker (Splitwise). Not a to-do app (Todoist). A category it defines: **intelligent shared living management**.
 
 ---
 
@@ -81,7 +84,7 @@ Habitiq owns the operational backbone of co-living — who does what, when, whet
 Entire product built by Sai (UI/UX designer, not a traditional engineer) using AI-assisted development.
 
 - **Sai brought:** product concept, user flows, design decisions, feature prioritisation, business logic, brand identity
-- **Claude Code brought:** full implementation — Next.js, Firestore schema, rotation engine, auth flows, security rules, Tailwind, deployment, security audit
+- **Claude Code brought:** full implementation — Next.js, Firestore schema, rotation engine, auth flows, security rules, Tailwind, deployment, security audit, voice assistant
 - **Gemini used for:** pressure-testing assumptions, exploring edge cases, understanding backend architecture patterns
 
 ### Why This Matters
@@ -109,20 +112,13 @@ Moved because Vercel has native Next.js support, 6,000 build minutes/month free 
 
 ### Critical Bug Fix: Google Login Silent Failure (May 2026)
 
-**Symptom:** Clicking "Continue with Google" — user selects Gmail — app silently returns to login screen.
-
 **Root cause (two-part):**
-
-**Part 1 — Firebase Authorized Domains:**
-flatsflow.netlify.app was not added to Firebase Auth → Authorized Domains. Firebase rejects OAuth callbacks from unrecognized domains.
-Fix: Manually added domain in Firebase Console.
-
-**Part 2 — Silent redirect error:**
-getRedirectResult error handler only called console.error — user saw nothing.
-Fix: Added redirectError field to auth store → surfaced on login page → getAuthErrorMessage() handles unauthorized-domain with a clear message.
+**Part 1** — flatsflow.netlify.app not added to Firebase Auth → Authorized Domains.
+**Part 2** — getRedirectResult error handler only called console.error — user saw nothing.
+Fix: Added domain + surfaced redirectError on login page.
 
 ### Mobile Login: Custom Auth Proxy
-Google OAuth on mobile (iOS Safari) fails with Firebase's default authDomain due to third-party cookie restrictions. Fix: Custom authDomain pointing to app's own domain via Next.js rewrites. All OAuth redirects go through app's domain, bypassing cookie issue.
+Google OAuth on mobile (iOS Safari) fails with Firebase's default authDomain due to third-party cookie restrictions. Fix: Custom authDomain pointing to app's own domain via Next.js rewrites.
 
 ### Features Built (Milestone Order)
 
@@ -141,17 +137,24 @@ Google OAuth on mobile (iOS Safari) fails with Firebase's default authDomain due
 | Admin Org View | Full flat overview, all tasks, all statuses |
 | Multi-flat support | User belongs to multiple flats, switches with one tap |
 | Membership management | Leave flat, kick member, transfer admin, delete flat |
-| NPS banner | Net Promoter Score survey for user feedback collection |
-| Mock mode | Full app runs without Firebase keys — seeded demo data |
+| NPS banner | Net Promoter Score survey |
+| Mock mode | Full app runs without Firebase keys |
 | 8-member cap | Enforced at Firestore rules level |
-| Recurring Bills module | Admin configures monthly bills; payer auto-rotates; variable amount support |
-| Daily Splits (Splitwise) | Ad-hoc expense log — equal or custom split, 7 currencies, banking-style UI |
-| Balances & Settle Up | Direct pairwise balance calc; bidirectional settle (pay or mark received) |
-| Expense breakdown per person | Expand balance card to see which expenses make up the total |
-| Person filter on transactions | Filter full transaction list to show only shared history with one person |
-| Month-end close flow | Admin locks a month; carry-forward balances flow to next month |
-| Group tasks | Admin creates tasks assigned to multiple members with sub-tasks |
+| Recurring Bills module | Admin configures bills; payer auto-rotates; variable amount |
+| Daily Splits (Splitwise) | Ad-hoc expense log — equal or custom split, 7 currencies |
+| Balances & Settle Up | Direct pairwise; bidirectional settle |
+| Expense breakdown per person | Expand balance card to see contributing expenses |
+| Person filter on transactions | Filter transaction list to one person's history |
+| Month-end close flow | Admin locks a month; carry-forward balances |
+| Group tasks | Admin creates tasks assigned to multiple members |
 | Temp tasks | One-off tasks outside the rotation queue |
+| Subscription system | Trial / active (coupon) / expired; gates on create_task/expense/bill |
+| Rewards Wallet | Earn brand coupons on task completion; dynamic pool from Firestore |
+| Voice Assistant | 4 sprints complete — NLU, 11 actions, waveform, Android/iOS |
+| Member-submitted bills | Members submit bills they personally paid; admin approves |
+| Flat Board (find-members) | Seeker profiles, lifestyle tags, vacancy listings |
+| Insights page | Calendar + stats combined (replaces separate analytics/calendar) |
+| Manage Flat page | Admin flat settings — invite code, NPS, name, join mode |
 
 ---
 
@@ -182,43 +185,87 @@ C:\garbage\
 │   ├── (auth)/login/         — Login page (Google + email)
 │   ├── (auth)/join/          — Join flat
 │   ├── dashboard/
-│   │   ├── layout.tsx        — Sidebar + nav shell
-│   │   ├── page.tsx          — Home: My Tasks + Org View
-│   │   ├── analytics/        — Completion grid + reliability scores
-│   │   ├── calendar/         — Monthly task calendar
-│   │   ├── tasks/            — Task management (admin)
+│   │   ├── layout.tsx        — Sidebar + nav shell + Voice system (lifted)
+│   │   ├── page.tsx          — Home: My Tasks + Org View + swap widget
+│   │   ├── insights/         — Calendar + stats combined (NEW)
+│   │   ├── expenses/         — Bills + Daily Splits + Balances
+│   │   ├── tasks/            — Task management (admin) / read-only (member)
+│   │   ├── swaps/            — Swap requests (stat chips + admin All Swaps)
 │   │   ├── members/          — Member list
-│   │   ├── swaps/            — Swap requests
+│   │   ├── find-members/     — Flat Board: seeker profiles, lifestyle tags (NEW)
+│   │   ├── manage-flat/      — Admin flat settings (NEW)
 │   │   ├── activity/         — Full activity log
-│   │   ├── settings/         — User settings + leave flat
+│   │   ├── profile/          — Profile + Rewards Wallet
+│   │   ├── settings/         — User settings + voice settings
+│   │   │   └── voice/        — Voice assistant settings (NEW)
 │   │   └── about/            — About Habitiq
-│   └── onboarding/           — Create or join a flat
+│   ├── onboarding/           — Create or join a flat (mobile redesign)
+│   ├── privacy/              — Privacy Policy (DPDP Act 2023)
+│   └── terms/                — Terms of Service
 ├── components/
-│   ├── AuthProvider.tsx      — Central routing guard
+│   ├── AuthProvider.tsx      — Central routing guard + public page bypass
 │   ├── FlatSwitcher.tsx      — Multi-flat dropdown
+│   ├── MemberAvatar.tsx      — Per-person color avatar (DNA system)
 │   ├── GoingOutModal.tsx     — Out-of-station toggle
 │   ├── NotificationToast.tsx — Real-time completion toasts
-│   └── NPSBanner.tsx         — NPS survey
-├── lib/
-│   ├── firebase.ts           — Init (with mock fallback)
-│   ├── flatService.ts        — Create/join flat
-│   ├── rotationEngine.ts     — Smart rotation algorithm
-│   └── npsService.ts         — NPS logic
-├── store/
-│   ├── useAuthStore.ts       — Auth + flat membership
-│   └── useFlatStore.ts       — Tasks, members, activity, swaps, expenses, bills, settlements
+│   ├── NPSBanner.tsx         — NPS survey
+│   ├── RewardUnlockModal.tsx — Task reward celebration overlay
+│   ├── RewardsWallet.tsx     — Scratch-card reward grid in profile
+│   ├── SubscriptionGate.tsx  — Trial/expired gate modals
+│   ├── VoiceButton.tsx       — FAB long-press trigger (dumb component)
+│   ├── VoiceListeningOverlay.tsx — Fullscreen overlay + waveform
+│   ├── VoiceResponseCard.tsx — Slide-up result card, 8s dismiss, 5s undo
+│   ├── VoiceFallbackModal.tsx — iOS text-input fallback bottom sheet
+│   ├── VoiceSettings.tsx     — Voice settings panel
+│   ├── WaveformVisualizer.tsx — Canvas waveform, 24 bars, violet gradient
+│   ├── MicPermissionModal.tsx — Mic blocked/guide/unsupported states
+│   └── HeroCanvas.tsx        — Landing page canvas animation
+├── hooks/
+│   ├── useVoiceAssistant.ts  — State machine (idle/listening/processing/responding/error)
+│   └── useVoiceProcessor.ts  — NLU → action → response pipeline
 ├── lib/
 │   ├── firebase.ts           — Init (with mock fallback)
 │   ├── flatService.ts        — Create/join flat, delete, kick, leave
 │   ├── rotationEngine.ts     — Smart rotation algorithm
 │   ├── npsService.ts         — NPS logic
 │   ├── expenseUtils.ts       — Direct pairwise balance computation
-│   └── settlementUtils.ts    — Month-end summary, suggested settlements, carry-forward
-├── firestore.rules           — Role-based DB security (expenses, bills, settlements)
+│   ├── settlementUtils.ts    — Month-end summary, carry-forward
+│   ├── memberColors.ts       — 8-color member DNA palette
+│   ├── rewardPool.ts         — Dynamic coupon pool from Firestore (6h localStorage cache)
+│   ├── rewardSignal.ts       — Decoupled signal (avoids useFlatStore↔useRewardsStore circular import)
+│   ├── discoveryTypes.ts     — Types for Flat Board (VacancyListing, SeekerProfile, LifestyleTag)
+│   ├── discoveryTagService.ts — Firestore discovery tag service
+│   ├── seekerService.ts      — Seeker profile + flat listing service
+│   └── voice/
+│       ├── nlu/
+│       │   ├── intentClassifier.ts   — 9 intents, INTENT_PATTERNS, fuzzy + Levenshtein
+│       │   ├── entityExtractor.ts    — Amount (6 formats incl. Indian colloquial), member, task
+│       │   └── contextResolver.ts    — FlatContext type, ContextCache 30s TTL + write-invalidation
+│       ├── actions/
+│       │   ├── actionRouter.ts       — Intent → executor switch
+│       │   ├── completeTask.ts       — Fuzzy task resolve, markTaskCompleted + cache invalidate
+│       │   ├── createExpense.ts      — Creates expense, equal split, canUndo flag
+│       │   ├── queryBalance.ts       — Net balance from context.balances
+│       │   ├── queryTasks.ts         — Pending tasks, overdue-first sort
+│       │   ├── queryStatus.ts        — OOS vs home breakdown
+│       │   ├── requestSwap.ts        — Swap request to first available member
+│       │   ├── createTask.ts         — Task creation with frequency
+│       │   ├── greeting.ts           — Contextual greeting with pending count
+│       │   └── unknown.ts            — Rotating suggestion messages
+│       ├── response/
+│       │   └── responseFormatter.ts  — ActionResult → VoiceResponse + ResponseCard
+│       ├── tts/
+│       │   └── speechSynthesis.ts    — VoiceSynthesizer singleton, en-IN preference
+│       └── permissions.ts            — getMicPermissionState, requestMicPermission
+├── store/
+│   ├── useAuthStore.ts       — Auth + flat membership + sendPasswordResetEmail
+│   ├── useFlatStore.ts       — Tasks, members, activity, swaps, expenses, bills, settlements
+│   └── useRewardsStore.ts    — Firestore listener on /users/{uid}/rewards, onSnapshot modal trigger
+├── firestore.rules           — Role-based DB security (all subcollections)
 ├── next.config.ts            — HTTP headers + auth proxy rewrites
-├── PRODUCT.md                — Business roadmap
-├── FLATFLOW_LAUNCH_DOCUMENTATION.md — Full launch doc
-├── SECURITY_AUDIT.md         — Audit findings
+├── DESIGN.md                 — Design system v2.0 (71-brand synthesis)
+├── UI_PLAN.md                — 10-day implementation roadmap (Days 1-5 done)
+├── VOICE.md                  — Voice assistant implementation brief + sprint log
 └── project_1/                — THIS OBSIDIAN VAULT
 ```
 
@@ -230,6 +277,9 @@ C:\garbage\
 
 /flats/{flatId}
   name, createdBy, memberCount, createdAt
+  trialStartedAt, subscriptionStatus (trial|active|expired)
+  couponUsed?, couponExpiresAt?
+  joinMode (open|approval)
 
   /members/{memberId}
     uid, displayName, email, role (admin|member),
@@ -259,13 +309,15 @@ C:\garbage\
   /recurringBills/{billId}
     name, category, amount?, billingDay, currency, active, payerMode,
     rotationQueue[], participants[], createdBy, createdAt,
-    collectorId?          — uid who collects member shares; defaults to admin; changeable any month
+    collectorId?   — uid who collects member shares
 
   /billInstances/{instanceId}
     billId, name, amount, dueDate, status (pending|split_generated|paid|skipped),
     paidBy?, splits{uid→amount}?, participants[], currency, createdAt,
-    collectedFrom?{uid→bool} — per-member collection status (set by collector or admin),
-    collectorId?          — snapshot from template at generation time
+    collectedFrom?{uid→bool}   — per-member collection status
+    collectorId?               — snapshot from template at generation time
+    submittedBy?               — uid if member-submitted (pending admin approval)
+    approved?: boolean         — admin approval status
 
   /monthCycles/{month}   (month = 'YYYY-MM')
     month, status (open|closed), closedAt?, totalBillsINR, totalExpensesINR,
@@ -273,754 +325,349 @@ C:\garbage\
 
   /joinRequests/{requestId}
     uid, displayName, email, requestedAt, status (pending|approved|rejected)
+
+/rewardPool/{rewardId}
+  brandName, discountCode, description, isActive, expiryDays, category
+
+/users/{userId}/rewards/{rewardId}
+  brandName, discountCode, expiryDate, isRedeemed, unlockedAt
 ```
-
-### Architecture Decisions
-
-- **Real-time by default** — Firestore onSnapshot; no polling, no stale data
-- **Deterministic rotation** — given queue + active members, next assignee is always predictable regardless of which device calculates it
-- **Mock mode** — full app without Firebase keys using seeded data; rapid dev without touching production DB
-- **Security is structural** — Firestore rules enforce access at DB level, not just UI
 
 ---
 
-## 6. Security & Data Integrity Audit
+## 6. Voice Assistant — Full Specification (June 2026)
 
-**Original audit:** 2026-05-27 | 8 found, 8 fixed before launch
-**Second audit:** 2026-06-03 | 7 more found, all fixed — see below
-**Third audit (expense module):** 2026-06-04 | 3 issues found, all fixed — see 6c below
+**Status:** Sprints 1–4 complete. Sprint 5 (optimization) pending.
+**Full spec:** `VOICE.md`
 
-### HIGH — Any Member Could Create/Delete Tasks
-File: firestore.rules
-Problem: tasks subcollection used allow write for all members — any member could create/delete tasks without being admin.
-Fix: Split into allow create, delete (admin only) + allow update (any member, for marking complete).
+### Architecture
 
-### HIGH — Any Member Could Accept/Reject ANY Swap Request
-File: firestore.rules
-Problem: swap update only checked membership, not that user was the intended recipient.
-Fix: Added resource.data.toUserId == request.auth.uid — only the person the swap was sent TO can resolve it.
+```
+useVoiceAssistant (hook) — state machine (idle/listening/processing/responding/error)
+    ↓ transcript
+useVoiceProcessor (hook) — NLU → action → response pipeline
+    ↓
+lib/voice/nlu/intentClassifier   — 9 intents, Levenshtein fuzzy, Hinglish + Telugu-English
+lib/voice/nlu/entityExtractor    — Amount (6 formats), member, task, description
+lib/voice/nlu/contextResolver    — FlatContext cache (30s TTL, write-invalidation)
+    ↓
+lib/voice/actions/actionRouter   — Routes intent → executor
+    ↓ executes against Zustand store
+[completeTask, createExpense, queryBalance, queryTasks, queryStatus, requestSwap,
+ createTask, greeting, unknown]
+    ↓
+lib/voice/response/responseFormatter → VoiceResponse
+    ↓
+VoiceResponseCard (slide-up, 8s auto-dismiss, 5s undo bar for expenses)
+```
 
-### MEDIUM — No HTTP Security Headers
-File: next.config.ts
-Problem: No headers set — vulnerable to clickjacking, MIME sniffing, referrer leakage.
-Fix: Added 6 headers — X-Frame-Options: DENY, X-Content-Type-Options: nosniff, Referrer-Policy, HSTS, Permissions-Policy, X-XSS-Protection.
+### Conditions Covered
 
-### MEDIUM — Auth Errors Exposed Firebase Codes (User Enumeration)
-File: app/page.tsx
-Problem: Raw Firebase error codes shown to user — attacker could probe to find registered emails.
-Fix: getAuthErrorMessage() maps all codes to generic safe messages.
+| Condition | Handling |
+|-----------|----------|
+| Browser doesn't support SpeechRecognition | VoiceFallbackModal (iOS text input) |
+| Mic blocked at browser level | MicPermissionModal — fix guide, shows how to unblock |
+| Mic permission denied mid-session | Differentiated error: blocked banner vs. not-yet-asked |
+| Android Chrome gesture context | startListening synchronous, setState AFTER recognition.start() |
+| TTS blocking recognition | TTS + callback moved out of setState to preserve async flow |
+| Race condition on mic start | Synchronous permission flow + instant overlay on tap |
+| Tab blur during listening | Auto-stop after tab blur |
+| 10s hard timeout | VoiceAssistant auto-stops after 10 seconds |
+| 1.5s silence | Auto-stop on 1.5s of silence |
+| Multi-flat safety | ContextResolver uses activeFlatId — operates on current flat only |
+| Cache invalidation | ContextCache cleared immediately after any write action |
+| Retroactive task completions | completedAt > 2h → no reward issued |
+| 1 reward / 24h anti-abuse | localStorage `habitiq_last_reward_at` key |
 
-### LOW — Math.random() for ID Generation
-File: store/useFlatStore.ts
-Problem: Not cryptographically secure — predictable values.
-Fix: Replaced with crypto.randomUUID() in all 3 places.
+### NLU Performance (June 22 corpus)
+- 1000-entry labeled corpus
+- UNKNOWN rate: 13.4% (target < 15%) ✅
+- Overall accuracy: 79%
+- Per-intent: COMPLETE_TASK 82%, CREATE_EXPENSE 79%, QUERY_BALANCE 82%, GREETING 100%
 
-### LOW — Google Icon from External CDN
-File: app/page.tsx
-Problem: Loaded from svgrepo.com — external dependency, supply chain risk.
-Fix: Downloaded and saved locally as /public/google-icon.svg.
+---
 
-### LOW — Activity Log userId Not Validated
-File: firestore.rules
-Problem: Any member could write activity log with any userId — audit trail untrustworthy.
-Fix: Validates request.resource.data.userId == request.auth.uid || userId == 'system'.
+## 6b. Security & Data Integrity Audit (Full History)
 
-### LOW — No Input Length Limits
-Files: app/page.tsx, app/onboarding/page.tsx
-Problem: No maxLength — extremely long strings could be stored in Firestore.
-Fix: Nickname 30, Flat name 50, Email 254, Password 128.
+**Audit 1:** 2026-05-27 | 8 found, 8 fixed
+**Audit 2:** 2026-06-03 | 7 found, 7 fixed
+**Audit 3 (expense module):** 2026-06-04 | 3 found, 3 fixed
 
-### Still To Do (Not Yet Fixed — Original Audit)
+### Key Issues Fixed
+
+| Severity | Issue | Fix |
+|---------|-------|-----|
+| HIGH | Any member could create/delete tasks | Firestore rules split: admin-only create/delete, member update |
+| HIGH | Any member could accept ANY swap | Added `resource.data.toUserId == request.auth.uid` check |
+| HIGH | deleteEntireFlatService orphaned data | Added joinRequests + npsResponses to deletion list |
+| HIGH | reassignMemberTasks assigned to wrong person | Fixed index calculation: `newQueue[leavingIndex % newQueue.length]` |
+| HIGH | kickMember non-atomic delete + decrement | writeBatch — both succeed or fail together |
+| CRITICAL | joinRequests had NO Firestore rules | Added full block — admin reads all, requester reads own |
+| CRITICAL | Expense rules not deployed | Ran `firebase deploy --only firestore:rules` |
+| HIGH | note: undefined rejected by Firestore | `fs()` helper strips undefined keys before all writes |
+| MEDIUM | generateFlatId() used Math.random() | Replaced with crypto.getRandomValues() |
+| MEDIUM | activityLog fetched entire collection | Changed to query with limit(50) + orderBy |
+
+### Still To Do
 - Firebase API Key Restrictions in Firebase Console
-- Password strength UX (show "min 6 chars" hint)
 - Content Security Policy (CSP)
 - Firebase App Check for rate limiting
 
 ---
 
-## 6f. Splitwise Completion & Expenses Redesign — June 2026 (Session 4)
+## 6c. Member Bills — Full Conditions (June 24)
 
-### REDESIGN — Expenses summary card
-File: app/dashboard/expenses/page.tsx
-Old: Color hero card showing net unsettled balance (balance metric, not a spending metric).
-New: Dark summary card (#1A202C) showing total monthly spend with a two-tone progress bar — amber = Fixed Bills, blue = Daily Splits. Two stat tiles show each category amount and its percentage of the total. Admin "Close month" button lives here. Correctly emphasises the two main things: Fixed Bills and Daily Splits.
+Members can now submit one-time bill instances they personally paid (e.g., internet bill, water bill).
 
-### REDESIGN — Balance section collapsed by default
-File: app/dashboard/expenses/page.tsx
-Old: Full per-person balance cards + two "You owe / Owed to you" stat cards always visible above the tab switcher — blocked the main view on mobile.
-New: Single compact strip showing net status at a glance ("You owe ₹2,000 · 2 people" orange, or "All balances settled" green). Tap to expand full per-person cards. Two stat cards removed. Balances accessible but no longer in the way.
+**Flow:**
+1. Member taps "I paid a bill" → fills amount, category, who splits it
+2. Bill appears in admin's "generate pipeline" as a pending card with member avatar
+3. Admin sees inline edit controls — can change amount/payer before approving
+4. Admin approves → splits recalculated → enters normal pipeline as split_generated
+5. Admin rejects → bill deleted with reason
 
-### FEAT — Bidirectional settlement (Mark Received)
-File: app/dashboard/expenses/page.tsx
-Previously only the debtor could settle (Settle button on "you owe them" cards only). Added "Mark Received" to "they owe you" cards — creditor can record that the other person paid them (cash/UPI). SettleUpModal handles both directions via `reversed` prop — swaps `fromUserId/toUserId`, shows green accent and "Received from" label, CTA says "Mark Received".
-
-### FEAT — Expense breakdown on balance card expand
-File: app/dashboard/expenses/page.tsx
-Tapping a balance card expands it to list every expense and bill that makes up that balance — category emoji, description, date, per-item net amount, sorted newest first. Users can now see exactly why they owe a specific amount.
-
-### FEAT — Person filter on transaction list
-File: app/dashboard/expenses/page.tsx
-"Filter list by person" button inside expanded balance card. Filters the Daily Splits transaction list to show only expenses and settlements shared with that person. Blue active-filter banner at the top of the list with one-tap Clear.
-
-### FEAT — Settle modal improvements
-File: app/dashboard/expenses/page.tsx
-- Quick-fill chips: "Pay full · ₹X" and "Pay half · ₹Y"
-- Remaining-after-payment preview when entering a partial amount
-- Input goes red and CTA disables if amount exceeds balance owed
-- CTA label changes dynamically ("Pay ₹2,000" for partial, "Mark as Paid" for full)
-- try/catch on handleSave — modal never freezes if Firestore fails
-
-### FEAT — Desktop sidebar Swaps badge counts all pending swaps
-File: app/dashboard/layout.tsx
-Old: `pendingSwaps` counted only swap requests where `toUserId === currentUser`. Showed 0 for admins who had no incoming swaps.
-New: counts all pending swaps in the flat regardless of direction. Both admin and member see the total pending count.
-
-### FEAT — Tasks page mobile Swap Requests shortcut
-File: app/dashboard/tasks/page.tsx
-Mobile-only banner (md:hidden) below the Tasks page header. Shows "Swap Requests" with live pending count badge. Tapping navigates directly to /dashboard/swaps. Replaces the need for a dedicated Swaps slot in the mobile bottom nav.
+**Conditions:**
+- Only members who personally paid can submit (not admin-only)
+- Admin must approve before the bill enters the collection pipeline
+- If admin edits amount/payer before approving, splits are recalculated atomically
+- Rejected bills never enter the pipeline
+- Collection toggle permissions: collector sees all, member sees only themselves, admin (non-collector) sees none
 
 ---
 
-## 6g. Member UX, Swap Analytics & Bill Collector — June 2026 (Session 6)
+## 6d. Flat Board — Full Conditions (June 2026)
 
-### FIX — Mobile nav: Profile restored to slot 5 for all users
-File: `app/dashboard/layout.tsx`
-Previous session incorrectly replaced Profile with Swaps in slot 5 for members. Reverted. Both admin and member now share the same 5-slot layout: Dashboard · Expenses · [FAB] · Tasks · Profile. Swaps are not a separate nav destination for members on mobile — they are accessed via the Swap Requests button on the Tasks page.
+New discovery layer. Members searching for flatmates or seekers searching for a flat.
 
-### FEAT — Member Tasks page: read-only view with swap bottom sheet
-File: `app/dashboard/tasks/page.tsx`
-Members see a completely different Tasks page from admin. Early return before the admin view renders:
-- Header with overdue badge counter
-- **Swap Requests button** at top (violet, shows pending count) — opens a slide-up bottom sheet, NOT page navigation
-- Task list: compact cards (emoji + name + YOU badge + overdue status + assignee · due date + expand arrow)
-- Tap any card on mobile → expands in-place to show: frequency/priority/due badges, full rotation queue (NOW indicator, OOS markers, position chips), last done date
-- No New Task, Edit, Delete, or Override controls visible to members
-- Bottom sheet: handle bar + Received/Sent sections with Accept/Decline buttons + empty state
+**Data types:**
+- `VacancyListing` — a flat with open room(s), lifestyle tags, rent range, location
+- `SeekerProfile` — someone looking for a flat: lifestyle tags, budget, move-in timing
+- `LifestyleTag` — 25+ tags (IT professional, student, early_bird, vegetarian, no_smoking, etc.)
+- `DiscoveryTag` — Firestore document, slugified, fetchable
 
-### FIX — Leave flat redirect: always went to /onboarding instead of next flat
-File: `app/dashboard/profile/page.tsx`
-Root cause: `handleConfirmLeave` and `handleTransferAndLeave` received `nextFlatId` from `leaveFlatService` (which correctly updates Firestore `activeFlatId`) but never called `switchFlat(nextFlatId)` to update the in-memory `useAuthStore` state. So routing to `/dashboard` loaded with the old, now-invalid flat ID.
-Fix: Added `await switchFlat(nextFlatId)` + `initFirestoreListeners(nextFlatId)` before `router.push('/dashboard')` in both handlers. Pattern modelled on `handleSwitchFlat` which already did this correctly.
-
-### RENAME — "Fixed Bills" → "Monthly Bills"
-Files: `app/dashboard/expenses/page.tsx`
-All UI references to "Fixed Bills" renamed to "Monthly Bills" — tab label, breadcrumb, card headers, buttons, empty state. The underlying data model is unchanged.
-
-### FEAT — Payer collection tracking on bill instances
-Files: `store/useFlatStore.ts`, `app/dashboard/expenses/page.tsx`, `firestore.rules`
-The person who pays the bill upfront (landlord/utility) can now track which members have paid them back their individual share, per bill instance:
-- New field: `BillInstance.collectedFrom?: Record<string, boolean>` — uid → received true/false
-- New store action: `markBillCollected(instanceId, memberUid, collected)` — optimistic update + Firestore dot-notation write `{ ['collectedFrom.uid']: value }`
-- UI: violet header strip "Collection status — mark who has paid you back" visible to payer and admin when `status === 'split_generated'`; per-person toggle button: green "✓ Received" or red "Pending"
-- Firestore rule: payer can update `['status', 'paidAt', 'collectedFrom']` on their own instances
-
-### FEAT — Swap page redesign: stat chips + admin All Swaps view
-File: `app/dashboard/swaps/page.tsx`
-Swaps page now has two major additions:
-- **4 stat chips** at top of "My Swaps" view: Sent (blue) · Received (violet, with pending badge) · Accepted (green) · Declined (red) — counts scoped to the current user
-- **Admin toggle** top-right: "My Swaps" | "All Swaps" — All Swaps renders a flat list of every swap in the flat with `From → To · Task` layout, Auto/You badges, status badges, and inline Accept/Decline buttons for pending swaps addressed to the admin
-
-### FEAT — Dashboard swap summary widget
-File: `app/dashboard/page.tsx`
-New clickable card on the home dashboard (only shown when the user has swap history) linking to `/dashboard/swaps`:
-- Shows 4 stats: Sent · Received · Accepted · Declined
-- Pending count badge in card header if action needed
-- Admin sees a footnote: "N total swaps in flat · tap to see all"
-- Positioned between Bills & Expenses widget and NPS banner
-
-### FEAT — Collector field on Monthly Bills
-Files: `store/useFlatStore.ts`, `app/dashboard/expenses/page.tsx`, `firestore.rules`
-Separates the concept of "who pays the owner" (payer rotation) from "who collects money from flatmates" (collector):
-- New field: `RecurringBill.collectorId?: string` — persists on the template, carries month-to-month until changed
-- New field: `BillInstance.collectorId?: string` — snapshot from template at generation time
-- `generateBill` copies `bill.collectorId` to the instance
-- `updateRecurringBill` type updated to include `collectorId`
-- **UI in bill card header:** "X pays · Y collects · 5th monthly" — collector shown inline; "You collect" in violet when it's the current user
-- **Collection tracking strip:** header text changes — "mark who has paid you back" for the collector, "X is collecting" for others; non-collector members are marked `isPayer` (no toggle shown)
-- **Firestore rule:** new third branch — `collectorId == request.auth.uid` can update `['collectedFrom']` only (no status/paidAt)
-
-### REDESIGN — MonthlyBillModal: collector picker + amount type selector
-File: `app/dashboard/expenses/page.tsx`
-Two major modal UI improvements:
-
-**Collector picker** (replaced plain `<select>`):
-- Grid of avatar cards — one per flat member
-- Each card shows: colored avatar circle with initial, name below, "you" sub-label for self
-- Selected state: violet border + violet tint background + blue checkmark badge on avatar
-- Tapping selects that person as collector (radio selection)
-
-**Amount type selector** (replaced disconnected bottom toggle):
-- The old toggle was at the bottom of the form while the amount input was near the top — broken UX, user reported "not working properly"
-- Fix: replaced with a 2-button radio selector directly above the amount input: **Fixed** | **Variable**
-- Fixed selected → ₹ amount input appears immediately below with ₹ prefix
-- Variable selected → amber info card replaces input: "You'll enter the actual amount each month"
-- Modal header corrected: "Add New Fixed Bill" → "Add Monthly Bill"
+**Lifestyle tag categories:**
+- Work & Schedule (IT/Tech, Finance, Student, Freelancer, WFH, Night shifts, 9-to-5)
+- Social & Personality (Early riser, Night owl, Homebody, Social, Fitness freak)
+- Diet & Habits (Vegetarian, Jain, Non-veg OK, No smoking, Social drinker, Pet-friendly)
+- Sleep & Sound (Quiet hours, Light sleeper)
 
 ---
 
-## 6e. Splitwise Overhaul & UI Redesign — June 2026 (Session 3)
-
-### FIX — Wrong people shown in balance (MCF algorithm removed)
-File: lib/expenseUtils.ts
-Problem: The Minimum Cash Flow algorithm collapsed debt chains — if A owed B and B owed C, MCF told A to pay C directly. Users saw balances with people they had never directly transacted with; the "who owes whom" table was confusing and wrong from the user's perspective.
-Fix: Replaced MCF with direct pairwise calculation. For each expense/bill/settlement, we accumulate a net amount between the current user and each counterparty. Users now only see balances with people they actually transacted with. No debt-chain simplification.
-
-### FIX — Deleted expense still visible on dashboard (optimistic delete)
-File: store/useFlatStore.ts
-Problem: `deleteExpense` only called Firestore `deleteDoc` and waited for `onSnapshot` to propagate (~1–2s lag). The deleted expense remained visible in the balance and transaction list during that window.
-Fix: Added optimistic update — `set(s => ({ expenses: s.expenses.filter(e => e.id !== expenseId) }))` before the Firestore call. Balance recomputes immediately.
-
-### REDESIGN — Balance/Settle section (expenses page)
-File: app/dashboard/expenses/page.tsx
-Problem: The settle flow was buried inside the dark hero card's bottom section — small "Settle" button, hard to spot, no clear "you owe them" vs "they owe you" framing. Settlement was described as "not easy to find" by user.
-Fix: Extracted balances out of the hero card entirely. New dedicated section below the stat cards shows per-person balance cards:
-- Green card with avatar + "owes you" label + green amount for money owed to you
-- Orange card with avatar + "you owe them" label + orange amount + prominent Settle button
-- Empty state shows "All balances settled — you're square!"
-Hero card simplified to show only total owed / status.
-
-### FIX — Member mobile nav slot 4 → Tasks (not Swaps)
-File: app/dashboard/layout.tsx
-Problem: After the previous session changed slot 4 to Tasks, the pending-swap badge was still attached — members saw Tasks but the badge counted swap requests. Swap access was via dashboard badge link only.
-Fix: Members see Tasks in slot 4 with the pending-swap badge (so they know swaps need attention and can tap Tasks → swap button from there). Dashboard badge still links to the swaps page for direct access.
-
-### UX — Bill cards Mark Paid visible to all payers
-File: app/dashboard/expenses/page.tsx
-Problem: The "Mark Paid" CTA was inside `{isAdmin && (...)}` so members who were listed as payers couldn't mark their own bills paid.
-Fix: Extracted Mark Paid into its own block gated by `isYouPayer || isAdmin`. All payers see the CTA; non-payer members do not.
-
-### UX — Auto-create expense when bill marked paid
-File: store/useFlatStore.ts
-Fix: `markBillPaid` now creates a corresponding expense in the transactions list (category: 'bills', description from bill name, amount/splits from bill instance) so the split-wise transaction list reflects bill payments automatically.
-
-### UX — Transaction list banking-style redesign
-File: app/dashboard/expenses/page.tsx
-Fix: `ExpenseRow` redesigned to banking-style layout: category emoji icon (rounded square) on left, bold description + "payer · date" subtitle in center, net amount (green +X if owed, orange -X if you owe) on right. Expanded view shows clean split breakdown with PAID badge and action buttons.
-
----
-
-## 6d. Bug Fixes & UX Improvements — June 2026 (Session 2)
-
-### FIX — Dismiss banner reappears on Dashboard tab navigation
-File: app/dashboard/page.tsx
-Problem: `dismissedSwapRef` was `useRef(new Set())` — resets to empty on every component remount. Navigating away from Dashboard and back caused dismissed swap banners to reappear even though `markSwapRequestRead` had been called.
-Fix: Lazy-initialize the ref from `sessionStorage` on each mount. Persist dismissed IDs to `sessionStorage` when user clicks dismiss. State survives tab navigation for the duration of the browser session.
-
-### FIX — Editing an expense did not save
-Files: store/useFlatStore.ts, firestore.rules, app/dashboard/expenses/page.tsx
-Problem 1: No `updateExpense` function existed in the store — only `addExpense` and `deleteExpense`.
-Problem 2: Firestore rules had `allow update: if false` for the expenses subcollection.
-Problem 3: No edit button existed in the `ExpenseRow` expanded view — no way to trigger editing.
-Problem 4: No try/catch in `ExpenseModal.handleSave` or `MonthlyBillModal.handleSave` — any error froze the modal permanently (saving state stuck true).
-Fix: Added `updateExpense` to `useFlatStore` (writes to Firestore when flatId exists, optimistic update otherwise). Updated Firestore rule to `allow update: if isMember(flatId) && (resource.data.createdBy == request.auth.uid || isAdmin(flatId))`. Added `Edit` (Pencil) button to `ExpenseRow` expanded view (only shown to creator). Added `editExpense` state and wired the edit modal. Added try/catch to both modal `handleSave` functions with `setSaving(false)` on error. Deployed updated Firestore rules.
-
-### REMOVED — Reliability Score card
-File: app/dashboard/page.tsx
-The Reliability Score stat card was removed from the Dashboard stats row (it was visible to members and in admin "mine" view). Feature deemed unnecessary for the current trial phase.
-
-### FIX — Swaps missing from mobile navigation
-File: app/dashboard/layout.tsx
-Problem: Swaps was in the desktop sidebar but absent from the 5-slot mobile bottom nav. Members had no mobile access to the Swaps page.
-Fix: For members, slot 4 now shows Swaps (replacing Members). For admins, slot 4 still shows Tasks. Swaps badge (pending swap count) shown in mobile nav when applicable.
-
----
-
-## 6e. Monthly Bills & Expense Modal Fixes — June 2026 (Session 3)
-
-### FIX — Monthly Bills: View Details and expanded card show wrong payer / out-of-sync statuses
-Files: app/dashboard/expenses/page.tsx
-Problem: `payerUid` was computed from `bill.currentPayerIndex`, which advances AFTER `generateBill` runs. So the index already points to next month's payer, not the payer for the generated instance. The View Details page and the expanded card both showed the wrong payer name, the wrong PAYS badge, and wrong member statuses.
-Fix: Use `instance.paidBy` as the authoritative payer for existing bill instances (set at generation time). Fallback to `currentPayerIndex` only when no instance exists. Applied fix to both View Details modal and the main expanded card.
-Also fixed: `isPayer` variable was shadowed, causing the PAYS badge to display on the collector instead of the payer. Split into `isThePayer` and `isTheCollector`. Added `isPaidForMember` to unify "settled" and "payer in split_generated" into one bool for status display.
-
-### FIX — Monthly Bills: Collection toggle permissions incorrect
-File: app/dashboard/expenses/page.tsx
-Problem: All members saw the "Mark Collected" toggle for all other members. Admin (who may not be the collector) also saw all toggles.
-Fix: Collection toggles now follow this rule:
-- Collector sees toggle for ALL other members (they collect from everyone)
-- Regular member sees toggle ONLY for themselves (to self-mark when they've paid)
-- Non-collector admin sees no toggles
-- The payer themselves is excluded from collection (they pay the landlord, not to themselves)
-`showCollect = instance is split_generated AND uid is not the collector AND (current user IS collector OR current user IS the uid)`
-
-### FIX — Monthly Bills data leaking into Daily Splits
-Files: lib/expenseUtils.ts, store/useFlatStore.ts, app/dashboard/expenses/page.tsx, app/dashboard/page.tsx
-Problem 1: `computeBalances` included a `billInstances` parameter and processed bill instances as part of balance calculations, mixing Monthly Bills into Daily Splits balances.
-Problem 2: `markBillPaid` created an expense document in the Daily Splits list with a `billInstanceId` link field, causing the bill to appear in Daily Splits history and contribute to balances.
-Problem 3: `deleteExpense` reverted bill instance status when deleting a bill-linked expense. `deleteBillInstance` and `deleteRecurringBill` also cascaded to delete linked expenses.
-Fix:
-- Removed `billInstances` parameter from `computeBalances`. Monthly Bills are now tracked separately only (signature: `(currentUserId, expenses, settlements)`).
-- Added `if (expense.billInstanceId) continue` guard inside `computeBalances` to exclude any residual bill-linked expenses.
-- Removed auto-expense creation from `markBillPaid`.
-- Removed all cascade-delete logic between bills and expenses in `deleteExpense`, `deleteBillInstance`, and `deleteRecurringBill`.
-- Updated both `app/dashboard/page.tsx` and `app/dashboard/expenses/page.tsx` `computeBalances` call sites to remove the `billInstances` argument.
-
-### FIX — Expense modal save button doesn't save or close
-Files: store/useFlatStore.ts, app/dashboard/expenses/page.tsx
-Problem 1: `addExpense` in the store awaited `addActivity` (the Firestore activity log write). If `addActivity` failed for any reason (Firestore rule rejected, network error), the error propagated to `ExpenseModal.handleSave`'s catch block, which kept the modal open with "Failed to save." — even though the expense itself WAS actually saved successfully.
-Problem 2: The error message in `ExpenseModal` was rendered inside the scrollable content area. On mobile (max-h 92dvh), the form body is often long enough that the error appears below the visible scroll area. Users saw the Save button spin briefly then go back to normal, with no visible feedback — the exact "not saving and not closing" symptom.
-Fix 1: Changed `await get().addActivity(...)` to `void get().addActivity(...)` in both `addExpense` and `deleteExpense`. Activity log writes are now fire-and-forget — a failure never blocks the modal from closing.
-Fix 2: Moved the `{error && ...}` red alert div from inside the scrollable body to the sticky footer, just above the Save button. Any save error is now always visible regardless of scroll position.
-
----
-
-## 6c. Expense Module Bug Fixes — June 2026 (All Fixed)
-
-### CRITICAL — Firestore rules for expenses/settlements/recurringBills not deployed
-The new subcollection rules were written to `firestore.rules` but never deployed. Firestore defaulted to DENY all access → "Missing or insufficient permissions" on every expense write.
-Fix: Ran `firebase deploy --only firestore:rules --project garbage-f79f7`. Rules now live in production.
-
-### HIGH — `note: undefined` rejected by Firestore
-When adding an expense or settlement with no note, the optional `note` field was explicitly set to `undefined` via `form.note.trim() || undefined`. Firestore rejects explicit undefined values.
-Fix: Added `fs()` helper at the top of `useFlatStore.ts` — strips all undefined-valued keys before any Firestore write. Applied to `addExpense`, `addSettlement`, `createRecurringBill`.
-
-### MEDIUM — `createdBy: ''` in `generateBill` caused permissions failure
-`generateBill` was passing `createdBy: useAuthStore.getState().user?.uid || ''`. If uid wasn't ready, `createdBy` became `''` which failed the rule `createdBy == request.auth.uid`.
-Fix: Read uid once at function start, return early if not present, use directly as `createdBy: uid`.
-
----
-
-## 6b. Second Audit Findings — June 2026 (All Fixed)
-
-### CRITICAL — joinRequests subcollection had NO Firestore rules
-File: firestore.rules
-Problem: Firestore denies all access by default when no rule matches. The joinRequests subcollection had zero rules — every read/write was silently denied. The entire approval-mode feature (admin approves/rejects join requests) was completely broken in production.
-Fix: Added full joinRequests rule block — admin reads all; requester reads their own; any authenticated user can create for themselves; only admin can update/delete.
-
-### HIGH — deleteEntireFlatService orphaned joinRequests + npsResponses data
-File: lib/flatService.ts
-Problem: When the last admin deleted a flat, only ['members', 'tasks', 'activityLog', 'swapRequests'] were deleted. The joinRequests and npsResponses subcollections were left as orphaned documents in Firestore — permanently inaccessible dead data that accumulated over time.
-Fix: Added 'joinRequests' and 'npsResponses' to the subcollections array in deleteEntireFlatService.
-
-### HIGH — reassignMemberTasks assigned to wrong person on leave/kick
-File: lib/flatService.ts
-Problem: When a member left or was kicked and they were the current task assignee, the task was assigned to newQueue[0] — the FIRST person in the remaining queue — instead of the correct next person after the leaving member. Example: queue [A,B,C,D], B leaves → task went to A instead of C.
-Fix: Captured the leaving member's index in the original queue, then used newQueue[leavingIndex % newQueue.length] to correctly select the next person in rotation.
-
-### HIGH — kickMemberService had non-atomic member delete + counter decrement
-File: lib/flatService.ts
-Problem: deleteDoc(member) ran first, then updateDoc(memberCount--) separately. If the decrement failed, the flat's memberCount stayed permanently high. A flat at 8 members that kicks someone would still show memberCount=8, locking out all future join attempts with "flat is full."
-Fix: Replaced the two sequential calls with a writeBatch commit — both the member deletion and the counter decrement now succeed or fail together atomically.
-
-### MEDIUM — generateFlatId() used Math.random() for invite codes
-File: lib/flatService.ts
-Problem: Invite codes are 4 characters from a 32-character alphabet (32^4 = ~1M possibilities). Using Math.random() makes them predictable and brute-forceable — an attacker could enumerate all codes to find valid flats and auto-join them.
-Fix: Replaced with crypto.getRandomValues() — cryptographically secure randomness, same pattern as the crypto.randomUUID() fix from the first audit.
-
-### MEDIUM — activityLog listener fetched entire collection, sliced client-side
-File: store/useFlatStore.ts
-Problem: The Firestore listener subscribed to the full activityLog collection and sorted + sliced to 50 entries in JavaScript. Every real-time update triggered a re-read of ALL entries (potentially thousands as the flat aged), billing for every read and slowing load times.
-Fix: Changed to query(collection(...), orderBy('timestamp', 'desc'), limit(50)) — Firestore now returns only the 50 most recent entries, sorted server-side. Read cost is O(50) regardless of total log size.
-
-### LOW — fortnightly legacy frequency incorrectly treated as 7 days
-File: lib/rotationEngine.ts
-Problem: The vault documentation listed 'fortnightly' as a supported frequency, but it was dropped from the TypeScript type at some point. Any old tasks in Firestore with frequency: 'fortnightly' fell into the 'custom' fallback (7-day cycle) instead of the correct 14-day cycle — producing wrong due dates and wrong cycle labels.
-Fix: Added explicit fortnightly handling in completeTask (14-day nextDueDate), getTaskDateInfo (1,209,600,000ms cycle), and getTaskUrgency (48-hour warning window, same as weekly).
-
----
-
-## 7. Complete Feature Set (v0.3.0)
+## 7. Complete Feature Set (v0.5.0)
 
 ### Auth
-Google Sign-In (one-tap) · Email/Password · Custom auth domain proxy (iOS Safari fix) · Session persistence · Minimal data (email + name only) · **Forgot password flow** (in-modal reset, email enumeration safe)
+Google Sign-In (one-tap) · Email/Password · Custom auth domain proxy (iOS Safari fix) · Session persistence · Minimal data · **Forgot password flow** (email enumeration safe) · Redirect errors surfaced to user
 
 ### Onboarding
-**Mobile:** Continuity flow — each step feels like a direct continuation of the choice screen. Choose screen (orange/purple hero cards) → Create Flat (170px hero strip, "Your Flat. Your Rules." headline, flat name only) or Join Flat (170px hero strip, "Your Crew. Already Here." headline, nickname + invite code). No redundant headings, no nickname ask on create (user already authenticated). Invalid invite codes caught early with clear error message before any other flow runs.
-**Desktop:** Premium two-panel layout — full-viewport image on left with floating feature cards, form on right.
-Create flat (instant invite code) · Join flat via code · One-time setup · Join/create additional flats without logout · Approval-mode join (admin approves requests)
+**Mobile:** Continuity flow — Choose screen → Create Flat (170px hero strip, "Your Flat. Your Rules.") or Join Flat ("Your Crew. Already Here."). Invalid invite codes caught early.
+**Desktop:** Premium two-panel layout — full-viewport image + form.
+Create flat · Join flat · Join/create additional flats without logout · Approval-mode join
 
 ### Rotation Engine
 Auto-assignment · Per-task rotation queue · Skip OOS members · Resume on return · Admin manual override · Custom start date · Frequencies: daily/weekly/fortnightly/monthly · Priority: low/medium/high
 
 ### Task Management
-Admin creates/deletes/edits tasks · Mark done (single tap) · Overdue tracking + persistence · New member auto-added to all queues · Group tasks (multi-member, sub-task per person) · Temp (one-off) tasks outside rotation
+Admin creates/deletes/edits tasks · Mark done (single tap) · Retroactive date editing · Overdue tracking + persistence · New member auto-added to all queues · Group tasks · Temp tasks
 
 ### Swap System
-Request swap · Accept/Decline · Persistent dashboard banner · Activity log tracking · Pending-swap badge on desktop sidebar · Swap Requests button on member Tasks page opens bottom sheet · Swap page: 4 stat chips (Sent/Received/Accepted/Declined) + admin All Swaps toggle (flat-wide list with inline accept/decline) · Dashboard swap summary widget (clickable, links to swaps page)
+Request swap · Cancel/withdraw swap · Accept/Decline · Persistent dashboard banner · 4 stat chips (Sent/Received/Accepted/Declined) · Admin All Swaps toggle · Dashboard swap summary widget
 
-### Rotation Card
-Full queue visibility · Position numbers · YOU badge · Due date + frequency display
+### Expenses & Bills
 
-### Admin Controls
-My Tasks view · Org View (flat-wide) · Invite code panel · Member management · Role transfer · Month-end close flow
-
-### Membership Management
-Leave flat · Auto flat switch · Admin transfer requirement · Last-member flat deletion · Kick member · Kicked user redirect · Task reassignment on leave/kick (correct next-in-queue logic)
-
-### Multi-Flat
-Multiple flat memberships · FlatSwitcher (Gmail-style) · Instant switch · Join/create from inside dashboard
-
-### Expenses & Splitwise (complete)
-**Recurring Bills (now called Monthly Bills):**
-- Admin configures monthly bills (Rent, WiFi, Water, Electricity, Gas, Maid etc.)
-- Fixed or variable amount per month — chosen via 2-button radio selector (Fixed/Variable) in the creation modal
-- Payer auto-rotates through a queue each month
-- **Collector field**: separate from the payer — designates who collects each member's share. Defaults to admin, changeable any month via avatar card picker in the modal. Shown in bill card header ("X collects")
-- Admin generates bills on/after billing date; variable bills prompt for actual amount
-- Bill instances tracked with status: pending → split_generated → paid / skipped
-- All payers (not just admin) can mark their bills paid
-- Marking paid auto-creates a matching expense in the Daily Splits transaction list
-- **Collection tracking**: per-member Received/Pending toggles on expanded bill instance (visible to collector + admin); `collectedFrom` map stored on instance; Firestore rule allows collector to update `collectedFrom` without admin role
+**Recurring Bills:**
+- Fixed or variable amount per month
+- Payer auto-rotates
+- Collector field (separate from payer) — avatar card picker
+- Admin generates on billing date
+- **Member-submitted bills** — member submits → admin approves/edits/rejects → recalculates splits
+- Collection tracking per-member (Received/Pending toggles)
+- Bill instances: pending → split_generated → paid/skipped
+- Future-dated expenses blocked
 
 **Daily Splits:**
-- Ad-hoc expense log (like Splitwise) — anyone can add
-- Equal split or fully custom per-person amounts
-- 7 currencies: INR, USD, EUR, GBP, AED, SGD, AUD
-- Banking-style transaction list: category emoji + description + payer·date + net amount
-- Edit expense (creator or admin) · Delete (optimistic — instant UI update)
-- Deferred expenses (carry to next month)
+- Ad-hoc expense log — equal or custom split, 7 currencies
+- Banking-style transaction list: category emoji + net amount
+- Edit (creator/admin) · Delete (optimistic) · Deferred expenses
 
 **Balances & Settlement:**
-- Direct pairwise balance calculation — only real transaction pairs shown, no MCF chains
-- Per-person balance cards: green (they owe you) · orange (you owe them)
-- Expand card to see full breakdown of which expenses make up that balance
-- **Settle** button (debtor side): opens settle modal, pay full or partial amount
-- **Mark Received** button (creditor side): record that the other person paid you
-- Settle modal: quick-fill "Pay full / Pay half" chips · remaining-after-payment preview · partial payment label on CTA · try/catch prevents freeze on error
-- Balances collapsed by default on mobile — compact strip shows net status, tap to expand
-- Person filter: filter transaction list to show only shared history with one specific person
-- Settlement history visible in the combined transaction timeline
+- Direct pairwise (no MCF chains)
+- Expand to see contributing expenses
+- Settle (debtor) · Mark Received (creditor) · Partial payment
+- Person filter on transaction list
+- Settlements collapsed by default
 
-**Monthly Summary:**
-- Dark summary card showing total monthly spend
-- Progress bar: Fixed Bills (amber) vs Daily Splits (blue)
-- Two stat tiles with amounts and percentages
-- Month-end close: admin locks the month, balances carry forward to next cycle
-- Carry-forward balances shown as a notice at top of next month's list
+**Month-end close:** Admin locks month, carry-forward balances
 
-### Analytics
-Completion grid · Reliability scores · Per-task breakdown · Flat-level aggregate
+### Voice Assistant
+9 intent types · 11 action executors · NLU accuracy 79% overall, 13.4% UNKNOWN · Hinglish + Telugu-English support · Waveform visualizer · iOS fallback modal · Android Chrome mic handling · 8s response card + 5s undo for expenses · Single instance lifted to layout level (all pages covered)
 
-### Calendar
-Monthly view · Member filtering · Completed vs pending distinction
+### Subscription System
+Trial (30d from flat creation) · Active (coupon redeemed) · Expired (trial ended)
+Gates: create_task, add_expense, create_bill, create_flat (view-only on expiry)
+Coupons: HAB-WELCOME (90d), EARLYBIRD-2026 (90d), HABITIQ-BETA (90d)
+maxFlats: Premium = 3, trial/expired = 1
+Crown badge + PREMIUM pill when active
 
-### Activity Log
-Full audit trail · Real-time · Flat-wide visibility
+### Rewards Wallet
+Every task completion = reward · Anti-abuse: 1 reward/24h, retroactive completions excluded
+Dynamic pool from `/rewardPool` Firestore collection (6h localStorage cache)
+Scratch-card grid in Profile · Unlock modal (scale spring + confetti)
+Firestore rules: owner read+create, isRedeemed update only
 
-### Real-Time
-Firestore onSnapshot on all data · No refresh needed · Offline detection
+### Flat Board (Find Members)
+Seeker profiles with lifestyle tags · Vacancy listings · Join request from discovery
+25+ lifestyle tags across 4 categories
 
-### UI & Navigation
-Dark/light mode · Bottom nav mobile (5-slot with radial FAB: Dashboard · Expenses · [FAB] · Tasks · Profile — same layout for admin and member) + sidebar desktop · Fully responsive · No install required · Turbopack fast loading · Pending badge counts on nav items · Radial Quick-Add FAB (Split expense / Bill / Task for admin; Split only for member) · Member Tasks page has read-only view with compact tap-to-expand cards and swap bottom sheet
+### Analytics & Calendar (Insights page)
+Calendar view with member filter · Task completion grid · Reliability scores · Monthly/all-time toggle
+
+### Navigation
+**Mobile:** 5-slot bottom nav (Dashboard · Expenses · [FAB] · Tasks · Profile) · Radial FAB (Split / Bill / Task for admin; Split only for member) · Voice on FAB tap
+**Desktop:** Sidebar with voice pill · Insights, Find Members, Manage Flat in sidebar
+
+### Legal
+Privacy Policy (DPDP Act 2023 compliant) · Terms of Service (India governing law) · Both public routes (no auth required)
+
+### Landing Page (June 26)
+New hero: "Find your flat. Run it without drama." · FlatFinderScreen mockup (AI compatibility %) · New logo throughout · Redesigned loading animation (panel shards + orbiting dots + spring entrance)
 
 ---
 
-## 8. User Flows
+## 8. User Flows (all conditions)
 
 ### Flow 1 — Admin Creates Flat
-Open app → Sign in → Onboarding choose screen (Your Flat. Your Rules. card) → Create Flat screen → Enter flat name only (nickname auto-set from profile) → Invite code generated → Dashboard → Share code → Create tasks → Done
+Open app → Sign in → Onboarding (Your Flat. Your Rules.) → Create Flat → Invite code generated → AdminWelcomeModal (HAB-WELCOME pre-filled) → Dashboard
 
 ### Flow 2 — Member Joins
-Open app → Sign in → Onboarding choose screen (Your Crew. Already Here. card) → Join Flat screen → Enter nickname + invite code → Invalid code: immediate clear error → Valid code: auto-added to all queues → Dashboard
+Open app → Sign in → Onboarding (Your Crew. Already Here.) → Join Flat → Invalid code: immediate error → Valid code: auto-added to all queues → Dashboard
 
-### Flow 3 — Daily Use
-Open app (30–60s) → See "Your Tasks" → Complete task → Tap Mark Done → Next person auto-assigned → Activity log updates for all
+### Flow 3 — Daily Task
+Open app → See "Your Tasks" → Mark Done (single tap) → Reward modal (if within 24h window, not retroactive) → Next person auto-assigned
 
 ### Flow 4 — Swap Request
-See task can't do → Request Swap → Select flatmate → Banner appears for all → Flatmate accepts/declines → Task reassigned or stays → Activity log records outcome
+Swap Requests button (Tasks page) → Request → Select flatmate → Flatmate accepts/declines → Task reassigned or stays. Admin: swaps page "All Swaps" toggle.
 
-### Flow 5 — Admin Org View
-Toggle Org View → All tasks all members → See completed/pending/overdue → Manual override → Add/remove tasks → Check member reliability
+### Flow 5 — Add Expense
+FAB → Split expense → Description, amount, category, date → Equal or custom split → Save → Instant balance update
 
-### Flow 6 — Member Leaves
-Settings → Danger Zone → Leave flat → Confirmation
-- Not admin: removed → tasks reassigned → switch to next flat or go to onboarding
-- Admin with others: must transfer role first → leave as regular member
-- Admin last member: warning → confirm → entire flat deleted
+### Flow 6 — Monthly Bill (admin)
+Monthly Bills tab → Add Monthly Bill → Fixed or Variable → Set billing day → Choose participants → Pick Collector (avatar card) → Save → Generate on billing date → Collection tracking
 
-### Flow 7 — Admin Kicks Member
-Members page → Remove → Confirm → Member removed → Tasks reassigned → Activity log → Kicked user sees onboarding on next open
+### Flow 7 — Member Submits a Bill
+I paid this bill → Fill details → Admin sees pending card in generate pipeline → Admin edits if needed → Approves → Splits calculated → Collection begins
 
-### Flow 8 — Multi-Flat Switch
-Tap FlatSwitcher → Dropdown shows all flats → Tap target flat → All data reloads instantly → No page reload, no logout
+### Flow 8 — Voice Command
+Long FAB tap (or short tap) → Listening overlay → Say "mark kitchen done" → NLU → action executes → Response card slides up → Auto-dismiss 8s. Expense undo available 5s.
 
-### Flow 9 — Add & Split an Expense
-Expenses Hub → Daily Splits tab → (+) FAB or Add button → Enter description, amount, category, date → Choose equal or custom split → Select who is included → Save → Appears in transaction list instantly → Balances update immediately
+### Flow 9 — Settlement
+Balances strip (compact) → Tap to expand → Settle button (you owe) or Mark Received (they owe) → Partial or full → Balance recomputes instantly
 
-### Flow 10 — Setting Up Monthly Bills
-Expenses Hub → Monthly Bills tab → Add Monthly Bill → Enter name, category → Select Fixed or Variable amount type → Enter amount (if fixed) → Set billing day → Choose who splits → Pick Collector (avatar card, default = admin) → Save → Admin generates on billing date → Bill instances created with split amounts → Collector marks each member as Received/Pending as they pay → Each payer marks their bill paid → Auto-logged in Daily Splits
+### Flow 10 — Member Leaves
+Settings → Danger Zone → Leave flat → Not admin: switch to next flat. Admin with others: transfer role first. Last member: flat deleted.
 
-### Flow 11 — Settling a Balance
-Expenses Hub → Tap balance strip (compact) → Balances expand → See "You owe Rahul ₹2,000" → Tap "Settle" → Quick-fill "Pay full" or enter partial → Add note (UPI/cash) → Mark as Paid → Balance recomputes instantly
+### Flow 11 — Subscription Expired
+Trial ends → AdminExpiredModal (dismiss + view-only option). Enter coupon → redeems → PREMIUM. Members see "ask your admin for a coupon" hint.
 
-### Flow 12 — Recording Cash Received (Creditor Flow)
-Expenses Hub → Balance strip → Expand → "Rahul owes you ₹3,000" → Tap "Mark Received" → Enter amount received → Save → Settlement recorded from Rahul's side → Balance updates
-
-### Flow 13 — Investigating a Balance
-Expenses Hub → Balance strip → Expand → Tap "Rahul · owes you · 3 transactions" card → Card expands → See list of 3 expenses with amounts and dates → Tap "Filter list by person" → Daily Splits tab filters to show only shared history with Rahul
+### Flow 12 — Voice Mic Blocked
+Long-press FAB → Mic blocked → MicPermissionModal with fix guide (how to unblock in Chrome/Safari) → User unblocks → Normal voice flow
 
 ---
 
 ## 9. Current Status & Known Limitations
 
 ### Live and Working
-Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audit complete ✅ · Multi-flat ✅ · Membership management ✅ · 8-member cap ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Swap system ✅ · Dark mode ✅ · NPS banner ✅ · PWA ✅ · Recurring Bills ✅ · Daily Splits / Expenses ✅ · Balances & Settlement ✅ · Month-end close ✅ · Privacy Policy ✅ · Terms of Service ✅
+Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile UI ✅ · Security audits ✅ · Multi-flat ✅ · Membership management ✅ · Swap system ✅ · Analytics ✅ · Calendar ✅ · Activity log ✅ · Dark mode ✅ · NPS ✅ · PWA ✅ · Recurring Bills ✅ · Member-submitted bills ✅ · Daily Splits ✅ · Balances & Settlement ✅ · Month-end close ✅ · Privacy Policy ✅ · Terms of Service ✅ · Subscription system ✅ · Rewards Wallet ✅ · Voice Assistant (Sprints 1–4) ✅ · Flat Board ✅ · Insights page ✅ · Manage Flat page ✅ · Landing redesign ✅
 
-### Known Limitations
+### Open Items
 
-| Limitation | Impact | Fix Phase |
-|-----------|--------|-----------|
-| No push notifications | Must open app to see updates | Phase 2 |
-| No offline mode | Needs internet | Phase 3 |
-| No native mobile app | Web only | Phase 3 |
-| No password reset UI | ~~Firebase default email~~ **Done — forgot password flow in navbar auth modal** | ✅ Done |
-| No task photo proof | No visual verification | Phase 2 |
-| No flat announcements | No admin broadcast | Phase 2 |
-| No task history archive | Older than 30 days not viewable | Phase 2 |
-| Expense multi-currency balances | Cross-currency balances shown separately, no conversion | Phase 2 |
-| No settlement confirmation from recipient | Either side can record a settlement; no double-confirmation | Phase 3 |
-| Admin-only flat-wide balance view | Admin cannot see all member-to-member balances in one matrix | Phase 2 |
+| Item | Status | Notes |
+|------|--------|-------|
+| UI Plan Day 6 (forms/modals/sheets) | [ ] Pending | Next session |
+| UI Plan Day 7 (toasts/empty states) | [ ] Pending | |
+| UI Plan Day 8 (analytics charts) | [ ] Pending | Recharts install needed |
+| UI Plan Day 9 (profile/onboarding) | [ ] Pending | |
+| UI Plan Day 10 (final polish) | [ ] Pending | |
+| Voice Sprint 5 (optimization) | [ ] Pending | Lazy-load, battery, analytics |
+| Push notifications | [ ] Phase 2 | Firebase Cloud Messaging |
+| Firestore rules redeploy | ⚠️ Check | `firebase deploy --only firestore:rules` if rules changed |
+| Firebase API Key Restrictions | [ ] Pending | Firebase Console |
+| Content Security Policy | [ ] Pending | next.config.ts |
 
 ---
 
 ## 10. Roadmap — Future Requirements
 
 ### Phase 1 — Trial (Now → 3 Months) CURRENT
-Goal: Validate with 5–20 real flats.
 - [x] All core features built
 - [ ] Collect user feedback (ongoing)
 - [ ] Fix bugs from real usage (ongoing)
-- [ ] Track trial metrics (ongoing)
-
----
 
 ### Phase 2 — Growth (3–6 Months)
-Goal: 100+ active flats. Add features users asked for.
-
-**Done (June 2026 — Session 2026-06-19 — Rewards Wallet v2, shipped to Vercel):**
-- **Every task = reward** — removed 5-task streak. `markTaskCompleted` gives a coupon on every completion.
-- **Anti-abuse guards** — (1) retroactive completions excluded (`completedAt > 2h ago` → no reward); (2) 1 reward per 24 hours per device via `habitiq_last_reward_at` localStorage key.
-- **Dynamic reward pool from Firestore** — `lib/rewardPool.ts`. Reads active coupons from `/rewardPool/{id}` collection (`brandName`, `discountCode`, `description`, `isActive`, `expiryDays`). Cached in localStorage for 6h. To update coupon codes: edit documents in Firebase Console → all users get new codes automatically. Hardcoded Beardo fallback if pool is empty.
-- **localStorage as primary storage** — `store/useRewardsStore.ts` seeds from `habitiq_rewards` on load. Firestore sync is best-effort. Fixes `Missing or insufficient permissions` error that was hiding the wallet.
-- **RewardUnlockModal** — redesigned as center-screen celebration overlay: scale spring animation (0.72→1), backdrop blur, 🎊🎁🎉 confetti, brand name, "View Reward" CTA navigates to `/dashboard/profile`, "Later" dismisses, auto-dismiss after 8s.
-- **RewardsWallet** — always visible in Profile (no `return null` guard). Empty state: dashed border card with lock icon + "Your first reward awaits / Complete any task to earn a gift from our brand partners". Scratch-card design: indigo/purple gradient cards with shimmer sweep animation, brand name, `●●●●-●●●● · tap to reveal`. Bottom sheet reveals full code + Copy button → marks as redeemed.
-- **Firestore rules** — `/rewardPool` read-only for auth'd users (Console-only writes). `/users/{uid}/rewards` subcollection: owner can read+create, update restricted to `isRedeemed` only.
-- **Signal architecture** — `lib/rewardSignal.ts` decouples useFlatStore ↔ useRewardsStore to avoid circular imports. `emitRewardUnlocked` fires always (local), Firestore write is async best-effort.
-- **⚠️ Pending**: deploy `firestore.rules` via `firebase deploy --only firestore:rules` to enable Firestore reward sync for multi-device.
-
-**Done (June 2026 — Session 2026-06-17, Session 3):**
-- ✅ **Onboarding mobile redesign — full continuity flow** — `app/onboarding/page.tsx` completely restructured using `hidden lg:flex` / `lg:hidden` fragment pattern. Desktop (two-panel) and mobile (single-column) are now entirely separate implementations. Mobile choose screen was already done (hero cards). Mobile create/join steps now feel like direct continuations of the choice:
-  - **Create Flat mobile**: 170px hero strip (same warm apartment image), headline "Your Flat. Your Rules." (exact text from the choice screen card), description, flat name only field (no nickname — user is already authenticated), "Create Flat →" CTA, 3 checkmark benefits, trust footer. No nickname field.
-  - **Join Flat mobile**: 170px hero strip (same purple atmosphere image), headline "Your Crew. Already Here." (exact text from choice screen), description, YOUR NICKNAME field (pre-filled from Google profile, editable) + INVITE CODE field, "Join Flat →" CTA, 3 checkmark benefits. Nickname kept here because joining requires identifying yourself to existing members.
-  - **Desktop unchanged** — `hidden lg:flex` keeps the original premium two-panel layout.
-  - Hero images `public/onboard-create.png` and `public/onboard-join.png` added and committed.
-- ✅ **Invalid invite code — clear error** — `handleJoinFlat` now calls `flatExists(code)` before any other Firestore operations. If the code doesn't match any flat, user immediately sees: "That invite code doesn't match any flat. Double-check it with your flatmate and try again." Previously, wrong codes could surface generic or confusing error messages from deeper in the join flow. `flatExists` added to imports from `@/lib/flatService`.
-- ✅ **Nickname read-only when profile exists** — Desktop create/join forms: if `user.displayName` is set (always true for Google users), the YOUR NICKNAME field renders as a non-editable display row (muted text + green checkmark). Email/password users without a display name still see the editable input. The `nickname` state is still set from `displayName` so `handleCreateFlat` / `handleJoinFlat` work unchanged.
-- ✅ **TrustTagCard null guard** — `components/TrustTagCard.tsx`: added `if (!tag) return null` guard before accessing `tag.tier`. Prevents runtime crash when the tag document is missing or hasn't loaded.
-- **Forgot Password flow** — `AuthForm` in `components/ui/navbar.tsx` now has a third mode `"reset"`. In sign-in view, a "Forgot?" link appears inside the password field. Clicking switches to the reset view: email input + "Send Reset Link" button. Uses Firebase `sendPasswordResetEmail` (added to `useAuthStore.ts`). On success shows confirmation: "If an account exists for [email], a reset link is on its way." `user-not-found` errors treated as success silently (no email enumeration). Back to sign in link in both reset form and success state.
-- **Auto-flat bug investigation** — NOT a real bug. Confirmed by code review. `initAuthListener` loads an existing flat from Firestore on every sign-in. A tester who created an account + flat in session 1, then signed in again in session 2, sees the flat load automatically — which is correct behavior. No auto-create logic exists anywhere.
-
-**Done (June 2026 — Session 2026-06-16):**
-- ✅ **Mobile nav unified** — Profile in slot 5 for both admin and member. Swaps removed from member mobile nav; accessed via button on Tasks page instead
-- ✅ **Member Tasks page** — Read-only view with compact cards (tap to expand rotation details) + Swap Requests bottom sheet button at top
-- ✅ **Leave flat redirect bug fixed** — Now correctly switches to next flat (if one exists) instead of always going to /onboarding
-- ✅ **"Fixed Bills" → "Monthly Bills"** — All UI labels updated; data model unchanged
-- ✅ **Payer collection tracking** — Per-member Received/Pending toggles on bill instances; `collectedFrom` map on `BillInstance`; Firestore rule allows payer to update collection status
-- ✅ **Swap page redesign** — 4 stat chips + admin "All Swaps" toggle with flat-wide list
-- ✅ **Dashboard swap widget** — Clickable summary card on home page showing sent/received/accepted/declined counts
-- ✅ **Bill Collector field** — `collectorId` on `RecurringBill` + `BillInstance`; avatar card picker in modal; collector shown in bill card header; Firestore rule allows collector to update `collectedFrom`
-- ✅ **MonthlyBillModal redesign** — 2-button Fixed/Variable selector (replaced disconnected toggle), avatar card collector picker (replaced plain select), header text corrected
-
-**Done (June 2026 — Session 2026-06-13, Part 2):**
-- ✅ **Privacy Policy** — `app/privacy/page.tsx`. DPDP Act 2023 compliant. Covers: data collected (email, name, photo URL, tasks, expenses, activity logs), lawful basis per DPDP, third-party processors (Firebase, Vercel, WhatsApp/FCM planned), cross-border data transfer disclosure, user rights (access, correction, erasure, grievance redressal, nomination), Grievance Officer designation. Static page, no auth required.
-- ✅ **Terms of Service** — `app/terms/page.tsx`. Covers: eligibility (18+), what Habitiq does and does not do (no payment processing), free service terms, user and admin responsibilities, flat membership/removal rules, dispute framing (Habitiq is not an arbiter), governing law (India, Hyderabad courts), liability cap (₹0 free service), 60-day discontinuation notice. Static page, no auth required.
-- ✅ **Public route bypass in AuthProvider** — `components/AuthProvider.tsx`. `/privacy` and `/terms` added to `isPublicPage` check — unauthenticated users can access both pages without being redirected to login.
-- ✅ **Landing page footer wired** — `app/page.tsx`. Footer Company links updated: Privacy → `/privacy`, Terms → `/terms`, Contact → `mailto:hello@habitiq.in` (was all `#` placeholders).
-- ✅ **Settings page legal links** — `app/dashboard/settings/page.tsx`. Privacy Policy · Terms of Service links added to the About card, visible to all logged-in users.
-- ✅ **G1 gate progress** — Privacy Policy and Terms of Service are live at `/privacy` and `/terms`. Remaining G1 items: buy habitiq.in domain, rename Vercel project, founder agreement with Bhanu.
-
-**Done (June 2026 — Session 2026-06-13, Part 1):**
-- ✅ **Expense delete enabled** — `canDelete={false}` was hardcoded in the Daily Splits transaction list (`app/dashboard/expenses/page.tsx`). Changed to `canDelete={item.data.createdBy === currentUserId || !!isAdmin}`. Creators and admins can now delete expenses via the "Remove" button in the expanded row. `deleteExpense` updated to accept optional `actorId` so the activity log records WHO deleted the expense. All monthly totals (summary card, dashboard widget) already updated reactively — the only missing piece was the button being hidden.
-- ✅ **Settlements collapsed by default** — Settlement rows in the Daily Splits transaction list now collapse into a compact tap-to-expand divider: `── ✓ Settled · ₹5,000 · 3 payments ──` with a chevron icon. Tapping expands to show individual `SettlementRow` entries. Each month group has independent open/close state via `expandedSettlements: Set<string>`. Eliminates excessive scrolling when there are many past settlements.
-- ✅ **Fixed bills dashboard persisting after delete** — Two-layer fix: (1) `deleteRecurringBill` now uses `writeBatch` to atomically delete the template + all linked bill instances + all linked expenses in a single Firestore commit, preventing intermediate `onSnapshot` re-additions (race condition). (2) `fixedBillsThisMonth` on the dashboard now cross-references against `activeTemplateIds` — orphaned bill instances from deleted templates are silently ignored.
-- ✅ **Erase All Expense Data (admin-only)** — New Danger Zone section at the bottom of the Expenses page. Admin taps "Erase All Expense Data" → confirmation modal listing all 5 data types (daily splits, settlements, fixed bills, bill instances, month close records) → "Erase Everything" button. Implemented as `resetAllExpensesData()` in `useFlatStore`: optimistic local clear first, then `getDocs` + `writeBatch` in 400-doc chunks for each subcollection (`expenses`, `settlements`, `recurringBills`, `billInstances`, `monthCycles`). For test data cleanup before production launch.
-
-**Done (June 2026 — prior sessions):**
-- ✅ PWA — manifest.json, service worker, offline fallback, Android install prompt, dynamic PNG icon route
-- ✅ Settings IA overhaul — "Your Flats" card, active flat context in heading, Danger Zone names the flat
-- ✅ Bills & Expenses module (full Splitwise-class feature):
-  - Recurring Bills: rotation payer, fixed/variable amounts, generate flow, mark paid (all payers), auto-creates expense in transaction list on mark paid
-  - Daily Splits: ad-hoc expenses, banking-style transaction list, equal/custom split, 7 currencies, edit/delete
-  - Balances: direct pairwise algorithm (no MCF chains), per-person cards with expand to see contributing expenses
-  - Settlement: bidirectional — debtor settles, creditor marks received; partial payment with quick-fill chips and remaining preview; try/catch on all modals
-  - Person filter: filter transaction list to one person's history
-  - Monthly summary card: total spend broken into Fixed Bills vs Daily Splits with progress bar
-  - Balance strip: collapsed by default on mobile, compact net status, tap to expand full cards
-  - Month-end close: admin locks month, balances carry forward
-  - Firestore: full subcollection rules deployed; optimistic UI updates throughout
-- ✅ Group tasks and Temp tasks added to task management
-- ✅ Radial FAB in mobile nav (Quick Add: Split / Bill / Task)
-- ✅ Swap badge on desktop sidebar counts all pending flat swaps
-- ✅ Tasks page mobile: Swap Requests shortcut banner with live pending count
-
-**High Priority (remaining):**
-- Push notifications (Firebase Cloud Messaging)
-- WhatsApp integration (task reminders via WhatsApp API)
-- Admin flat-wide balance matrix view
-
-**Medium Priority:**
-- Task photo proof (upload photo on mark done — needs Firebase Storage)
-- Guest invite via shareable link (not just invite code)
-- Password reset UI (in-app flow)
-- Member nickname editing
-- Settlement confirmation from recipient ("I confirm I received this")
-
-**Low Priority:**
-- Task history archive (>30 days)
-- Flat announcements (admin pinned message)
-- Task templates (common preset tasks)
-- Expense receipt photo attachment
-
----
+Push notifications · WhatsApp integration · Admin flat-wide balance matrix · Task photo proof · Guest invite link · Settlement confirmation from recipient
 
 ### Phase 3 — Scale & Monetisation (6–18 Months)
-Goal: Sustainable business. Serve co-living operators and PG owners.
-
-| Feature | Description |
-|---------|-------------|
-| Subscription billing | Stripe / Razorpay in-app payment |
-| Admin super-dashboard | All properties in one view |
-| Automated reminders | Email + push + WhatsApp, configurable |
-| Reliability score rewards | Badges, streaks, leaderboards |
-| Analytics export | CSV/PDF reports for PG owners |
-| API for integrations | Connect to property management tools |
-| Custom branding | White-label for co-living operators |
-| Native mobile app | React Native iOS + Android |
-| Offline mode | Full offline + background sync |
-| Firebase Cloud Functions | Business logic server-side |
-
-### Technical Scale Changes Needed
-
-| Trigger | Action |
-|---------|--------|
-| >100 active flats | Upgrade Firebase to Blaze |
-| >300 build mins/month | Upgrade Vercel plan |
-| Needing server logic | Add Firebase Cloud Functions |
-| 1,000+ flats | Redis/Upstash caching layer |
-| User-uploaded photos | Firebase Storage + CDN URLs |
-| Abuse prevention | Firebase App Check + rate limiting |
+Stripe/Razorpay billing · Admin super-dashboard · Analytics export · Native mobile app (React Native) · Offline mode · Firebase Cloud Functions
 
 ---
 
 ## 11. Business Model & Monetisation
 
-### Freemium (Recommended for Phase 3 Launch)
+### Freemium
 
 | Tier | Price | Limits | Target |
 |------|-------|--------|--------|
-| Free | Rs.0/month | 6 members, 10 tasks, core features | Student flats, trial users |
-| Pro | Rs.99/flat/month | Unlimited members + tasks, push notifications, photo proof, analytics export | Active flats, working professionals |
-| Business | Rs.499/property/month | Multiple flats, super-dashboard, white-label, priority support | PG owners, co-living operators |
-
-### Revenue Projections (Conservative)
-
-| Scale | Flats | Conversion | Monthly Revenue |
-|-------|-------|-----------|-----------------|
-| Phase 2 end | 100 | 10% Pro | ~Rs.1,000/month |
-| Phase 3 start | 500 | 15% Pro | ~Rs.7,500/month |
-| Phase 3 growth | 2,000 | 20% Pro + 5 Biz | ~Rs.40,000+/month |
-| Scale | 10,000 | 20% Pro + 50 Biz | ~Rs.2,25,000+/month |
-
-### Why Freemium Works
-- Network effect: one person joins → invites all 4–6 flatmates
-- Each flat is a mini acquisition funnel — one champion recruits the entire flat
-- B2B (PG owners) has high willingness to pay
+| Free | ₹0/month | 6 members, 10 tasks, core features | Student flats, trial users |
+| Pro | ₹99/flat/month | Unlimited members + tasks, push, photo proof, analytics export | Active flats, professionals |
+| Business | ₹499/property/month | Multiple flats, super-dashboard, white-label, priority support | PG owners, co-living operators |
 
 ---
 
-## 12. Go-to-Market Strategy
+## 12. Design System (v2.0) — Quick Reference
 
-### Phase 1: Organic (Now)
-Founders share personally. Ask early adopters to share with one other flat. LinkedIn posts. College alumni groups, PG Facebook groups.
-**Goal: 20 active flats in 3 months**
+**Source:** `C:\garbage\DESIGN.md` and `C:\garbage\app\globals.css`
 
-### Phase 2: Content & Community (3–6 Months)
-Build-in-public posts. Problem-awareness content. User testimonials. Partner with college housing groups. Micro-influencer outreach (urban living creators).
+```
+Canvas:    #0c0b0f (page) / #1a1820 (card) / #211f28 (modal)
+Hairline:  #2a2635
+Ink:       #f4f3f8 (primary) / #a09db0 (soft) / #514e61 (mute)
+Primary:   #7c3aed (violet) / #a78bfa (soft) / rgba(124,58,237,0.1) (muted)
+Positive:  #22c55e
+Warning:   #f59e0b
+Negative:  #ef4444
+Streak:    #f97316
+Reward:    #eab308
+Card pad:  20px standard / 24px spacious
+Button h:  52px
+Input h:   52px
+Radius:    12px (card/button) / 8px (input/chip) / 9999px (pill)
+```
 
-### Phase 3: Paid & B2B (6+ Months)
-Facebook/Instagram ads (18–28, metro cities). Google Search ads ("roommate chore tracker India"). Direct B2B outreach to Stanza Living, NestAway, CoLive. App Store listing.
-
-### The Growth Loop
-1. One person joins → invites all flatmates → all sign up
-2. Each flatmate lives in other flats → introduces Habitiq there
-3. PG owners see what their tenants use → adopt for all properties
-**Structural growth loop built into the product.**
-
----
-
-## 13. Success Metrics
-
-### Trial Phase (Months 1–3)
-| Metric | Target |
-|--------|--------|
-| Active flats | 5–20 |
-| Members per flat | ≥3 active logins/week |
-| Task completion rate | ≥80% |
-| Overdue rate | <20% |
-| 30-day flat retention | >60% |
-| Avg session length | >2 minutes |
-
-### Growth Phase (Months 3–6)
-Total active flats: 100 · Total users: 500+ · Monthly recurring: 70% · NPS: >40 · Referral-acquired flats: >50%
-
-### Scale (Months 6–18)
-Active flats: 2,000+ · Monthly revenue: Rs.40,000+ · Pro conversion: ≥15% · B2B clients: 5+ properties
+**Member DNA colors (8-person palette):**
+0=amber(#f59e0b) · 1=teal(#14b8a6) · 2=rose(#f43f5e) · 3=sky(#0ea5e9)
+4=violet(#8b5cf6) · 5=lime(#84cc16) · 6=orange(#f97316) · 7=cyan(#06b6d4)
 
 ---
 
-## 14. Infrastructure & Costs
+## 13. Important Rules for Working on This Project
 
-### Current: Rs.0/month
-| Service | Plan | Capacity |
-|---------|------|----------|
-| Vercel | Hobby (Free) | 6,000 build mins, global CDN |
-| Firebase Auth | Spark (Free) | 10,000 MAU |
-| Firestore | Spark (Free) | 50K reads/day, 20K writes/day |
-| Firebase Storage | Spark (Free) | 5GB |
-
-Handles ~100 active flats (600 users) for free.
-
-### Firebase Cost at Scale (Blaze)
-100 flats: ~$0–5/month · 500 flats: ~$10–25 · 2,000 flats: ~$50–100 · 10,000 flats: ~$200–400
+- **Live app with real users** — be careful with changes
+- `firestore.rules` is security-critical — always run `firebase deploy --only firestore:rules` after changing rules
+- Mock mode exists — app runs fully without Firebase keys using seeded data
+- **After significant changes, update this vault doc**
+- DESIGN.md is the design spec. UI_PLAN.md is the implementation roadmap. Read both before any UI work.
+- Voice assistant is in layout.tsx as a single lifted instance — never instantiate it again in a child page
 
 ---
 
-## 15. Product Principles
+## 14. Why the Vault Exists
 
-1. **Fairness is the product.** Every feature exists to make shared living more fair.
-2. **Zero friction onboarding.** Flat up and running in under 2 minutes.
-3. **Transparency by default.** All members see everything — visibility is the accountability mechanism.
-4. **The system is the authority.** Nobody should have to nag.
-5. **Mobile first, always.** Most users open the app on their phone standing in the kitchen.
-6. **Real-time or nothing.** If changes aren't instant, trust breaks down.
+Sai's explicit instruction: every new Claude Code session starts cold and loses all context. The vault at `C:\garbage\project_1` is the persistent memory for this project. Reading it at session start eliminates the need to re-read source files or re-explain what was built.
 
----
-
-## 16. Competitive Landscape
-
-| Product | What They Do | Habitiq's Gap |
-|---------|-------------|---------------|
-| Splitwise | Expense splitting | Doesn't touch duties |
-| Todoist/Notion | Individual tasks | No shared rotation, no auto-assignment |
-| WhatsApp | Messaging | No accountability, messages buried |
-| OurHome | Western chore app | Not in India, not PG context |
-| Tody | Cleaning tracker | No multi-person rotation |
-
-**Habitiq: Only purpose-built, real-time, rotation-first shared living tool for India.**
-
----
-
-## 17. Trial Feedback Template
-
-1. How often do you open Habitiq? (Daily / Few times a week / Weekly / Rarely)
-2. Has chore fairness improved in your flat? (Yes / Somewhat / No)
-3. What is the one thing you wish Habitiq could do that it currently cannot?
-4. Would you recommend Habitiq to another flat? (Yes / Maybe / No)
-5. Would you pay Rs.49/month to keep using it? (Yes / Maybe / No)
+**How to apply:** Always start Habitiq sessions by reading this vault. Always end significant sessions by updating it.
 
 ---
 
 *"Your flat, on autopilot. Built in India. For everyone who has ever had a flatmate."*
 
-**Document version:** 1.0 | **Source:** C:\garbage | **Vault:** C:\garbage\project_1 | **June 2026**
+**Document version:** 2.0 | **Source:** C:\garbage | **Vault:** C:\garbage\project_1 | **June 2026**
 **Maintained by:** [[About Sai]]

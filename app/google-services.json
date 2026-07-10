@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "62233483871",
+    "project_id": "habitiq-by-jaswanth",
+    "storage_bucket": "habitiq-by-jaswanth.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:62233483871:android:bc1a447f1c6809f96899ea",
+        "android_client_info": {
+          "package_name": "habitiq.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2LYjG80BtBQXjSOZziRcF6OPtg8-G86o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

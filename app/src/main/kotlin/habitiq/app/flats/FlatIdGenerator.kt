@@ -5,7 +5,9 @@ import kotlin.random.Random
 private const val FLAT_ID_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 private const val FLAT_ID_CODE_LENGTH = 4
 private const val FLAT_ID_PREFIX = "FLAT-"
-private val FLAT_ID_PATTERN = Regex("^$FLAT_ID_PREFIX[$FLAT_ID_ALPHABET]{$FLAT_ID_CODE_LENGTH}$")
+// \A/\z (not ^/$) -- in JVM regex, $ matches just before a trailing line terminator even
+// without MULTILINE, so "FLAT-A3B9\n" would otherwise incorrectly pass validation.
+private val FLAT_ID_PATTERN = Regex("\\A$FLAT_ID_PREFIX[$FLAT_ID_ALPHABET]{$FLAT_ID_CODE_LENGTH}\\z")
 
 fun generateFlatId(random: Random = Random.Default): String {
     val code = (1..FLAT_ID_CODE_LENGTH)

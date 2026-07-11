@@ -55,4 +55,9 @@ class FlatIdGeneratorTest {
     fun `lowercase is rejected (codes are always uppercase)`() {
         assertFalse(isValidFlatIdFormat("flat-a3b9"))
     }
+
+    @Test
+    fun `trailing newline is rejected (JVM regex $ anchor gotcha)`() {
+        assertFalse(isValidFlatIdFormat("FLAT-A3B9\n"))
+    }
 }

@@ -588,17 +588,140 @@ git commit -m "feat: add native share-sheet launcher for invite codes"
 
 ---
 
-### Task 7: Create Flat screen + ViewModel
+### Task 7: Shared onboarding visual components + Create Flat screen
+
+**REVISED 2026-07-11**: Sai shared 3 screenshots of the web app's (`C:\garbage`) desktop Create/Join Flat flow and asked that the same "visual story" carry into these native screens — not the bare text-field forms originally planned here. Confirmed with Sai: illustration artwork is replaced with an icon + gradient band (no image assets available this pass); everything else (color-coding, benefit bullets, role-callout box) is carried over. This task now includes a shared header component (per Jetpack Compose guidance: don't duplicate layouts — `FlatOnboardingHeader`/`FlatRoleCallout` are reused by both this screen and Task 8's `JoinFlatScreen`) and a new dependency for icons beyond the small default set.
 
 **Files:**
+- Modify: `gradle/libs.versions.toml` (add material-icons-extended)
+- Modify: `app/build.gradle.kts` (add the dependency)
+- Create: `app/src/main/kotlin/habitiq/app/ui/FlatOnboardingHeader.kt`
 - Create: `app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt`
 - Create: `app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt`
 
 **Interfaces:**
 - Consumes: `FlatsRepository.createFlat(...)` (Task 3), `AuthRepository.currentUser` (existing), `FlatUiState` (Task 5), `launchShareInviteCode` (Task 6)
-- Produces: `class CreateFlatViewModel(...)` exposing `val state: StateFlow<FlatUiState>`, `val createdFlatId: StateFlow<String?>`, `fun createFlat(flatName: String)` — this screen is the only consumer, no later task depends on its internals besides the nav route wiring in Task 9.
+- Produces: `class CreateFlatViewModel(...)` exposing `val state: StateFlow<FlatUiState>`, `val createdFlatId: StateFlow<String?>`, `fun createFlat(flatName: String)`. `@Composable fun FlatOnboardingHeader(...)` and `@Composable fun FlatRoleCallout(...)` in `habitiq.app.ui`, reused by Task 8's `JoinFlatScreen`.
 
-- [ ] **Step 1: Create `CreateFlatViewModel.kt`**
+- [ ] **Step 1: Add the icons dependency**
+
+Add to `gradle/libs.versions.toml`'s `[libraries]` section:
+
+```toml
+androidx-material-icons-extended = { group = "androidx.compose.material", name = "material-icons-extended" }
+```
+
+(No version needed — covered by the existing `androidx.compose:compose-bom` platform, same as `androidx-ui`/`androidx-material3`.)
+
+Add to `app/build.gradle.kts`'s `dependencies { }` block, alongside the other Compose UI dependencies:
+
+```kotlin
+    implementation(libs.androidx.material.icons.extended)
+```
+
+- [ ] **Step 2: Create `FlatOnboardingHeader.kt`**
+
+```kotlin
+package habitiq.app.ui
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+
+val FlatOnboardingBackground = Color(0xFF0A0A0F)
+val FlatOnboardingSubtitleColor = Color(0xFFB0B0B0)
+val FlatOnboardingBenefitColor = Color(0xFFD0D0D0)
+
+@Composable
+fun FlatOnboardingHeader(
+    accentColor: Color,
+    icon: ImageVector,
+    titleLine1: String,
+    titleLine2: String,
+    subtitle: String,
+    benefits: List<String>
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(140.dp)
+                .background(Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.6f)))),
+            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(56.dp)
+            )
+        }
+        Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
+            Text(titleLine1, color = Color.White, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text(titleLine2, color = accentColor, fontSize = 26.sp, fontWeight = FontWeight.Bold)
+            Text(
+                subtitle,
+                color = FlatOnboardingSubtitleColor,
+                fontSize = 14.sp,
+                modifier = Modifier.padding(top = 8.dp, bottom = 16.dp)
+            )
+            benefits.forEach { benefit ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(vertical = 4.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Filled.Check,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        benefit,
+                        color = FlatOnboardingBenefitColor,
+                        fontSize = 14.sp,
+                        modifier = Modifier.padding(start = 8.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun FlatRoleCallout(accentColor: Color, text: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(accentColor.copy(alpha = 0.15f), RoundedCornerShape(12.dp))
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(text, color = Color(0xFFE0E0E0), fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+```
+
+- [ ] **Step 3: Create `CreateFlatViewModel.kt`**
 
 ```kotlin
 package habitiq.app.flats
@@ -642,16 +765,26 @@ class CreateFlatViewModel(
 }
 ```
 
-- [ ] **Step 2: Create `CreateFlatScreen.kt`**
+- [ ] **Step 4: Create `CreateFlatScreen.kt`**
 
 ```kotlin
 package habitiq.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -659,11 +792,14 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import habitiq.app.flats.CreateFlatViewModel
 import habitiq.app.flats.FlatUiState
 import habitiq.app.flats.launchShareInviteCode
+
+val CreateFlatAccent = Color(0xFFF97316)
 
 @Composable
 fun CreateFlatScreen(
@@ -675,57 +811,118 @@ fun CreateFlatScreen(
     val createdFlatId by viewModel.createdFlatId.collectAsStateWithLifecycleCompat()
     val context = LocalContext.current
 
-    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-        if (createdFlatId == null) {
-            Text("Create a Flat")
-            Text("Start your own flat community and invite your friends.")
-            OutlinedTextField(value = flatName, onValueChange = { flatName = it }, label = { Text("Flat name") })
-            Button(onClick = { viewModel.createFlat(flatName) }) {
-                Text("Create")
-            }
-            when (val current = state) {
-                is FlatUiState.Loading -> Text("Creating…")
-                is FlatUiState.Error -> Text(current.message)
-                else -> {}
-            }
-        } else {
-            Text("Your flat is ready!")
-            Text("Invite code: $createdFlatId")
-            Button(onClick = { launchShareInviteCode(context, flatName, createdFlatId!!) }) {
-                Text("Share invite code")
-            }
-            Button(onClick = onDone) {
-                Text("Done")
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FlatOnboardingBackground)
+            .verticalScroll(rememberScrollState())
+    ) {
+        FlatOnboardingHeader(
+            accentColor = CreateFlatAccent,
+            icon = Icons.Filled.Home,
+            titleLine1 = "Your Flat.",
+            titleLine2 = "Your Rules.",
+            subtitle = "Become the admin. Invite your roommates, set up chore rotation and bills — your shared home, on autopilot.",
+            benefits = listOf(
+                "Invite roommates with a code",
+                "Auto-rotate chores fairly",
+                "Split and track every expense"
+            )
+        )
+
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            if (createdFlatId == null) {
+                OutlinedTextField(
+                    value = flatName,
+                    onValueChange = { flatName = it },
+                    label = { Text("Flat name") },
+                    placeholder = { Text("e.g., The Boys Apartment") },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedTextColor = Color.White,
+                        unfocusedTextColor = Color.White,
+                        focusedBorderColor = CreateFlatAccent,
+                        unfocusedBorderColor = Color(0xFF3A3A3A),
+                        focusedLabelColor = CreateFlatAccent,
+                        unfocusedLabelColor = Color(0xFF9A9A9A)
+                    )
+                )
+                Spacer(Modifier.height(16.dp))
+                FlatRoleCallout(
+                    accentColor = CreateFlatAccent,
+                    text = "You'll be the admin and can manage everything in your flat."
+                )
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = { viewModel.createFlat(flatName) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = CreateFlatAccent)
+                ) {
+                    Text("Create Flat")
+                }
+                when (val current = state) {
+                    is FlatUiState.Loading -> Text(
+                        "Creating…",
+                        color = Color.White,
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    is FlatUiState.Error -> Text(
+                        current.message,
+                        color = Color(0xFFFF6B6B),
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                    else -> {}
+                }
+            } else {
+                Text("Your flat is ready!", color = Color.White)
+                Text("Invite code: $createdFlatId", color = CreateFlatAccent)
+                Spacer(Modifier.height(20.dp))
+                Button(
+                    onClick = { launchShareInviteCode(context, flatName, createdFlatId!!) },
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(containerColor = CreateFlatAccent)
+                ) {
+                    Text("Share invite code")
+                }
+                Spacer(Modifier.height(12.dp))
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Done")
+                }
             }
         }
     }
 }
 ```
 
-- [ ] **Step 3: Build and verify it compiles**
+- [ ] **Step 5: Build and verify it compiles**
 
 Run: `gradle assembleDebug --project-dir "C:\habitiq_jaswanth"`
 Expected: `BUILD SUCCESSFUL`.
 
 (This won't wire into navigation until Task 9 — verify it compiles standalone for now.)
 
-- [ ] **Step 4: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt
-git commit -m "feat: add Create Flat screen with invite-code share button"
+git add gradle/libs.versions.toml app/build.gradle.kts app/src/main/kotlin/habitiq/app/ui/FlatOnboardingHeader.kt app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt
+git commit -m "feat: add Create Flat screen with visual onboarding story (icon hero, benefit bullets, role callout)"
 ```
 
 ---
 
 ### Task 8: Join with Code screen + ViewModel
 
+**REVISED 2026-07-11**: same visual treatment as Task 7, reusing `FlatOnboardingHeader`/`FlatRoleCallout` with the purple/member variant.
+
 **Files:**
 - Create: `app/src/main/kotlin/habitiq/app/flats/JoinFlatViewModel.kt`
 - Create: `app/src/main/kotlin/habitiq/app/ui/JoinFlatScreen.kt`
 
 **Interfaces:**
-- Consumes: `FlatsRepository.joinFlat(...)` (Task 3), `isValidFlatIdFormat` (Task 1), `AuthRepository.currentUser` (existing), `FlatUiState` (Task 5)
+- Consumes: `FlatsRepository.joinFlat(...)` (Task 3), `isValidFlatIdFormat` (Task 1), `AuthRepository.currentUser` (existing), `FlatUiState` (Task 5), `FlatOnboardingHeader`/`FlatRoleCallout`/`FlatOnboardingBackground` (Task 7)
 - Produces: `class JoinFlatViewModel(...)` exposing `val state: StateFlow<FlatUiState>`, `val joinedFlatId: StateFlow<String?>`, `fun joinFlat(code: String)` — Task 9's nav wiring consumes `joinedFlatId` to navigate onward.
 
 - [ ] **Step 1: Create `JoinFlatViewModel.kt`**
@@ -782,11 +979,21 @@ class JoinFlatViewModel(
 ```kotlin
 package habitiq.app.ui
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -795,9 +1002,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import habitiq.app.flats.FlatUiState
 import habitiq.app.flats.JoinFlatViewModel
+
+val JoinFlatAccent = Color(0xFF7B5CFA)
 
 @Composable
 fun JoinFlatScreen(
@@ -815,23 +1025,73 @@ fun JoinFlatScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
-        Text("Join with Code")
-        Text("Enter an invite code and join your flat instantly.")
-        OutlinedTextField(value = code, onValueChange = { code = it }, label = { Text("Invite code") })
-        Button(onClick = { viewModel.joinFlat(code) }) {
-            Text("Join")
-        }
-        when (val current = state) {
-            is FlatUiState.Loading -> Text("Joining…")
-            is FlatUiState.Error -> Text(current.message)
-            else -> {}
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(FlatOnboardingBackground)
+            .verticalScroll(rememberScrollState())
+    ) {
+        FlatOnboardingHeader(
+            accentColor = JoinFlatAccent,
+            icon = Icons.Filled.Groups,
+            titleLine1 = "Join Your",
+            titleLine2 = "Crew.",
+            subtitle = "Have an invite code? Walk right in. Expenses, chores, bills — already set up and waiting for you.",
+            benefits = listOf(
+                "Step in instantly — no setup",
+                "See balances and shared expenses",
+                "Stay synced in real-time"
+            )
+        )
+
+        Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
+            OutlinedTextField(
+                value = code,
+                onValueChange = { code = it },
+                label = { Text("Invite code") },
+                placeholder = { Text("FLAT-A3B9") },
+                modifier = Modifier.fillMaxWidth(),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedTextColor = Color.White,
+                    unfocusedTextColor = Color.White,
+                    focusedBorderColor = JoinFlatAccent,
+                    unfocusedBorderColor = Color(0xFF3A3A3A),
+                    focusedLabelColor = JoinFlatAccent,
+                    unfocusedLabelColor = Color(0xFF9A9A9A)
+                )
+            )
+            Spacer(Modifier.height(16.dp))
+            FlatRoleCallout(
+                accentColor = JoinFlatAccent,
+                text = "You'll join as a member — all expenses and chores are already set up."
+            )
+            Spacer(Modifier.height(20.dp))
+            Button(
+                onClick = { viewModel.joinFlat(code) },
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(containerColor = JoinFlatAccent)
+            ) {
+                Text("Join Flat")
+            }
+            when (val current = state) {
+                is FlatUiState.Loading -> Text(
+                    "Joining…",
+                    color = Color.White,
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                is FlatUiState.Error -> Text(
+                    current.message,
+                    color = Color(0xFFFF6B6B),
+                    modifier = Modifier.padding(top = 12.dp)
+                )
+                else -> {}
+            }
         }
     }
 }
 ```
 
-Note: this screen uses the `LaunchedEffect`-gated navigation pattern (fires once per state transition into `Success`, not on every recomposition) — the same pattern a prior plan's review caught and fixed for `LoginScreen`/`SignupScreen`. This task starts from the corrected pattern directly rather than repeating that bug.
+Note: this screen uses the `LaunchedEffect`-gated navigation pattern (fires once per state transition into `Success`, not on every recomposition) — the same pattern a prior plan's review caught and fixed for `LoginScreen`/`SignupScreen`. This task starts from the corrected pattern directly rather than repeating that bug. It also reuses `FlatOnboardingHeader`/`FlatRoleCallout`/`FlatOnboardingBackground` from Task 7 rather than duplicating that layout, per Jetpack Compose's "extract reusable layout patterns" guidance.
 
 - [ ] **Step 3: Build and verify it compiles**
 
@@ -842,7 +1102,7 @@ Expected: `BUILD SUCCESSFUL`.
 
 ```bash
 git add app/src/main/kotlin/habitiq/app/flats/JoinFlatViewModel.kt app/src/main/kotlin/habitiq/app/ui/JoinFlatScreen.kt
-git commit -m "feat: add Join with Code screen"
+git commit -m "feat: add Join with Code screen with visual onboarding story"
 ```
 
 ---

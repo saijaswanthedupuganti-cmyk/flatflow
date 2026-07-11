@@ -12,7 +12,20 @@
           "package_name": "habitiq.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "62233483871-49o1g01nlj4jg5i9fuuuidlttb6t5qff.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "habitiq.app",
+            "certificate_hash": "65b58f48698f060883c2742735c2c8dabdb85210"
+          }
+        },
+        {
+          "client_id": "62233483871-8kr1a5s1p9a99kif8qjlgqa1vc8fc5m3.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyC2LYjG80BtBQXjSOZziRcF6OPtg8-G86o"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "62233483871-8kr1a5s1p9a99kif8qjlgqa1vc8fc5m3.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

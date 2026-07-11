@@ -17,7 +17,23 @@ android {
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        getByName("debug") {
+            // Reuses the keystore whose SHA-1 is registered as the Android OAuth client
+            // for Google Sign-In in Firebase (habitiq-by-jaswanth). Using the machine's
+            // default ~/.android/debug.keystore instead would not match that registration
+            // and Google Sign-In would fail at runtime with DEVELOPER_ERROR.
+            storeFile = file("../debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("debug")
+        }
         release {
             isMinifyEnabled = false
         }

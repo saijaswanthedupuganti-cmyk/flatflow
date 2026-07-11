@@ -625,8 +625,12 @@ Add to `app/build.gradle.kts`'s `dependencies { }` block, alongside the other Co
 package habitiq.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -641,7 +645,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -653,26 +658,36 @@ val FlatOnboardingBenefitColor = Color(0xFFD0D0D0)
 @Composable
 fun FlatOnboardingHeader(
     accentColor: Color,
-    icon: ImageVector,
+    imageRes: Int,
     titleLine1: String,
     titleLine2: String,
     subtitle: String,
     benefits: List<String>
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
-                .background(Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.6f)))),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .height(300.dp)
         ) {
-            Icon(
-                imageVector = icon,
+            Image(
+                painter = painterResource(imageRes),
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(56.dp)
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            )
+            // Fades the illustration into the screen's background color so the hero
+            // image reads as part of the page, not a pasted-in rectangle.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, FlatOnboardingBackground),
+                            startY = 550f
+                        )
+                    )
             )
         }
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {
@@ -720,6 +735,8 @@ fun FlatRoleCallout(accentColor: Color, text: String) {
     }
 }
 ```
+
+**REVISED again, same day**: Sai provided the real illustration assets (`onboard-create.png`, `onboard-join.png` — the exact artwork from the web app reference). Resized to 1080px wide and converted to WebP (quality 82) to go from ~7-8MB each down to ~110-150KB, placed at `app/src/main/res/drawable/onboard_create.webp` / `onboard_join.webp`. `FlatOnboardingHeader` takes `imageRes: Int` (a `@DrawableRes` resource ID) instead of an `ImageVector` icon, rendered via `Image(painter = painterResource(imageRes), contentScale = ContentScale.Crop, ...)` in a 300dp-tall `Box`, with a vertical gradient overlay fading into `FlatOnboardingBackground` at the bottom so the image blends into the page rather than looking pasted in. The code block above already reflects this final version — the icon-based version further above in this task's history is superseded.
 
 - [ ] **Step 3: Create `CreateFlatViewModel.kt`**
 
@@ -897,6 +914,8 @@ fun CreateFlatScreen(
 }
 ```
 
+**Same asset-swap note as `FlatOnboardingHeader.kt` above applies here**: `CreateFlatScreen.kt`'s actual final version imports `habitiq.app.R` (not `Icons.Filled.Home`) and calls `FlatOnboardingHeader(..., imageRes = R.drawable.onboard_create, ...)`.
+
 - [ ] **Step 5: Build and verify it compiles**
 
 Run: `gradle assembleDebug --project-dir "C:\habitiq_jaswanth"`
@@ -907,8 +926,8 @@ Expected: `BUILD SUCCESSFUL`.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add gradle/libs.versions.toml app/build.gradle.kts app/src/main/kotlin/habitiq/app/ui/FlatOnboardingHeader.kt app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt
-git commit -m "feat: add Create Flat screen with visual onboarding story (icon hero, benefit bullets, role callout)"
+git add gradle/libs.versions.toml app/build.gradle.kts app/src/main/kotlin/habitiq/app/ui/FlatOnboardingHeader.kt app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt app/src/main/res/drawable/onboard_create.webp
+git commit -m "feat: add Create Flat screen with visual onboarding story (illustration hero, benefit bullets, role callout)"
 ```
 
 ---
@@ -988,8 +1007,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Groups
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -1004,6 +1021,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import habitiq.app.R
 import habitiq.app.flats.FlatUiState
 import habitiq.app.flats.JoinFlatViewModel
 
@@ -1033,7 +1051,7 @@ fun JoinFlatScreen(
     ) {
         FlatOnboardingHeader(
             accentColor = JoinFlatAccent,
-            icon = Icons.Filled.Groups,
+            imageRes = R.drawable.onboard_join,
             titleLine1 = "Join Your",
             titleLine2 = "Crew.",
             subtitle = "Have an invite code? Walk right in. Expenses, chores, bills — already set up and waiting for you.",
@@ -1092,6 +1110,8 @@ fun JoinFlatScreen(
 ```
 
 Note: this screen uses the `LaunchedEffect`-gated navigation pattern (fires once per state transition into `Success`, not on every recomposition) — the same pattern a prior plan's review caught and fixed for `LoginScreen`/`SignupScreen`. This task starts from the corrected pattern directly rather than repeating that bug. It also reuses `FlatOnboardingHeader`/`FlatRoleCallout`/`FlatOnboardingBackground` from Task 7 rather than duplicating that layout, per Jetpack Compose's "extract reusable layout patterns" guidance.
+
+`R.drawable.onboard_join` already exists at `app/src/main/res/drawable/onboard_join.webp` (placed and compressed to ~147KB alongside `onboard_create.webp` during Task 7's asset swap) — no new asset work needed for this task.
 
 - [ ] **Step 3: Build and verify it compiles**
 

@@ -1,8 +1,11 @@
 package habitiq.app.ui
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -17,7 +20,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -29,26 +33,36 @@ val FlatOnboardingBenefitColor = Color(0xFFD0D0D0)
 @Composable
 fun FlatOnboardingHeader(
     accentColor: Color,
-    icon: ImageVector,
+    imageRes: Int,
     titleLine1: String,
     titleLine2: String,
     subtitle: String,
     benefits: List<String>
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
-        Row(
+        Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(140.dp)
-                .background(Brush.verticalGradient(listOf(accentColor, accentColor.copy(alpha = 0.6f)))),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically
+                .height(300.dp)
         ) {
-            Icon(
-                imageVector = icon,
+            Image(
+                painter = painterResource(imageRes),
                 contentDescription = null,
-                tint = Color.White,
-                modifier = Modifier.size(56.dp)
+                contentScale = ContentScale.Crop,
+                alignment = Alignment.Center,
+                modifier = Modifier.fillMaxSize()
+            )
+            // Fades the illustration into the screen's background color so the hero
+            // image reads as part of the page, not a pasted-in rectangle.
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(Color.Transparent, FlatOnboardingBackground),
+                            startY = 550f
+                        )
+                    )
             )
         }
         Column(modifier = Modifier.padding(horizontal = 24.dp, vertical = 20.dp)) {

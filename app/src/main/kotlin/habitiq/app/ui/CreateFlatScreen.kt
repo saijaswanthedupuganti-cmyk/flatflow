@@ -9,8 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -25,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import habitiq.app.R
 import habitiq.app.flats.CreateFlatViewModel
 import habitiq.app.flats.FlatUiState
 import habitiq.app.flats.launchShareInviteCode
@@ -49,7 +48,7 @@ fun CreateFlatScreen(
     ) {
         FlatOnboardingHeader(
             accentColor = CreateFlatAccent,
-            icon = Icons.Filled.Home,
+            imageRes = R.drawable.onboard_create,
             titleLine1 = "Your Flat.",
             titleLine2 = "Your Rules.",
             subtitle = "Become the admin. Invite your roommates, set up chore rotation and bills — your shared home, on autopilot.",

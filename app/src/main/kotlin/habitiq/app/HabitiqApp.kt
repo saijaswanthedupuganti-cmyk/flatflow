@@ -31,12 +31,17 @@ fun HabitiqApp() {
     val usersRepository = remember { UsersRepository() }
     val navController = rememberNavController()
     val currentUser by authRepository.currentUser.collectAsState()
+    // Computed once, not re-derived from the live currentUser flow above: NavHost rebuilds
+    // its graph (resetting the back stack) whenever startDestination changes, which would
+    // race with the explicit navigate() calls below on every sign-in/sign-out. Session-start
+    // routing should happen exactly once; all subsequent transitions go through navigate().
+    val startDestination = remember { if (authRepository.currentUser.value != null) Routes.HOME else Routes.LOGIN }
 
     HabitiqTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
             NavHost(
                 navController = navController,
-                startDestination = if (currentUser != null) Routes.HOME else Routes.LOGIN
+                startDestination = startDestination
             ) {
                 composable(Routes.LOGIN) {
                     val viewModel = remember { LoginViewModel(authRepository, usersRepository) }

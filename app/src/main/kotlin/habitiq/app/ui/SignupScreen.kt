@@ -7,6 +7,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +26,14 @@ fun SignupScreen(
     var password by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsStateWithLifecycleCompat()
 
+    // Runs once per distinct `state` value (not on every recomposition), so a successful
+    // sign-up triggers exactly one navigation call instead of one per recomposition.
+    LaunchedEffect(state) {
+        if (state is AuthUiState.Success) {
+            onSignedUp()
+        }
+    }
+
     Column(modifier = Modifier.fillMaxWidth().padding(24.dp)) {
         Text("Create your Habitiq account")
         OutlinedTextField(value = email, onValueChange = { email = it }, label = { Text("Email") })
@@ -35,7 +44,6 @@ fun SignupScreen(
         when (val current = state) {
             is AuthUiState.Loading -> Text("Creating account…")
             is AuthUiState.Error -> Text(current.message)
-            is AuthUiState.Success -> onSignedUp()
             else -> {}
         }
     }

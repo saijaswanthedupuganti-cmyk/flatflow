@@ -22,12 +22,18 @@ class SignupViewModel(
             val result = authRepository.signUpWithEmail(email, password)
             result.onSuccess {
                 val user = authRepository.currentUser.value
-                if (user != null) {
+                val profileResult = if (user != null) {
                     usersRepository.ensureUserDocument(
                         UserProfile(uid = user.uid, email = user.email.orEmpty(), displayName = user.displayName)
                     )
+                } else {
+                    Result.success(Unit)
                 }
-                _state.value = AuthUiState.Success
+                profileResult.onSuccess {
+                    _state.value = AuthUiState.Success
+                }.onFailure { error ->
+                    _state.value = AuthUiState.Error(error.message ?: "Something went wrong. Please try again.")
+                }
             }.onFailure { error ->
                 _state.value = AuthUiState.Error(error.message ?: "Something went wrong. Please try again.")
             }

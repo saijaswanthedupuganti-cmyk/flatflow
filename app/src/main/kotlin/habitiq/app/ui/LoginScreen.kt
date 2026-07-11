@@ -16,9 +16,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.credentials.exceptions.GetCredentialException
 import habitiq.app.R
 import habitiq.app.auth.AuthUiState
 import habitiq.app.auth.LoginViewModel
+import habitiq.app.auth.mapAuthError
 import kotlinx.coroutines.launch
 
 @Composable
@@ -54,9 +56,16 @@ fun LoginScreen(
         val webClientId = androidx.compose.ui.res.stringResource(R.string.google_web_client_id)
         Button(onClick = {
             coroutineScope.launch {
-                val idToken = habitiq.app.auth.launchGoogleSignIn(context, webClientId)
-                if (idToken != null) {
-                    viewModel.signInWithGoogleIdToken(idToken)
+                try {
+                    val idToken = habitiq.app.auth.launchGoogleSignIn(context, webClientId)
+                    if (idToken != null) {
+                        viewModel.signInWithGoogleIdToken(idToken)
+                    }
+                } catch (e: GetCredentialException) {
+                    // launchGoogleSignIn already swallows a user-cancelled picker (returns null).
+                    // Anything that reaches here is a real failure (no Google account on the
+                    // device, outdated Play Services, etc.) that would otherwise crash the app.
+                    viewModel.onGoogleSignInFailed(mapAuthError(e))
                 }
             }
         }) {

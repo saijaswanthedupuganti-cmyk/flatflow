@@ -32,6 +32,11 @@ class LoginViewModel(
         }
     }
 
+    // Surfaces a failure from the Credential Manager step, before any Firebase call was made.
+    fun onGoogleSignInFailed(message: String) {
+        _state.value = AuthUiState.Error(message)
+    }
+
     private suspend fun onAuthResult(result: Result<Unit>) {
         result.onSuccess {
             val user = authRepository.currentUser.value

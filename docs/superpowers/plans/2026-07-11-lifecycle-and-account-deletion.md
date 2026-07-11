@@ -121,9 +121,11 @@ Read the current file first. Add these imports (alongside the existing ones):
 
 ```kotlin
 import androidx.lifecycle.viewmodel.compose.viewModel
-import androidx.lifecycle.viewmodel.compose.viewModelFactory
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.lifecycle.viewmodel.initializer
 ```
+
+**Corrected 2026-07-11 during Task 2's implementation**: the original text above had `viewModelFactory` under `.compose`, which doesn't exist. Only the `viewModel()` Composable function itself lives in `androidx.lifecycle.viewmodel.compose`; the `viewModelFactory { initializer { ... } }` DSL is a plain-Kotlin API in `androidx.lifecycle.viewmodel` (no `.compose`). Verified against the actual AndroidX Lifecycle jar during implementation and confirmed independently during review.
 
 Replace each `remember { XViewModel(...) }` line with the `viewModel()` factory form. The full set of replacements, in place, one per existing composable block:
 

@@ -7,6 +7,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.lifecycle.viewmodel.initializer
+import androidx.lifecycle.viewmodel.viewModelFactory
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -36,6 +39,7 @@ private object Routes {
     const val HOME = "home"
     const val CREATE_FLAT = "createFlat"
     const val JOIN_FLAT = "joinFlat"
+    const val SETTINGS = "settings"
     const val FLAT_HOME = "flatHome/{flatId}"
     fun flatHome(flatId: String) = "flatHome/$flatId"
 }
@@ -61,7 +65,9 @@ fun HabitiqApp() {
                 startDestination = startDestination
             ) {
                 composable(Routes.LOGIN) {
-                    val viewModel = remember { LoginViewModel(authRepository, usersRepository) }
+                    val viewModel: LoginViewModel = viewModel(
+                        factory = viewModelFactory { initializer { LoginViewModel(authRepository, usersRepository) } }
+                    )
                     LoginScreen(
                         viewModel = viewModel,
                         onSignedIn = { navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } },
@@ -69,14 +75,18 @@ fun HabitiqApp() {
                     )
                 }
                 composable(Routes.SIGNUP) {
-                    val viewModel = remember { SignupViewModel(authRepository, usersRepository) }
+                    val viewModel: SignupViewModel = viewModel(
+                        factory = viewModelFactory { initializer { SignupViewModel(authRepository, usersRepository) } }
+                    )
                     SignupScreen(
                         viewModel = viewModel,
                         onSignedUp = { navController.navigate(Routes.HOME) { popUpTo(Routes.LOGIN) { inclusive = true } } }
                     )
                 }
                 composable(Routes.HOME) {
-                    val homeViewModel = remember { HomeViewModel(authRepository, usersRepository) }
+                    val homeViewModel: HomeViewModel = viewModel(
+                        factory = viewModelFactory { initializer { HomeViewModel(authRepository, usersRepository) } }
+                    )
                     HomeScreen(
                         user = currentUser,
                         homeViewModel = homeViewModel,
@@ -90,14 +100,18 @@ fun HabitiqApp() {
                     )
                 }
                 composable(Routes.CREATE_FLAT) {
-                    val viewModel = remember { CreateFlatViewModel(authRepository, flatsRepository) }
+                    val viewModel: CreateFlatViewModel = viewModel(
+                        factory = viewModelFactory { initializer { CreateFlatViewModel(authRepository, flatsRepository) } }
+                    )
                     CreateFlatScreen(
                         viewModel = viewModel,
                         onDone = { navController.popBackStack() }
                     )
                 }
                 composable(Routes.JOIN_FLAT) {
-                    val viewModel = remember { JoinFlatViewModel(authRepository, flatsRepository) }
+                    val viewModel: JoinFlatViewModel = viewModel(
+                        factory = viewModelFactory { initializer { JoinFlatViewModel(authRepository, flatsRepository) } }
+                    )
                     JoinFlatScreen(
                         viewModel = viewModel,
                         onJoined = { flatId ->
@@ -112,7 +126,10 @@ fun HabitiqApp() {
                     arguments = listOf(navArgument("flatId") { type = NavType.StringType })
                 ) { backStackEntry ->
                     val flatId = backStackEntry.arguments?.getString("flatId") ?: return@composable
-                    val viewModel = remember(flatId) { FlatHomeViewModel(flatId, flatsRepository, membersRepository) }
+                    val viewModel: FlatHomeViewModel = viewModel(
+                        key = flatId,
+                        factory = viewModelFactory { initializer { FlatHomeViewModel(flatId, flatsRepository, membersRepository) } }
+                    )
                     FlatHomeScreen(viewModel = viewModel, currentUid = currentUser?.uid.orEmpty())
                 }
             }

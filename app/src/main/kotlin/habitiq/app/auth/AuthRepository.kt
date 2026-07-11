@@ -22,18 +22,18 @@ class AuthRepository(
     suspend fun signUpWithEmail(email: String, password: String): Result<Unit> = runCatching {
         firebaseAuth.createUserWithEmailAndPassword(email, password).await()
         Unit
-    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception)) }
+    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception), it) }
 
     suspend fun signInWithEmail(email: String, password: String): Result<Unit> = runCatching {
         firebaseAuth.signInWithEmailAndPassword(email, password).await()
         Unit
-    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception)) }
+    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception), it) }
 
     suspend fun signInWithGoogleIdToken(idToken: String): Result<Unit> = runCatching {
         val credential = GoogleAuthProvider.getCredential(idToken, null)
         firebaseAuth.signInWithCredential(credential).await()
         Unit
-    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception)) }
+    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception), it) }
 
     fun signOut() {
         firebaseAuth.signOut()

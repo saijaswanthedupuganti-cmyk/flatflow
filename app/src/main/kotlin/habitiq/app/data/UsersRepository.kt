@@ -27,4 +27,9 @@ class UsersRepository(
         val snap = firestore.collection("users").document(uid).get().await()
         snap.getString("activeFlatId")
     }
+
+    suspend fun deleteUserData(uid: String): Result<Unit> = runCatching {
+        firestore.collection("users").document(uid).delete().await()
+        Unit
+    }
 }

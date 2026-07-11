@@ -11,11 +11,15 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import habitiq.app.R
 import habitiq.app.auth.AuthUiState
 import habitiq.app.auth.LoginViewModel
+import kotlinx.coroutines.launch
 
 @Composable
 fun LoginScreen(
@@ -44,6 +48,19 @@ fun LoginScreen(
         }
         Button(onClick = onNavigateToSignup) {
             Text("Need an account? Sign up")
+        }
+        val context = LocalContext.current
+        val coroutineScope = rememberCoroutineScope()
+        val webClientId = androidx.compose.ui.res.stringResource(R.string.google_web_client_id)
+        Button(onClick = {
+            coroutineScope.launch {
+                val idToken = habitiq.app.auth.launchGoogleSignIn(context, webClientId)
+                if (idToken != null) {
+                    viewModel.signInWithGoogleIdToken(idToken)
+                }
+            }
+        }) {
+            Text("Sign in with Google")
         }
         when (val current = state) {
             is AuthUiState.Loading -> Text("Signing in…")

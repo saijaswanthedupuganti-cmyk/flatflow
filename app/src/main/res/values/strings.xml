@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">Habitiq</string>
+    <string name="google_web_client_id" translatable="false">62233483871-8kr1a5s1p9a99kif8qjlgqa1vc8fc5m3.apps.googleusercontent.com</string>
 </resources>

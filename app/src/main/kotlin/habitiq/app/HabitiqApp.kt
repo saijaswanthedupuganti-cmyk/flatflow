@@ -25,11 +25,13 @@ import habitiq.app.flats.FlatsRepository
 import habitiq.app.flats.HomeViewModel
 import habitiq.app.flats.JoinFlatViewModel
 import habitiq.app.flats.MembersRepository
+import habitiq.app.settings.SettingsViewModel
 import habitiq.app.ui.CreateFlatScreen
 import habitiq.app.ui.FlatHomeScreen
 import habitiq.app.ui.HomeScreen
 import habitiq.app.ui.JoinFlatScreen
 import habitiq.app.ui.LoginScreen
+import habitiq.app.ui.SettingsScreen
 import habitiq.app.ui.SignupScreen
 import habitiq.app.ui.theme.HabitiqTheme
 
@@ -90,13 +92,27 @@ fun HabitiqApp() {
                     HomeScreen(
                         user = currentUser,
                         homeViewModel = homeViewModel,
+                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                        onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
+                        onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) },
+                        onViewFlat = { flatId -> navController.navigate(Routes.flatHome(flatId)) }
+                    )
+                }
+                composable(Routes.SETTINGS) {
+                    val viewModel: SettingsViewModel = viewModel(
+                        factory = viewModelFactory { initializer { SettingsViewModel(authRepository, usersRepository) } }
+                    )
+                    SettingsScreen(
+                        user = currentUser,
+                        viewModel = viewModel,
                         onSignOut = {
                             authRepository.signOut()
                             navController.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } }
                         },
-                        onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
-                        onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) },
-                        onViewFlat = { flatId -> navController.navigate(Routes.flatHome(flatId)) }
+                        onAccountDeleted = {
+                            authRepository.signOut()
+                            navController.navigate(Routes.LOGIN) { popUpTo(Routes.HOME) { inclusive = true } }
+                        }
                     )
                 }
                 composable(Routes.CREATE_FLAT) {

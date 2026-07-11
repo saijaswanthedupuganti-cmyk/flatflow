@@ -678,14 +678,16 @@ fun FlatOnboardingHeader(
                 modifier = Modifier.fillMaxSize()
             )
             // Fades the illustration into the screen's background color so the hero
-            // image reads as part of the page, not a pasted-in rectangle.
+            // image reads as part of the page, not a pasted-in rectangle. Fraction-based
+            // color stops (not startY/endY in raw px) so the fade point is consistent
+            // across screen densities instead of the box's actual pixel height varying.
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
                         Brush.verticalGradient(
-                            colors = listOf(Color.Transparent, FlatOnboardingBackground),
-                            startY = 550f
+                            0.45f to Color.Transparent,
+                            1f to FlatOnboardingBackground
                         )
                     )
             )

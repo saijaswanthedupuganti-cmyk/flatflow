@@ -38,4 +38,9 @@ class AuthRepository(
     fun signOut() {
         firebaseAuth.signOut()
     }
+
+    suspend fun deleteAccount(): Result<Unit> = runCatching {
+        firebaseAuth.currentUser?.delete()?.await()
+        Unit
+    }.recoverCatching { throw IllegalStateException(mapAuthError(it as Exception), it) }
 }

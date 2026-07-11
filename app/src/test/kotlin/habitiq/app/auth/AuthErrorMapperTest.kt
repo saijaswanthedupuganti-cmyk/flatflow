@@ -1,6 +1,7 @@
 package habitiq.app.auth
 
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
+import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
 import com.google.firebase.auth.FirebaseAuthUserCollisionException
 import com.google.firebase.auth.FirebaseAuthWeakPasswordException
 import org.junit.Assert.assertEquals
@@ -8,6 +9,15 @@ import org.junit.Test
 import java.io.IOException
 
 class AuthErrorMapperTest {
+
+    @Test
+    fun `recent login required maps to a plain re-authenticate message`() {
+        val exception = FirebaseAuthRecentLoginRequiredException("ERROR_REQUIRES_RECENT_LOGIN", "stale session")
+        assertEquals(
+            "Please sign out and sign back in, then try deleting your account again.",
+            mapAuthError(exception)
+        )
+    }
 
     @Test
     fun `invalid credentials maps to plain wrong password message`() {

@@ -12,6 +12,7 @@ sealed interface HomeFlatStatus {
     data object Loading : HomeFlatStatus
     data object NoFlat : HomeFlatStatus
     data class InFlat(val flatId: String) : HomeFlatStatus
+    data class Error(val message: String) : HomeFlatStatus
 }
 
 class HomeViewModel(
@@ -34,12 +35,20 @@ class HomeViewModel(
         }
         _flatStatus.value = HomeFlatStatus.Loading
         viewModelScope.launch {
-            val activeFlatId = usersRepository.getActiveFlatId(user.uid)
-            _flatStatus.value = if (activeFlatId != null) {
-                HomeFlatStatus.InFlat(activeFlatId)
-            } else {
-                HomeFlatStatus.NoFlat
-            }
+            usersRepository.getActiveFlatId(user.uid).fold(
+                onSuccess = { activeFlatId ->
+                    _flatStatus.value = if (activeFlatId != null) {
+                        HomeFlatStatus.InFlat(activeFlatId)
+                    } else {
+                        HomeFlatStatus.NoFlat
+                    }
+                },
+                onFailure = { error ->
+                    _flatStatus.value = HomeFlatStatus.Error(
+                        error.message ?: "Couldn't load your flat. Please try again."
+                    )
+                }
+            )
         }
     }
 }

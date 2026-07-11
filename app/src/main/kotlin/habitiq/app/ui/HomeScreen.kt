@@ -44,6 +44,12 @@ fun HomeScreen(
                     Text("View my flat")
                 }
             }
+            is HomeFlatStatus.Error -> {
+                Text(status.message)
+                Button(onClick = { homeViewModel.checkFlatStatus() }) {
+                    Text("Retry")
+                }
+            }
         }
     }
 }

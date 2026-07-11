@@ -23,8 +23,8 @@ class UsersRepository(
         Unit
     }
 
-    suspend fun getActiveFlatId(uid: String): String? {
+    suspend fun getActiveFlatId(uid: String): Result<String?> = runCatching {
         val snap = firestore.collection("users").document(uid).get().await()
-        return snap.getString("activeFlatId")
+        snap.getString("activeFlatId")
     }
 }

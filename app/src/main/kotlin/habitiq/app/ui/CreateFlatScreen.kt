@@ -84,6 +84,7 @@ fun CreateFlatScreen(
                 Spacer(Modifier.height(20.dp))
                 Button(
                     onClick = { viewModel.createFlat(flatName) },
+                    enabled = state !is FlatUiState.Loading,
                     modifier = Modifier.fillMaxWidth(),
                     colors = ButtonDefaults.buttonColors(containerColor = CreateFlatAccent)
                 ) {

@@ -2,6 +2,7 @@ package habitiq.app.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import habitiq.app.analytics.AppAnalytics
 import habitiq.app.auth.AuthRepository
 import habitiq.app.data.UsersRepository
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,7 +18,8 @@ sealed interface DeleteAccountState {
 
 class SettingsViewModel(
     private val authRepository: AuthRepository,
-    private val usersRepository: UsersRepository
+    private val usersRepository: UsersRepository,
+    private val analytics: AppAnalytics = AppAnalytics()
 ) : ViewModel() {
 
     private val _deleteState = MutableStateFlow<DeleteAccountState>(DeleteAccountState.Idle)
@@ -37,6 +39,7 @@ class SettingsViewModel(
             usersRepository.deleteUserData(uid)
             authRepository.deleteAccount().fold(
                 onSuccess = {
+                    analytics.logAccountDeleted()
                     _deleteState.value = DeleteAccountState.Deleted
                 },
                 onFailure = { error ->

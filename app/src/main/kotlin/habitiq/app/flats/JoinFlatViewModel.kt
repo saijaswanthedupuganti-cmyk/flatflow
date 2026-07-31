@@ -2,6 +2,7 @@ package habitiq.app.flats
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import habitiq.app.analytics.AppAnalytics
 import habitiq.app.auth.AuthRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -9,7 +10,8 @@ import kotlinx.coroutines.launch
 
 class JoinFlatViewModel(
     private val authRepository: AuthRepository,
-    private val flatsRepository: FlatsRepository
+    private val flatsRepository: FlatsRepository,
+    private val analytics: AppAnalytics = AppAnalytics()
 ) : ViewModel() {
 
     private val _state = MutableStateFlow<FlatUiState>(FlatUiState.Idle)
@@ -34,6 +36,7 @@ class JoinFlatViewModel(
             val nickname = user.displayName ?: user.email.orEmpty()
             val result = flatsRepository.joinFlat(normalizedCode, user.uid, nickname, user.email.orEmpty())
             result.onSuccess {
+                analytics.logFlatJoined()
                 _joinedFlatId.value = normalizedCode
                 _state.value = FlatUiState.Success
             }.onFailure { error ->

@@ -12,3 +12,8 @@ fun mapFlatError(exception: Exception): String = when (exception) {
     is IOException -> "No internet connection. Please try again."
     else -> "Something went wrong. Please try again."
 }
+
+// FlatException is thrown by this app's own validation and IOException means the device is
+// offline -- neither is a defect, so neither is worth a Crashlytics non-fatal.
+fun isExpectedFlatError(exception: Exception): Boolean =
+    exception is FlatException || exception is IOException

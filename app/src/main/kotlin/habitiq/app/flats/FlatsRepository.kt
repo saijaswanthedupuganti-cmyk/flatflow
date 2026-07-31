@@ -1,5 +1,6 @@
 package habitiq.app.flats
 
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
@@ -53,7 +54,7 @@ class FlatsRepository(
         ).await()
 
         flatId
-    }.recoverCatching { throw IllegalStateException(mapFlatError(it as Exception), it) }
+    }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
 
     suspend fun joinFlat(flatId: String, uid: String, nickname: String, email: String): Result<Unit> = runCatching {
         if (!flatExists(flatId)) throw FlatNotFoundException()
@@ -97,7 +98,7 @@ class FlatsRepository(
         }.await()
 
         Unit
-    }.recoverCatching { throw IllegalStateException(mapFlatError(it as Exception), it) }
+    }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
 
     suspend fun getFlat(flatId: String): Result<FlatInfo> = runCatching {
         val snap = firestore.collection("flats").document(flatId).get().await()
@@ -108,7 +109,17 @@ class FlatsRepository(
             adminUid = snap.getString("adminUid").orEmpty(),
             memberCount = (snap.getLong("memberCount") ?: 0L).toInt()
         )
-    }.recoverCatching { throw IllegalStateException(mapFlatError(it as Exception), it) }
+    }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
+
+    // The user only ever sees the mapped message, so without this the underlying failure would
+    // leave no trace anywhere. Returns the failure unchanged so it can still be mapped.
+    private fun reported(error: Throwable): Exception {
+        val exception = error as Exception
+        if (!isExpectedFlatError(exception)) {
+            FirebaseCrashlytics.getInstance().recordException(exception)
+        }
+        return exception
+    }
 
     private suspend fun flatExists(flatId: String): Boolean {
         val snap = firestore.collection("flats").document(flatId).get().await()

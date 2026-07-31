@@ -42,12 +42,16 @@ fun SettingsScreen(
         Text("Settings")
         Text(user?.email ?: "unknown")
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onSignOut) {
+        Button(
+            onClick = onSignOut,
+            enabled = deleteState !is DeleteAccountState.Deleting
+        ) {
             Text("Sign out")
         }
         Spacer(Modifier.height(12.dp))
         Button(
             onClick = { showConfirmDialog = true },
+            enabled = deleteState !is DeleteAccountState.Deleting,
             colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFB3261E))
         ) {
             Text("Delete Account")

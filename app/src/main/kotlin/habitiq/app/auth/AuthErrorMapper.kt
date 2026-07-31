@@ -29,3 +29,19 @@ fun mapAuthError(exception: Exception): String = when (exception) {
     is IOException -> "No internet connection. Please try again."
     else -> "Something went wrong (${exception::class.simpleName}: ${exception.message}). Please try again."
 }
+
+// Outcomes the user caused and can fix. Reporting them as Crashlytics non-fatals would bury the
+// real defects. GoogleIdTokenParsingException is deliberately absent: a malformed token means the
+// Sign-In integration itself is broken, which is worth a report.
+fun isExpectedAuthError(exception: Exception): Boolean = when (exception) {
+    is FirebaseAuthRecentLoginRequiredException,
+    is FirebaseAuthInvalidCredentialsException,
+    is FirebaseAuthInvalidUserException,
+    is FirebaseAuthUserCollisionException,
+    is NoCredentialException,
+    is GetCredentialProviderConfigurationException,
+    is GetCredentialInterruptedException,
+    is GetCredentialUnsupportedException,
+    is IOException -> true
+    else -> false
+}

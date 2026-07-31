@@ -1,5 +1,6 @@
 package habitiq.app.data
 
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.tasks.await
@@ -22,12 +23,12 @@ class UsersRepository(
             ).await()
         }
         Unit
-    }
+    }.onFailure { recordNonFatal(it) }
 
     suspend fun getActiveFlatId(uid: String): Result<String?> = runCatching {
         val snap = firestore.collection("users").document(uid).get().await()
         snap.getString("activeFlatId")
-    }
+    }.onFailure { recordNonFatal(it) }
 
     // Must run while the user is still signed in -- Firestore rules require request.auth.
     suspend fun deleteUserData(uid: String): Result<Unit> = runCatching {
@@ -38,6 +39,12 @@ class UsersRepository(
         }
         userRef.delete().await()
         Unit
+    }.onFailure { recordNonFatal(it) }
+
+    // Callers surface a generic message or, in the deletion path, drop the failure entirely --
+    // without this the underlying Firestore error would leave no trace anywhere.
+    private fun recordNonFatal(error: Throwable) {
+        FirebaseCrashlytics.getInstance().recordException(error)
     }
 
     private suspend fun leaveFlat(flatId: String, uid: String) {

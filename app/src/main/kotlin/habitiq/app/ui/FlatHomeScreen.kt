@@ -36,6 +36,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import habitiq.app.flats.FlatHomeStatus
 import habitiq.app.flats.FlatHomeViewModel
 import habitiq.app.flats.Member
 import habitiq.app.flats.launchShareInviteCode
@@ -48,14 +49,21 @@ private val LabelInk = HabitiqBrand.Ink.copy(alpha = 0.55f)
 
 @Composable
 fun FlatHomeScreen(viewModel: FlatHomeViewModel, currentUid: String) {
-    val flat by viewModel.flat.collectAsStateWithLifecycleCompat()
+    val status by viewModel.status.collectAsStateWithLifecycleCompat()
     val members by viewModel.members.collectAsStateWithLifecycleCompat()
+    val membersError by viewModel.membersError.collectAsStateWithLifecycleCompat()
     val context = LocalContext.current
 
-    val currentFlat = flat
-    if (currentFlat == null) {
-        FlatHomeLoading()
-        return
+    val currentFlat = when (val current = status) {
+        is FlatHomeStatus.Loading -> {
+            FlatHomeLoading()
+            return
+        }
+        is FlatHomeStatus.Error -> {
+            FlatHomeError(message = current.message, onRetry = viewModel::retry)
+            return
+        }
+        is FlatHomeStatus.Ready -> current.flat
     }
 
     Column(
@@ -78,9 +86,46 @@ fun FlatHomeScreen(viewModel: FlatHomeViewModel, currentUid: String) {
         Spacer(Modifier.height(28.dp))
         SectionLabel("ROOMMATES")
         Spacer(Modifier.height(12.dp))
-        members.forEach { member ->
-            MemberRow(member = member, isCurrentUser = member.uid == currentUid)
-            Spacer(Modifier.height(10.dp))
+        when {
+            membersError != null -> Text(
+                membersError.orEmpty(),
+                color = HabitiqBrand.Error,
+                fontSize = 14.sp
+            )
+            members.isEmpty() -> Text(
+                "No roommates here yet. Share your invite code to get them on board.",
+                color = SecondaryInk,
+                fontSize = 14.sp
+            )
+            else -> members.forEach { member ->
+                MemberRow(member = member, isCurrentUser = member.uid == currentUid)
+                Spacer(Modifier.height(10.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun FlatHomeError(message: String, onRetry: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(HabitiqBrand.Canvas)
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(message, color = HabitiqBrand.Error, fontSize = 15.sp)
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = onRetry,
+            shape = RoundedCornerShape(12.dp),
+            colors = ButtonDefaults.buttonColors(
+                containerColor = HabitiqBrand.Primary,
+                contentColor = HabitiqBrand.OnPrimary
+            )
+        ) {
+            Text("Retry")
         }
     }
 }

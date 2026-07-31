@@ -104,6 +104,7 @@ fun SignupScreen(
 
         Button(
             onClick = { viewModel.signUpWithEmail(email, password) },
+            enabled = state !is AuthUiState.Loading,
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = ButtonDefaults.buttonColors(

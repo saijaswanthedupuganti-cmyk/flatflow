@@ -88,6 +88,7 @@ fun JoinFlatScreen(
             Spacer(Modifier.height(20.dp))
             Button(
                 onClick = { viewModel.joinFlat(code) },
+                enabled = state !is FlatUiState.Loading,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(containerColor = JoinFlatAccent)
             ) {

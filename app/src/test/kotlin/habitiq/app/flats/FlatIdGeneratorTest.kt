@@ -9,10 +9,10 @@ import kotlin.random.Random
 class FlatIdGeneratorTest {
 
     @Test
-    fun `generated id has FLAT dash prefix and 4 character code`() {
+    fun `generated id has FLAT dash prefix and 6 character code`() {
         val id = generateFlatId(Random(seed = 42))
         assertTrue(id.startsWith("FLAT-"))
-        assertEquals(9, id.length) // "FLAT-" (5) + 4 chars
+        assertEquals(11, id.length) // "FLAT-" (5) + 6 chars
     }
 
     @Test
@@ -31,7 +31,12 @@ class FlatIdGeneratorTest {
     }
 
     @Test
-    fun `valid format is accepted`() {
+    fun `new 6-char format is accepted`() {
+        assertTrue(isValidFlatIdFormat("FLAT-A3B9K7"))
+    }
+
+    @Test
+    fun `legacy 4-char format is still accepted (existing flats never regenerate their id)`() {
         assertTrue(isValidFlatIdFormat("FLAT-A3B9"))
     }
 
@@ -43,7 +48,8 @@ class FlatIdGeneratorTest {
     @Test
     fun `wrong code length is rejected`() {
         assertFalse(isValidFlatIdFormat("FLAT-A3B"))
-        assertFalse(isValidFlatIdFormat("FLAT-A3B99"))
+        assertFalse(isValidFlatIdFormat("FLAT-A3B99")) // 5 chars -- neither legacy nor current length
+        assertFalse(isValidFlatIdFormat("FLAT-A3B9K77")) // 7 chars -- too long
     }
 
     @Test

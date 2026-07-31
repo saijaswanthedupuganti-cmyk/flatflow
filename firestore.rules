@@ -14,6 +14,10 @@ service cloud.firestore {
         && get(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid)).data.role == 'admin';
     }
 
+    function flatOf(flatId) {
+      return get(/databases/$(database)/documents/flats/$(flatId)).data;
+    }
+
     // ── Seeker Profiles (any logged-in user, read by all authenticated) ──────
     // Users post "I'm looking for a flat" profiles here. Admins can read these
     // to discover potential flatmates. Users can only write their own profile.
@@ -106,23 +110,35 @@ service cloud.firestore {
         //  - they are authenticated
         //  - they are creating their own record (not someone else's)
         //  - the flat has fewer than 8 members (enforced via memberCount field)
+        //  - role is 'admin' only if they are the flat's designated adminUid (the founder,
+        //    creating their own admin doc right after creating the flat), 'member' otherwise —
+        //    prevents a joiner from self-assigning admin on create.
         allow create: if request.auth != null
           && request.auth.uid == memberId
-          && get(/databases/$(database)/documents/flats/$(flatId)).data.get('memberCount', 0) < 8;
+          && flatOf(flatId).get('memberCount', 0) < 8
+          && request.resource.data.role == (flatOf(flatId).adminUid == request.auth.uid ? 'admin' : 'member');
 
-        // Members can update/delete their own doc (status, nickname, etc.).
-        // Admin can update/delete any member doc (kick, role transfer).
+        // Members can update their own doc (nickname, status, etc.) but NOT their own role —
+        // self-promotion to admin must be impossible. Admin can update any member doc,
+        // including role (kick, role transfer — always admin-initiated, never self-initiated).
         // Any flat member may update only the `status` field of another member — needed
         // for OOS auto-trigger when a swap request is accepted on a different user's device.
-        allow update, delete: if request.auth != null
+        allow update: if request.auth != null
           && (
-            request.auth.uid == memberId
+            (
+              request.auth.uid == memberId
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+            )
             || isAdmin(flatId)
             || (
               isMember(flatId)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
             )
           );
+
+        // Members can delete their own doc (leave the flat). Admin can delete any (kick).
+        allow delete: if request.auth != null
+          && (request.auth.uid == memberId || isAdmin(flatId));
       }
 
       // ── Tasks ─────────────────────────────────────────────────────────────

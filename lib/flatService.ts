@@ -20,13 +20,20 @@ export interface FlatInfo {
   name: string
 }
 
-/** Generate a human-readable flat ID like "FLAT-A3B9" using cryptographically secure randomness */
+/**
+ * Generate a human-readable flat ID like "FLAT-A3B9K7" using cryptographically secure
+ * randomness. 6 chars over a 32-char alphabet =~ 1.07B combinations -- bumped from 4
+ * (=~ 1.05M, cheaply enumerable) in 2026-08. Existing 4-char flat IDs remain valid
+ * forever since flat IDs never change; joinFlat validates by existence, not format,
+ * so old and new lengths coexist with no migration needed.
+ */
 export function generateFlatId(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-  const bytes = new Uint8Array(4)
+  const codeLength = 6
+  const bytes = new Uint8Array(codeLength)
   crypto.getRandomValues(bytes)
   let code = 'FLAT-'
-  for (let i = 0; i < 4; i++) {
+  for (let i = 0; i < codeLength; i++) {
     code += chars[bytes[i] % chars.length]
   }
   return code

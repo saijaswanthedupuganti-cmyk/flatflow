@@ -32,12 +32,11 @@ class SettingsViewModel(
         val uid = user.uid
         _deleteState.value = DeleteAccountState.Deleting
         viewModelScope.launch {
+            // Firestore cleanup has to happen first: once the Auth account is gone there is
+            // no request.auth, so every rule guarding the user's data would reject the write.
+            usersRepository.deleteUserData(uid)
             authRepository.deleteAccount().fold(
                 onSuccess = {
-                    // Best-effort cleanup after the Auth account is gone -- a failure here
-                    // shouldn't block the user from completing account deletion, since the
-                    // Auth account (the part they actually asked to delete) already succeeded.
-                    usersRepository.deleteUserData(uid)
                     _deleteState.value = DeleteAccountState.Deleted
                 },
                 onFailure = { error ->

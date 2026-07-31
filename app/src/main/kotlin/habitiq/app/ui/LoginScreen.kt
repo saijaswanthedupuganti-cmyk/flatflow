@@ -144,6 +144,11 @@ fun LoginScreen(
                         }
                     } catch (e: GetCredentialException) {
                         viewModel.onGoogleSignInFailed(mapAuthError(e))
+                    } catch (e: Exception) {
+                        if (e is kotlinx.coroutines.CancellationException) throw e
+                        // Covers failures outside the Credential Manager hierarchy, e.g.
+                        // GoogleIdTokenParsingException from a malformed/unexpected credential.
+                        viewModel.onGoogleSignInFailed(mapAuthError(e))
                     }
                 }
             },

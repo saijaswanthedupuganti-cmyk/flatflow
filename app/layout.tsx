@@ -187,7 +187,7 @@ export default function RootLayout({
         </PWAProvider>
         <script
           src="https://widget.stepsai.co/widget.js"
-          data-clientid="9c3efdea-a1ee-4706-adfb-122a7e56710f"
+          data-client-key="9c3efdea-a1ee-4706-adfb-122a7e56710f"
           async
         />
       </body>

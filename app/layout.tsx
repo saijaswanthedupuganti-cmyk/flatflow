@@ -185,6 +185,11 @@ export default function RootLayout({
           <ServiceWorkerRegistration />
           <PWAInstallPrompt />
         </PWAProvider>
+        <script
+          src="https://widget.stepsai.com/widget.js"
+          data-clientid="9c3efdea-a1ee-4706-adfb-122a7e56710f"
+          async
+        />
       </body>
     </html>
   );

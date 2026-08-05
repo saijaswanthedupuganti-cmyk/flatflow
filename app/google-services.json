@@ -1,41 +1,91 @@
 {
   "project_info": {
-    "project_number": "62233483871",
-    "project_id": "habitiq-by-jaswanth",
-    "storage_bucket": "habitiq-by-jaswanth.firebasestorage.app"
+    "project_number": "1030913049565",
+    "project_id": "garbage-f79f7",
+    "storage_bucket": "garbage-f79f7.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:62233483871:android:bc1a447f1c6809f96899ea",
+        "mobilesdk_app_id": "1:1030913049565:android:92be3325041c9003652c34",
         "android_client_info": {
-          "package_name": "habitiq.app"
+          "package_name": "app.habitiq.mobile"
         }
       },
       "oauth_client": [
         {
-          "client_id": "62233483871-49o1g01nlj4jg5i9fuuuidlttb6t5qff.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "habitiq.app",
-            "certificate_hash": "65b58f48698f060883c2742735c2c8dabdb85210"
-          }
-        },
-        {
-          "client_id": "62233483871-8kr1a5s1p9a99kif8qjlgqa1vc8fc5m3.apps.googleusercontent.com",
+          "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
           "client_type": 3
         }
       ],
       "api_key": [
         {
-          "current_key": "AIzaSyC2LYjG80BtBQXjSOZziRcF6OPtg8-G86o"
+          "current_key": "AIzaSyCUtDZTE_cDYKUESFJr9rO3b8VLIiI2m9A"
         }
       ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": [
             {
-              "client_id": "62233483871-8kr1a5s1p9a99kif8qjlgqa1vc8fc5m3.apps.googleusercontent.com",
+              "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030913049565:android:e2ab5ef15b1a2e26652c34",
+        "android_client_info": {
+          "package_name": "app.habitiq.nativedev"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUtDZTE_cDYKUESFJr9rO3b8VLIiI2m9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1030913049565:android:2385e655fdcf177a652c34",
+        "android_client_info": {
+          "package_name": "habitiq.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCUtDZTE_cDYKUESFJr9rO3b8VLIiI2m9A"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1030913049565-1jr9s3371nlk1t693ok533283sif2vgm.apps.googleusercontent.com",
               "client_type": 3
             }
           ]

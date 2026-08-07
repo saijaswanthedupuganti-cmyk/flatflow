@@ -7,10 +7,10 @@
 > **Repo:** github.com/saijaswanthedupuganti-cmyk/flatflow
 > **Domain:** habitiq.app (canonical — live as of 17 June 2026)
 > **Status:** Live — Active Trial with Real Users
-> **Last Updated:** 29 June 2026 (Session 8)
+> **Last Updated:** 8 August 2026 (Foundation lock)
 > **Founder:** Venkata Sai Jaswanth E (UI/UX) · **Co-founder:** Upputuri Bhanu Kalyan (Full-Stack)
 
-See also: [[About Sai]]
+See also: [[About Sai]] · [[FOUNDATION]] · [[DOC_MAP]]
 
 ---
 
@@ -597,16 +597,32 @@ Smart rotation ✅ · Google + email login ✅ · Real-time sync ✅ · Mobile U
 
 ## 10. Roadmap — Future Requirements
 
-### Phase 1 — Trial (Now → 3 Months) CURRENT
-- [x] All core features built
+> **Architecture basement:** [[FOUNDATION]] — Web invents · PWA bridges · Android (Kotlin) → Play Store · iOS later.
+
+### Phase 1 — Trial (Now) CURRENT
+- [x] All core web features built
+- [x] PWA installable
+- [x] Foundation + DOC_MAP locked (Aug 2026)
 - [ ] Collect user feedback (ongoing)
 - [ ] Fix bugs from real usage (ongoing)
 
-### Phase 2 — Growth (3–6 Months)
-Push notifications · WhatsApp integration · Admin flat-wide balance matrix · Task photo proof · Guest invite link · Settlement confirmation from recipient
+### Phase 2 — Growth + Android
+Push notifications (FCM) · WhatsApp integration · Android Tasks/rotation parity · Play Store closed/open testing · Admin flat-wide balance matrix · Task photo proof · Guest invite link
 
-### Phase 3 — Scale & Monetisation (6–18 Months)
-Stripe/Razorpay billing · Admin super-dashboard · Analytics export · Native mobile app (React Native) · Offline mode · Firebase Cloud Functions
+### Phase 3 — Scale & Monetisation
+Play Store production · iOS after Android stable · Stripe/Razorpay billing · Admin super-dashboard · Analytics export · Offline mode (revisit) · Firebase Cloud Functions
+
+---
+
+## 10b. Foundation lock (Aug 2026)
+
+Decisions locked in [[FOUNDATION]]:
+
+- Web (`C:\garbage` / habitiq.app) is the permanent source of truth for product logic
+- One Firebase project + shared `firestore.rules` for all clients
+- Android = Kotlin/Compose at `C:\habitiq_jaswanth` (Expo abandoned)
+- Repo cleaned: one-off patch/fix scripts, debug media, empty folders, third-party design clone removed
+- Vault structure: `FOUNDATION.md` · `DOC_MAP.md` · `voice/` · `archive/` · logic contracts
 
 ---
 

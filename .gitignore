@@ -26,12 +26,29 @@
 # misc
 .DS_Store
 *.pem
+Thumbs.db
+Desktop.ini
 
-# debug
+# debug / local noise — never commit
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+*.log
+dev-server.log
+build-check.txt
+login-inspect.png
+signup-form.png
+*.webm
+
+# one-off local scripts (do not re-add)
+/fix-currency.js
+/fix-encoding.js
+/fix-encoding2.js
+/patch-expense.js
+/patch-modal.js
+/patch-return.js
+.env.prod.check
 
 # env files — never commit real secrets
 .env
@@ -41,14 +58,17 @@ yarn-error.log*
 .env.production.local
 # .env.local.example is intentionally committed (it has no real values)
 
-# vercel
+# vercel / netlify local
 .vercel
+.netlify
 
 # typescript
 *.tsbuildinfo
 next-env.d.ts
 
-# Local Netlify folder
-.netlify
-
-.vercel
+# local scratch
+/New folder/
+/sasas/
+/awesome-design-md/
+/screen shot/
+/member-home.html

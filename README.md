@@ -121,10 +121,14 @@ flatflow/
 │   └── useFlatStore.ts       — Tasks, members, swaps, expenses, bills, settlements, subscription
 ├── hooks/
 │   └── useSubscription.ts    — Trial / active / expired subscription state
-├── firestore.rules           — Role-based security (admin vs member; payer; collector)
 ├── next.config.ts            — HTTP security headers + OAuth proxy rewrites
-└── PRODUCT.md                — Business roadmap + full feature set
+├── android/                  — Native Android docs (Kotlin app at C:\habitiq_jaswanth)
+├── project_1/                — Vault: FOUNDATION.md · DOC_MAP.md · product memory
+├── DESIGN.md                 — Design tokens / UI language
+└── firestore.rules           — Shared security rules (web + native)
 ```
+
+**Architecture rule:** Web (`C:\garbage`) is the source of truth. PWA installs from the browser. Android ports logic from `lib/` + `project_1/CONDITIONS.md`. See `project_1/FOUNDATION.md`.
 
 ---
 
@@ -159,12 +163,17 @@ See [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) for full findings.
 
 | File | Contents |
 |------|---------|
-| [PRODUCT.md](./PRODUCT.md) | Full feature set, business model, roadmap, market opportunity |
+| [project_1/FOUNDATION.md](./project_1/FOUNDATION.md) | **Start here** — scale basement, web-first rules, mobile path |
+| [project_1/DOC_MAP.md](./project_1/DOC_MAP.md) | Which doc to open for what |
+| [project_1/Habitiq — Project Documentation.md](./project_1/Habitiq%20—%20Project%20Documentation.md) | Canonical product memory |
+| [DESIGN.md](./DESIGN.md) | Design tokens / UI language |
 | [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) | How to connect your own Firebase project |
 | [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | All audit findings and fixes |
 | [SECURITY.md](./SECURITY.md) | Security model overview |
 | [HABITIQ_COFOUNDER_BRIEF.md](./HABITIQ_COFOUNDER_BRIEF.md) | Co-founder onboarding brief |
 | [project_1/](./project_1/) | Obsidian vault — full product + strategic documentation |
+
+Legacy root snapshots (`PRODUCT.md`, `HABITIQ_MASTER_DOCUMENT.md`, `FLATFLOW_LAUNCH_DOCUMENTATION.md`) are historical — do not extend them.
 
 ---
 

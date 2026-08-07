@@ -115,7 +115,8 @@ Root files like `PRODUCT.md`, `HABITIQ_MASTER_DOCUMENT.md`, `FLATFLOW_LAUNCH_DOC
 5. **Mock mode** — App must keep working without Firebase keys for local verification.  
 6. **No third mobile codebase** — Web + Android only until Android proves store readiness.  
 7. **Root hygiene** — No patch scripts, logs, or random HTML dumps at repo root.  
-8. **Vault end-of-session** — Significant changes update `Habitiq — Project Documentation.md`.
+8. **Vault end-of-session** — Significant changes update `Habitiq — Project Documentation.md`.  
+9. **Firebase client config vs real secrets** — `android/app/google-services.json` (and the sibling at `C:\habitiq_jaswanth\app\google-services.json`) contains Firebase *client* API keys. Committing that file is normal for Android Firebase builds; GitHub secret scanning may flag it — treat as expected client config, not a leaked server secret. Restrict those keys in Google Cloud Console (Android app restriction + package/SHA-1, API restrictions to Firebase/needed Google APIs). **Never** commit service-account JSON, Admin SDK keys, or other server secrets. Do not gitignore `google-services.json` unless CI/local already injects it another way (this project does not).
 
 ---
 
@@ -125,10 +126,13 @@ Root files like `PRODUCT.md`, `HABITIQ_MASTER_DOCUMENT.md`, `FLATFLOW_LAUNCH_DOC
 |-------|------|-------------|
 | 0 Web | Product truth | Live flats on habitiq.app |
 | 1 PWA | Phone without stores | Install + usable standalone |
-| 2 Play Store | Android trust + discovery | Approved listing + real installs |
+| 1b APK (now) | Full product on Android today | `releases/Habitiq-0.2.0-web-debug.apk` — WebView shell of habitiq.app |
+| 2 Play Store | Native Android trust + discovery | Kotlin parity + approved listing |
 | 3 App Store | iOS after proof | After Android v1 stable |
 
-**Skip for v1 brand:** Capacitor/TWA wrap-as-store, Expo restart, iOS-before-Android, three live codebases.
+**Current APK strategy (Aug 2026):** The Kotlin Compose rebuild only covers auth/flats. Until Tasks→Expenses→Bills parity exists, the shippable APK is a branded WebView of **habitiq.app** so users get the complete working product. Native source remains at `C:\habitiq_jaswanth` for the real Play Store build.
+
+**Skip for v1 brand:** Expo restart, iOS-before-Android, three live product codebases.
 
 **PWA next (when needed):** stronger iOS install guide, FCM push, graceful offline messaging — not a rewrite.
 

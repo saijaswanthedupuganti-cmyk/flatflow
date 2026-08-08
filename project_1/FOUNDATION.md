@@ -13,11 +13,11 @@ Read this after [[Habitiq — Project Documentation]]. For which file to open fo
 | Decision | Rule |
 |----------|------|
 | **Web is the product brain** | `C:\garbage` (habitiq.app) invents features, business logic, schema, and UX rules. Forever. |
-| **One Firebase project** | Production data only. Web, PWA, Android, and future iOS share Auth + Firestore + the same `firestore.rules`. |
+| **One Firebase project** | **`garbage-f79f7` only** (`C:\garbage`). Google for Startups / enterprise subscription lives here. Web, PWA, Android, and future iOS share Auth + Firestore + `firestore.rules`. **`habitiq-by-jaswanth` is abandoned** — never ship an APK or client against it. |
 | **No second source of truth** | Native apps **port** from web `lib/*` and vault conditions. They do not invent new rotation, expense, or permission logic. |
 | **PWA is the phone bridge** | Users install Habitiq today without stores. Push/polish may improve PWA; PWA does not replace native store strategy. |
 | **Android before iOS** | Play Store first (India). iOS only after Android v1 is stable with real users. |
-| **Android stack** | Kotlin + Jetpack Compose at `C:\habitiq_jaswanth` (docs also under `C:\garbage\android`). Expo/RN path is abandoned — do not restart it. |
+| **Android stack** | Kotlin + Jetpack Compose at `C:\habitiq_jaswanth` (docs under `C:\garbage\android`). Wired to **`garbage-f79f7`** via `google-services.json`. `C:\Users\user\Downloads\habitiq` is a **UX/feature sample only** (Flat Board, map search, tasks UI) — port from it, never its Firebase. Expo/RN abandoned. |
 | **Online-only for now** | No offline edit queues. Graceful failure when offline is required; fake success is forbidden. |
 | **Live users** | No experimental refactors on production paths without a clear reason. Test before shipping. |
 
@@ -74,8 +74,11 @@ C:\garbage\                          ← WEB MONOREPO ROOT (canonical product)
 └── package.json · next.config.ts · middleware.ts
 ```
 
-**Separate checkout (do not merge into web as a second product):**  
-`C:\habitiq_jaswanth` — Android app implementation workspace.
+**Separate checkouts:**  
+`C:\habitiq_jaswanth` — native Android implementation (target: `garbage-f79f7`).  
+`C:\Users\user\Downloads\habitiq` — feature prototype sample only; **not** a Firebase or ship target.
+
+**Aug 8, 2026 (Sai):** Feature UX source = `Downloads\habitiq` (Flat Board, map search, native screens). Firebase = `garbage-f79f7` only (Google Startups). Target = real native APK with sample features on `garbage-f79f7` — not a WebView of habitiq.app, not `habitiq-by-jaswanth`.
 
 ---
 
@@ -126,11 +129,12 @@ Root files like `PRODUCT.md`, `HABITIQ_MASTER_DOCUMENT.md`, `FLATFLOW_LAUNCH_DOC
 |-------|------|-------------|
 | 0 Web | Product truth | Live flats on habitiq.app |
 | 1 PWA | Phone without stores | Install + usable standalone |
-| 1b APK (now) | Full product on Android today | `releases/Habitiq-0.2.0-web-debug.apk` — WebView shell of habitiq.app |
-| 2 Play Store | Native Android trust + discovery | Kotlin parity + approved listing |
-| 3 App Store | iOS after proof | After Android v1 stable |
+| 1b APK (bridge) | Full product on Android today | `releases/Habitiq-0.2.0-web-debug.apk` — WebView of habitiq.app on `garbage-f79f7` (temporary) |
+| 2 Native APK | Real app with sample features | Kotlin on `garbage-f79f7`; port Flat Board etc. from Downloads sample |
+| 3 Play Store | Store trust + discovery | Native parity + approved listing |
+| 4 App Store | iOS after proof | After Android v1 stable |
 
-**Current APK strategy (Aug 2026):** The Kotlin Compose rebuild only covers auth/flats. Until Tasks→Expenses→Bills parity exists, the shippable APK is a branded WebView of **habitiq.app** so users get the complete working product. Native source remains at `C:\habitiq_jaswanth` for the real Play Store build.
+**Current APK strategy (Aug 2026):** **Firebase = `garbage-f79f7` only.** WebView APK is a temporary bridge on the correct Firebase track. The real ship target is a **native app** at `C:\habitiq_jaswanth` (or `C:\garbage\android`) with features ported from the Downloads sample (Flat Board, map search, tasks UI) onto web schema (`seekerProfiles`, `discoveryTags`). Do **not** ship anything wired to `habitiq-by-jaswanth`.
 
 **Skip for v1 brand:** Expo restart, iOS-before-Android, three live product codebases.
 

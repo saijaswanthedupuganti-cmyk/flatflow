@@ -25,7 +25,7 @@ import habitiq.app.ui.theme.FigmaColors
 enum class AppTab(val label: String, val icon: ImageVector) {
     HOME("Home", Icons.Filled.Home),
     DISCOVER("Discover", Icons.Filled.Search),
-    MANAGE("Manage", Icons.Filled.GridView),
+    TASKS("Tasks", Icons.Filled.ListAlt),
     PROFILE("Profile", Icons.Filled.Person)
 }
 
@@ -49,7 +49,7 @@ fun AppShell(
                     BottomNavItem(AppTab.HOME, selectedTab == AppTab.HOME) { onTabSelected(AppTab.HOME) }
                     BottomNavItem(AppTab.DISCOVER, selectedTab == AppTab.DISCOVER) { onTabSelected(AppTab.DISCOVER) }
                     Spacer(Modifier.width(56.dp))
-                    BottomNavItem(AppTab.MANAGE, selectedTab == AppTab.MANAGE) { onTabSelected(AppTab.MANAGE) }
+                    BottomNavItem(AppTab.TASKS, selectedTab == AppTab.TASKS) { onTabSelected(AppTab.TASKS) }
                     BottomNavItem(AppTab.PROFILE, selectedTab == AppTab.PROFILE) { onTabSelected(AppTab.PROFILE) }
                 }
             }

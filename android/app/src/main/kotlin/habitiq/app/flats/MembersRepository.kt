@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.callbackFlow
 data class Member(
     val uid: String,
     val nickname: String,
-    val role: String
+    val role: String,
+    val status: String = "available",
+    val reliabilityScore: Int = 100
 )
 
 class MembersRepository(
@@ -26,7 +28,9 @@ class MembersRepository(
                     Member(
                         uid = uid,
                         nickname = doc.getString("nickname").orEmpty(),
-                        role = doc.getString("role") ?: "member"
+                        role = doc.getString("role") ?: "member",
+                        status = doc.getString("status") ?: "available",
+                        reliabilityScore = (doc.getLong("reliabilityScore") ?: 100L).toInt()
                     )
                 }
                 trySend(members)

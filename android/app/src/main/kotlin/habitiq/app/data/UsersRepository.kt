@@ -30,6 +30,32 @@ class UsersRepository(
         snap.getString("activeFlatId")
     }.onFailure { recordNonFatal(it) }
 
+    suspend fun getUserProfile(uid: String): Result<UserProfileData> = runCatching {
+        val snap = firestore.collection("users").document(uid).get().await()
+        val flatIds = (snap.get("flatIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
+        UserProfileData(
+            uid = uid,
+            email = snap.getString("email").orEmpty(),
+            displayName = snap.getString("displayName").orEmpty(),
+            activeFlatId = snap.getString("activeFlatId"),
+            flatIds = flatIds
+        )
+    }.onFailure { recordNonFatal(it) }
+
+    suspend fun updateProfile(uid: String, displayName: String): Result<Unit> = runCatching {
+        firestore.collection("users").document(uid)
+            .update("displayName", displayName.trim())
+            .await()
+        Unit
+    }.onFailure { recordNonFatal(it) }
+
+    suspend fun setActiveFlat(uid: String, flatId: String): Result<Unit> = runCatching {
+        firestore.collection("users").document(uid)
+            .update("activeFlatId", flatId)
+            .await()
+        Unit
+    }.onFailure { recordNonFatal(it) }
+
     // Must run while the user is still signed in -- Firestore rules require request.auth.
     suspend fun deleteUserData(uid: String): Result<Unit> = runCatching {
         val userRef = firestore.collection("users").document(uid)

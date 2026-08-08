@@ -33,7 +33,7 @@ val CreateFlatAccent = Color(0xFFF97316)
 @Composable
 fun CreateFlatScreen(
     viewModel: CreateFlatViewModel,
-    onDone: () -> Unit
+    onDone: (flatId: String) -> Unit
 ) {
     var flatName by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsStateWithLifecycleCompat()
@@ -116,7 +116,7 @@ fun CreateFlatScreen(
                 }
                 Spacer(Modifier.height(12.dp))
                 Button(
-                    onClick = onDone,
+                    onClick = { createdFlatId?.let { onDone(it) } },
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Done")

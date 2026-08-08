@@ -5,6 +5,9 @@ import com.google.firebase.firestore.Query
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.tasks.await
+import java.time.Instant
+import java.util.UUID
 
 class ActivityRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
@@ -32,5 +35,23 @@ class ActivityRepository(
                 trySend(items)
             }
         awaitClose { registration.remove() }
+    }
+
+    suspend fun addActivity(
+        flatId: String,
+        userId: String,
+        action: String,
+        details: String
+    ): Result<Unit> = runCatching {
+        val id = UUID.randomUUID().toString()
+        val entry = mapOf(
+            "id" to id,
+            "timestamp" to Instant.now().toString(),
+            "userId" to userId,
+            "action" to action,
+            "details" to details
+        )
+        firestore.collection("flats").document(flatId).collection("activityLog")
+            .document(id).set(entry).await()
     }
 }

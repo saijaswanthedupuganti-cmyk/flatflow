@@ -17,9 +17,12 @@ import habitiq.app.auth.AuthRepository
 import habitiq.app.auth.LoginViewModel
 import habitiq.app.auth.SignupViewModel
 import habitiq.app.data.ActivityRepository
+import habitiq.app.data.DiscoveryRepository
 import habitiq.app.data.ExpensesRepository
+import habitiq.app.data.SwapRepository
 import habitiq.app.data.TasksRepository
 import habitiq.app.data.UsersRepository
+import habitiq.app.flat.FlatViewModel
 import habitiq.app.flats.CreateFlatViewModel
 import habitiq.app.flats.FlatsRepository
 import habitiq.app.flats.HomeViewModel
@@ -34,11 +37,12 @@ import habitiq.app.ui.DiscoverScreen
 import habitiq.app.ui.FigmaHomeScreen
 import habitiq.app.ui.JoinFlatScreen
 import habitiq.app.ui.LoginScreen
+import habitiq.app.ui.ManageTaskScreen
+import habitiq.app.ui.OnboardingScreen
 import habitiq.app.ui.PlusActionSheet
 import habitiq.app.ui.ProfileScreen
 import habitiq.app.ui.SettingsScreen
 import habitiq.app.ui.SignupScreen
-import habitiq.app.ui.TasksManageScreen
 import habitiq.app.ui.collectAsStateWithLifecycleCompat
 import habitiq.app.ui.theme.HabitiqTheme
 
@@ -57,9 +61,11 @@ fun HabitiqApp() {
     val usersRepository = remember { UsersRepository() }
     val flatsRepository = remember { FlatsRepository() }
     val membersRepository = remember { MembersRepository() }
-    val tasksRepository = remember { TasksRepository() }
     val activityRepository = remember { ActivityRepository() }
-    val expensesRepository = remember { ExpensesRepository() }
+    val tasksRepository = remember { TasksRepository(activityRepository = activityRepository) }
+    val expensesRepository = remember { ExpensesRepository(activityRepository = activityRepository) }
+    val swapRepository = remember { SwapRepository() }
+    val discoveryRepository = remember { DiscoveryRepository() }
 
     val navController = rememberNavController()
     val currentUser by authRepository.currentUser.collectAsStateWithLifecycleCompat()
@@ -102,8 +108,36 @@ fun HabitiqApp() {
                         return@composable
                     }
 
+                    val flatViewModel = viewModel {
+                        FlatViewModel(
+                            authRepository,
+                            usersRepository,
+                            flatsRepository,
+                            membersRepository,
+                            tasksRepository,
+                            expensesRepository,
+                            activityRepository,
+                            swapRepository,
+                            discoveryRepository
+                        )
+                    }
+
+                    val flatId by flatViewModel.flatId.collectAsStateWithLifecycleCompat()
+                    val loading by flatViewModel.loading.collectAsStateWithLifecycleCompat()
+
+                    if (!loading && flatId == null) {
+                        val name = user.displayName?.split(" ")?.firstOrNull() ?: "there"
+                        OnboardingScreen(
+                            userName = name,
+                            onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
+                            onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
+                        )
+                        return@composable
+                    }
+
                     var selectedTab by rememberSaveable { mutableStateOf(AppTab.HOME) }
                     var showPlusSheet by remember { mutableStateOf(false) }
+                    var manageSubTab by rememberSaveable { mutableStateOf("Chores") }
 
                     val homeViewModel = viewModel { HomeViewModel(authRepository, usersRepository) }
                     val dashboardViewModel = viewModel {
@@ -131,10 +165,11 @@ fun HabitiqApp() {
                                 onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
                                 onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
                             )
-                            AppTab.DISCOVER -> DiscoverScreen()
-                            AppTab.MANAGE -> TasksManageScreen()
+                            AppTab.DISCOVER -> DiscoverScreen(flatViewModel)
+                            AppTab.TASKS -> ManageTaskScreen(flatViewModel, initialTab = manageSubTab)
                             AppTab.PROFILE -> ProfileScreen(
                                 user = user,
+                                flatViewModel = flatViewModel,
                                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                                 onSignOut = {
                                     authRepository.signOut()
@@ -151,11 +186,15 @@ fun HabitiqApp() {
                         onDismiss = { showPlusSheet = false },
                         onAddTask = {
                             showPlusSheet = false
-                            selectedTab = AppTab.MANAGE
+                            selectedTab = AppTab.TASKS
+                            manageSubTab = "Chores"
+                            flatViewModel.showAddTaskTrigger.value = true
                         },
                         onAddExpense = {
                             showPlusSheet = false
-                            selectedTab = AppTab.MANAGE
+                            selectedTab = AppTab.TASKS
+                            manageSubTab = "Money"
+                            flatViewModel.showAddExpenseTrigger.value = true
                         },
                         onInviteRoommate = {
                             showPlusSheet = false
@@ -164,17 +203,53 @@ fun HabitiqApp() {
                     )
                 }
                 composable(Routes.CREATE_FLAT) {
-                    val viewModel = viewModel { CreateFlatViewModel(authRepository, flatsRepository) }
+                    val createVm = viewModel { CreateFlatViewModel(authRepository, flatsRepository) }
+                    val flatVm: FlatViewModel = viewModel(
+                        viewModelStoreOwner = navController.getBackStackEntry(Routes.MAIN)
+                    ) {
+                        FlatViewModel(
+                            authRepository,
+                            usersRepository,
+                            flatsRepository,
+                            membersRepository,
+                            tasksRepository,
+                            expensesRepository,
+                            activityRepository,
+                            swapRepository,
+                            discoveryRepository
+                        )
+                    }
                     CreateFlatScreen(
-                        viewModel = viewModel,
-                        onDone = { navController.popBackStack(Routes.MAIN, false) }
+                        viewModel = createVm,
+                        onDone = { flatId ->
+                            flatVm.onFlatCreated(flatId)
+                            navController.popBackStack(Routes.MAIN, false)
+                        }
                     )
                 }
                 composable(Routes.JOIN_FLAT) {
-                    val viewModel = viewModel { JoinFlatViewModel(authRepository, flatsRepository) }
+                    val joinVm = viewModel { JoinFlatViewModel(authRepository, flatsRepository) }
+                    val flatVm: FlatViewModel = viewModel(
+                        viewModelStoreOwner = navController.getBackStackEntry(Routes.MAIN)
+                    ) {
+                        FlatViewModel(
+                            authRepository,
+                            usersRepository,
+                            flatsRepository,
+                            membersRepository,
+                            tasksRepository,
+                            expensesRepository,
+                            activityRepository,
+                            swapRepository,
+                            discoveryRepository
+                        )
+                    }
                     JoinFlatScreen(
-                        viewModel = viewModel,
-                        onJoined = { navController.popBackStack(Routes.MAIN, false) }
+                        viewModel = joinVm,
+                        onJoined = { flatId ->
+                            flatVm.onFlatJoined(flatId)
+                            navController.popBackStack(Routes.MAIN, false)
+                        }
                     )
                 }
                 composable(Routes.SETTINGS) {

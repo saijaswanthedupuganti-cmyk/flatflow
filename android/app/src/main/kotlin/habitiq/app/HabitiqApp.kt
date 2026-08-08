@@ -186,7 +186,7 @@ fun HabitiqApp() {
                     }
                     JoinFlatScreen(
                         viewModel = viewModel,
-                        onDone = {
+                        onJoined = {
                             navController.popBackStack(Routes.MAIN, false)
                         }
                     )

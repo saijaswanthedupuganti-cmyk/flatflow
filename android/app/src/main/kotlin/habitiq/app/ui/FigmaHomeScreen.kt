@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Notifications
@@ -628,7 +629,7 @@ private fun NoFlatContent(onCreateFlat: () -> Unit, onJoinFlat: () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Icon(Icons.Filled.Apartment, null, tint = FigmaColors.Primary, modifier = Modifier.size(48.dp))
+        Icon(Icons.Filled.Home, null, tint = FigmaColors.Primary, modifier = Modifier.size(48.dp))
         Spacer(Modifier.height(16.dp))
         Text(
             "Welcome to Habitiq+",

@@ -20,6 +20,9 @@ class JoinFlatViewModel(
     private val _joinedFlatId = MutableStateFlow<String?>(null)
     val joinedFlatId: StateFlow<String?> = _joinedFlatId
 
+    private val _pendingApproval = MutableStateFlow(false)
+    val pendingApproval: StateFlow<Boolean> = _pendingApproval
+
     fun joinFlat(code: String) {
         val normalizedCode = code.trim().uppercase()
         if (!isValidFlatIdFormat(normalizedCode)) {
@@ -34,13 +37,24 @@ class JoinFlatViewModel(
         _state.value = FlatUiState.Loading
         viewModelScope.launch {
             val nickname = user.displayName ?: user.email.orEmpty()
-            val result = flatsRepository.joinFlat(normalizedCode, user.uid, nickname, user.email.orEmpty())
-            result.onSuccess {
-                analytics.logFlatJoined()
-                _joinedFlatId.value = normalizedCode
-                _state.value = FlatUiState.Success
-            }.onFailure { error ->
-                _state.value = FlatUiState.Error(error.message ?: "Something went wrong. Please try again.")
+            val joinMode = flatsRepository.getJoinMode(normalizedCode).getOrElse { "auto" }
+            if (joinMode == "approval") {
+                flatsRepository.requestToJoin(normalizedCode, user.uid, nickname, user.email.orEmpty()).fold(
+                    onSuccess = {
+                        _pendingApproval.value = true
+                        _state.value = FlatUiState.Success
+                    },
+                    onFailure = { _state.value = FlatUiState.Error(it.message ?: "Request failed.") }
+                )
+            } else {
+                val result = flatsRepository.joinFlat(normalizedCode, user.uid, nickname, user.email.orEmpty())
+                result.onSuccess {
+                    analytics.logFlatJoined()
+                    _joinedFlatId.value = normalizedCode
+                    _state.value = FlatUiState.Success
+                }.onFailure { error ->
+                    _state.value = FlatUiState.Error(error.message ?: "Something went wrong. Please try again.")
+                }
             }
         }
     }

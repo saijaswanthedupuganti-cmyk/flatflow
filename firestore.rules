@@ -20,6 +20,22 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == userId;
     }
 
+    // ── Seeker profiles (Discover) ────────────────────────────────────────────
+    match /seekerProfiles/{profileId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == profileId;
+      allow delete: if request.auth != null && request.auth.uid == profileId;
+    }
+
+    // ── Direct messages (Discover chat) ─────────────────────────────────────────
+    match /messages/{messageId} {
+      allow read: if request.auth != null
+        && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.senderId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
     // ── Coupons ───────────────────────────────────────────────────────────────
     // Coupon docs live at /coupons/{CODE} and are created via Firebase Console.
     // Client can read (to validate) and append its flatId to usedBy (to redeem).

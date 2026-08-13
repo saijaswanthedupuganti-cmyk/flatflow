@@ -16,7 +16,10 @@
 # the classes and their members avoids a stripped/renamed constant breaking the parse.
 -keep class com.google.android.libraries.identity.googleid.** { *; }
 
-# Firebase Auth and Firestore ship consumer ProGuard rules inside their AARs, which R8
+# Google Maps / Play Services (release minify)
+-keep class com.google.android.gms.maps.** { *; }
+-keep class com.google.maps.android.** { *; }
+-dontwarn com.google.android.gms.**
 # applies automatically. This app never calls DocumentSnapshot.toObject()/toObjects()
 # and declares no @Keep / @PropertyName / @IgnoreExtraProperties model classes - all
 # document reads go through snapshot.data and typed getters (getString, etc.), and all

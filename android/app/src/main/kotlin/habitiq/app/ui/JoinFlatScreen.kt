@@ -37,6 +37,7 @@ fun JoinFlatScreen(
     var code by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsStateWithLifecycleCompat()
     val joinedFlatId by viewModel.joinedFlatId.collectAsStateWithLifecycleCompat()
+    val pendingApproval by viewModel.pendingApproval.collectAsStateWithLifecycleCompat()
 
     LaunchedEffect(state, joinedFlatId) {
         val flatId = joinedFlatId
@@ -105,6 +106,13 @@ fun JoinFlatScreen(
                     color = Color(0xFFFF6B6B),
                     modifier = Modifier.padding(top = 12.dp)
                 )
+                is FlatUiState.Success -> if (pendingApproval) {
+                    Text(
+                        "Join request sent. The flat admin will approve you.",
+                        color = Color(0xFF4ADE80),
+                        modifier = Modifier.padding(top = 12.dp)
+                    )
+                }
                 else -> {}
             }
         }

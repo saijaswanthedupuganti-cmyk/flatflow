@@ -67,28 +67,39 @@ class UsersRepository(
         Unit
     }.onFailure { recordNonFatal(it) }
 
+    suspend fun leaveCurrentFlat(uid: String, flatId: String): Result<String?> = runCatching {
+        leaveFlat(flatId, uid)
+    }.onFailure { recordNonFatal(it) }
+
     // Callers surface a generic message or, in the deletion path, drop the failure entirely --
     // without this the underlying Firestore error would leave no trace anywhere.
     private fun recordNonFatal(error: Throwable) {
         FirebaseCrashlytics.getInstance().recordException(error)
     }
 
-    private suspend fun leaveFlat(flatId: String, uid: String) {
+    private suspend fun leaveFlat(flatId: String, uid: String): String? {
+        val userSnap = firestore.collection("users").document(uid).get().await()
+        val flatIds = (userSnap.get("flatIds") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()
         firestore.runTransaction { transaction ->
             val flatRef = firestore.collection("flats").document(flatId)
             val memberRef = flatRef.collection("members").document(uid)
-
             val flatSnap = transaction.get(flatRef)
             val memberSnap = transaction.get(memberRef)
-
             if (memberSnap.exists()) {
                 transaction.delete(memberRef)
                 if (flatSnap.exists()) {
                     transaction.update(flatRef, "memberCount", FieldValue.increment(-1))
                 }
             }
-
+            val remaining = flatIds.filter { it != flatId }
+            val nextFlat = remaining.firstOrNull()
+            val userRef = firestore.collection("users").document(uid)
+            transaction.update(userRef, mapOf(
+                "activeFlatId" to nextFlat,
+                "flatIds" to remaining
+            ))
             null
         }.await()
+        return flatIds.filter { it != flatId }.firstOrNull()
     }
 }

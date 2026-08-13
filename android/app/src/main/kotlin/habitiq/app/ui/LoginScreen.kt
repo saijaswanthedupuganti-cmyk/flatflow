@@ -128,6 +128,10 @@ fun LoginScreen(
             Text("Log in")
         }
         Spacer(Modifier.height(12.dp))
+        TextButton(onClick = { viewModel.sendPasswordReset(email) }, modifier = Modifier.fillMaxWidth()) {
+            Text("Forgot password?", color = HabitiqBrand.InkMute)
+        }
+        Spacer(Modifier.height(4.dp))
         TextButton(
             onClick = onNavigateToSignup,
             modifier = Modifier.fillMaxWidth()

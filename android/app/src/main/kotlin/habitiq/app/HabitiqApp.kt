@@ -17,8 +17,10 @@ import habitiq.app.auth.AuthRepository
 import habitiq.app.auth.LoginViewModel
 import habitiq.app.auth.SignupViewModel
 import habitiq.app.data.ActivityRepository
+import habitiq.app.data.BillsRepository
 import habitiq.app.data.DiscoveryRepository
 import habitiq.app.data.ExpensesRepository
+import habitiq.app.data.MessagingRepository
 import habitiq.app.data.SwapRepository
 import habitiq.app.data.TasksRepository
 import habitiq.app.data.UsersRepository
@@ -33,11 +35,23 @@ import habitiq.app.settings.SettingsViewModel
 import habitiq.app.ui.AppShell
 import habitiq.app.ui.AppTab
 import habitiq.app.ui.CreateFlatScreen
-import habitiq.app.ui.DiscoverScreen
+import habitiq.app.ui.BillsScreen
+import habitiq.app.ui.DiscoverBoardScreen
 import habitiq.app.ui.FigmaHomeScreen
 import habitiq.app.ui.JoinFlatScreen
 import habitiq.app.ui.LoginScreen
+import habitiq.app.ui.ActivityLogScreen
+import habitiq.app.ui.FlatSwitcherSheet
+import habitiq.app.ui.ManageFlatScreen
+import habitiq.app.ui.MembersScreen
 import habitiq.app.ui.ManageTaskScreen
+import habitiq.app.ui.SwapReviewSheet
+import habitiq.app.ui.figma.CreateRecurringTaskScreen
+import habitiq.app.ui.figma.CreateTaskTypeScreen
+import habitiq.app.ui.figma.CreateTempTaskScreen
+import habitiq.app.ui.figma.GoingAwayScreen
+import habitiq.app.ui.figma.TaskDetailScreen
+import habitiq.app.ui.figma.TaskStructure
 import habitiq.app.ui.OnboardingScreen
 import habitiq.app.ui.PlusActionSheet
 import habitiq.app.ui.ProfileScreen
@@ -51,9 +65,28 @@ private object Routes {
     const val SIGNUP = "signup"
     const val MAIN = "main"
     const val CREATE_FLAT = "create_flat"
+    const val CREATE_FLAT_BRILLIANT = "create_flat_brilliant"
     const val JOIN_FLAT = "join_flat"
     const val SETTINGS = "settings"
 }
+
+private fun flatViewModelFactory(
+    authRepository: AuthRepository,
+    usersRepository: UsersRepository,
+    flatsRepository: FlatsRepository,
+    membersRepository: MembersRepository,
+    tasksRepository: TasksRepository,
+    expensesRepository: ExpensesRepository,
+    billsRepository: BillsRepository,
+    activityRepository: ActivityRepository,
+    swapRepository: SwapRepository,
+    discoveryRepository: DiscoveryRepository,
+    messagingRepository: MessagingRepository
+) = FlatViewModel(
+    authRepository, usersRepository, flatsRepository, membersRepository,
+    tasksRepository, expensesRepository, billsRepository, activityRepository,
+    swapRepository, discoveryRepository, messagingRepository
+)
 
 @Composable
 fun HabitiqApp() {
@@ -66,6 +99,8 @@ fun HabitiqApp() {
     val expensesRepository = remember { ExpensesRepository(activityRepository = activityRepository) }
     val swapRepository = remember { SwapRepository() }
     val discoveryRepository = remember { DiscoveryRepository() }
+    val billsRepository = remember { BillsRepository() }
+    val messagingRepository = remember { MessagingRepository() }
 
     val navController = rememberNavController()
     val currentUser by authRepository.currentUser.collectAsStateWithLifecycleCompat()
@@ -109,16 +144,10 @@ fun HabitiqApp() {
                     }
 
                     val flatViewModel = viewModel {
-                        FlatViewModel(
-                            authRepository,
-                            usersRepository,
-                            flatsRepository,
-                            membersRepository,
-                            tasksRepository,
-                            expensesRepository,
-                            activityRepository,
-                            swapRepository,
-                            discoveryRepository
+                        flatViewModelFactory(
+                            authRepository, usersRepository, flatsRepository, membersRepository,
+                            tasksRepository, expensesRepository, billsRepository, activityRepository,
+                            swapRepository, discoveryRepository, messagingRepository
                         )
                     }
 
@@ -130,6 +159,7 @@ fun HabitiqApp() {
                         OnboardingScreen(
                             userName = name,
                             onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
+                            onCreateFlatBrilliant = { navController.navigate(Routes.CREATE_FLAT_BRILLIANT) },
                             onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
                         )
                         return@composable
@@ -137,7 +167,13 @@ fun HabitiqApp() {
 
                     var selectedTab by rememberSaveable { mutableStateOf(AppTab.HOME) }
                     var showPlusSheet by remember { mutableStateOf(false) }
+                    var showFlatSwitcher by remember { mutableStateOf(false) }
+                    var profileOverlay by rememberSaveable { mutableStateOf<String?>(null) }
+                    var createTaskType by rememberSaveable { mutableStateOf("rotating_duty") }
                     var manageSubTab by rememberSaveable { mutableStateOf("Chores") }
+                    var tasksOverlay by rememberSaveable { mutableStateOf<String?>(null) }
+                    var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
+                    var showSwapReview by remember { mutableStateOf(false) }
 
                     val homeViewModel = viewModel { HomeViewModel(authRepository, usersRepository) }
                     val dashboardViewModel = viewModel {
@@ -152,33 +188,125 @@ fun HabitiqApp() {
                         )
                     }
 
-                    AppShell(
-                        selectedTab = selectedTab,
-                        onTabSelected = { selectedTab = it },
-                        onPlusClick = { showPlusSheet = true }
-                    ) {
-                        when (selectedTab) {
-                            AppTab.HOME -> FigmaHomeScreen(
-                                user = user,
-                                homeViewModel = homeViewModel,
-                                dashboardViewModel = dashboardViewModel,
-                                onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
-                                onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
-                            )
-                            AppTab.DISCOVER -> DiscoverScreen(flatViewModel)
-                            AppTab.TASKS -> ManageTaskScreen(flatViewModel, initialTab = manageSubTab)
-                            AppTab.PROFILE -> ProfileScreen(
-                                user = user,
-                                flatViewModel = flatViewModel,
-                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                                onSignOut = {
-                                    authRepository.signOut()
-                                    navController.navigate(Routes.LOGIN) {
-                                        popUpTo(Routes.MAIN) { inclusive = true }
-                                    }
+                    val flatViewModelTasks by flatViewModel.tasks.collectAsStateWithLifecycleCompat()
+                    val flatViewModelMembers by flatViewModel.members.collectAsStateWithLifecycleCompat()
+                    val flatViewModelSwaps by flatViewModel.swapRequests.collectAsStateWithLifecycleCompat()
+                    val flatViewModelUser by flatViewModel.currentUser.collectAsStateWithLifecycleCompat()
+
+                    when (profileOverlay) {
+                        "members" -> MembersScreen(flatViewModel, onBack = { profileOverlay = null })
+                        "manage_flat" -> ManageFlatScreen(flatViewModel, onBack = { profileOverlay = null })
+                        "activity" -> ActivityLogScreen(flatViewModel, onBack = { profileOverlay = null })
+                    }
+
+                    if (profileOverlay == null) {
+                    when (tasksOverlay) {
+                        "going_away" -> GoingAwayScreen(
+                            viewModel = flatViewModel,
+                            onBack = { tasksOverlay = null },
+                            onSent = { tasksOverlay = null; selectedTab = AppTab.TASKS }
+                        )
+                        "create_type" -> CreateTaskTypeScreen(
+                            onBack = { tasksOverlay = null },
+                            onSelect = { type ->
+                                createTaskType = if (type == TaskStructure.GROUP) "group_duty" else "rotating_duty"
+                                tasksOverlay = when (type) {
+                                    TaskStructure.RECURRING, TaskStructure.GROUP -> "create_recurring"
+                                    TaskStructure.TEMP -> "create_temp"
                                 }
-                            )
+                            }
+                        )
+                        "create_recurring" -> CreateRecurringTaskScreen(
+                            viewModel = flatViewModel,
+                            onBack = { tasksOverlay = "create_type" },
+                            onCreated = { tasksOverlay = null; selectedTab = AppTab.TASKS },
+                            taskType = createTaskType
+                        )
+                        "create_temp" -> CreateTempTaskScreen(
+                            viewModel = flatViewModel,
+                            onBack = { tasksOverlay = "create_type" },
+                            onCreated = { tasksOverlay = null; selectedTab = AppTab.TASKS }
+                        )
+                        else -> if (selectedTaskId != null) {
+                            val task = flatViewModelTasks.find { it.taskId == selectedTaskId }
+                            if (task != null) {
+                                TaskDetailScreen(
+                                    task = task,
+                                    members = flatViewModelMembers,
+                                    currentUid = flatViewModelUser?.uid.orEmpty(),
+                                    onBack = { selectedTaskId = null },
+                                    onRequestSwap = { toUid ->
+                                        flatViewModel.createSwapRequest(task.taskId, toUid)
+                                        selectedTaskId = null
+                                    }
+                                )
+                            } else {
+                                selectedTaskId = null
+                            }
+                        } else {
+                            AppShell(
+                                selectedTab = selectedTab,
+                                onTabSelected = { selectedTab = it },
+                                onPlusClick = { showPlusSheet = true }
+                            ) {
+                                when (selectedTab) {
+                                    AppTab.HOME -> FigmaHomeScreen(
+                                        user = user,
+                                        homeViewModel = homeViewModel,
+                                        dashboardViewModel = dashboardViewModel,
+                                        flatViewModel = flatViewModel,
+                                        onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
+                                        onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) },
+                                        onOpenFlatSwitcher = { showFlatSwitcher = true }
+                                    )
+                                    AppTab.DISCOVER -> DiscoverBoardScreen(flatViewModel)
+                                    AppTab.TASKS -> ManageTaskScreen(
+                                        flatViewModel,
+                                        initialTab = manageSubTab,
+                                        onOpenGoingAway = { tasksOverlay = "going_away" },
+                                        onOpenTaskDetail = { selectedTaskId = it },
+                                        onOpenCreateTask = { tasksOverlay = "create_type" },
+                                        onReviewSwaps = { showSwapReview = true }
+                                    )
+                                    AppTab.PROFILE -> ProfileScreen(
+                                        user = user,
+                                        flatViewModel = flatViewModel,
+                                        onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                        onOpenMembers = { profileOverlay = "members" },
+                                        onOpenManageFlat = { profileOverlay = "manage_flat" },
+                                        onOpenActivity = { profileOverlay = "activity" },
+                                        onOpenFlatSwitcher = { showFlatSwitcher = true },
+                                        onSignOut = {
+                                            authRepository.signOut()
+                                            navController.navigate(Routes.LOGIN) {
+                                                popUpTo(Routes.MAIN) { inclusive = true }
+                                            }
+                                        }
+                                    )
+                                }
+                            }
                         }
+                    }
+                    }
+
+                    FlatSwitcherSheet(
+                        viewModel = flatViewModel,
+                        visible = showFlatSwitcher,
+                        onDismiss = { showFlatSwitcher = false },
+                        onCreateFlat = { navController.navigate(Routes.CREATE_FLAT) },
+                        onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
+                    )
+
+                    if (showSwapReview) {
+                        SwapReviewSheet(
+                            swaps = flatViewModelSwaps,
+                            tasks = flatViewModelTasks,
+                            members = flatViewModelMembers,
+                            uid = flatViewModelUser?.uid.orEmpty(),
+                            onAccept = { flatViewModel.respondToSwap(it, true) },
+                            onReject = { flatViewModel.respondToSwap(it, false) },
+                            onDismiss = { showSwapReview = false }
+                        )
                     }
 
                     PlusActionSheet(
@@ -188,13 +316,19 @@ fun HabitiqApp() {
                             showPlusSheet = false
                             selectedTab = AppTab.TASKS
                             manageSubTab = "Chores"
-                            flatViewModel.showAddTaskTrigger.value = true
+                            tasksOverlay = "create_type"
                         },
                         onAddExpense = {
                             showPlusSheet = false
                             selectedTab = AppTab.TASKS
                             manageSubTab = "Money"
                             flatViewModel.showAddExpenseTrigger.value = true
+                        },
+                        onBillsSettlements = {
+                            showPlusSheet = false
+                            selectedTab = AppTab.TASKS
+                            manageSubTab = "Bills"
+                            flatViewModel.showBillsTrigger.value = true
                         },
                         onInviteRoommate = {
                             showPlusSheet = false
@@ -208,15 +342,9 @@ fun HabitiqApp() {
                         viewModelStoreOwner = navController.getBackStackEntry(Routes.MAIN)
                     ) {
                         FlatViewModel(
-                            authRepository,
-                            usersRepository,
-                            flatsRepository,
-                            membersRepository,
-                            tasksRepository,
-                            expensesRepository,
-                            activityRepository,
-                            swapRepository,
-                            discoveryRepository
+                            authRepository, usersRepository, flatsRepository, membersRepository,
+                            tasksRepository, expensesRepository, billsRepository, activityRepository,
+                            swapRepository, discoveryRepository, messagingRepository
                         )
                     }
                     CreateFlatScreen(
@@ -224,7 +352,29 @@ fun HabitiqApp() {
                         onDone = { flatId ->
                             flatVm.onFlatCreated(flatId)
                             navController.popBackStack(Routes.MAIN, false)
-                        }
+                        },
+                        onBack = { navController.popBackStack() }
+                    )
+                }
+                composable(Routes.CREATE_FLAT_BRILLIANT) {
+                    val createVm = viewModel { CreateFlatViewModel(authRepository, flatsRepository) }
+                    val flatVm: FlatViewModel = viewModel(
+                        viewModelStoreOwner = navController.getBackStackEntry(Routes.MAIN)
+                    ) {
+                        FlatViewModel(
+                            authRepository, usersRepository, flatsRepository, membersRepository,
+                            tasksRepository, expensesRepository, billsRepository, activityRepository,
+                            swapRepository, discoveryRepository, messagingRepository
+                        )
+                    }
+                    CreateFlatScreen(
+                        viewModel = createVm,
+                        brilliantFlow = true,
+                        onDone = { flatId ->
+                            flatVm.onFlatCreated(flatId)
+                            navController.popBackStack(Routes.MAIN, false)
+                        },
+                        onBack = { navController.popBackStack() }
                     )
                 }
                 composable(Routes.JOIN_FLAT) {
@@ -233,15 +383,9 @@ fun HabitiqApp() {
                         viewModelStoreOwner = navController.getBackStackEntry(Routes.MAIN)
                     ) {
                         FlatViewModel(
-                            authRepository,
-                            usersRepository,
-                            flatsRepository,
-                            membersRepository,
-                            tasksRepository,
-                            expensesRepository,
-                            activityRepository,
-                            swapRepository,
-                            discoveryRepository
+                            authRepository, usersRepository, flatsRepository, membersRepository,
+                            tasksRepository, expensesRepository, billsRepository, activityRepository,
+                            swapRepository, discoveryRepository, messagingRepository
                         )
                     }
                     JoinFlatScreen(

@@ -30,7 +30,8 @@ class SwapRepository(
                         toUserId = doc.getString("toUserId").orEmpty(),
                         status = doc.getString("status") ?: "pending",
                         read = doc.getBoolean("read") ?: false,
-                        createdAt = doc.getString("createdAt").orEmpty()
+                        createdAt = doc.getString("createdAt").orEmpty(),
+                        isOOSRequest = doc.getBoolean("isOOSRequest") ?: false
                     )
                 }
                 trySend(items)
@@ -42,7 +43,8 @@ class SwapRepository(
         flatId: String,
         taskId: String,
         fromUserId: String,
-        toUserId: String
+        toUserId: String,
+        isOOSRequest: Boolean = false
     ): Result<Unit> = runCatching {
         val id = UUID.randomUUID().toString()
         val data = mapOf(
@@ -51,7 +53,8 @@ class SwapRepository(
             "toUserId" to toUserId,
             "status" to "pending",
             "read" to false,
-            "createdAt" to Instant.now().toString()
+            "createdAt" to Instant.now().toString(),
+            "isOOSRequest" to isOOSRequest
         )
         firestore.collection("flats").document(flatId).collection("swapRequests")
             .document(id).set(data).await()
@@ -66,5 +69,10 @@ class SwapRepository(
             .document(requestId)
             .update("status", if (accept) "accepted" else "rejected")
             .await()
+    }
+
+    suspend fun markSwapRead(flatId: String, requestId: String): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).collection("swapRequests")
+            .document(requestId).update("read", true).await()
     }
 }

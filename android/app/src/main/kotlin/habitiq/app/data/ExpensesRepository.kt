@@ -81,6 +81,17 @@ class ExpensesRepository(
         ).getOrThrow()
     }
 
+    suspend fun updateExpense(flatId: String, expense: FlatExpense, actorId: String): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).collection("expenses")
+            .document(expense.id).set(expense.toFirestoreMap()).await()
+        activityRepository.addActivity(
+            flatId = flatId,
+            userId = actorId,
+            action = "expense_edited",
+            details = "edited expense \"${expense.description}\""
+        ).getOrThrow()
+    }
+
     private fun com.google.firebase.firestore.DocumentSnapshot.toFlatExpense(): FlatExpense? {
         val splitsRaw = get("splits") as? Map<*, *> ?: emptyMap<Any, Any>()
         val splits = splitsRaw.mapNotNull { (k, v) ->

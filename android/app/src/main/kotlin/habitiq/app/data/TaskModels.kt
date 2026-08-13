@@ -71,7 +71,8 @@ data class FlatSwapRequest(
     val toUserId: String,
     val status: String,
     val read: Boolean = false,
-    val createdAt: String = ""
+    val createdAt: String = "",
+    val isOOSRequest: Boolean = false
 )
 
 data class VacancyListing(
@@ -93,4 +94,25 @@ data class UserProfileData(
     val displayName: String,
     val activeFlatId: String?,
     val flatIds: List<String> = emptyList()
+)
+
+data class JoinRequest(
+    val id: String,
+    val uid: String,
+    val nickname: String,
+    val email: String,
+    val status: String = "pending",
+    val createdAt: String = ""
+)
+
+data class VacancyData(
+    val active: Boolean = false,
+    val city: String = "",
+    val area: String = "",
+    val rentPerHead: Double? = null,
+    val currency: String = "INR",
+    val bedsAvailable: Int = 1,
+    val preferredGender: String = "any",
+    val about: String = "",
+    val updatedAt: String = ""
 )

@@ -16,7 +16,8 @@ import habitiq.app.ui.theme.FigmaColors
 fun OnboardingScreen(
     userName: String,
     onCreateFlat: () -> Unit,
-    onJoinFlat: () -> Unit
+    onJoinFlat: () -> Unit,
+    onCreateFlatBrilliant: () -> Unit = onCreateFlat
 ) {
     Column(
         Modifier.fillMaxSize().background(FigmaColors.Background).padding(24.dp),
@@ -37,6 +38,10 @@ fun OnboardingScreen(
             modifier = Modifier.fillMaxWidth(),
             colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Primary)
         ) { Text("Create a flat") }
+        Spacer(Modifier.height(8.dp))
+        TextButton(onClick = onCreateFlatBrilliant, modifier = Modifier.fillMaxWidth()) {
+            Text("Quick setup (story mode)", color = FigmaColors.InkSecondary)
+        }
         Spacer(Modifier.height(12.dp))
         OutlinedButton(onClick = onJoinFlat, modifier = Modifier.fillMaxWidth()) { Text("Join with invite code") }
     }

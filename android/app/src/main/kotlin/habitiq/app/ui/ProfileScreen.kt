@@ -2,7 +2,8 @@ package habitiq.app.ui
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -18,48 +19,56 @@ fun ProfileScreen(
     user: FirebaseUser?,
     flatViewModel: FlatViewModel,
     onOpenSettings: () -> Unit,
+    onOpenMembers: () -> Unit,
+    onOpenManageFlat: () -> Unit,
+    onOpenActivity: () -> Unit,
+    onOpenFlatSwitcher: () -> Unit,
     onSignOut: () -> Unit
 ) {
     val profile by flatViewModel.userProfile.collectAsStateWithLifecycleCompat()
     val flatInfo by flatViewModel.flatInfo.collectAsStateWithLifecycleCompat()
+    val isAdmin by flatViewModel.isAdmin.collectAsStateWithLifecycleCompat()
     var displayName by remember(profile?.displayName) { mutableStateOf(profile?.displayName ?: user?.displayName.orEmpty()) }
     var saved by remember { mutableStateOf(false) }
+    var showLeaveConfirm by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(FigmaColors.Background).padding(24.dp)) {
+    Column(Modifier.fillMaxSize().background(FigmaColors.Background).verticalScroll(rememberScrollState()).padding(24.dp)) {
         Text("Profile", color = FigmaColors.Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Spacer(Modifier.height(8.dp))
         Text(user?.email ?: "Not signed in", color = FigmaColors.InkSecondary, fontSize = 15.sp)
-        flatInfo?.let {
-            Text("Flat: ${it.name}", color = FigmaColors.InkSecondary, fontSize = 14.sp)
+        flatInfo?.let { Text("Flat: ${it.name}", color = FigmaColors.InkSecondary, fontSize = 14.sp) }
+        if ((profile?.flatIds?.size ?: 0) > 1) {
+            TextButton(onClick = onOpenFlatSwitcher) { Text("Switch flat (${profile?.flatIds?.size})") }
         }
+        Spacer(Modifier.height(16.dp))
+        OutlinedTextField(displayName, { displayName = it; saved = false }, Modifier.fillMaxWidth(), label = { Text("Display name") }, singleLine = true)
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = { flatViewModel.updateDisplayName(displayName); saved = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Primary)) { Text("Save profile") }
+        if (saved) Text("Saved to Firestore", color = FigmaColors.Primary, fontSize = 12.sp)
         Spacer(Modifier.height(24.dp))
-        OutlinedTextField(
-            value = displayName,
-            onValueChange = { displayName = it; saved = false },
-            modifier = Modifier.fillMaxWidth(),
-            label = { Text("Display name") },
-            singleLine = true
+        ProfileLink("Members", onOpenMembers)
+        ProfileLink("Activity log", onOpenActivity)
+        if (isAdmin) ProfileLink("Manage flat & vacancy", onOpenManageFlat)
+        ProfileLink("Account settings", onOpenSettings)
+        Spacer(Modifier.height(12.dp))
+        OutlinedButton(onClick = { showLeaveConfirm = true }, modifier = Modifier.fillMaxWidth()) { Text("Leave flat") }
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Surface, contentColor = FigmaColors.Ink)) { Text("Sign out") }
+    }
+    if (showLeaveConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLeaveConfirm = false },
+            title = { Text("Leave this flat?") },
+            text = { Text("Your tasks will be reassigned. You can rejoin with the invite code.") },
+            confirmButton = { TextButton(onClick = { showLeaveConfirm = false; flatViewModel.leaveFlat() }) { Text("Leave") } },
+            dismissButton = { TextButton(onClick = { showLeaveConfirm = false }) { Text("Cancel") } }
         )
-        Spacer(Modifier.height(12.dp))
-        Button(
-            onClick = {
-                flatViewModel.updateDisplayName(displayName)
-                saved = true
-            },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Primary)
-        ) { Text("Save profile") }
-        if (saved) {
-            Text("Saved to Firestore", color = FigmaColors.Primary, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
-        }
-        Spacer(Modifier.height(32.dp))
-        Button(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Surface, contentColor = FigmaColors.Ink)) {
-            Text("Account Settings")
-        }
-        Spacer(Modifier.height(12.dp))
-        Button(onClick = onSignOut, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Surface, contentColor = FigmaColors.Ink)) {
-            Text("Sign out")
-        }
+    }
+}
+
+@Composable
+private fun ProfileLink(label: String, onClick: () -> Unit) {
+    Button(onClick = onClick, modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp), colors = ButtonDefaults.buttonColors(containerColor = FigmaColors.Surface, contentColor = FigmaColors.Ink)) {
+        Text(label)
     }
 }

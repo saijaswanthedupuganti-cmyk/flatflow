@@ -29,6 +29,7 @@ import habitiq.app.data.FlatTask
 import habitiq.app.flats.HomeFlatStatus
 import habitiq.app.flats.HomeViewModel
 import habitiq.app.flats.Member
+import habitiq.app.flat.FlatViewModel
 import habitiq.app.flats.launchShareInviteCode
 import habitiq.app.home.*
 import habitiq.app.ui.theme.FigmaColors
@@ -43,8 +44,10 @@ fun FigmaHomeScreen(
     user: FirebaseUser?,
     homeViewModel: HomeViewModel,
     dashboardViewModel: HomeDashboardViewModel,
+    flatViewModel: FlatViewModel,
     onCreateFlat: () -> Unit,
-    onJoinFlat: () -> Unit
+    onJoinFlat: () -> Unit,
+    onOpenFlatSwitcher: () -> Unit = {}
 ) {
     val flatStatus by homeViewModel.flatStatus.collectAsStateWithLifecycleCompat()
     val dashboardStatus by dashboardViewModel.status.collectAsStateWithLifecycleCompat()
@@ -61,7 +64,7 @@ fun FigmaHomeScreen(
             is HomeFlatStatus.InFlat -> when (val dash = dashboardStatus) {
                 is HomeDashboardStatus.Loading -> HomeLoading()
                 is HomeDashboardStatus.Error -> HomeError(dash.message) { dashboardViewModel.load() }
-                is HomeDashboardStatus.Ready -> DashboardContent(dash.data, viewMode, dashboardViewModel::setViewMode)
+                is HomeDashboardStatus.Ready -> DashboardContent(dash.data, viewMode, dashboardViewModel::setViewMode, flatViewModel, onOpenFlatSwitcher)
                 is HomeDashboardStatus.NoFlat -> NoFlatContent(onCreateFlat, onJoinFlat)
             }
         }
@@ -98,18 +101,22 @@ private fun HomeTopHeader(user: FirebaseUser?) {
 }
 
 @Composable
-private fun DashboardContent(data: HomeDashboardData, viewMode: HomeViewMode, onViewModeChange: (HomeViewMode) -> Unit) {
+private fun DashboardContent(data: HomeDashboardData, viewMode: HomeViewMode, onViewModeChange: (HomeViewMode) -> Unit, flatViewModel: FlatViewModel, onOpenFlatSwitcher: () -> Unit) {
     val context = LocalContext.current
+    val joinPending by flatViewModel.joinRequests.collectAsStateWithLifecycleCompat()
+    val swapPending by flatViewModel.swapRequests.collectAsStateWithLifecycleCompat()
+    val pendingJoins = joinPending.count { it.status == "pending" }
+    val pendingSwaps = swapPending.count { it.status == "pending" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)) {
         Spacer(Modifier.height(8.dp))
-        FlatSelectorRow(data.flat.name, data.isAdmin) { launchShareInviteCode(context, data.flat.name, data.flat.id) }
+        FlatSelectorRow(data.flat.name, data.isAdmin, onOpenFlatSwitcher) { launchShareInviteCode(context, data.flat.name, data.flat.id) }
         Spacer(Modifier.height(12.dp))
         ViewModeToggle(viewMode, onViewModeChange)
         Spacer(Modifier.height(16.dp))
         WelcomeCard(greetingForHour(), data.displayName, data.memberCount, data.tasksTodayCount, data.monthlySpent, computeFlatHealth(data))
         Spacer(Modifier.height(20.dp))
         TodaysTasksSection(data.todaysTasks, data.members, data.currentUid, data.weeklyProgress, data.completedThisWeek)
-        if (data.isAdmin) { Spacer(Modifier.height(20.dp)); PendingRequestsSection() }
+        if (data.isAdmin) { Spacer(Modifier.height(20.dp)); PendingRequestsSection(pendingJoins, pendingSwaps) }
         Spacer(Modifier.height(20.dp))
         ExpensesOverviewCard(data.monthlySpent)
         Spacer(Modifier.height(20.dp))
@@ -121,9 +128,9 @@ private fun DashboardContent(data: HomeDashboardData, viewMode: HomeViewMode, on
 }
 
 @Composable
-private fun FlatSelectorRow(flatName: String, isAdmin: Boolean, onInvite: () -> Unit) {
+private fun FlatSelectorRow(flatName: String, isAdmin: Boolean, onFlatClick: () -> Unit, onInvite: () -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-        Column {
+        Column(Modifier.clickable(onClick = onFlatClick)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(flatName, color = FigmaColors.Ink, fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 Icon(Icons.Filled.KeyboardArrowDown, null, tint = FigmaColors.InkMuted, modifier = Modifier.padding(start = 4.dp))
@@ -172,7 +179,7 @@ private fun ViewModeChip(title: String, subtitle: String, selected: Boolean, onC
 
 @Composable
 private fun WelcomeCard(greeting: String, displayName: String, memberCount: Int, tasksToday: Int, monthlySpent: Double, flatHealth: Int) {
-    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(FigmaColors.Primary, FigmaColors.PrimaryLight))).padding(20.dp)) {
+    Box(Modifier.fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(Brush.linearGradient(listOf(FigmaColors.Primary, FigmaColors.PrimaryGradientEnd))).padding(20.dp)) {
         Column {
             Text("$greeting, $displayName 👋", color = Color.White, fontSize = 18.sp, fontWeight = FontWeight.Bold)
             Text("Here's what's happening in your flat today.", color = Color.White.copy(0.85f), fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
@@ -234,13 +241,12 @@ private fun TaskRow(task: FlatTask, assigneeName: String) {
 }
 
 @Composable
-private fun PendingRequestsSection() {
-    SectionHeader("Pending Requests", null)
+private fun PendingRequestsSection(joinCount: Int, swapCount: Int) {
+    SectionHeader("Pending", null)
     Spacer(Modifier.height(12.dp))
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        RequestCard("Join\nRequests", "2", FigmaColors.Primary, Modifier.weight(1f))
-        RequestCard("Expense\nApproval", "1", FigmaColors.Warning, Modifier.weight(1f))
-        RequestCard("Task\nReview", "1", FigmaColors.Teal, Modifier.weight(1f))
+        RequestCard("Join\nRequests", joinCount.toString(), FigmaColors.Primary, Modifier.weight(1f))
+        RequestCard("Swap\nRequests", swapCount.toString(), FigmaColors.Teal, Modifier.weight(1f))
     }
 }
 

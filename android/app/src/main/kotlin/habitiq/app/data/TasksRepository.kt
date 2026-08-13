@@ -89,6 +89,52 @@ class TasksRepository(
         ).getOrThrow()
     }
 
+    suspend fun transferTask(
+        flatId: String,
+        taskId: String,
+        toUserId: String,
+        fromUserId: String,
+        taskName: String
+    ): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).collection("tasks").document(taskId)
+            .update("currentAssignedUserId", toUserId).await()
+        activityRepository.addActivity(
+            flatId = flatId,
+            userId = fromUserId,
+            action = "transferred_task",
+            details = "transferred $taskName"
+        ).getOrThrow()
+    }
+
+    suspend fun manuallyAssignTask(
+        flatId: String,
+        taskId: String,
+        targetUserId: String,
+        adminId: String,
+        taskName: String,
+        targetNickname: String
+    ): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).collection("tasks").document(taskId)
+            .update(mapOf("status" to "pending", "currentAssignedUserId" to targetUserId)).await()
+        activityRepository.addActivity(
+            flatId = flatId,
+            userId = adminId,
+            action = "system_override",
+            details = "manually assigned $taskName to $targetNickname"
+        ).getOrThrow()
+    }
+
+    suspend fun updateTask(flatId: String, taskId: String, changes: Map<String, Any?>, adminId: String, taskName: String): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).collection("tasks").document(taskId)
+            .update(changes.filterValues { it != null }).await()
+        activityRepository.addActivity(
+            flatId = flatId,
+            userId = adminId,
+            action = "task_edited",
+            details = "edited $taskName"
+        ).getOrThrow()
+    }
+
     private fun com.google.firebase.firestore.DocumentSnapshot.toFlatTask(): FlatTask? {
         val taskId = getString("taskId") ?: id
         val queue = (get("queueOrder") as? List<*>)?.mapNotNull { it?.toString() } ?: emptyList()

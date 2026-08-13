@@ -12,7 +12,7 @@ import habitiq.app.ui.theme.FigmaColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlusActionSheet(visible: Boolean, onDismiss: () -> Unit, onAddTask: () -> Unit, onAddExpense: () -> Unit, onInviteRoommate: () -> Unit) {
+fun PlusActionSheet(visible: Boolean, onDismiss: () -> Unit, onAddTask: () -> Unit, onAddExpense: () -> Unit, onBillsSettlements: () -> Unit, onInviteRoommate: () -> Unit) {
     if (!visible) return
     ModalBottomSheet(onDismissRequest = onDismiss, containerColor = FigmaColors.Background) {
         Column(Modifier.padding(horizontal = 24.dp, vertical = 8.dp)) {
@@ -21,6 +21,8 @@ fun PlusActionSheet(visible: Boolean, onDismiss: () -> Unit, onAddTask: () -> Un
             SheetAction("Add Task", onAddTask)
             Spacer(Modifier.height(8.dp))
             SheetAction("Add Expense", onAddExpense)
+            Spacer(Modifier.height(8.dp))
+            SheetAction("Bills & Settlements", onBillsSettlements)
             Spacer(Modifier.height(8.dp))
             SheetAction("Invite Roommate", onInviteRoommate)
             Spacer(Modifier.height(24.dp))

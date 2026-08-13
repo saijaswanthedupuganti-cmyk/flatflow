@@ -41,6 +41,20 @@ class LoginViewModel(
         _state.value = AuthUiState.Error(message)
     }
 
+    fun sendPasswordReset(email: String) {
+        if (email.isBlank()) {
+            _state.value = AuthUiState.Error("Enter your email first.")
+            return
+        }
+        _state.value = AuthUiState.Loading
+        viewModelScope.launch {
+            authRepository.sendPasswordResetEmail(email).fold(
+                onSuccess = { _state.value = AuthUiState.Error("Password reset email sent. Check your inbox.") },
+                onFailure = { _state.value = AuthUiState.Error(it.message ?: "Could not send reset email.") }
+            )
+        }
+    }
+
     private suspend fun onAuthResult(result: Result<Unit>, method: String) {
         result.onSuccess {
             val user = authRepository.currentUser.value

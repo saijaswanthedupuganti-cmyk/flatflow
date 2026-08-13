@@ -15,11 +15,19 @@ import habitiq.app.flat.FlatViewModel
 import habitiq.app.ui.theme.FigmaColors
 
 @Composable
-fun ManageTaskScreen(viewModel: FlatViewModel, initialTab: String = "Chores") {
+fun ManageTaskScreen(
+    viewModel: FlatViewModel,
+    initialTab: String = "Chores",
+    onOpenGoingAway: () -> Unit = {},
+    onOpenTaskDetail: (String) -> Unit = {},
+    onOpenCreateTask: () -> Unit = {},
+    onReviewSwaps: () -> Unit = {}
+) {
     var tab by remember { mutableStateOf(initialTab) }
+    LaunchedEffect(initialTab) { tab = initialTab }
     Column(Modifier.fillMaxSize().background(FigmaColors.Background)) {
         Row(Modifier.padding(16.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Chores", "Money").forEach { label ->
+            listOf("Chores", "Money", "Bills").forEach { label ->
                 FilterChip(
                     selected = tab == label,
                     onClick = { tab = label },
@@ -28,7 +36,14 @@ fun ManageTaskScreen(viewModel: FlatViewModel, initialTab: String = "Chores") {
             }
         }
         when (tab) {
-            "Chores" -> TasksScreen(viewModel)
+            "Chores" -> TasksScreen(
+                viewModel,
+                onOpenGoingAway = onOpenGoingAway,
+                onOpenTaskDetail = onOpenTaskDetail,
+                onOpenCreateTask = onOpenCreateTask,
+                onReviewSwaps = onReviewSwaps
+            )
+            "Bills" -> BillsScreen(viewModel)
             else -> ExpensesScreen(viewModel)
         }
     }

@@ -36,6 +36,11 @@ class AuthRepository(
         Unit
     }.recoverCatching { throw IllegalStateException(mapAuthError(reported(it)), it) }
 
+    suspend fun sendPasswordResetEmail(email: String): Result<Unit> = runCatching {
+        firebaseAuth.sendPasswordResetEmail(email.trim()).await()
+        Unit
+    }.recoverCatching { throw IllegalStateException(mapAuthError(reported(it)), it) }
+
     fun signOut() {
         firebaseAuth.signOut()
     }

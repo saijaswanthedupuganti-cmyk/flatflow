@@ -1,0 +1,252 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+.dark { --muted-foreground: #52615e; }
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   HABITIQ DESIGN SYSTEM — globals.css
+   Palette: Indigo primary + Warm amber accent — balanced, international standard.
+
+   Psychology:
+     Indigo  → trust, depth, intelligence, fairness ("the system works")
+     Orange  → energy, warmth, action, community ("get it done")
+     Together → smart AND human — exactly what a shared living platform needs.
+
+   Token architecture:
+     1. @theme      — Tailwind v4 utilities (brand scale, action, status, surfaces)
+     2. :root       — Light mode semantic tokens (shadcn + custom)
+     3. .dark       — Dark mode overrides (deep-dark, matches landing page)
+     4. @layer base — Global baseline styles
+   ───────────────────────────────────────────────────────────────────────────── */
+
+@theme {
+  /* Fonts */
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-geist-mono);
+
+  /* ── shadcn semantic bindings ── */
+  --color-border:                 var(--border);
+  --color-input:                  var(--input);
+  --color-ring:                   var(--ring);
+  --color-background:             var(--background);
+  --color-foreground:             var(--foreground);
+  --color-primary:                var(--primary);
+  --color-primary-foreground:     var(--primary-foreground);
+  --color-secondary:              var(--secondary);
+  --color-secondary-foreground:   var(--secondary-foreground);
+  --color-destructive:            var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-muted:                  var(--muted);
+  --color-muted-foreground:       var(--muted-foreground);
+  --color-accent:                 var(--accent);
+  --color-accent-foreground:      var(--accent-foreground);
+  --color-popover:                var(--popover);
+  --color-popover-foreground:     var(--popover-foreground);
+  --color-card:                   var(--card);
+  --color-card-foreground:        var(--card-foreground);
+
+  /* ── Brand scale — Indigo ─────────────────────────────────────────────────
+     Primary brand color family. Blue-leaning violet — internationally
+     recognised SaaS tone (Stripe, Linear, Vercel, GitHub Copilot).
+     Usage: bg-brand-600 (primary), text-brand-400 (on dark), border-brand-200
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-brand-50:  #f0fdfa;
+  --color-brand-100: #ccfbf1;
+  --color-brand-200: #99f6e4;
+  --color-brand-300: #5eead4;
+  --color-brand-400: #2dd4bf;
+  --color-brand-500: #0f766e;
+  --color-brand-600: #0d6b64;
+  --color-brand-700: #115e59;
+  --color-brand-800: #134e4a;
+  --color-brand-900: #134e4a;
+  --color-brand-950: #111c1b;
+
+  /* ── Gradient end — Violet ────────────────────────────────────────────────
+     The brand gradient runs #e4533d → #c73b28 (clay coral).
+     These tokens represent the violet end of that gradient.
+     Usage: from-brand-600 to-brand-end  (gradient utilities)
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-brand-end:      #0d6b64;
+  --color-brand-end-dark: #115e59;
+
+  /* ── Warm action scale — Orange/Amber ────────────────────────────────────
+     The warm half of the balanced palette. Used for energy and warmth
+     in marketing contexts and key landing page CTAs.
+     Usage: bg-action-500 (CTA), text-action-400 (on dark), bg-warm-400 (badge)
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-action-400: #0f766e;
+  --color-action-500: #0f766e;
+  --color-action-600: #0d6b64;
+
+  --color-warm-300: #fcd34d;
+  --color-warm-400: #fbbf24;
+  --color-warm-500: #f59e0b;
+  --color-warm-600: #d97706;
+
+  /* ── Status colors ────────────────────────────────────────────────────────
+     Semantic task/duty state indicators. Consistent across light + dark.
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-status-overdue: #b91c1c;
+  --color-status-today:   #b45309;
+  --color-status-soon:    #0369a1;
+  --color-status-done:    #15803d;
+
+  /* ── Surface scale — Dark depth layers ───────────────────────────────────
+     For layering depth in dark mode without guessing hex values.
+     Surface-0 is the deepest (page bg). Surface-5 is the shallowest.
+     Usage: bg-surface-2 (cards), bg-surface-4 (borders)
+     ──────────────────────────────────────────────────────────────────────── */
+  --color-surface-0: #0a0a0a;
+  --color-surface-1: #0f0f0f;
+  --color-surface-2: #141414;
+  --color-surface-3: #1a1a1a;
+  --color-surface-4: #242424;
+  --color-surface-5: #3a3a3a;
+
+  /* ── Radius scale ── */
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 4px);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   LIGHT MODE — 3-surface system
+   Page canvas (#f5f6fa) → Card (#ffffff) → Input fill (#ecedf4)
+   Cards visually lift off the page. No harsh all-white reflection.
+   Same approach used by Stripe, GitHub, Linear, Vercel.
+   ───────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* ── Page canvas — warm stone, cards stay white on top ── */
+  --background:       #f7faf9;
+  --foreground:       #111c1b;
+
+  /* ── Cards — pure white, lifts off the page canvas ── */
+  --card:             #ffffff;
+  --card-foreground:  #111c1b;
+
+  --popover:          #ffffff;
+  --popover-foreground: #111c1b;
+
+  /* Brand primary — Habitiq clay coral */
+  --primary:            #0f766e;
+  --primary-foreground: #ffffff;
+
+  /* ── Secondary — hover fills, subtle chips ── */
+  --secondary:            #f3f7f6;
+  --secondary-foreground: #111c1b;
+
+  /* ── Muted — disabled states, empty fills ── */
+  --muted:            #f3f7f6;
+  --muted-foreground: #52615e;
+
+  /* Accent — coral tint */
+  --accent:            #f0fdfa;
+  --accent-foreground: #134e4a;
+
+  /* Destructive */
+  --destructive:            #b91c1c;
+  --destructive-foreground: #ffffff;
+
+  /* ── Borders — slightly brand-harmonious ── */
+  --border: #e7efed;
+  --input:  #d8e3e0;
+  --ring:   #0f766e;
+
+  /* Shape */
+  --radius: 0.75rem;
+
+  /* Shadow tokens */
+  --shadow-brand:    0 8px 32px rgba(15, 118, 110, 0.16);
+  --shadow-brand-sm: 0 4px 16px rgba(15, 118, 110, 0.12);
+  --shadow-action:   0 8px 32px rgba(15, 118, 110, 0.16);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   DARK MODE
+   Deep-dark aesthetic matching the landing page — #0a0a0a base, not slate.
+   Indigo primary stays consistent. Orange accent glows warmer on dark.
+   ───────────────────────────────────────────────────────────────────────────── */
+.dark {
+  --background: #f7faf9;
+  --foreground: #111c1b;
+  --card: #ffffff;
+  --card-foreground: #111c1b;
+  --popover: #ffffff;
+  --popover-foreground: #111c1b;
+  --primary: #0f766e;
+  --primary-foreground: #ffffff;
+  --secondary: #f3f7f6;
+  --secondary-foreground: #111c1b;
+  --muted: #f3f7f6;
+  --muted-foreground: #52615e;
+  --accent: #f0fdfa;
+  --accent-foreground: #134e4a;
+  --destructive: #b91c1c;
+  --destructive-foreground: #ffffff;
+  --border: #e7efed;
+  --input: #d8e3e0;
+  --ring: #0f766e;
+  --shadow-brand: 0 8px 32px rgba(15, 118, 110, 0.16);
+  --shadow-brand-sm: 0 4px 16px rgba(15, 118, 110, 0.12);
+  --shadow-action: 0 8px 32px rgba(15, 118, 110, 0.16);
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   BASE STYLES
+   ───────────────────────────────────────────────────────────────────────────── */
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* ── Coupon celebration animations ── */
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(110vh) rotate(800deg); opacity: 0; }
+}
+@keyframes confetti-sway {
+  0%, 100% { margin-left: 0; }
+  30%       { margin-left: 14px; }
+  70%       { margin-left: -14px; }
+}
+@keyframes unlock-pop {
+  0%   { transform: scale(0) rotate(-20deg); opacity: 0; }
+  55%  { transform: scale(1.35) rotate(8deg); opacity: 1; }
+  78%  { transform: scale(0.92) rotate(-3deg); }
+  100% { transform: scale(1) rotate(0deg);    opacity: 1; }
+}
+@keyframes ring-expand {
+  0%   { transform: scale(1);   opacity: 0.55; }
+  100% { transform: scale(2.8); opacity: 0; }
+}
+@keyframes celebration-card-in {
+  from { transform: scale(0.88) translateY(28px); opacity: 0; }
+  to   { transform: scale(1) translateY(0);       opacity: 1; }
+}
+@keyframes stagger-up {
+  from { transform: translateY(16px); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}

@@ -1,0 +1,3 @@
+.snapshot/
+.next-audit/
+evidence/*.log

@@ -1,0 +1,519 @@
+FINAL DESIGN SYSTEM + UI QA GATE — HABITIQ
+
+IMPORTANT:
+
+Before redesigning or generating ANY screen, perform a strict visual QA pass against the existing Habitiq design system.
+
+This is NOT a request to simply make the UI prettier.
+
+The generated UI must behave as if it is being implemented by a senior mobile product designer inside an established design system.
+
+DO NOT invent visual rules screen-by-screen.
+
+==================================================
+1. DESIGN SYSTEM IS THE SOURCE OF TRUTH
+==================================================
+
+Use the existing Habitiq design system and shared components as the source of truth.
+
+Existing Android design-system architecture includes:
+- Theme
+- BrandColors
+- FigmaColors
+- shared Hq components
+
+Do not replace these with newly invented styles.
+
+Every screen must consume the same:
+- color tokens
+- typography tokens
+- spacing tokens
+- radius tokens
+- elevation tokens
+- icon system
+- button system
+- input system
+- card system
+- navigation system
+- app-bar system
+
+If a visual value is not explicitly defined, derive it from the nearest existing token instead of inventing a new value.
+
+==================================================
+2. ANDROID SAFE AREA — NON-NEGOTIABLE
+==================================================
+
+Never allow application content to collide with:
+- Android status bar
+- camera/notch area
+- navigation/gesture area
+
+Apply consistent WindowInsets / safe-area handling across ALL screens.
+
+The status bar belongs to the operating system.
+
+Application content must begin below the system inset unless intentional edge-to-edge behavior is explicitly implemented.
+
+The top app bar must never overlap or visually collide with the status bar.
+
+The bottom navigation must respect the Android navigation/gesture inset.
+
+==================================================
+3. STANDARDIZED TOP APP BAR
+==================================================
+
+Create ONE reusable Habitiq top-app-bar system.
+
+Root screens:
+- Home
+- Discover
+- Manage
+- Profile
+
+Use:
+
+status-bar-safe spacing
+↓
+page title
+↓
+optional subtitle
+
+Secondary screens:
+- Create post
+- Task detail
+- Settings
+- Flat detail
+- Profile detail
+- Message detail
+
+Use:
+
+status-bar-safe spacing
+↓
+standard back button
+↓
+screen title
+↓
+optional subtitle
+
+The back button must have:
+- fixed position
+- fixed touch target
+- fixed icon size
+- fixed left inset
+- consistent vertical alignment
+
+DO NOT manually position back buttons per screen.
+
+==================================================
+4. GLOBAL SCREEN GRID
+==================================================
+
+All screens must use the same horizontal content grid.
+
+Define one standard horizontal screen padding token.
+
+All of the following must align to the same left/right grid:
+- titles
+- subtitles
+- section headings
+- cards
+- buttons
+- lists
+- empty states
+
+Never use arbitrary screen-specific margins.
+
+==================================================
+5. SPACING TOKENS
+==================================================
+
+Use a controlled spacing scale.
+
+Example:
+
+4dp
+8dp
+12dp
+16dp
+20dp
+24dp
+32dp
+40dp
+
+Do not invent random values such as:
+17dp
+23dp
+27dp
+31dp
+37dp
+
+unless required by an existing component.
+
+Vertical rhythm must be consistent across all screens.
+
+==================================================
+6. TYPOGRAPHY SYSTEM
+==================================================
+
+Use one Habitiq typography scale.
+
+Define and reuse:
+- display
+- page title
+- section title
+- card title
+- body
+- supporting text
+- metadata
+- button label
+- caption
+
+Typography hierarchy must be created through:
+- size
+- weight
+- line height
+- color
+
+Do not rely on oversized headings everywhere.
+
+==================================================
+7. COLOR SYSTEM
+==================================================
+
+Use the already-approved Habitiq brand color.
+
+Do not invent additional brand colors.
+
+Create semantic roles:
+
+Primary
+Primary pressed
+Primary subtle
+Primary surface
+
+Background
+Surface
+Surface elevated
+Border
+
+Text primary
+Text secondary
+Text tertiary
+Text disabled
+
+Success
+Warning
+Error
+Information
+
+Brand color must not automatically mean:
+- warning
+- error
+- selected
+- destructive
+
+Use semantic colors correctly.
+
+==================================================
+8. RADIUS SYSTEM
+==================================================
+
+Use defined radius tokens.
+
+Example:
+
+Small
+Medium
+Large
+Extra large
+Pill
+
+Do not give every component the same oversized rounded corner.
+
+==================================================
+9. COMPONENT HIERARCHY
+==================================================
+
+Do NOT use one generic rounded-card component everywhere.
+
+Create separate visual patterns for:
+
+A. Navigation row
+B. Primary action
+C. Summary card
+D. Alert card
+E. Marketplace listing
+F. Person/request card
+G. Activity item
+H. Status chip
+I. Button
+J. Empty state
+K. Bottom navigation
+L. Top app bar
+
+Each component must have a clear semantic purpose.
+
+==================================================
+10. BORDER / SURFACE RULE
+==================================================
+
+Not every component needs:
+- white background
+- border
+- large radius
+
+Use surfaces intentionally.
+
+Use:
+- spacing
+- typography
+- surface contrast
+- border
+- elevation
+
+to establish hierarchy.
+
+Avoid repetitive stacks of identical white cards.
+
+==================================================
+11. BUTTON SYSTEM
+==================================================
+
+Create one reusable button system.
+
+Variants:
+- Primary
+- Secondary
+- Tertiary
+- Destructive
+
+States:
+- Default
+- Pressed
+- Disabled
+- Loading
+
+All buttons must share:
+- height
+- radius
+- typography
+- horizontal padding
+- icon alignment
+
+==================================================
+12. ICON SYSTEM
+==================================================
+
+Use one consistent icon family.
+
+Standardize:
+- icon size
+- stroke weight
+- optical alignment
+- active color
+- inactive color
+- icon-to-text spacing
+
+Do not mix visual icon styles.
+
+==================================================
+13. BOTTOM NAVIGATION
+==================================================
+
+Use one reusable bottom navigation component.
+
+It must:
+- respect Android safe-area insets
+- have fixed height
+- have consistent item spacing
+- have consistent icon size
+- have consistent label typography
+- clearly communicate active state
+
+Active state must not depend only on a tiny underline.
+
+Use a stronger but restrained active treatment.
+
+==================================================
+14. SCREEN HIERARCHY
+==================================================
+
+Every screen must have one clear primary purpose.
+
+Before designing the screen ask:
+
+“What is the most important thing the user needs to understand or do here?”
+
+The visual hierarchy must answer that question.
+
+Do not give equal visual weight to every element.
+
+==================================================
+15. MANAGE SCREEN
+==================================================
+
+Prioritize:
+1. Needs attention
+2. Today's/active tasks
+3. Expenses/bills
+4. Recent household activity
+
+Do not place huge navigation cards above important actionable information.
+
+The overdue task should be noticeable but not visually overwhelming.
+
+==================================================
+16. DISCOVER SCREEN
+==================================================
+
+Discover must feel like a discovery/marketplace experience.
+
+Do not make it look like Settings.
+
+Use:
+- listing content
+- location
+- rent
+- room type
+- flatmate information
+- lifestyle tags
+- trust information
+- clear actions
+
+Use marketplace/listing cards rather than generic navigation cards.
+
+==================================================
+17. CREATE POST
+==================================================
+
+Use a clear decision layout.
+
+Option 1:
+I have a room
+List a room in my flat
+
+Option 2:
+I'm looking for a room
+Tell people what I'm looking for
+
+Use natural user language.
+
+Do not expose technical product terminology unnecessarily.
+
+==================================================
+18. MESSAGES
+==================================================
+
+Requests must visually communicate their state.
+
+Every request card should make it obvious:
+- who sent it
+- why they are contacting the user
+- status
+- what happens next
+
+Pending requests should expose:
+- View profile
+- Accept
+- Decline
+
+Do not force the user to open a conversation just to review a request.
+
+Remove ALL placeholder/demo language.
+
+==================================================
+19. PROFILE
+==================================================
+
+Keep the profile header compact.
+
+Do not consume most of the viewport with the avatar/name area.
+
+The user's flat should feel like a primary product entity.
+
+Use clear groups:
+- My flat
+- Discovery
+- App
+- Account
+
+==================================================
+20. MICROCOPY
+==================================================
+
+Use:
+- human language
+- concise labels
+- contextual descriptions
+- consistent terminology
+
+Avoid:
+- developer language
+- placeholder text
+- unnecessary technical explanations
+- inconsistent terms for the same concept
+
+==================================================
+21. INFORMATION DENSITY
+==================================================
+
+Avoid both extremes:
+
+Too dense = cluttered
+Too empty = unfinished
+
+Use whitespace intentionally.
+
+Empty space should create hierarchy, not compensate for missing content.
+
+==================================================
+22. VISUAL CONSISTENCY QA
+==================================================
+
+Before finalizing ANY screen, verify:
+
+[ ] Status bar is never overlapped
+[ ] Back button follows standard position
+[ ] Top app bar matches other screens
+[ ] Screen margins use the same grid
+[ ] Typography uses existing tokens
+[ ] Brand color uses approved token
+[ ] Semantic colors are correct
+[ ] Radius uses tokens
+[ ] Spacing uses tokens
+[ ] Buttons use shared styles
+[ ] Icons use shared style
+[ ] Bottom navigation is identical across screens
+[ ] Cards are not unnecessarily repeated
+[ ] Interactive elements have clear states
+[ ] Touch targets are sufficiently large
+[ ] Text hierarchy is obvious
+[ ] No placeholder/demo text remains
+[ ] No screen-specific styling contradicts the design system
+[ ] The screen visually belongs to Habitiq
+
+==================================================
+23. FINAL RULE
+==================================================
+
+DO NOT GENERATE A NEW DESIGN SYSTEM FOR EACH SCREEN.
+
+Build the screen FROM the Habitiq design system.
+
+The order must always be:
+
+DESIGN TOKENS
+→ COMPONENTS
+→ SCREEN TEMPLATE
+→ SCREEN CONTENT
+
+NOT:
+
+SCREEN
+→ random styling
+→ random spacing
+→ random cards
+→ random colors
+
+The final UI should look like one carefully designed product created by one design team, not multiple AI-generated screens assembled together.

@@ -1,0 +1,591 @@
+HABITIQ — APP ICON, LAUNCH SCREEN & LOADING ANIMATION ADD-ON
+
+This is an additional correction layer to the existing Habitiq UI/UX and design-system prompts.
+
+Do NOT treat this as a new visual redesign.
+
+The previously provided official Habitiq app icon/logo asset and the previously provided Code Agent SVG asset are the source assets.
+
+Do not redraw, reinterpret, recolor, distort, simplify, or replace the provided assets unless explicitly instructed.
+
+============================================================
+01. APP LAUNCH / APPLICATION ICON
+============================================================
+
+The Habitiq application icon must be professionally implemented across Android.
+
+Use the previously provided official Habitiq app icon as the source of truth.
+
+The launcher icon must:
+
+- preserve the exact brand mark
+- preserve the correct proportions
+- remain visually centered
+- have correct optical padding
+- remain crisp at small sizes
+- use the correct adaptive-icon structure
+- work correctly on Android launcher grids
+- avoid accidental cropping
+- avoid stretching
+- avoid adding random shadows
+- avoid adding random gradients
+- avoid changing the logo colors
+
+The icon must look like a professionally designed production application icon, not a screenshot placed inside an icon container.
+
+============================================================
+02. ICON BACKGROUND
+============================================================
+
+The launcher/splash background must be clean WHITE.
+
+Use:
+
+#FFFFFF
+
+for the launch/splash background unless the existing Android system specifically requires another value.
+
+Do NOT use:
+
+- grey
+- beige
+- coral
+- gradient
+- illustration
+- textured background
+- glass effect
+- random colored circle
+
+The Habitiq logo/mark should be presented cleanly against the white background.
+
+The white background should feel intentional, premium and minimal.
+
+============================================================
+03. ADAPTIVE ICON SAFETY
+============================================================
+
+For Android adaptive icons:
+
+Respect the Android safe zone.
+
+Do not place important parts of the logo too close to the edge.
+
+The logo must remain recognizable when Android applies:
+
+- circular mask
+- squircle mask
+- rounded-square mask
+
+Do not manually bake a mask into the artwork.
+
+Keep foreground and background layers separate where required by Android.
+
+============================================================
+04. SPLASH / LAUNCH SCREEN
+============================================================
+
+When the user opens Habitiq:
+
+Show a clean, minimal launch experience.
+
+Structure:
+
+WHITE BACKGROUND
+
+        [ HABITIQ OFFICIAL MARK ]
+
+        optional subtle loading state
+
+Nothing else should compete with the brand.
+
+Do NOT display:
+
+- unnecessary welcome copy
+- random illustrations
+- "Loading..."
+- technical status text
+- debug information
+- excessive animation
+- random background graphics
+
+The launch experience must feel like a real production application.
+
+============================================================
+05. SPLASH ANIMATION
+============================================================
+
+Use a subtle animation for the Habitiq logo.
+
+The animation must be:
+
+- short
+- smooth
+- restrained
+- brand-focused
+- non-distracting
+
+Possible behavior:
+
+Logo appears with a very subtle fade/scale transition.
+
+Do NOT use:
+
+- bouncing logo
+- spinning logo
+- exaggerated zoom
+- elastic animation
+- flashy effects
+- particles
+- glow
+- random rotation
+
+The user should feel that the application is loading, not watching an intro animation.
+
+============================================================
+06. CODE AGENT SVG — SOURCE ASSET
+============================================================
+
+The previously provided Code Agent SVG is an approved source asset.
+
+Use that SVG directly where appropriate.
+
+Do NOT recreate the SVG manually.
+
+Do NOT convert it into a visually different illustration.
+
+Do NOT change its proportions.
+
+Do NOT distort it.
+
+Do NOT add unnecessary effects.
+
+Preserve its visual identity.
+
+============================================================
+07. HABITIQ LOADING ANIMATION
+============================================================
+
+Loading animation is a CORE requirement.
+
+Do not use only a generic Android spinner throughout the application.
+
+Create a branded Habitiq loading system using the previously provided Code Agent SVG where appropriate.
+
+The loading animation should make the application feel alive while remaining professional.
+
+============================================================
+08. PRIMARY BRANDED LOADING ANIMATION
+============================================================
+
+Create a reusable Habitiq branded loader.
+
+Use the Code Agent SVG as the visual source.
+
+Possible motion:
+
+- subtle opacity breathing
+- gentle scale pulse
+- controlled stroke/progress movement if the SVG supports it
+- subtle sequential reveal
+- minimal rotation ONLY if it is visually appropriate to the SVG
+
+The animation should communicate:
+
+"Habitiq is working"
+
+not:
+
+"Look at this animation."
+
+============================================================
+09. DO NOT OVER-ANIMATE THE SVG
+============================================================
+
+The Code Agent SVG must remain recognizable throughout the animation.
+
+Do not:
+
+- morph it into another object
+- rotate it aggressively
+- stretch it
+- distort it
+- continuously spin it
+- change its brand colors
+- add excessive glow
+- add particles
+- add 3D effects
+- add random gradients
+
+Animation should enhance the existing asset rather than change it.
+
+============================================================
+10. LOADING TYPES
+============================================================
+
+Create a consistent loading system with different levels.
+
+A. APP / INITIAL LOAD
+
+Use the branded Code Agent loader.
+
+B. FULL-SCREEN DATA LOAD
+
+Use the branded loader with subtle motion.
+
+C. INLINE LOAD
+
+Use a smaller version of the same visual language.
+
+D. BUTTON LOADING
+
+Use a compact progress indicator inside the button.
+
+E. IMAGE UPLOAD
+
+Use an upload-specific progress indicator.
+
+F. SEARCH / DISCOVER LOAD
+
+Use skeleton loading where appropriate instead of always showing the full branded loader.
+
+Do not use the same giant animation for every situation.
+
+============================================================
+11. SKELETON LOADING
+============================================================
+
+For content-heavy screens such as:
+
+- Home
+- Discover
+- Messages
+- Manage
+
+prefer skeleton loading when content structure is known.
+
+Skeletons must follow the actual Habitiq component geometry.
+
+Example:
+
+image skeleton
+title skeleton
+metadata skeleton
+card skeleton
+
+Do not show fake content while loading.
+
+Do not use random animated grey blocks.
+
+Skeleton animation must be subtle.
+
+============================================================
+12. LOADING ANIMATION TIMING
+============================================================
+
+Motion should be quick and restrained.
+
+Avoid long loading animations that make the user feel the application is deliberately slowing them down.
+
+If the data loads quickly:
+
+Do not keep the branded animation visible artificially.
+
+If the operation takes longer:
+
+transition naturally into an appropriate loading state.
+
+Do not use animation to hide actual performance problems.
+
+============================================================
+13. LOADING → CONTENT TRANSITION
+============================================================
+
+When loading completes:
+
+Do not abruptly replace the entire screen.
+
+Use a subtle transition.
+
+Preferred:
+
+loader
+↓
+content appears naturally
+
+Avoid:
+
+flash
+white screen
+sudden jump
+large zoom
+unnecessary bounce
+
+The transition should feel smooth and intentional.
+
+============================================================
+14. BUTTON LOADING
+============================================================
+
+When an action is being submitted:
+
+Example:
+
+Continue
+Publish
+Save
+Accept
+Send
+
+the button must transition into a loading state.
+
+Example:
+
+[ Continue ]
+
+becomes:
+
+[  • • •  ]
+
+or another compact branded progress treatment.
+
+Do NOT allow the user to repeatedly tap the button.
+
+Disable duplicate submission while loading.
+
+Preserve button width so the layout does not jump.
+
+============================================================
+15. IMAGE UPLOAD LOADING
+============================================================
+
+For the "Choose photos" flow:
+
+When images are uploading:
+
+show:
+
+- upload progress
+- image preview
+- loading state
+- failure state
+- retry action
+
+Do not freeze the entire screen.
+
+Do not show a generic full-screen spinner if only the image upload is processing.
+
+============================================================
+16. ERROR DURING LOADING
+============================================================
+
+Every loading operation must have a failure state.
+
+Example:
+
+Couldn't load your listings.
+
+[ Try again ]
+
+or:
+
+Photo upload failed.
+
+[ Retry ]
+
+Do not leave the user staring at an infinite loader.
+
+There must always be a clear exit from a failed loading state.
+
+============================================================
+17. OFFLINE / NETWORK STATE
+============================================================
+
+If an operation requires network access and the connection is unavailable:
+
+provide a clear, human-readable state.
+
+Do not show:
+
+- blank screen
+- endless spinner
+- technical error
+- API error
+- stack trace
+
+Use:
+
+"You're offline"
+"Check your connection and try again."
+
+where appropriate.
+
+============================================================
+18. ACCESSIBILITY FOR MOTION
+============================================================
+
+Respect reduced-motion accessibility settings.
+
+If reduced motion is enabled:
+
+- remove decorative movement
+- minimize scale transitions
+- minimize sliding
+- preserve the state change through opacity or static indicators
+
+The application must remain understandable without animation.
+
+============================================================
+19. BRAND CONSISTENCY
+============================================================
+
+The following must belong to one visual language:
+
+App icon
+Splash screen
+Loading animation
+Empty states
+Success states
+Error states
+Illustrations
+Icons
+Buttons
+Cards
+Navigation
+
+The same Habitiq identity should be recognizable throughout the application.
+
+Do not make the loading animation visually unrelated to the rest of the product.
+
+============================================================
+20. WHITE SPLASH BACKGROUND
+============================================================
+
+The initial application launch must use a clean WHITE background.
+
+No beige background.
+
+No grey background.
+
+No gradient.
+
+No image.
+
+No decorative shape.
+
+No random colored container behind the logo.
+
+The official Habitiq mark should be the visual focus.
+
+============================================================
+21. ASSET QUALITY
+============================================================
+
+Use the supplied SVG/vector assets wherever possible.
+
+Do not rasterize unnecessarily.
+
+Maintain:
+
+- sharp edges
+- correct aspect ratio
+- correct colors
+- correct alignment
+- correct padding
+
+The icon must remain crisp on high-density Android displays.
+
+============================================================
+22. FINAL BRAND QA
+============================================================
+
+Before finalizing the app launch and loading experience, verify:
+
+[ ] Official Habitiq icon is used
+[ ] Correct icon proportions
+[ ] Correct icon colors
+[ ] White splash background
+[ ] Correct adaptive-icon safe zone
+[ ] No logo distortion
+[ ] No accidental cropping
+[ ] No random gradients
+[ ] No random shadows
+[ ] Code Agent SVG is used as supplied
+[ ] Loading animation is branded
+[ ] Loading animation is subtle
+[ ] Loading animation is reusable
+[ ] Full-screen loading exists
+[ ] Inline loading exists
+[ ] Button loading exists
+[ ] Upload progress exists
+[ ] Skeleton loading exists where appropriate
+[ ] Error state exists
+[ ] Retry state exists
+[ ] Offline state exists
+[ ] Reduced-motion behavior exists
+[ ] Loader does not remain artificially
+[ ] Content transition is smooth
+[ ] No duplicate submissions
+[ ] No infinite spinner
+[ ] No debug/loading text
+
+============================================================
+23. FINAL EXPERIENCE
+============================================================
+
+The user experience should feel like:
+
+Tap Habitiq icon
+↓
+Clean white launch
+↓
+Habitiq brand appears subtly
+↓
+App loads naturally
+↓
+Content transitions smoothly into place
+
+The loading experience should feel:
+
+FAST
+CALM
+BRANDED
+PREMIUM
+TRUSTWORTHY
+
+NOT:
+
+FLASHY
+HEAVY
+GAME-LIKE
+GENERIC
+OR OVER-ANIMATED.
+
+The Code Agent SVG should become a recognizable part of the Habitiq loading language without overpowering the product.
+
+============================================================
+24. DO NOT CHANGE THE EXISTING PRODUCT DESIGN
+============================================================
+
+This add-on only addresses:
+
+- application icon
+- adaptive icon
+- launch/splash
+- loading
+- skeletons
+- progress
+- upload states
+- transition states
+- error/retry states
+- offline states
+- motion/accessibility
+
+Do not use this requirement as a reason to redesign existing screens again.
+
+Apply the previously established Habitiq design-system rules to these states.
+
+FINAL RULE:
+
+The app icon and loading experience are part of the product's brand identity, not an afterthought.
+
+They must be implemented with the same level of precision as the main UI.

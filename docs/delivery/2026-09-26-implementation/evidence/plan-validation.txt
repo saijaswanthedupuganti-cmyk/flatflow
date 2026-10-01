@@ -1,0 +1,6 @@
+Planning documents: 10
+Missing local links: 0
+Baseline source files compared: 232
+Source hash differences: 0
+Runtime/build/device tests: NOT RUN in this planning pass
+Scope: planning documents and evidence only

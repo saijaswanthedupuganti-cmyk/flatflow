@@ -1,0 +1,1433 @@
+Yes — **this is the right point to stop prompting and do a proper visual QA pass first.** I looked at the screenshots again specifically as *screenshots*, not just as product functionality. And I agree with your point: some of the problems are not “design preference” issues. They are **basic UI implementation/design-system violations**.
+
+The technical docs say Android already has shared theme files, `BrandColors`, `FigmaColors`, and shared `Hq*` components.  So if the generated screens are still producing inconsistent spacing, top-bar behavior, colors, radii, navigation, etc., the prompt needs to explicitly tell the generator to **follow a design system as a constraint**, not merely “use the brand.”
+
+# 🔴 HABITIQ — VISUAL UI QA BEFORE THE NEXT PROMPT
+
+I would divide the audit into **8 layers**:
+
+1. **System/safe-area**
+2. **Navigation**
+3. **Layout/grid**
+4. **Typography**
+5. **Color**
+6. **Components**
+7. **Interaction states**
+8. **Brand consistency**
+
+And honestly, **Layer 1 and 2 are currently the biggest failures.**
+
+---
+
+# 1. 🚨 TOP SYSTEM AREA IS BEING TREATED AS PART OF THE APP
+
+This is the first thing I noticed from the screenshots.
+
+Look at the top of the screens.
+
+The Android status bar:
+
+> 11:37
+> Wi-Fi
+> battery 70%
+
+is visually sitting **on top of / extremely close to the application content**.
+
+And on some screens you have:
+
+> ← Back
+
+almost touching the system area.
+
+This is not a branding issue.
+
+This is a **layout/safe-area issue**.
+
+### The app content needs a proper top inset.
+
+Conceptually:
+
+```text
+┌─────────────────────────┐
+│     SYSTEM STATUS BAR   │ ← OS
+├─────────────────────────┤
+│                         │
+│ ← Back                  │ ← APP TOP BAR
+│                         │
+│ Page title              │
+│ Subtitle                │
+│                         │
+```
+
+NOT:
+
+```text
+┌─────────────────────────┐
+│ 11:37  icons            │
+│ ← Back   Page title     │ ← collision
+│                         │
+```
+
+### Add this as a hard rule:
+
+> **Never position application UI underneath the Android status bar unless intentional edge-to-edge behavior is explicitly implemented with correct insets.**
+
+And if edge-to-edge is being used:
+
+> **Apply WindowInsets consistently to every screen and every top app bar.**
+
+This should be **non-negotiable**.
+
+---
+
+# 2. 🚨 BACK BUTTON POSITION IS INCONSISTENT
+
+This is exactly what you were noticing.
+
+On:
+
+### Messages
+
+You have:
+
+> ← Back
+
+at the top.
+
+### Create Post
+
+Again:
+
+> ← Back
+
+But it isn't behaving like a proper standardized app bar.
+
+The back control should have a **fixed design-system position**.
+
+For example:
+
+```text
+Top inset
+↓
+┌────────────────────────────┐
+│ ←  Back                    │
+└────────────────────────────┘
+↓
+Page title
+```
+
+Or:
+
+```text
+┌────────────────────────────┐
+│ ←   Create a post          │
+└────────────────────────────┘
+```
+
+Pick **one pattern**.
+
+Do NOT let every screen decide independently.
+
+---
+
+# 3. 🚨 THERE IS NO CONSISTENT APP BAR SYSTEM
+
+This is bigger than the back button.
+
+Compare:
+
+* Manage
+* Profile
+* Discover
+* Messages
+* Create Post
+
+Each has a different relationship between:
+
+**status bar → top spacing → title → subtitle → content.**
+
+That tells me the screens were generated independently.
+
+A proper system needs:
+
+### Screen types
+
+**Type A — Root screen**
+
+```text
+Status bar
+↓
+Page title
+↓
+Subtitle
+↓
+Content
+```
+
+Used for:
+
+* Home
+* Discover
+* Manage
+* Profile
+
+### Type B — Secondary screen
+
+```text
+Status bar
+↓
+← Back
+↓
+Title
+↓
+Subtitle
+↓
+Content
+```
+
+Used for:
+
+* Create Post
+* Task detail
+* Profile detail
+* Settings
+* Flat details
+* Message/request detail
+
+### Type C — Modal/sheet
+
+Different system entirely.
+
+This needs to be specified.
+
+---
+
+# 4. 🚨 CONTENT MARGINS ARE NOT SYSTEMATIC
+
+Your screens appear to use roughly:
+
+> 38–40 px left/right
+
+but not consistently.
+
+Some elements start around the same point, others don't.
+
+The design should establish:
+
+```text
+Screen horizontal padding = 24dp
+```
+
+or whatever value you decide.
+
+Then:
+
+**EVERYTHING follows it.**
+
+```text
+Page title        ───────┐
+Subtitle          ───────┤ 24dp
+Section title     ───────┤
+Cards             ───────┤
+Buttons           ───────┘
+```
+
+No:
+
+> “This screen looks better with 38px.”
+
+That destroys consistency.
+
+---
+
+# 5. 🚨 VERTICAL SPACING IS NOT TOKENIZED
+
+This is another giveaway that the screens aren't using a proper design system.
+
+For example:
+
+```text
+Title
+        ↓ huge gap
+Subtitle
+        ↓
+Card
+        ↓
+Card
+```
+
+versus another screen where the spacing is completely different.
+
+You need a spacing scale.
+
+I'd recommend something like:
+
+```text
+4dp   micro
+8dp   tight
+12dp  compact
+16dp  standard
+20dp  comfortable
+24dp  section
+32dp  major
+40dp  screen
+```
+
+Then explicitly tell the generator:
+
+> **Only use spacing tokens. Do not invent arbitrary spacing values.**
+
+---
+
+# 6. 🚨 THE UI HAS NO CLEAR DESIGN-SYSTEM RULE FOR CARD TYPES
+
+This is probably the most obvious visual inconsistency.
+
+The generator has basically learned:
+
+> “Habitiq = rounded white rectangle.”
+
+So:
+
+**Tasks**
+
+white rounded rectangle.
+
+**Expenses**
+
+white rounded rectangle.
+
+**My Flat**
+
+white rounded rectangle.
+
+**Preferences**
+
+white rounded rectangle.
+
+**Find a place**
+
+white rounded rectangle.
+
+**Find a person**
+
+white rounded rectangle.
+
+**Post a vacancy**
+
+white rounded rectangle.
+
+That is not a design system.
+
+That's **one component being overused**.
+
+---
+
+# 7. Cards need a COMPONENT TAXONOMY
+
+You need to define this explicitly.
+
+### Card A — Navigation
+
+```text
+Icon    Title
+        Description              →
+```
+
+### Card B — Content
+
+```text
+Title
+metadata
+content
+actions
+```
+
+### Card C — Alert
+
+```text
+⚠
+Title
+Description
+CTA
+```
+
+### Card D — Marketplace
+
+```text
+IMAGE
+────────────────
+Location
+Rent
+Room type
+Tags
+CTA
+```
+
+### Card E — Person/request
+
+```text
+Avatar
+Name
+Context
+Status
+Actions
+```
+
+The generator must **not use Navigation Card A for all five situations**.
+
+---
+
+# 8. 🚨 BRAND COLOR IS NOT THE SAME AS DESIGN SYSTEM
+
+You said something very important:
+
+> “I already decided the color.”
+
+Perfect.
+
+But simply telling it:
+
+> “Use #XXXXXX”
+
+is not enough.
+
+You need:
+
+### Color tokens
+
+```text
+Primary
+Primary pressed
+Primary hover
+Primary light
+Primary subtle
+
+Background
+Surface
+Surface elevated
+Border
+
+Text primary
+Text secondary
+Text tertiary
+Text disabled
+
+Success
+Warning
+Error
+Info
+```
+
+Then the generator cannot randomly choose:
+
+> pale red here
+> pale pink there
+> grey here
+> another grey there.
+
+---
+
+# 9. The current coral/red is being used for too many meanings
+
+In the screenshots it appears on:
+
+* active navigation
+* buttons
+* icons
+* warnings
+* profile actions
+* post actions
+
+That means the user can't distinguish:
+
+> **brand**
+
+from
+
+> **warning**
+
+from
+
+> **primary action**
+
+The design system needs semantic color roles.
+
+---
+
+# 10. 🚨 TYPOGRAPHY ISN'T A SYSTEM YET
+
+The screens have good readability, but the hierarchy is basically:
+
+> BIG BLACK
+> GREY
+> BLACK
+> GREY
+
+You need explicit typography tokens.
+
+For example:
+
+```text
+Display
+32 / 38 / Bold
+
+Screen title
+28 / 34 / Semibold
+
+Section title
+16 / 22 / Semibold
+
+Card title
+18 / 24 / Medium
+
+Body
+15 / 22 / Regular
+
+Metadata
+13 / 18 / Regular
+
+Button
+15 / 20 / Semibold
+```
+
+Exact values can follow your existing design system, but **the principle is critical**.
+
+---
+
+# 11. 🚨 FONT WEIGHT IS NOT BEING USED TO CREATE ENOUGH HIERARCHY
+
+A lot of text appears visually similar in weight.
+
+You need clear relationships:
+
+**Title**
+
+↓
+
+**Important information**
+
+↓
+
+**Supporting information**
+
+↓
+
+**Metadata**
+
+↓
+
+**System/status information**
+
+That makes scanning much easier.
+
+---
+
+# 12. Section headings are too “dashboard template”
+
+Examples:
+
+> MANAGE YOUR FLAT
+
+> NEEDS YOUR ATTENTION
+
+> RECENT ACTIVITY
+
+These aren't terrible, but together they make the interface feel like a generated admin dashboard.
+
+I'd move toward:
+
+> Your flat
+
+> Needs attention
+
+> Recent activity
+
+More natural.
+
+---
+
+# 13. 🚨 BORDER + RADIUS + WHITE CARD IS OVERUSED
+
+This combination appears everywhere:
+
+```text
+white
++
+1px border
++
+large radius
++
+shadow/none
+```
+
+Repeat it 10 times and the interface becomes visually flat.
+
+A proper design system should specify when to use:
+
+### Surface
+
+No border.
+
+### Outlined
+
+Border.
+
+### Elevated
+
+Shadow/elevation.
+
+### Filled
+
+Tinted background.
+
+Not every element gets the same treatment.
+
+---
+
+# 14. RADIUS NEEDS TOKENS
+
+For example:
+
+```text
+radius-sm     8
+radius-md     12
+radius-lg     16
+radius-xl     20
+radius-pill   999
+```
+
+Then:
+
+* cards → `lg`
+* buttons → `md`
+* chips → `pill`
+* inputs → `md`
+
+Not:
+
+> “Make everything 22px.”
+
+---
+
+# 15. 🚨 BUTTONS NEED THEIR OWN SYSTEM
+
+Current buttons are visually inconsistent.
+
+You need:
+
+### Primary
+
+Brand fill + high contrast text.
+
+### Secondary
+
+Tinted/surface button.
+
+### Tertiary
+
+Text button.
+
+### Destructive
+
+Error color.
+
+And each needs:
+
+```text
+Default
+Pressed
+Disabled
+Loading
+```
+
+The prompt should explicitly say **don't invent button styling screen-by-screen**.
+
+---
+
+# 16. ACTIVE NAVIGATION NEEDS A SYSTEM
+
+Current active navigation:
+
+> red icon
+> red text
+> tiny underline
+
+It works, but it's weak.
+
+And the active state changes visually depending on the screen.
+
+Define one component:
+
+```text
+BottomNavItem
+```
+
+with:
+
+```text
+inactive
+active
+pressed
+disabled
+```
+
+Then use it everywhere.
+
+---
+
+# 17. 🚨 BOTTOM NAV NEEDS SAFE-AREA HANDLING TOO
+
+Look at the bottom.
+
+The navigation and Android gesture/home indicator are very close.
+
+The bottom navigation should account for:
+
+```text
+navigation bar inset
++
+minimum bottom padding
+```
+
+Otherwise different Android devices can produce different results.
+
+This is another thing the generator must **never improvise**.
+
+---
+
+# 18. ICONS NEED A SYSTEM
+
+Currently icons look like they came from a generic icon library and then got colored.
+
+That's okay for an MVP.
+
+For the final product:
+
+```text
+Icon size:
+20dp
+24dp
+
+Stroke:
+consistent
+
+Optical alignment:
+consistent
+
+Active:
+brand
+
+Inactive:
+neutral
+```
+
+Most importantly:
+
+**don't mix icon styles.**
+
+---
+
+# 19. DISCOVER HAS A DIFFERENT VISUAL PROBLEM
+
+Discover isn't just suffering from component inconsistency.
+
+It is suffering from **product identity**.
+
+The existing implementation already supports filters for city/area, rent, gender, flat type, room type and lifestyle tags. 
+
+So the UI shouldn't visually resemble:
+
+> Settings → choose something.
+
+It should resemble:
+
+> **Discovery → browse → compare → connect.**
+
+That means content cards, metadata, filtering and visual scanning need to dominate.
+
+---
+
+# 20. POST SCREEN HAS A DESIGN-SYSTEM FAILURE
+
+The huge blank space is not necessarily bad.
+
+But here it feels accidental.
+
+The two buttons are floating at the top with no visual composition.
+
+It should feel like a deliberate decision screen:
+
+```text
+Create a post
+
+What are you looking for?
+
+┌────────────────────────┐
+│ 🏠                     │
+│ I have a room          │
+│ Find someone to live   │
+│ with                   │
+└────────────────────────┘
+
+or
+
+┌────────────────────────┐
+│ 🔎                     │
+│ I'm looking for a room │
+│ Find my next home      │
+└────────────────────────┘
+```
+
+Now the whitespace becomes intentional.
+
+---
+
+# 21. MESSAGES HAS A UX + DESIGN-SYSTEM FAILURE
+
+This one is especially important.
+
+The screen says:
+
+> “Review requests before you open a conversation.”
+
+Yet the cards don't visually expose the decision.
+
+That's not just visual.
+
+That's an **interaction contradiction**.
+
+The card needs:
+
+**Pending**
+
+**View profile**
+
+**Decline**
+
+**Accept**
+
+The existing Discover spec explicitly includes a contact flow and messaging architecture, so this needs to be represented as a proper relationship/request UI, not just a generic message list. 
+
+---
+
+# 22. Placeholder/demo content is hurting perceived quality
+
+This:
+
+> “Hi this person, this looks like a good fit. Are you still looking? vbbb”
+
+is devastating to the perceived quality.
+
+Even if the functionality works perfectly, users will think:
+
+> “This is unfinished.”
+
+All demo/test strings need to be removed from the polished UI.
+
+---
+
+# 23. THE APP NEEDS A DESIGN-SYSTEM “SOURCE OF TRUTH”
+
+This is the most important thing I want you to add **before asking for another redesign**.
+
+The technical audit already says Android has:
+
+> `Theme.kt`
+> `BrandColors.kt`
+> `FigmaColors.kt`
+> shared `Hq*` components. 
+
+So the next prompt should say:
+
+> **Do not create new visual rules. Consume the existing design system.**
+
+And then explicitly define what that means.
+
+---
+
+# 🧱 THE DESIGN SYSTEM CONTRACT
+
+Before generating any screen, the system should know:
+
+```text
+BRAND
+↓
+Color tokens
+↓
+Typography tokens
+↓
+Spacing tokens
+↓
+Radius tokens
+↓
+Elevation tokens
+↓
+Icon tokens
+↓
+Component tokens
+↓
+Screen templates
+↓
+Individual screens
+```
+
+Not:
+
+```text
+Screen
+↓
+AI decides colors
+↓
+AI decides radius
+↓
+AI decides spacing
+↓
+AI decides typography
+```
+
+That's exactly how you're getting these inconsistencies.
+
+---
+
+# 🔥 THE ADD-ON PROMPT I WOULD USE NOW
+
+**Don't submit the previous prompt again.**
+
+Append this **before any new screen-generation instruction**:
+
+```text
+FINAL DESIGN SYSTEM + UI QA GATE — HABITIQ
+
+IMPORTANT:
+
+Before redesigning or generating ANY screen, perform a strict visual QA pass against the existing Habitiq design system.
+
+This is NOT a request to simply make the UI prettier.
+
+The generated UI must behave as if it is being implemented by a senior mobile product designer inside an established design system.
+
+DO NOT invent visual rules screen-by-screen.
+
+==================================================
+1. DESIGN SYSTEM IS THE SOURCE OF TRUTH
+==================================================
+
+Use the existing Habitiq design system and shared components as the source of truth.
+
+Existing Android design-system architecture includes:
+- Theme
+- BrandColors
+- FigmaColors
+- shared Hq components
+
+Do not replace these with newly invented styles.
+
+Every screen must consume the same:
+- color tokens
+- typography tokens
+- spacing tokens
+- radius tokens
+- elevation tokens
+- icon system
+- button system
+- input system
+- card system
+- navigation system
+- app-bar system
+
+If a visual value is not explicitly defined, derive it from the nearest existing token instead of inventing a new value.
+
+==================================================
+2. ANDROID SAFE AREA — NON-NEGOTIABLE
+==================================================
+
+Never allow application content to collide with:
+- Android status bar
+- camera/notch area
+- navigation/gesture area
+
+Apply consistent WindowInsets / safe-area handling across ALL screens.
+
+The status bar belongs to the operating system.
+
+Application content must begin below the system inset unless intentional edge-to-edge behavior is explicitly implemented.
+
+The top app bar must never overlap or visually collide with the status bar.
+
+The bottom navigation must respect the Android navigation/gesture inset.
+
+==================================================
+3. STANDARDIZED TOP APP BAR
+==================================================
+
+Create ONE reusable Habitiq top-app-bar system.
+
+Root screens:
+- Home
+- Discover
+- Manage
+- Profile
+
+Use:
+
+status-bar-safe spacing
+↓
+page title
+↓
+optional subtitle
+
+Secondary screens:
+- Create post
+- Task detail
+- Settings
+- Flat detail
+- Profile detail
+- Message detail
+
+Use:
+
+status-bar-safe spacing
+↓
+standard back button
+↓
+screen title
+↓
+optional subtitle
+
+The back button must have:
+- fixed position
+- fixed touch target
+- fixed icon size
+- fixed left inset
+- consistent vertical alignment
+
+DO NOT manually position back buttons per screen.
+
+==================================================
+4. GLOBAL SCREEN GRID
+==================================================
+
+All screens must use the same horizontal content grid.
+
+Define one standard horizontal screen padding token.
+
+All of the following must align to the same left/right grid:
+- titles
+- subtitles
+- section headings
+- cards
+- buttons
+- lists
+- empty states
+
+Never use arbitrary screen-specific margins.
+
+==================================================
+5. SPACING TOKENS
+==================================================
+
+Use a controlled spacing scale.
+
+Example:
+
+4dp
+8dp
+12dp
+16dp
+20dp
+24dp
+32dp
+40dp
+
+Do not invent random values such as:
+17dp
+23dp
+27dp
+31dp
+37dp
+
+unless required by an existing component.
+
+Vertical rhythm must be consistent across all screens.
+
+==================================================
+6. TYPOGRAPHY SYSTEM
+==================================================
+
+Use one Habitiq typography scale.
+
+Define and reuse:
+- display
+- page title
+- section title
+- card title
+- body
+- supporting text
+- metadata
+- button label
+- caption
+
+Typography hierarchy must be created through:
+- size
+- weight
+- line height
+- color
+
+Do not rely on oversized headings everywhere.
+
+==================================================
+7. COLOR SYSTEM
+==================================================
+
+Use the already-approved Habitiq brand color.
+
+Do not invent additional brand colors.
+
+Create semantic roles:
+
+Primary
+Primary pressed
+Primary subtle
+Primary surface
+
+Background
+Surface
+Surface elevated
+Border
+
+Text primary
+Text secondary
+Text tertiary
+Text disabled
+
+Success
+Warning
+Error
+Information
+
+Brand color must not automatically mean:
+- warning
+- error
+- selected
+- destructive
+
+Use semantic colors correctly.
+
+==================================================
+8. RADIUS SYSTEM
+==================================================
+
+Use defined radius tokens.
+
+Example:
+
+Small
+Medium
+Large
+Extra large
+Pill
+
+Do not give every component the same oversized rounded corner.
+
+==================================================
+9. COMPONENT HIERARCHY
+==================================================
+
+Do NOT use one generic rounded-card component everywhere.
+
+Create separate visual patterns for:
+
+A. Navigation row
+B. Primary action
+C. Summary card
+D. Alert card
+E. Marketplace listing
+F. Person/request card
+G. Activity item
+H. Status chip
+I. Button
+J. Empty state
+K. Bottom navigation
+L. Top app bar
+
+Each component must have a clear semantic purpose.
+
+==================================================
+10. BORDER / SURFACE RULE
+==================================================
+
+Not every component needs:
+- white background
+- border
+- large radius
+
+Use surfaces intentionally.
+
+Use:
+- spacing
+- typography
+- surface contrast
+- border
+- elevation
+
+to establish hierarchy.
+
+Avoid repetitive stacks of identical white cards.
+
+==================================================
+11. BUTTON SYSTEM
+==================================================
+
+Create one reusable button system.
+
+Variants:
+- Primary
+- Secondary
+- Tertiary
+- Destructive
+
+States:
+- Default
+- Pressed
+- Disabled
+- Loading
+
+All buttons must share:
+- height
+- radius
+- typography
+- horizontal padding
+- icon alignment
+
+==================================================
+12. ICON SYSTEM
+==================================================
+
+Use one consistent icon family.
+
+Standardize:
+- icon size
+- stroke weight
+- optical alignment
+- active color
+- inactive color
+- icon-to-text spacing
+
+Do not mix visual icon styles.
+
+==================================================
+13. BOTTOM NAVIGATION
+==================================================
+
+Use one reusable bottom navigation component.
+
+It must:
+- respect Android safe-area insets
+- have fixed height
+- have consistent item spacing
+- have consistent icon size
+- have consistent label typography
+- clearly communicate active state
+
+Active state must not depend only on a tiny underline.
+
+Use a stronger but restrained active treatment.
+
+==================================================
+14. SCREEN HIERARCHY
+==================================================
+
+Every screen must have one clear primary purpose.
+
+Before designing the screen ask:
+
+“What is the most important thing the user needs to understand or do here?”
+
+The visual hierarchy must answer that question.
+
+Do not give equal visual weight to every element.
+
+==================================================
+15. MANAGE SCREEN
+==================================================
+
+Prioritize:
+1. Needs attention
+2. Today's/active tasks
+3. Expenses/bills
+4. Recent household activity
+
+Do not place huge navigation cards above important actionable information.
+
+The overdue task should be noticeable but not visually overwhelming.
+
+==================================================
+16. DISCOVER SCREEN
+==================================================
+
+Discover must feel like a discovery/marketplace experience.
+
+Do not make it look like Settings.
+
+Use:
+- listing content
+- location
+- rent
+- room type
+- flatmate information
+- lifestyle tags
+- trust information
+- clear actions
+
+Use marketplace/listing cards rather than generic navigation cards.
+
+==================================================
+17. CREATE POST
+==================================================
+
+Use a clear decision layout.
+
+Option 1:
+I have a room
+List a room in my flat
+
+Option 2:
+I'm looking for a room
+Tell people what I'm looking for
+
+Use natural user language.
+
+Do not expose technical product terminology unnecessarily.
+
+==================================================
+18. MESSAGES
+==================================================
+
+Requests must visually communicate their state.
+
+Every request card should make it obvious:
+- who sent it
+- why they are contacting the user
+- status
+- what happens next
+
+Pending requests should expose:
+- View profile
+- Accept
+- Decline
+
+Do not force the user to open a conversation just to review a request.
+
+Remove ALL placeholder/demo language.
+
+==================================================
+19. PROFILE
+==================================================
+
+Keep the profile header compact.
+
+Do not consume most of the viewport with the avatar/name area.
+
+The user's flat should feel like a primary product entity.
+
+Use clear groups:
+- My flat
+- Discovery
+- App
+- Account
+
+==================================================
+20. MICROCOPY
+==================================================
+
+Use:
+- human language
+- concise labels
+- contextual descriptions
+- consistent terminology
+
+Avoid:
+- developer language
+- placeholder text
+- unnecessary technical explanations
+- inconsistent terms for the same concept
+
+==================================================
+21. INFORMATION DENSITY
+==================================================
+
+Avoid both extremes:
+
+Too dense = cluttered
+Too empty = unfinished
+
+Use whitespace intentionally.
+
+Empty space should create hierarchy, not compensate for missing content.
+
+==================================================
+22. VISUAL CONSISTENCY QA
+==================================================
+
+Before finalizing ANY screen, verify:
+
+[ ] Status bar is never overlapped
+[ ] Back button follows standard position
+[ ] Top app bar matches other screens
+[ ] Screen margins use the same grid
+[ ] Typography uses existing tokens
+[ ] Brand color uses approved token
+[ ] Semantic colors are correct
+[ ] Radius uses tokens
+[ ] Spacing uses tokens
+[ ] Buttons use shared styles
+[ ] Icons use shared style
+[ ] Bottom navigation is identical across screens
+[ ] Cards are not unnecessarily repeated
+[ ] Interactive elements have clear states
+[ ] Touch targets are sufficiently large
+[ ] Text hierarchy is obvious
+[ ] No placeholder/demo text remains
+[ ] No screen-specific styling contradicts the design system
+[ ] The screen visually belongs to Habitiq
+
+==================================================
+23. FINAL RULE
+==================================================
+
+DO NOT GENERATE A NEW DESIGN SYSTEM FOR EACH SCREEN.
+
+Build the screen FROM the Habitiq design system.
+
+The order must always be:
+
+DESIGN TOKENS
+→ COMPONENTS
+→ SCREEN TEMPLATE
+→ SCREEN CONTENT
+
+NOT:
+
+SCREEN
+→ random styling
+→ random spacing
+→ random cards
+→ random colors
+
+The final UI should look like one carefully designed product created by one design team, not multiple AI-generated screens assembled together.
+```
+
+---
+
+## One last thing — this should become your **master rule**
+
+I would put this at the very top of every future Stitch/AI UI prompt:
+
+> **“Treat the attached/current Habitiq screens and approved design system as a single product system. Do not redesign individual screens independently. First establish and enforce the global design tokens, safe areas, navigation, typography, spacing, color, component and interaction rules; then apply them consistently across every screen.”**
+
+That one instruction changes the task from **“generate a screen”** to **“implement a product design system.”**
+
+And that's what you actually need now. The current codebase already claims a shared Android visual layer with `Hq*` components and theme files, so the next visual iteration should reinforce that architecture rather than create another parallel visual language. 
+
+**So yes: before we touch the individual screens again, lock the design-system rules first.** Once your final brand color/tokens are ready, we can plug those exact values into this QA gate rather than letting the generator interpret them.

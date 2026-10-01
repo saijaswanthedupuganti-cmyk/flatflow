@@ -1,0 +1,134 @@
+ M android/README.md
+ M android/app/build.gradle.kts
+ M android/app/src/main/AndroidManifest.xml
+ M android/app/src/main/kotlin/habitiq/app/HabitiqApp.kt
+ M android/app/src/main/kotlin/habitiq/app/auth/AuthErrorMapper.kt
+ M android/app/src/main/kotlin/habitiq/app/auth/AuthUiState.kt
+ M android/app/src/main/kotlin/habitiq/app/auth/GoogleSignInLauncher.kt
+ M android/app/src/main/kotlin/habitiq/app/auth/LoginViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/auth/SignupViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/data/BillsModels.kt
+ M android/app/src/main/kotlin/habitiq/app/data/DiscoveryRepository.kt
+ M android/app/src/main/kotlin/habitiq/app/data/MessagingRepository.kt
+ M android/app/src/main/kotlin/habitiq/app/data/TaskModels.kt
+ M android/app/src/main/kotlin/habitiq/app/data/TasksRepository.kt
+ M android/app/src/main/kotlin/habitiq/app/data/UsersRepository.kt
+ M android/app/src/main/kotlin/habitiq/app/flat/FlatViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/flats/CreateFlatViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/flats/FlatsRepository.kt
+ M android/app/src/main/kotlin/habitiq/app/flats/JoinFlatViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/home/HomeDashboardViewModel.kt
+ M android/app/src/main/kotlin/habitiq/app/lib/SettlementUtils.kt
+ M android/app/src/main/kotlin/habitiq/app/settings/AppPreferences.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/ActivityLogScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/AppShell.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/BillsScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/CreateFlatScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/DiscoverBoardScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/DiscoverScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/ExpensesScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/FigmaHomeScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/FlatHomeScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/FlatOnboardingHeader.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/FlatSwitcherSheet.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/HomeScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/JoinFlatScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/LoginScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/ManageFlatScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/ManageTaskScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/MembersScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/OnboardingScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/PlusActionSheet.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/ProfileScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/SettingsScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/SignupScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/TasksScreen.kt
+ D android/app/src/main/kotlin/habitiq/app/ui/WebAppScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/CreateFlatBasicsBrilliantScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/CreateFlatBasicsPremiumScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/CreateFlatLocationScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/CreateTaskScreens.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/CreateTaskTypeScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/FlatWizardHeader.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/GoingAwayScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/MapLocationPicker.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/SwapRequestBanner.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/TaskCategoryLabel.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/figma/TaskDetailScreen.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/theme/FigmaColors.kt
+ M android/app/src/main/kotlin/habitiq/app/ui/theme/Theme.kt
+ D android/app/src/main/res/mipmap-hdpi/ic_launcher.xml
+ D android/app/src/main/res/mipmap-mdpi/ic_launcher.xml
+ M android/gradle/libs.versions.toml
+ M app/dashboard/layout.tsx
+ M app/dashboard/page.tsx
+ M app/globals.css
+ M app/layout.tsx
+ M app/page.tsx
+ M components/AuthProvider.tsx
+ M components/ui/navbar.tsx
+ M firebase.json
+ M firestore.rules
+ M next.config.ts
+ M public/manifest.json
+ M releases/README.md
+?? HABITIQAPP.svg
+?? android/.kotlin/
+?? android/app/google-services.json.bak-habitiq-by-jaswanth
+?? android/app/src/main/kotlin/habitiq/app/auth/AuthCompletion.kt
+?? android/app/src/main/kotlin/habitiq/app/discover/
+?? android/app/src/main/kotlin/habitiq/app/home/AdminHomeMode.kt
+?? android/app/src/main/kotlin/habitiq/app/lib/TaskDateUtils.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/FlatSettingsScreen.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/IntentChooserScreen.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/ManageFlatHub.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/components/
+?? android/app/src/main/kotlin/habitiq/app/ui/discover/
+?? android/app/src/main/kotlin/habitiq/app/ui/theme/HqColorTokens.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/theme/HqMotion.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/theme/HqSpacing.kt
+?? android/app/src/main/kotlin/habitiq/app/ui/theme/HqTypography.kt
+?? android/app/src/main/res/drawable-hdpi/
+?? android/app/src/main/res/drawable-mdpi/
+?? android/app/src/main/res/drawable-xhdpi/
+?? android/app/src/main/res/drawable-xxhdpi/
+?? android/app/src/main/res/drawable-xxxhdpi/
+?? android/app/src/main/res/mipmap-anydpi-v26/
+?? android/app/src/main/res/mipmap-hdpi/ic_launcher.png
+?? android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png
+?? android/app/src/main/res/mipmap-mdpi/ic_launcher.png
+?? android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png
+?? android/app/src/main/res/mipmap-xhdpi/
+?? android/app/src/main/res/mipmap-xxhdpi/
+?? android/app/src/main/res/mipmap-xxxhdpi/
+?? android/app/src/main/res/values/colors.xml
+?? android/app/src/test/kotlin/habitiq/app/data/DiscoveryRepositoryTest.kt
+?? android/branding/
+?? android/debug.keystore
+?? android/habitiq-release.keystore
+?? android/keystore.properties
+?? app/landing.module.css
+?? components/HabitiqLoadingScreen.module.css
+?? components/HabitiqLoadingScreen.tsx
+?? design-plans/
+?? dev-3001.err.log
+?? dev-3001.out.log
+?? dev.err.log
+?? dev.out.log
+?? firebase-debug.log
+?? lib/behavioralEvents.ts
+?? lib/discoveryTypes.ts
+?? project_1/DISCOVERY_TRUST_LEGAL_SAFETY.md
+?? project_1/DISCOVERY_WORKING_SPEC.md
+?? project_1/HABITIQ_DISCOVERY_CURSOR_IMPLEMENTATION.md
+?? project_1/HABITIQ_MANAGE_FLAT_MASTER.md
+?? project_1/HABITIQ_ONBOARDING_MASTER.md
+?? project_1/HABITIQ_PROFILE_MASTER.md
+?? releases/AUTH_USE_CASES.md
+?? releases/DISCOVER_DUAL_MODE.md
+?? releases/FINAL_QA.md
+?? releases/HABITIQ_CODEBASE_AUDIT_2026-09-09.md
+?? releases/HABITIQ_CODEBASE_AUDIT_2026-09-09.pdf
+?? releases/Habitiq-FINAL-debug.apk
+?? releases/Habitiq-FINAL.apk
+?? storage.rules

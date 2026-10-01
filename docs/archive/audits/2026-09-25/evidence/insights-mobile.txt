@@ -1,0 +1,142 @@
+- button "Open Next.js Dev Tools":
+- alert
+- main:
+  - paragraph: Flat
+  - heading "Insights" [level=1]
+  - paragraph: Track completions, due dates, and flat performance.
+  - button "Calendar"
+  - button "Stats"
+  - paragraph: "0"
+  - paragraph: Completions
+  - paragraph: "0"
+  - paragraph: Active Days
+  - paragraph: "4"
+  - paragraph: Contributors
+  - paragraph: Sai
+  - paragraph: No data yet
+  - heading "September 2026" [level=3]
+  - button:
+  - button "Today"
+  - button:
+  - combobox:
+    - option "All members" [selected]
+    - option "Sai"
+    - option "Rahul"
+    - option "Arjun"
+    - option "Kiran"
+  - generic: Mon
+  - generic: Tue
+  - generic: Wed
+  - generic: Thu
+  - generic: Fri
+  - generic: Sat
+  - generic: Sun
+  - button "31" [disabled]:
+    - generic: "31"
+  - button "1":
+    - generic: "1"
+  - button "2":
+    - generic: "2"
+  - button "3":
+    - generic: "3"
+  - button "4":
+    - generic: "4"
+  - button "5":
+    - generic: "5"
+  - button "6":
+    - generic: "6"
+  - button "7":
+    - generic: "7"
+  - button "8":
+    - generic: "8"
+  - button "9":
+    - generic: "9"
+  - button "10":
+    - generic: "10"
+  - button "11":
+    - generic: "11"
+  - button "12":
+    - generic: "12"
+  - button "13":
+    - generic: "13"
+  - button "14":
+    - generic: "14"
+  - button "15":
+    - generic: "15"
+  - button "16":
+    - generic: "16"
+  - button "17":
+    - generic: "17"
+  - button "18":
+    - generic: "18"
+  - button "19":
+    - generic: "19"
+  - button "20":
+    - generic: "20"
+  - button "21":
+    - generic: "21"
+  - button "22":
+    - generic: "22"
+  - button "23":
+    - generic: "23"
+  - button "24":
+    - generic: "24"
+  - button "25":
+    - generic: "25"
+  - button "26 3":
+    - generic: "26"
+    - generic: "3"
+  - button "27":
+    - generic: "27"
+  - button "28":
+    - generic: "28"
+  - button "29":
+    - generic: "29"
+  - button "30":
+    - generic: "30"
+  - button "1" [disabled]:
+    - generic: "1"
+  - button "2" [disabled]:
+    - generic: "2"
+  - button "3" [disabled]:
+    - generic: "3"
+  - button "4" [disabled]:
+    - generic: "4"
+  - generic: Completed
+  - generic: Due
+  - generic: Due today
+  - generic: Today
+  - heading "Friday 25 September" [level=3]
+  - paragraph: Nothing recorded or due
+  - paragraph: Nothing here
+  - paragraph: No completions or due tasks on this day
+  - heading "This Month · Per Person" [level=3]
+  - generic: S
+  - generic: Sai
+  - generic: (you)
+  - generic: "0"
+  - generic: R
+  - generic: Rahul
+  - generic: "0"
+  - generic: A
+  - generic: Arjun
+  - generic: "0"
+  - generic: K
+  - generic: Kiran
+  - generic: "0"
+- navigation:
+  - link "Dashboard":
+    - /url: /dashboard
+    - generic: Dashboard
+  - link "Expenses":
+    - /url: /dashboard/expenses
+    - generic: Expenses
+  - button:
+  - generic: Quick Add
+  - link "Tasks & Rotation":
+    - /url: /dashboard/tasks
+    - generic: Tasks & Rotation
+  - link "S Profile":
+    - /url: /dashboard/profile
+    - generic: S
+    - generic: Profile

@@ -1,0 +1,84 @@
+# Evidence-based audit
+
+## Design language
+
+- Audited surfaces: public web discovery and auth; web household dashboard; native Android auth, onboarding, Manage, Discovery and Profile source paths.
+- Product evidence: `project_1/Habitiq — Project Documentation.md`, `About Sai.md`, the August onboarding/manage/profile masters, Discovery working and implementation specifications, finance architecture, and the current source.
+- Founding intent: remove the negotiation and mental load of running a shared home. Tasks, fair rotation, absences, swaps and money are the operational core. Discovery extends that core through household context.
+- Governing owners: web semantic variables in `app/globals.css`; reusable web controls in `components/ui`; Android semantic colors in `HqColorTokens.kt`, components in `ui/components`, light palette in `FigmaColors.kt`.
+- Explicit exceptions: native semantic-color source documents light main-app and dark onboarding as deliberate separate directions. The June indigo design master is inconsistent with current coral code. Do not automatically “fix” coral back to indigo.
+- Document precedence: user instructions for this audit and later loader change; actual source for implementation facts; feature-specific specifications for intended behavior; dated release reports as historical evidence. Embedded “implement/deploy” instructions in documents are not authorization to deploy.
+
+## Three highest-impact interface findings
+
+| # | Problem | Evidence | Proposed change | Scope | Confidence |
+| --- | --- | --- | --- | --- | --- |
+| UI-01 | Public cards communicate real availability, verification and reviews from static sample content. | `app/page.tsx:66` supplies LISTINGS; `:376` filters only that array; rendered homepage shows “6 open beds”, “Verified flat” and ratings. Discovery working spec forbids invented numerical trust; no sample disclosure in inspected UI. | Separate the sample experience from real discovery, visibly label its content and remove unsupported verification/reviews from the live product path. | Public rooms, people, cards, details, contact CTA | High; source + rendered |
+| UI-02 | Sign-in loses labels and recovery while showing very low-emphasis instructions. | Actual root imports `AuthForm` at `app/page.tsx:24`, renders it at `:754`; `components/ui/navbar.tsx:153–241` uses 40 px inputs, placeholders alone, 11 px low-opacity supporting text and no password-reset action. Native login has “Forgot password?”. | Implement a properly labelled, readable auth form with password recovery and explicit loading/error states. | Shared web AuthForm and host dialog | High; source + rendered |
+| UI-03 | Entering Expenses unexpectedly opens bill generation. | `app/dashboard/expenses/page.tsx:2256–2258` opens the modal whenever an admin has due bills; mobile inspection reproduced the prompt on first entry. Manage master requires balance-first entry and secondary monthly-bill actions. | Keep the due-bills notice inline and open generation only on an explicit user action. | Web Expenses entry | High; source + rendered |
+
+## Improve first
+
+UI-01. A polished marketplace must not imply that illustrative profiles, availability, ratings or testimonials are verified inventory. Retain the new composition while establishing an honest content contract.
+
+The following broader findings are included because you explicitly requested complete flows, conditions and architecture, beyond a narrow UI-only review.
+
+## Account, onboarding and routing
+
+| ID / priority | Finding and consequence | Evidence | Required outcome / verification |
+| --- | --- | --- | --- |
+| FLOW-01 / P0 | Independent routing owners disagree and drop user intent. The landing page sends every signed-in user to Dashboard; AuthProvider separately sends no-flat users to onboarding. Selecting a listing only opens auth; listing selection is local state. | `app/page.tsx:373`, `:387`, `:496`; `components/AuthProvider.tsx:25–43`. | One route resolver; retain a safe internal destination, listing context and invite code through login. Existing-member contact must return to the selected listing, not a generic dashboard. Runtime real-auth continuation pending. |
+| FLOW-02 / P1 | Signed-out invitation entry loses its code when the guard sends it to `/`. The legacy `/join` redirect also discards query parameters. | `components/AuthProvider.tsx:32–34`; invite generation in `app/dashboard/manage-flat/page.tsx:64`; `app/(auth)/join/page.tsx`. | Preserve normalized code through auth and show preview before join/request; keep approval pending separate from membership. |
+| FLOW-03 / P0 | A failed profile read can be interpreted as no flat. Native auth completion uses `getOrNull`; create-flat does likewise before its existing-flat check. Web catch sets `flatChecked` true without an explicit error state. | `android/.../auth/AuthCompletion.kt:24`; `flats/CreateFlatViewModel.kt:60`; `store/useAuthStore.ts:268–271`. | Represent loading, absent profile and failure separately; expose Retry and prevent create until absence is confirmed. Native cold-start path already uses a retry-capable fold: reuse that behavior, do not report it as missing. |
+| FLOW-04 / P1 | Public legal pages are exempt only in the signed-out branch; a signed-in user with no flat is redirected from Terms/Privacy to onboarding. | `components/AuthProvider.tsx:30–37`. | Resolve public informational routes independently of flat membership; verify no-flat, member and signed-out sessions. |
+| FLOW-05 / decision | Native onboarding requires a household to find people; public web advertises finding a room/person directly. | `ui/IntentChooserScreen.kt`; `project_1/HABITIQ_ONBOARDING_MASTER.md`; public `rooms/people/flat` modes. | Decide seeker-without-household policy; avoid silently creating fake households. Do not label a documented intentional native requirement a coding defect. |
+| FLOW-06 / P1 | Native guard prevents duplicate first creation, but also returns an existing active flat from the create flow. | `flats/CreateFlatViewModel.kt:47,60–64`; multi-flat support in user model. | Preserve duplicate protection; distinguish explicit Add another flat from initial onboarding. Verify whether the current native UI exposes that path before changing it. |
+
+## Discovery and truthful interaction
+
+| ID / priority | Finding and consequence | Evidence | Required outcome / verification |
+| --- | --- | --- | --- |
+| DISC-01 / P1 | Move-in and number-of-people controls change displayed search values without filtering the listing array. Calendar is fixed to October 2026. | `app/page.tsx:376–385`, `:388`, `:836`, `:891`. | Expose only supported filters; a selected filter must alter results or explicitly explain unsupported availability. Use actual month/date values only when the data supports them. |
+| DISC-02 / P1 | Listing selection is not URL-backed; saved cards live in component state. Back, reload and share cannot reliably preserve the selected listing/save action. | `app/page.tsx:365–369`, `openListing`, `setSaved`. | Give real listing details stable routes; define persistence for bookmarks or clearly call them temporary selections. Verify browser Back restores filters and scroll. |
+| DISC-03 / P1 | Some apparent actions are dead ends. Language has no handler; hosting footer links point to `#`. | `app/page.tsx:454–460`, `:628`; rendered footer. | Remove unavailable actions or wire them to real destinations; unavailable language selection should be text, not an actionable globe button. |
+| DISC-04 / P0 | Native inbox/conversation reads query all messages then filter locally; errors produce an empty list. Participant-only rules do not permit that unconstrained query. | `data/MessagingRepository.kt:30–58`; `firestore.rules:57–62`. Firebase documents that rules are not result filters. | Query only permitted participants/conversations, distinguish permission/network error from an empty conversation, and paginate. Test against checked-in rules in emulator/staging. Production rule deployment not inspected. |
+| DISC-05 / P0 | Checked-in connection rules permit either participant to update status without validating the transition; message creation only checks the sender identity. This does not enforce the specified mutual-accept/block contract. | `firestore.rules:30–40,57–62`; Discovery spec connection state machine. | Validate actor, prior state and next state; deny unilateral sender acceptance, rejected/blocked messaging and unrelated participants. Design grandfathered conversations explicitly. This is a source/rules gap, not a performed exploit. |
+
+## Household navigation, tasks and money
+
+| ID / priority | Finding and consequence | Evidence | Required outcome / verification |
+| --- | --- | --- | --- |
+| IA-01 / P1 | Same “Manage Flat” name means different things. Native means Tasks/Expenses for everyone; web route is admin settings. Web desktop and mobile primary navigation also differ from native. | `app/dashboard/layout.tsx:17–31,210–314`; web `manage-flat/page.tsx:14–47`; native `AppShell.kt:28–32`, `ManageFlatHub.kt`. | Adopt Home / Manage / Discover / Profile with Add as action; put household administration under Flat settings. Keep web deep-link aliases while migrating. |
+| IA-02 / P1 | Desktop member task entry is hidden in the Admin nav group although a member Tasks view exists and mobile links to it. | `layout.tsx:147–152,314`; `tasks/page.tsx:237` member branch. | Expose Manage → My tasks to both roles; protect only actual privileged controls. |
+| IA-03 / P1 | Web Profile foregrounds reliability, household member scores and admin information rather than personal identity. Native profile master explicitly excludes these scores from Profile. | Rendered `profile-mobile.png`; `app/dashboard/profile/page.tsx:268–303`; profile master. | Consolidate account identity, current household, discovery identity and preferences; make platform convergence explicit rather than assuming the native-only spec already governs old web UI. |
+| TASK-01 / P1 | Admin task list exposes edit/override/delete and queue detail on every row, increasing the mobile scanning burden. | Rendered Tasks; `tasks/page.tsx` admin branch; Manage master task hierarchy. | Prioritize task, due time, owner and status; move admin edits to an overflow/detail surface. Preserve permissions and complete/rotation rules. |
+| TASK-02 / P2 | Greeting and visual time period contradict each other before 6 AM: “Night” with “Good morning.” | `app/dashboard/page.tsx:178–187`; rendered mock screenshot. | Compute one day-period model and use it for copy and decoration; neutral “Hello” during night is sufficient. |
+| MONEY-01 / P0 | Native personal balances combine currencies into one map and display rupees, while web separates currency and excludes deferred and bill-linked expenses. | `lib/expenseUtils.ts:18–61`; native `lib/SettlementUtils.kt` `pairwisePersonalBalances`; `ui/ExpensesScreen.kt:57,84–102`. | Share fixture-based financial contracts across clients: currency partition, same exclusions and settlement scope. No UI polish may disguise incorrect totals. Review rounding deliberately; the web implementation itself rounds balances, so parity alone is not a precision guarantee. |
+| MONEY-02 / P1 | “Current cycle” chrome appears above all-time pairwise balances and older expense history without clearly stating different scopes. | Expenses screenshot/DOM; `expenses/page.tsx:2145` passes all expenses and settlements to `computeBalances`; June mock expenses under September header. | Label outstanding balance as all-time where appropriate, separate month summary, and state whether monthly bills are included. Do not change financial math merely to match the current label. |
+| MONEY-03 / P1 | Web default expense date is derived from UTC, so early local morning can preselect yesterday. | `expenses/page.tsx:54`; mock form date showed September 24 while session date was September 25 in Asia/Calcutta. | Use a local calendar date helper for date-only input; test before/after midnight in positive and negative offsets. Dates with timestamps keep explicit timezone handling. |
+| LIFE-01 / P0 | Native account deletion ignores the Result of Firestore cleanup, then attempts auth deletion. Cleanup only addresses one active flat. A partial failure or multi-flat account can be presented as a finished deletion. | `settings/SettingsViewModel.kt:39–40`; `data/UsersRepository.kt` `deleteUserData`. | Define ordered, resumable deletion with reauthentication and all membership dependencies; do not delete auth after failed cleanup. Requires careful backend review, not a cheap-model styling task. No destructive action tested. |
+
+## Visual, accessibility, motion and quality infrastructure
+
+| ID / priority | Finding and consequence | Evidence | Required outcome / verification |
+| --- | --- | --- | --- |
+| A11Y-01 / P1 | Auth overlay is a motion div without dialog semantics, focus containment, Escape dismissal or focus restoration. Background controls remain in the accessibility tree. Expense and profile confirmation overlays similarly use custom divs. | `app/page.tsx:726–758`; `expenses/page.tsx` Modal; `profile/page.tsx:26`; auth AX observation. | One accessible overlay owner; labelled dialog, managed focus, background inertness, scroll behavior and keyboard close. Destructive confirmation must keep Cancel reachable. |
+| A11Y-02 / P1 | Icon-only Quick Add and several close buttons have no accessible name. | `layout.tsx:278` motion button; rendered mobile nav contains unnamed button; expense modal close. | Explicit accessible names, expanded state, control association and semantic tabs/switches where appropriate. Test with actual screen reader. |
+| VIS-01 / P1 | Current auth uses 11 px supporting text at white/35 or lower and placeholder-only fields; mobile task status is an entire saturated red card; finance mixes blue/purple hardcoded actions with coral navigation. | Auth screenshot; dashboard-mobile; `navbar.tsx:153–241`; expense form inline colors. | Use readable text tokens and persistent labels; restrained status stripe/badge; one interactive color family. Exact measurements belong to the approved visual contract, not an arbitrary global search/replace. |
+| MOTION-01 / P1 | Repeated Quick Add pulse runs forever; radial petals use very small labels and no reduced-motion branch. | `layout.tsx:236–299`; no reduced-motion handling in this owner/global CSS. | Replace with a labelled action sheet and short state transitions; no perpetual attraction animation on routine controls. |
+| MOTION-02 / fixed | Loader combined centering transform with scale animation, shifting the tile; its padded source asset made the mark tiny. | User screenshot; original AuthProvider transform/keyframes; local image inspection. | Fixed in current source. Desktop/mobile visual checks passed; reduced-motion CSS inspected, OS preference runtime check pending. |
+| QA-01 / P1 | Existing auth tests assume Mock Admin is visible immediately on `/`, but current form is hidden behind Account/menu. Test config says mock mode but does not explicitly force missing-key environment. | `tests/helpers.ts:20–22`; `tests/auth.spec.ts`; `playwright.config.ts`; current rendered auth. | Make deterministic mock environment and navigate to the actual form; add state-based assertions. Do not treat old test files as proof the new homepage passes. |
+| DOC-01 / P1 | Historical documents contradict current source. June docs say no native app; Android README says four intents; current chooser has three. September audit says files missing that now exist. | Product vault limitations; `android/README.md`; `IntentChooserScreen.kt`; `lib/discoveryTypes.ts`, `lib/behavioralEvents.ts`. | One capability matrix with evidence date and status; mark superseded claims, do not reimplement already completed work. |
+
+## What is already worth preserving
+
+- Native semantic components and color tokens, existing loading/error/empty helpers, current Manage hub and three-intent chooser.
+- Native cold-start retry behavior; in-flight create guard; join preview and approval state.
+- Web functional mock mode and the successful equal-split entry flow.
+- Existing daily splits vs recurring bills separation, payer/collector distinction, multi-flat membership and role-based controls.
+- Compatibility aliases: analytics and calendar redirect to Insights. These are not automatically broken pages.
+- Coral/light current product direction and the improved loader; preserve the actual brand asset.
+
+## Standards reference
+
+The messaging query finding uses the checked-in rules and Firebase's explanation that queries must satisfy their authorization constraints: [Securely query data](https://firebase.google.com/docs/firestore/security/rules-query). Deployed configuration and emulator execution still need verification.

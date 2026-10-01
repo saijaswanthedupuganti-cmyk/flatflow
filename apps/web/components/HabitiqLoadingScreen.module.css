@@ -1,0 +1,88 @@
+.screen {
+  display: grid;
+  place-items: center;
+  min-height: 100svh;
+  width: 100%;
+  padding: 32px 24px;
+  background: var(--background);
+  color: var(--foreground);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.mark {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  margin-bottom: 24px;
+  border-radius: 24px;
+  background: var(--surface, #fff);
+}
+
+.mark img {
+  width: 72px;
+  height: auto;
+  object-fit: contain;
+}
+
+.copy {
+  display: grid;
+  gap: 8px;
+}
+
+.name {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.25;
+  letter-spacing: -0.6px;
+}
+
+.message {
+  margin: 0;
+  color: var(--muted-foreground);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.track {
+  width: 96px;
+  height: 3px;
+  margin-top: 24px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--border);
+}
+
+.indicator {
+  display: block;
+  width: 40%;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--primary);
+  animation: progress 2s linear infinite;
+}
+
+/* Indeterminate status; it never represents a percentage or delays routing. */
+@keyframes progress {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(350%); }
+}
+
+@keyframes quietProgress {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .indicator {
+    width: 100%;
+    animation: none;
+  }
+}

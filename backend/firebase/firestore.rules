@@ -1,0 +1,325 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ──────────────────────────────────────────────────────────────
+    function isMember(flatId) {
+      return request.auth != null
+        && exists(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid));
+    }
+
+    function isAdmin(flatId) {
+      return isMember(flatId)
+        && get(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    function canUseDiscoveryConnection(connectionId, senderId, receiverId) {
+      return connectionId is string
+        && exists(/databases/$(database)/documents/discoveryConnections/$(connectionId))
+        && get(/databases/$(database)/documents/discoveryConnections/$(connectionId)).data.status in ['ACCEPTED', 'CONVERSATION_OPEN', 'MATCHED']
+        && (
+          (
+            get(/databases/$(database)/documents/discoveryConnections/$(connectionId)).data.fromUid == senderId
+            && get(/databases/$(database)/documents/discoveryConnections/$(connectionId)).data.toUid == receiverId
+          )
+          || (
+            get(/databases/$(database)/documents/discoveryConnections/$(connectionId)).data.fromUid == receiverId
+            && get(/databases/$(database)/documents/discoveryConnections/$(connectionId)).data.toUid == senderId
+          )
+        );
+    }
+
+    // ── Users ─────────────────────────────────────────────────────────────────
+    // Users can only read/write their own profile
+    match /users/{userId} {
+      allow read, write: if request.auth != null && request.auth.uid == userId;
+
+      // Local-to-user Discovery blocks. Other users cannot read this list.
+      match /blocked/{targetId} {
+        allow read, write: if request.auth != null && request.auth.uid == userId;
+      }
+    }
+
+    // ── Discovery connections (request → accept → in-app conversation) ────────
+    // Contact details stay off this document. Status is a state machine, not a boolean.
+    match /discoveryConnections/{connId} {
+      allow read: if request.auth != null
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid is string
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.fromUid is string
+        && request.resource.data.id == connId
+        && request.resource.data.status == 'REQUEST_SENT'
+        && !exists(/databases/$(database)/documents/users/$(request.auth.uid)/blocked/$(request.resource.data.toUid))
+        && !exists(/databases/$(database)/documents/users/$(request.resource.data.toUid)/blocked/$(request.auth.uid));
+      allow update: if request.auth != null
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && (
+          (
+            resource.data.toUid == request.auth.uid
+            && resource.data.status == 'REQUEST_SENT'
+            && request.resource.data.status in ['ACCEPTED', 'DECLINED', 'BLOCKED']
+          )
+          || (
+            resource.data.status in ['ACCEPTED', 'CONVERSATION_OPEN', 'MATCHED']
+            && request.resource.data.status == 'BLOCKED'
+          )
+        );
+      allow delete: if false;
+    }
+
+    // ── Discovery reports (a report does not change a trust tag by itself) ────
+    match /discoveryReports/{reportId} {
+      allow read: if request.auth != null && resource.data.reporterUid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.reporterUid == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    // ── Seeker profiles (Discover) ────────────────────────────────────────────
+    match /seekerProfiles/{profileId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null && request.auth.uid == profileId;
+      allow delete: if request.auth != null && request.auth.uid == profileId;
+    }
+
+    // ── Direct messages (Discover chat) ─────────────────────────────────────────
+    match /messages/{messageId} {
+      allow read: if request.auth != null
+        && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if request.auth != null
+        && request.resource.data.senderId == request.auth.uid
+        && request.resource.data.receiverId is string
+        && request.resource.data.receiverId != request.auth.uid
+        && request.resource.data.content is string
+        && request.resource.data.content.size() > 0
+        && request.resource.data.content.size() <= 2000
+        && canUseDiscoveryConnection(
+          request.resource.data.connectionId,
+          request.resource.data.senderId,
+          request.resource.data.receiverId
+        );
+      allow update, delete: if false;
+    }
+
+    // ── Coupons ───────────────────────────────────────────────────────────────
+    // Coupon docs live at /coupons/{CODE} and are created via Firebase Console.
+    // Client can read (to validate) and append its flatId to usedBy (to redeem).
+    match /coupons/{code} {
+      allow read: if request.auth != null;
+      // Only permitted mutation: append one flatId to the usedBy array
+      allow update: if request.auth != null
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy'])
+        && request.resource.data.usedBy.size() == resource.data.usedBy.size() + 1;
+      allow create, delete: if false;
+    }
+
+    // ── Flats ─────────────────────────────────────────────────────────────────
+    match /flats/{flatId} {
+      // Any authenticated user can read (needed to validate invite codes)
+      allow read: if request.auth != null;
+      // Any authenticated user can create a flat (they become admin)
+      allow create: if request.auth != null;
+      // Admin can update anything on the flat document including vacancy + discoveryPublic
+      // (qualitative household signals snapshotted for Discovery — no member subcollection leak).
+      // Non-admin joining: may increment memberCount by exactly 1 (and touch ONLY that field)
+      // Non-admin leaving: may decrement memberCount by exactly 1 (and touch ONLY that field,
+      //   but only while they are still a member — call this BEFORE deleting the member doc)
+      allow update: if isAdmin(flatId)
+        || (
+          request.auth != null
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.get('memberCount', 0) + 1
+        )
+        || (
+          isMember(flatId)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
+          && request.resource.data.memberCount == resource.data.get('memberCount', 0) - 1
+        );
+      allow delete: if isAdmin(flatId);
+
+      // ── Members ─────────────────────────────────────────────────────────────
+      match /members/{memberId} {
+        // Members can read the list.
+        // A non-member can also read their own (potential) doc so that joinFlat
+        // can check "am I already a member?" without a permissions error.
+        allow read: if isMember(flatId)
+          || (request.auth != null && request.auth.uid == memberId);
+
+        // A user may join (create their own member doc) only when:
+        //  - they are authenticated
+        //  - they are creating their own record (not someone else's)
+        //  - the flat has fewer than 8 members (enforced via memberCount field)
+        allow create: if request.auth != null
+          && request.auth.uid == memberId
+          && get(/databases/$(database)/documents/flats/$(flatId)).data.get('memberCount', 0) < 8;
+
+        // Members can update/delete their own doc (status, nickname, etc.).
+        // Admin can update/delete any member doc (kick, role transfer).
+        // Any flat member may update only the `status` field of another member — needed
+        // for OOS auto-trigger when a swap request is accepted on a different user's device.
+        allow update, delete: if request.auth != null
+          && (
+            request.auth.uid == memberId
+            || isAdmin(flatId)
+            || (
+              isMember(flatId)
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
+            )
+          );
+      }
+
+      // ── Tasks ─────────────────────────────────────────────────────────────
+      match /tasks/{taskId} {
+        // All members can read tasks
+        allow read: if isMember(flatId);
+        // Only admin can create or delete tasks
+        allow create, delete: if isAdmin(flatId);
+        // Any member can update a task (mark complete, check overdue, etc.)
+        allow update: if isMember(flatId);
+      }
+
+      // ── Activity Log ────────────────────────────────────────────────────────
+      match /activityLog/{activityId} {
+        // All members can read
+        allow read: if isMember(flatId);
+        // Members can create entries; userId must be their own UID or 'system'
+        allow create: if isMember(flatId)
+          && (
+            request.resource.data.userId == request.auth.uid
+            || request.resource.data.userId == 'system'
+          );
+        // Admin can update entries (used to toggle the hidden field — soft hide without deleting)
+        allow update: if isAdmin(flatId);
+        // Admin can delete (needed for flat deletion)
+        allow delete: if isAdmin(flatId);
+      }
+
+      // ── NPS Responses ───────────────────────────────────────────────────────
+      match /npsResponses/{responseId} {
+        // Admin can read all responses for their flat
+        allow read: if isAdmin(flatId);
+        // Any member can submit once (create only their own response)
+        allow create: if isMember(flatId)
+          && request.resource.data.uid == request.auth.uid;
+        // No updates or deletes
+        allow update, delete: if false;
+      }
+
+      // ── Swap Requests ───────────────────────────────────────────────────────
+      match /swapRequests/{requestId} {
+        // All members can read swap requests
+        allow read: if isMember(flatId);
+        // Any member can create a swap request
+        allow create: if isMember(flatId);
+        // Only the intended recipient (toUserId) can accept or reject.
+        // The requester (fromUserId) can mark their own notification as read.
+        allow update: if isMember(flatId)
+          && (
+            resource.data.toUserId == request.auth.uid
+            || (
+              resource.data.fromUserId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+            )
+          );
+        // Admin can delete (needed for flat deletion and kick cleanup)
+        allow delete: if isAdmin(flatId);
+      }
+
+      // ── Expenses ────────────────────────────────────────────────────────────
+      match /expenses/{expenseId} {
+        allow read: if isMember(flatId);
+        allow create: if isMember(flatId)
+          && request.resource.data.createdBy == request.auth.uid;
+        allow delete: if isMember(flatId)
+          && (resource.data.createdBy == request.auth.uid || isAdmin(flatId));
+        allow update: if isMember(flatId)
+          && (resource.data.createdBy == request.auth.uid || isAdmin(flatId));
+      }
+
+      // ── Settlements ──────────────────────────────────────────────────────────
+      match /settlements/{settlementId} {
+        allow read: if isMember(flatId);
+        // Either party (payer OR receiver) may record the settlement — the creditor
+        // recording a "Mark Received" sets fromUserId = debtor, so we must allow
+        // toUserId == auth.uid as well.
+        allow create: if isMember(flatId)
+          && (
+            request.resource.data.fromUserId == request.auth.uid
+            || request.resource.data.toUserId == request.auth.uid
+          );
+        allow delete: if isMember(flatId)
+          && (
+            resource.data.fromUserId == request.auth.uid
+            || resource.data.toUserId == request.auth.uid
+            || isAdmin(flatId)
+          );
+        allow update: if false;
+      }
+
+      // ── Recurring Bills ──────────────────────────────────────────────────────
+      match /recurringBills/{billId} {
+        allow read: if isMember(flatId);
+        allow create, update, delete: if isAdmin(flatId);
+      }
+
+      // ── Bill Instances ────────────────────────────────────────────────────────
+      // One instance per recurring bill per month. Separate from ad-hoc expenses.
+      match /billInstances/{instanceId} {
+        // All members can read
+        allow read: if isMember(flatId);
+        // Admin creates instances (via generateBill)
+        allow create: if isAdmin(flatId)
+          && request.resource.data.generatedBy == request.auth.uid;
+        // Admin can update any field (skip, edit amount, etc.)
+        // Payer can mark paid and update collection tracking
+        // Designated collector can update collection tracking
+        allow update: if isAdmin(flatId)
+          || (isMember(flatId) && resource.data.paidBy == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'paidAt', 'collectedFrom']))
+          || (isMember(flatId) && resource.data.collectorId == request.auth.uid
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['collectedFrom']));
+        // Admin can delete (needed for flat deletion)
+        allow delete: if isAdmin(flatId);
+      }
+
+      // ── Month Cycles ─────────────────────────────────────────────────────────
+      // One document per flat per month. Backbone of the monthly lifecycle.
+      match /monthCycles/{cycleId} {
+        // All members can read (needed to display carry-forward, history)
+        allow read: if isMember(flatId);
+        // Admin creates and updates (open/close cycle)
+        allow create, update: if isAdmin(flatId);
+        // No delete — month history is permanent
+        allow delete: if false;
+      }
+
+      // ── Behavioral events (discovery trust) ─────────────────────────────────
+      // A member records their own completion or settlement. Not editable.
+      match /behavioralEvents/{eventId} {
+        allow read: if isMember(flatId);
+        allow create: if isMember(flatId)
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.flatId == flatId;
+        allow update, delete: if false;
+      }
+
+      // ── Join Requests ────────────────────────────────────────────────────────
+      // Used when the flat is in 'approval' mode. Non-members submit requests;
+      // the admin approves or rejects them.
+      match /joinRequests/{requestId} {
+        // Admin reads all pending requests; requester can read their own status
+        allow read: if isAdmin(flatId)
+          || (request.auth != null && resource.data.uid == request.auth.uid);
+        // Any authenticated user may submit a join request for themselves
+        allow create: if request.auth != null
+          && request.resource.data.uid == request.auth.uid;
+        // Admin can approve/reject (update status) or delete
+        allow update, delete: if isAdmin(flatId);
+      }
+    }
+  }
+}

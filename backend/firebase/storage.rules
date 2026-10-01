@@ -1,0 +1,23 @@
+rules_version = '2';
+
+service firebase.storage {
+  match /b/{bucket}/o {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isFlatAdmin(flatId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/flats/$(flatId)/members/$(request.auth.uid))
+        && firestore.get(/databases/(default)/documents/flats/$(flatId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    match /flats/{flatId}/vacancy/{photoId} {
+      allow read: if signedIn();
+      allow create, update: if isFlatAdmin(flatId)
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if isFlatAdmin(flatId);
+    }
+  }
+}

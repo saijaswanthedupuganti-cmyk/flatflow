@@ -1,0 +1,1164 @@
+HABITIQ — FINAL UI CORRECTION, MOTION, STATE & IMPLEMENTATION QA GATE
+
+THIS IS A CORRECTION PASS, NOT A NEW VISUAL REDESIGN.
+
+The existing Habitiq screens, components, navigation and information architecture must be preserved unless a problem is explicitly identified below.
+
+The goal is to make the entire application feel like ONE professionally designed mobile product.
+
+Do not redesign each screen independently.
+
+Do not introduce new visual languages.
+
+Do not invent new components when an existing component can be reused.
+
+============================================================
+01. FIRST PRINCIPLE — ONE PRODUCT, ONE SYSTEM
+============================================================
+
+Every screen must look like it belongs to the same Habitiq application.
+
+Before generating or modifying a screen, compare it against:
+
+- Home
+- Discover
+- Manage
+- Messages
+- Profile
+- Post flow
+- Secondary/detail screens
+
+The following must remain globally consistent:
+
+- background
+- brand color
+- typography
+- spacing
+- corner radius
+- iconography
+- card treatment
+- button treatment
+- top navigation
+- bottom navigation
+- chips/tags
+- status indicators
+- animations
+- transitions
+- shadows/elevation
+- interaction states
+
+If two screens solve different problems, their content may differ.
+
+Their underlying design language must NOT differ.
+
+============================================================
+02. ANDROID SYSTEM UI / SAFE AREA — ABSOLUTE PRIORITY
+============================================================
+
+Treat Android system UI as a separate layer from application UI.
+
+NEVER allow:
+
+- status-bar icons
+- clock
+- camera/notch area
+- Android navigation/gesture bar
+
+to overlap application content.
+
+Every screen must correctly account for:
+
+- status bar inset
+- display cutout inset
+- navigation bar inset
+- gesture inset
+
+The application content must start below the system status area unless deliberate edge-to-edge rendering is implemented correctly.
+
+Do not place page titles, back buttons, logos or content underneath the status bar.
+
+This must work consistently across different Android devices.
+
+============================================================
+03. STATUS BAR VISUAL TREATMENT
+============================================================
+
+The status bar must not look like accidental application content.
+
+Use one consistent Habitiq status-bar treatment.
+
+Do not allow:
+
+- white system icons over a light background when they become unreadable
+- transparent status-bar content overlapping text
+- inconsistent status-bar background between screens
+- status-bar color changing randomly between screens
+
+The system bar treatment must be derived from the screen background and accessibility requirements.
+
+============================================================
+04. TOP APP BAR SYSTEM
+============================================================
+
+Create one standardized top-app-bar system.
+
+ROOT SCREENS:
+
+Home
+Discover
+Manage
+Messages
+Profile
+
+Use a consistent root-screen header structure.
+
+SECONDARY SCREENS:
+
+Find a place
+Find a person
+Create/edit profile
+Settings
+Flat details
+Task details
+Message details
+Post flow
+
+Use a consistent secondary header.
+
+Back navigation must ALWAYS have:
+
+- consistent horizontal position
+- consistent vertical position
+- consistent icon
+- consistent touch target
+- consistent icon size
+- consistent text treatment
+- safe-area awareness
+
+NEVER manually position a back button differently on different screens.
+
+NEVER allow:
+
+← Back
+
+to collide with the status bar.
+
+============================================================
+05. BACK BUTTON RULE
+============================================================
+
+Use ONE back-button component.
+
+Preferred behavior:
+
+[Back icon]   Screen title
+
+Do not create:
+
+← Back
+←Back
+Back ←
+← BACK
+←
+
+as different visual implementations.
+
+The back affordance must look identical throughout the application.
+
+============================================================
+06. BOTTOM NAVIGATION RULE
+============================================================
+
+The primary bottom navigation must be globally consistent.
+
+Items:
+
+Home
+Discover
+Post
+Manage
+Messages
+Profile
+
+Every item must have:
+
+- same icon system
+- same icon size
+- same label typography
+- same spacing
+- same active treatment
+- same inactive treatment
+- same touch target
+
+The selected item must be immediately recognizable.
+
+============================================================
+07. MULTI-STEP FLOWS — BOTTOM NAV RULE
+============================================================
+
+For multi-step flows such as:
+
+Post a vacancy
+
+do NOT blindly show the primary bottom navigation if it competes with the flow.
+
+Decide whether the flow is:
+
+A. Full-screen focused task
+
+OR
+
+B. Normal app navigation
+
+For a focused multi-step creation flow, prioritize:
+
+Back
+Flow title
+Progress
+Content
+Previous / Continue
+
+over persistent global navigation.
+
+Do not allow bottom navigation to distract from completion.
+
+Apply the same rule consistently to every multi-step flow.
+
+============================================================
+08. TAG / CHIP SYSTEM
+============================================================
+
+Create a dedicated Habitiq CHIP/TAG system.
+
+Do not style tags manually on individual screens.
+
+Supported types:
+
+- filter chip
+- selected filter chip
+- location chip
+- lifestyle chip
+- room-type chip
+- status chip
+- metadata chip
+- removable chip
+
+Each chip must have:
+
+- standard height
+- standard horizontal padding
+- standard radius
+- standard typography
+- standard border
+- standard icon spacing
+- default state
+- selected state
+- pressed state
+- disabled state
+
+Examples:
+
+Hyderabad
+Gachibowli
+2 BHK
+Private room
+
+must all feel like members of the same component family.
+
+Do not use a tag simply because it looks visually attractive.
+
+Every chip must communicate meaningful information or interaction.
+
+============================================================
+09. SEMANTIC COLOR SYSTEM
+============================================================
+
+The Habitiq brand color must remain the approved brand color.
+
+However, brand color MUST NOT automatically mean:
+
+- error
+- warning
+- selected
+- destructive
+- link
+- primary CTA
+- icon accent
+
+Separate semantic meanings.
+
+Use dedicated semantic tokens for:
+
+Primary
+Success
+Warning
+Error
+Information
+Neutral
+Disabled
+
+An overdue task must communicate urgency without making the entire interface feel like an error state.
+
+============================================================
+10. ALERT / WARNING SYSTEM
+============================================================
+
+The "overdue task" component must use a proper alert hierarchy.
+
+Do not simply create:
+
+red/pink background
++
+red icon
++
+red button
+
+for every warning.
+
+Create a semantic warning/attention component.
+
+It must clearly communicate:
+
+- severity
+- title
+- supporting information
+- action
+
+without overpowering the entire screen.
+
+============================================================
+11. CARD SYSTEM
+============================================================
+
+Cards are currently being overused.
+
+Do not turn every piece of content into:
+
+white rectangle
++
+border
++
+rounded corners
++
+arrow
+
+Use different content patterns.
+
+Possible patterns:
+
+- navigation card
+- summary card
+- marketplace card
+- request card
+- activity row
+- alert card
+- profile card
+- settings row
+- empty state
+- list item
+
+Choose the component based on the CONTENT PURPOSE.
+
+Do not use a navigation card for marketplace content.
+
+Do not use a marketplace card for settings.
+
+Do not use cards merely to fill empty space.
+
+============================================================
+12. ARROW USAGE
+============================================================
+
+The chevron/right arrow must mean:
+
+"This entire row/card is navigable."
+
+Do not add arrows decoratively.
+
+If a card contains its own primary action, use the appropriate action instead.
+
+Avoid:
+
+card + arrow + button + another arrow
+
+when one action is sufficient.
+
+============================================================
+13. FORM FIELD SYSTEM
+============================================================
+
+All fields must use the same form component system.
+
+Standardize:
+
+- label
+- placeholder
+- input text
+- supporting text
+- error text
+- border
+- focus state
+- disabled state
+- filled state
+- required indicator
+
+Floating labels must not be introduced randomly.
+
+Do not mix filled inputs, outlined inputs and custom containers without a clear system rule.
+
+============================================================
+14. CONTINUE / BACK / CANCEL BUTTON SYSTEM
+============================================================
+
+Multi-step forms must have clear action hierarchy.
+
+Primary:
+
+Continue
+
+Secondary:
+
+Back
+
+Tertiary/destructive:
+
+Cancel
+
+Do not make Back and Continue appear equally important if Continue is the main progression.
+
+Disabled Continue must have a visibly disabled state.
+
+Do not make an unavailable action visually identical to an available action.
+
+============================================================
+15. MULTI-STEP PROGRESS SYSTEM
+============================================================
+
+The current:
+
+Step 1 of 9
+───────●────────
+
+pattern must become a proper reusable progress component.
+
+It must communicate:
+
+- current step
+- total steps
+- progress
+- completion
+- optional validation state
+
+Keep it visually subtle.
+
+Do not allow the progress indicator to dominate the content.
+
+Use exactly the same component on every step.
+
+============================================================
+16. IMAGE / ILLUSTRATION SYSTEM
+============================================================
+
+Images must have an intentional role.
+
+Do not insert decorative images simply because the screen has empty space.
+
+For Home hero imagery:
+
+- use a consistent visual style
+- use consistent aspect ratio
+- use consistent corner radius
+- use controlled cropping
+- preserve text readability
+- avoid random illustration styles
+
+The current illustrated Home hero must not establish a completely different visual language from the rest of the application.
+
+If the product uses illustrations, establish an illustration style.
+
+If it uses photography, establish a photography style.
+
+Do not mix styles randomly.
+
+============================================================
+17. IMAGE CROPPING
+============================================================
+
+Every image component must define:
+
+- aspect ratio
+- content scale
+- crop behavior
+- focal point
+- corner radius
+
+Never allow important faces or subjects to be accidentally cropped.
+
+Never stretch images.
+
+Never use inconsistent image proportions between similar cards.
+
+============================================================
+18. PROFILE SCREEN
+============================================================
+
+Profile should feel like one coherent information architecture.
+
+Use:
+
+Profile identity
+↓
+My flat
+↓
+Discovery
+↓
+App
+↓
+Account
+
+Avoid excessive card repetition.
+
+Section headings must use the same typography and spacing system.
+
+"Sign out" should have a clear account/destructive relationship without visually competing with the main profile content.
+
+============================================================
+19. DISCOVER SCREEN
+============================================================
+
+Discover must feel like discovery, not settings.
+
+Primary actions:
+
+Find a place
+Find a person
+Post a vacancy
+
+Secondary information:
+
+Popular locations
+Recent searches
+Filters
+Tags
+
+Use visual hierarchy to prioritize discovery.
+
+Do not make every option look like an identical settings card.
+
+============================================================
+20. SEARCH SCREEN
+============================================================
+
+Search should clearly distinguish:
+
+Search input
+Recent searches
+Selected filters
+Suggested locations
+Search results
+
+Recent searches should use the chip system.
+
+Search field must have:
+
+- clear focus state
+- active state
+- input state
+- clear action where applicable
+- keyboard-safe layout
+
+Do not place the Continue button so far away that it feels disconnected from the search task.
+
+============================================================
+21. MESSAGES / INTERESTED PEOPLE
+============================================================
+
+This screen is NOT simply a list of messages.
+
+It is a request-management screen.
+
+Every request should clearly show:
+
+- person
+- avatar if available
+- context
+- request status
+- timestamp if relevant
+- available next action
+
+Use meaningful status labels:
+
+Pending
+Accepted
+Declined
+Expired
+
+Do not use vague text such as:
+
+request sent
+
+without context.
+
+If the user needs to review a request before opening a conversation, expose that review action directly.
+
+Where appropriate:
+
+View profile
+Accept
+Decline
+
+must be available.
+
+============================================================
+22. REMOVE ALL PLACEHOLDER / TEST CONTENT
+============================================================
+
+Absolutely no placeholder content in the polished UI.
+
+Remove examples such as:
+
+"Hi this person..."
+"vbbb"
+"completed_task"
+raw timestamps
+debug strings
+technical identifiers
+mock-looking sentences
+
+Replace them with realistic production-quality copy.
+
+If no real data exists, use a deliberate empty state instead of fake-looking data.
+
+============================================================
+23. DATA PRESENTATION
+============================================================
+
+Never expose raw backend values directly to users.
+
+For example:
+
+completed_task
+2026-09-15 20:33:50
+
+must become human-readable UI.
+
+Use:
+
+Room cleaning completed
+Today at 8:33 PM
+
+or another appropriate human-readable format.
+
+The UI must translate system data into user language.
+
+============================================================
+24. EMPTY STATES
+============================================================
+
+Every major list must have a designed empty state.
+
+Examples:
+
+No messages yet
+No discovery profile
+No expenses
+No tasks
+No listings
+No recent searches
+
+Empty states must include:
+
+- clear explanation
+- optional illustration/icon
+- useful next action
+
+Do not leave large blank areas without explanation.
+
+============================================================
+25. LOADING STATES
+============================================================
+
+Every asynchronous screen must have a loading state.
+
+Use:
+
+- skeletons
+- progress indicators
+- disabled action states
+
+where appropriate.
+
+Do not show an empty screen while data is loading.
+
+Do not animate the entire screen unnecessarily while loading.
+
+============================================================
+26. ERROR STATES
+============================================================
+
+Every network/data operation must have an error state.
+
+Examples:
+
+- failed to load
+- failed to save
+- image upload failed
+- request failed
+- search failed
+
+Provide:
+
+What happened
++
+What the user can do next
+
+Example:
+
+Couldn't load listings.
+Try again.
+
+============================================================
+27. SUCCESS STATES
+============================================================
+
+Important actions need clear completion feedback.
+
+Examples:
+
+Vacancy posted
+Profile updated
+Request accepted
+Expense added
+Task completed
+
+Use subtle confirmation.
+
+Do not create large celebratory animations for routine actions.
+
+============================================================
+28. MOTION DESIGN SYSTEM — VERY IMPORTANT
+============================================================
+
+Do NOT add animations simply to make the application look impressive.
+
+Animation must have a functional purpose.
+
+Use motion for:
+
+- navigation transition
+- component state change
+- loading
+- confirmation
+- contextual expansion
+- modal/sheet presentation
+
+Do NOT animate:
+
+- every card
+- every icon
+- every text element
+- every page on first load
+- decorative background elements unnecessarily
+
+============================================================
+29. MOTION RULES
+============================================================
+
+Motion must be:
+
+Fast
+Subtle
+Predictable
+Consistent
+
+Use a small number of standardized motion patterns.
+
+Examples:
+
+Screen transition:
+short, restrained transition
+
+Bottom sheet:
+slide + fade
+
+Card expansion:
+small scale/height transition
+
+Button:
+subtle pressed feedback
+
+Success:
+brief confirmation
+
+Avoid:
+
+- excessive bounce
+- large zoom
+- spinning decorative elements
+- parallax everywhere
+- floating cards
+- continuous animations
+- unnecessary particle effects
+- attention-seeking motion
+
+The product is a utility app.
+
+Motion should support understanding, not compete with the task.
+
+============================================================
+30. REDUCED MOTION
+============================================================
+
+Respect Android accessibility / reduced-motion preferences where available.
+
+If reduced motion is enabled:
+
+- remove decorative animation
+- minimize transition movement
+- preserve state changes through opacity/color/structure
+
+============================================================
+31. INTERACTION STATES
+============================================================
+
+Every interactive component must define:
+
+Default
+Pressed
+Focused
+Selected
+Disabled
+Loading
+Error
+Success
+
+Do not design only the "happy path".
+
+============================================================
+32. TOUCH TARGETS
+============================================================
+
+Interactive controls must have sufficiently large touch targets.
+
+Do not make:
+
+- back buttons
+- icons
+- close buttons
+- chips
+- navigation items
+
+too small simply because the visual icon is small.
+
+The visual icon can be 20–24dp while the actual touch target remains comfortably larger.
+
+============================================================
+33. SCROLL BEHAVIOR
+============================================================
+
+Every screen must be checked for:
+
+- content clipping
+- content behind bottom navigation
+- content behind system navigation
+- nested scrolling
+- long text
+- keyboard opening
+- keyboard dismissal
+- CTA visibility
+
+The final list item must never be hidden behind the bottom navigation.
+
+The bottom navigation must never cover interactive content.
+
+============================================================
+34. KEYBOARD BEHAVIOR
+============================================================
+
+For forms/search:
+
+When the keyboard opens:
+
+- focused field must remain visible
+- buttons must remain accessible
+- content must scroll correctly
+- no text must be hidden behind keyboard
+- bottom navigation should not create collisions
+
+============================================================
+35. LONG CONTENT
+============================================================
+
+The design must survive:
+
+Long names
+Long flat names
+Long locations
+Long descriptions
+Long messages
+Long email addresses
+
+Never allow text to overlap.
+
+Use:
+
+- wrapping
+- ellipsis
+- scrolling
+- max lines
+
+appropriately.
+
+Do not assume the sample data will always be short.
+
+============================================================
+36. DIFFERENT DEVICE SIZES
+============================================================
+
+Do not design only for the screenshot dimensions.
+
+The UI must remain correct on:
+
+small Android phones
+standard phones
+large phones
+different aspect ratios
+different font scales
+
+Do not hardcode vertical positions based on one screenshot.
+
+============================================================
+37. ACCESSIBILITY
+============================================================
+
+Maintain:
+
+- readable contrast
+- sufficient touch targets
+- semantic labels
+- meaningful icon descriptions
+- visible focus states
+- text scaling support
+
+Do not communicate information through color alone.
+
+For example:
+
+Overdue
+
+must not be communicated only by red.
+
+============================================================
+38. CONTENT HIERARCHY
+============================================================
+
+Every screen must have:
+
+ONE primary objective.
+
+Then:
+
+Primary information
+Secondary information
+Supporting information
+Optional information
+
+Do not give every card equal visual importance.
+
+============================================================
+39. VISUAL DENSITY
+============================================================
+
+Avoid two extremes.
+
+TOO DENSE:
+- too many cards
+- too many borders
+- too many labels
+- too many controls
+
+TOO EMPTY:
+- unexplained blank areas
+- isolated buttons
+- floating components without context
+
+Whitespace must be intentional.
+
+============================================================
+40. BRAND IDENTITY
+============================================================
+
+The application should feel distinctly Habitiq.
+
+Brand identity must come from:
+
+- approved brand color
+- typography
+- spacing
+- icon language
+- component shapes
+- imagery style
+- copy tone
+- motion language
+
+NOT from randomly adding the brand color everywhere.
+
+The brand should feel consistent and restrained.
+
+============================================================
+41. DO NOT OVER-DESIGN
+============================================================
+
+Do not add:
+
+- unnecessary gradients
+- glassmorphism
+- random shadows
+- decorative blobs
+- excessive illustrations
+- excessive animation
+- random floating elements
+- visual effects without product purpose
+
+Habitiq should feel:
+
+calm
+clear
+trustworthy
+modern
+human
+useful
+
+============================================================
+42. SCREEN-TO-SCREEN CONSISTENCY CHECK
+============================================================
+
+Before finalizing any screen, compare it against every existing Habitiq screen.
+
+Check:
+
+TOP:
+[ ] Status bar safe
+[ ] Header aligned
+[ ] Back button consistent
+
+MIDDLE:
+[ ] Same content grid
+[ ] Same typography
+[ ] Same spacing
+[ ] Same component language
+[ ] Same icon system
+
+BOTTOM:
+[ ] Navigation safe
+[ ] No content hidden
+[ ] Active state consistent
+
+INTERACTION:
+[ ] Buttons have states
+[ ] Inputs have states
+[ ] Chips have states
+[ ] Cards have states
+[ ] Loading handled
+[ ] Errors handled
+[ ] Empty states handled
+
+MOTION:
+[ ] Animation has a purpose
+[ ] Animation is subtle
+[ ] Animation is consistent
+[ ] No unnecessary decorative animation
+
+CONTENT:
+[ ] No debug text
+[ ] No placeholder text
+[ ] No raw backend values
+[ ] No awkward copy
+[ ] Long content handled
+
+============================================================
+43. FINAL VISUAL QA — ZERO TOLERANCE
+============================================================
+
+Before considering the UI complete, perform a final pass specifically looking for:
+
+1. Status bar overlap
+2. Navigation bar overlap
+3. Back-button collision
+4. Incorrect margins
+5. Inconsistent spacing
+6. Inconsistent typography
+7. Inconsistent icon sizes
+8. Inconsistent card radius
+9. Inconsistent button height
+10. Inconsistent chip styling
+11. Incorrect brand-color usage
+12. Missing disabled states
+13. Missing loading states
+14. Missing error states
+15. Missing empty states
+16. Placeholder content
+17. Raw technical data
+18. Content clipping
+19. Bottom-nav overlap
+20. Keyboard overlap
+21. Excessive animation
+22. Inconsistent screen transitions
+23. Random decorative elements
+24. Inconsistent image treatment
+25. Unintentional empty space
+26. Weak visual hierarchy
+27. Duplicate information
+28. Confusing action hierarchy
+29. Poor accessibility
+30. Screen-to-screen visual inconsistency
+
+Fix every detected issue before generating the final result.
+
+============================================================
+44. MOST IMPORTANT IMPLEMENTATION RULE
+============================================================
+
+DO NOT treat the screenshots as independent designs.
+
+Treat them as different screens of ONE application.
+
+The correct implementation hierarchy is:
+
+SYSTEM INSETS
+↓
+DESIGN TOKENS
+↓
+GLOBAL COMPONENTS
+↓
+NAVIGATION SYSTEM
+↓
+SCREEN TEMPLATES
+↓
+SCREEN CONTENT
+↓
+INTERACTION STATES
+↓
+MOTION
+↓
+FINAL QA
+
+Never reverse this order.
+
+============================================================
+45. FINAL OUTPUT STANDARD
+============================================================
+
+The final result must look like:
+
+ONE PRODUCT
+ONE DESIGN SYSTEM
+ONE BRAND
+ONE NAVIGATION LANGUAGE
+ONE TYPOGRAPHY SYSTEM
+ONE COMPONENT SYSTEM
+ONE MOTION SYSTEM
+
+—not a collection of individually generated AI screens.
+
+Do not finalize any screen if it visually contradicts another Habitiq screen.

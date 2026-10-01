@@ -1,0 +1,12 @@
+.superpowers/
+build/
+app/build/
+.gradle/
+.kotlin/
+local.properties
+keystore.properties
+*.keystore
+app/google-services.json.bak*
+*.iml
+.idea/
+*.hprof

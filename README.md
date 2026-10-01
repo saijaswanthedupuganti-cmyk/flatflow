@@ -1,136 +1,85 @@
-# Habitiq 🏠
+# Habitiq monorepo
 
-> **Shared living, perfectly balanced.**
+Habitiq is a shared-living product covering household tasks, expenses, bills, flat membership, and room/roommate discovery.
 
-Habitiq is a smart household duty management app built for flatmates who want a fair, automated, and transparent chore rotation system — no arguments, no forgotten tasks, no excuses.
+This repository is organized as a multi-platform monorepo. Android and web are real applications. iOS is reserved for a future native SwiftUI application and is not yet implemented.
 
-[![Live](https://img.shields.io/badge/Live-flatsflow.netlify.app-brightgreen)](https://flatsflow.netlify.app)
-[![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)](https://nextjs.org)
-[![TypeScript](https://img.shields.io/badge/TypeScript-5-blue?logo=typescript)](https://www.typescriptlang.org)
-[![Firebase](https://img.shields.io/badge/Firebase-12-orange?logo=firebase)](https://firebase.google.com)
-[![Tailwind CSS](https://img.shields.io/badge/Tailwind-v4-cyan?logo=tailwind-css)](https://tailwindcss.com)
+## Start here
 
----
+1. Read the [project master](docs/MASTER.md).
+2. Read the [repository structure](docs/architecture/REPOSITORY_STRUCTURE.md).
+3. Open the relevant application README:
+   - [Web](apps/web/README.md)
+   - [Android](apps/android/README.md)
+   - [iOS status](apps/ios/README.md)
+4. Use the [latest execution evidence](docs/delivery/2026-09-26-implementation/execution-status.md) before making release claims.
+5. Review the [repository reorganization record](docs/delivery/2026-10-01-repository-reorganization/README.md) for migrated paths, verification, and known issues.
 
-## ✨ Features
+## Repository structure
 
-| Feature | Description |
-|---------|-------------|
-| 🔄 **Smart Rotation** | Auto-assigns duties fairly. Skips absent flatmates, resumes when they return. |
-| ⚠️ **Overdue Accountability** | Overdue tasks stay with the responsible person — next person always gets a fresh full cycle. |
-| 🔔 **Live Notifications** | Real-time toasts when any flatmate completes a task. |
-| 📅 **Calendar Tracking** | Visual history of every completion, filterable by member and month. |
-| 🔁 **Swap Requests** | Ask a teammate to cover your duty — accept or decline in-app. |
-| 📊 **Analytics** | Monthly completion grids, reliability scores, and per-member breakdowns. |
-| 🌙 **Dark Mode** | Full dark/light theme with system preference detection. |
-| 📱 **Mobile-first** | Responsive bottom-nav layout optimised for phones. |
-| 🔐 **Secure** | Role-based Firestore rules, hardened auth, HTTP security headers. |
+```text
+habitiq/
+├── apps/
+│   ├── web/                 Next.js web application and Playwright tests
+│   ├── android/             Native Kotlin/Jetpack Compose application
+│   └── ios/                 Future native iOS placeholder only
+├── backend/
+│   └── firebase/            Firestore indexes/rules and Storage rules
+├── docs/
+│   ├── architecture/        Repository and cross-client architecture
+│   ├── product/             Product behavior, flows, discovery, strategy
+│   ├── platforms/           Platform-specific guides
+│   ├── operations/          Firebase, security, deployment
+│   ├── quality/             Test and release gates
+│   ├── delivery/            Current dated implementation evidence
+│   ├── design-system/       Design-system documents
+│   └── archive/             Superseded and historical material
+├── artifacts/
+│   ├── android/             Local APK candidates, legacy builds, manifests
+│   └── audits/              Exported audit documents
+├── assets/brand/            Editable cross-platform brand sources
+├── tools/archive/           Historical one-off maintenance scripts
+├── firebase.json            Firebase CLI configuration
+├── package.json             Workspace commands
+└── package-lock.json        Single npm lockfile
+```
 
----
+## Common commands
 
-## 🚀 Getting Started
+Run from the repository root.
 
-### Prerequisites
-- Node.js 18+
-- A Firebase project (see [FIREBASE_SETUP.md](./FIREBASE_SETUP.md))
-
-### Installation
-
-```bash
-git clone https://github.com/saijaswanthedupuganti-cmyk/flatflow.git
-cd flatflow   # repo name pending rename to habitiq
+```powershell
 npm install
-```
-
-### Configure Environment
-
-```bash
-cp .env.local.example .env.local
-# Fill in your Firebase values in .env.local
-```
-
-### Run Development Server
-
-```bash
 npm run dev
-# Open http://localhost:3000
+npm run lint
+npm run build
+npm test
 ```
 
-> **No Firebase yet?** The app runs in **Local Mock Mode** automatically when Firebase keys are missing — explore all features with seeded demo data.
+Android commands run from its application folder:
 
----
-
-## 🗂️ Project Structure
-
-```
-flatflow/
-├── app/
-│   ├── (auth)/           # Login, Join pages
-│   ├── dashboard/        # Main app (layout, home, analytics, calendar, tasks, members, settings, about)
-│   └── onboarding/       # Create or join a flat
-├── components/
-│   ├── ui/               # shadcn/ui base components
-│   ├── AuthProvider.tsx  # Central routing guard
-│   └── NotificationToast.tsx
-├── lib/
-│   ├── firebase.ts       # Firebase init (with mock fallback)
-│   ├── flatService.ts    # Create/join flat helpers
-│   └── rotationEngine.ts # Smart duty rotation logic
-└── store/
-    ├── useAuthStore.ts   # Auth + flat membership (Zustand + persist)
-    └── useFlatStore.ts   # Tasks, members, activity, swap requests
+```powershell
+cd apps/android
+.\gradlew.bat testDebugUnitTest
+.\gradlew.bat lintDebug
+.\gradlew.bat assembleDebug
 ```
 
----
+## Platform status
 
-## 🔧 Tech Stack
+| Platform | Status | Canonical location |
+|---|---|---|
+| Web | Existing client; workspace build supported | `apps/web/` |
+| Android | Primary native delivery target; debug candidate exists | `apps/android/` |
+| iOS | Planned only; no Xcode project or signed build | `apps/ios/` |
+| Firebase | Shared backend policy and data contracts | `backend/firebase/` |
 
-| Layer | Technology |
-|-------|-----------|
-| Framework | Next.js 16 (App Router, Turbopack) |
-| Language | TypeScript (strict) |
-| Styling | Tailwind CSS v4 + CSS variables |
-| State | Zustand v5 with localStorage persistence |
-| Backend | Firebase Auth + Firestore (real-time) |
-| Hosting | Netlify (with Next.js plugin) |
-| Animations | Framer Motion |
-| Icons | Lucide React |
-| Components | shadcn/ui |
+## Non-negotiable rules
 
----
+- Never commit `.env.local`, Android keystores, signing properties, local service backups, or production credentials.
+- APK binaries are local artifacts; the tracked manifest records hashes and verification state.
+- A successful build is not release approval. Device, backend, auth, offline, accessibility, signing, and installation checks are separate gates.
+- Every shared-schema change must account for web, Android, and future iOS readers.
+- Historical documents are context, not current truth.
 
-## 🔐 Security
-
-- Firestore rules: role-based access (admin vs member), no anonymous reads
-- HTTP security headers: X-Frame-Options, HSTS, CSP, Referrer-Policy
-- Google OAuth: custom `authDomain` proxied through Netlify (fixes iOS Safari)
-- Auth errors: sanitised to prevent user enumeration
-- IDs: `crypto.randomUUID()` throughout
-
-See [SECURITY.md](./SECURITY.md) and [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
-
----
-
-## 📋 Documentation
-
-| Document | Description |
-|----------|-------------|
-| [PRODUCT.md](./PRODUCT.md) | Business roadmap, trial metrics, expansion plan |
-| [FIREBASE_SETUP.md](./FIREBASE_SETUP.md) | How to connect your own Firebase project |
-| [SECURITY.md](./SECURITY.md) | Security model and key protection |
-| [SECURITY_AUDIT.md](./SECURITY_AUDIT.md) | Full audit findings and fixes |
-
----
-
-## 👥 Team
-
-| Name | Role |
-|------|------|
-| [Venkata Sai Jaswanth E](https://www.linkedin.com/in/venkata-sai-jaswanth-e/) | UI/UX Designer & Co-founder |
-| [Upputuri Bhanu Kalyan](https://www.linkedin.com/in/upputuri-bhanu-kalyan/) | Full-Stack Developer & Co-founder |
-
----
-
-## 📄 License
-
-MIT — feel free to fork and build your own flat management system.
+Deployment owners must configure both Vercel’s Root Directory and Netlify’s Package Directory as `apps/web`. See the [deployment guide](docs/operations/DEPLOYMENT.md).

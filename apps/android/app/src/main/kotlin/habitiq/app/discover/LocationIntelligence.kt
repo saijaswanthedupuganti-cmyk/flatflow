@@ -51,6 +51,11 @@ data class ApproxNeighborhoodLocation(
     }
 }
 
+/**
+ * Lives on the seeker profile, which every signed-in Discover user can read, so it is only ever
+ * stored at neighbourhood precision: coordinates rounded to ~1 km and no place id (a place id
+ * resolves to the exact building, i.e. someone's office or college gate).
+ */
 data class CommuteAnchor(
     val label: String = "",
     val placeId: String? = null,
@@ -59,9 +64,8 @@ data class CommuteAnchor(
 ) {
     fun toFirestoreMap(): Map<String, Any?> = buildMap {
         put("label", label)
-        placeId?.takeIf { it.isNotBlank() }?.let { put("placeId", it) }
-        lat?.let { put("lat", it) }
-        lng?.let { put("lng", it) }
+        lat?.let { put("lat", toNeighbourhoodPrecision(it)) }
+        lng?.let { put("lng", toNeighbourhoodPrecision(it)) }
     }
 
     companion object {
@@ -69,11 +73,16 @@ data class CommuteAnchor(
             val map = raw as? Map<*, *> ?: return null
             val label = map["label"]?.toString().orEmpty()
             val placeId = map["placeId"]?.toString()?.takeIf { it.isNotBlank() }
-            val lat = (map["lat"] as? Number)?.toDouble()
-            val lng = (map["lng"] as? Number)?.toDouble()
+            // Coarsen on read too, so profiles saved before rounding never surface exact points.
+            val lat = (map["lat"] as? Number)?.toDouble()?.let(::toNeighbourhoodPrecision)
+            val lng = (map["lng"] as? Number)?.toDouble()?.let(::toNeighbourhoodPrecision)
             if (label.isBlank() && placeId == null && lat == null) return null
-            return CommuteAnchor(label, placeId, lat, lng)
+            return CommuteAnchor(label, null, lat, lng)
         }
+
+        /** Two decimal places is roughly 1.1 km of latitude -- enough for commute ranking. */
+        fun toNeighbourhoodPrecision(coordinate: Double): Double =
+            kotlin.math.round(coordinate * 100.0) / 100.0
     }
 }
 

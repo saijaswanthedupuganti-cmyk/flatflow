@@ -92,9 +92,26 @@ class UsersRepository(
         // Leave every flat, not just the active one, so no flat keeps a member record for a deleted account.
         // One failing flat must not strand the rest, so each is attempted and any failure is recorded.
         flatIds.forEach { id -> runCatching { leaveFlat(id, uid) }.onFailure { recordNonFatal(it) } }
+        // The seeker profile is public, so take it down now rather than wait for the server.
+        // Connections and sent messages can't be deleted from a client (see firestore.rules);
+        // the purgeDeletedUser Cloud Function removes them, and re-checks all of this, once
+        // the Auth account is gone.
+        runCatching { firestore.collection("seekerProfiles").document(uid).delete().await() }
+            .onFailure { recordNonFatal(it) }
+        runCatching { deleteAll(userRef.collection("blocked").get().await().documents.map { it.reference }) }
+            .onFailure { recordNonFatal(it) }
         userRef.delete().await()
         Unit
     }.onFailure { recordNonFatal(it) }
+
+    private suspend fun deleteAll(refs: List<DocumentReference>) {
+        // Firestore caps a batch at 500 writes.
+        refs.chunked(450).forEach { chunk ->
+            val batch = firestore.batch()
+            chunk.forEach { batch.delete(it) }
+            batch.commit().await()
+        }
+    }
 
     suspend fun leaveCurrentFlat(uid: String, flatId: String): Result<String?> = runCatching {
         leaveFlat(flatId, uid)

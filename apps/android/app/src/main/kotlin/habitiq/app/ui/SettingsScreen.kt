@@ -1,5 +1,7 @@
 package habitiq.app.ui
 
+import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -9,6 +11,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -66,7 +70,7 @@ fun SettingsScreen(
             onBack = onBack,
             modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
         )
-        Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
+        Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal)) {
             Text(user?.email ?: "unknown", style = HqType.bodyMedium, color = c.textSecondary)
             Spacer(Modifier.height(HqSpacing.lg))
             habitiq.app.ui.components.HqSettingRow(
@@ -81,6 +85,26 @@ fun SettingsScreen(
             }
 
             Spacer(Modifier.height(HqSpacing.xxl))
+            habitiq.app.ui.components.HqMenuGroup("Legal & safety") {
+                habitiq.app.ui.components.HqMenuRow(
+                    title = "Privacy Policy", support = "What we collect and your rights",
+                    onClick = { openLegalLink(context, "https://habitiq.app/privacy") },
+                )
+                habitiq.app.ui.components.HqMenuRow(
+                    title = "Terms of Service", support = "Rules for using Oddroof and Discover",
+                    onClick = { openLegalLink(context, "https://habitiq.app/terms") },
+                )
+                habitiq.app.ui.components.HqMenuRow(
+                    title = "Safety tips", support = "Avoid scams and stay safe at viewings",
+                    onClick = { openLegalLink(context, "https://habitiq.app/safety") },
+                )
+                habitiq.app.ui.components.HqMenuRow(
+                    title = "Contact & grievances", support = "hello@habitiq.app", lastRow = true,
+                    onClick = { openLegalLink(context, "mailto:hello@habitiq.app") },
+                )
+            }
+
+            Spacer(Modifier.height(HqSpacing.xl))
             habitiq.app.ui.components.HqMenuGroup("Danger zone") {
                 habitiq.app.ui.components.HqMenuRow(
                     title = "Delete account", support = "Permanently delete your data", danger = true, lastRow = true,
@@ -112,4 +136,8 @@ fun SettingsScreen(
             onDismiss = { showConfirmDialog = false },
         )
     }
+}
+
+private fun openLegalLink(context: android.content.Context, url: String) {
+    runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url))) }
 }

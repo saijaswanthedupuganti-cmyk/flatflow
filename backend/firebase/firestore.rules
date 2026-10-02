@@ -69,6 +69,7 @@ service cloud.firestore {
             && request.resource.data.status == 'BLOCKED'
           )
         );
+      // Account deletion removes connections server-side (functions/purgeDeletedUser).
       allow delete: if false;
     }
 
@@ -102,6 +103,8 @@ service cloud.firestore {
           request.resource.data.senderId,
           request.resource.data.receiverId
         );
+      // Never from a client, so a reported conversation can't be wiped. Account deletion
+      // removes sent messages server-side (functions/purgeDeletedUser).
       allow update, delete: if false;
     }
 

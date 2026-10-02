@@ -5,5 +5,15 @@
   },
   "storage": {
     "rules": "backend/firebase/storage.rules"
-  }
+  },
+  "functions": [
+    {
+      "source": "backend/firebase/functions",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "predeploy": [
+        "npm --prefix \"$RESOURCE_DIR\" run build"
+      ]
+    }
+  ]
 }

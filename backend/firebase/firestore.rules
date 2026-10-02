@@ -122,10 +122,16 @@ service cloud.firestore {
 
     // ── Flats ─────────────────────────────────────────────────────────────────
     match /flats/{flatId} {
-      // Any authenticated user can read (needed to validate invite codes)
-      allow read: if request.auth != null;
-      // Any authenticated user can create a flat (they become admin)
-      allow create: if request.auth != null;
+      // Single-doc reads validate an invite code (the doc ID is the code).
+      allow get: if request.auth != null;
+      // Queries only ever return advertised vacancies — never the whole collection, which
+      // would hand every flat's invite code to every user.
+      allow list: if request.auth != null
+        && resource.data.get('vacancy', {}).get('active', false) == true;
+      // The creator becomes admin; adminUid can't be set to someone else.
+      allow create: if request.auth != null
+        && request.resource.data.adminUid == request.auth.uid
+        && request.resource.data.memberCount == 1;
       // Admin can update anything on the flat document including vacancy + discoveryPublic
       // (qualitative household signals snapshotted for Discovery — no member subcollection leak).
       // Non-admin joining: may increment memberCount by exactly 1 (and touch ONLY that field)
@@ -133,7 +139,10 @@ service cloud.firestore {
       //   but only while they are still a member — call this BEFORE deleting the member doc)
       allow update: if isAdmin(flatId)
         || (
+          // Self-join: only alongside creating their own member doc, and not in approval mode.
           request.auth != null
+          && resource.data.get('joinMode', 'auto') != 'approval'
+          && existsAfter(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
           && request.resource.data.memberCount == resource.data.get('memberCount', 0) + 1
         )
@@ -152,27 +161,49 @@ service cloud.firestore {
         allow read: if isMember(flatId)
           || (request.auth != null && request.auth.uid == memberId);
 
-        // A user may join (create their own member doc) only when:
-        //  - they are authenticated
-        //  - they are creating their own record (not someone else's)
-        //  - the flat has fewer than 8 members (enforced via memberCount field)
+        // Member docs can be created three ways, never with a self-chosen admin role:
+        //  - the flat's creator seeds their own admin doc (createFlat)
+        //  - a user joins an auto-join flat as a plain member (joinFlat)
+        //  - the admin adds an approved requester as a plain member (approveJoinRequest)
+        // All capped at 8 members via memberCount.
         allow create: if request.auth != null
-          && request.auth.uid == memberId
-          && get(/databases/$(database)/documents/flats/$(flatId)).data.get('memberCount', 0) < 8;
+          && get(/databases/$(database)/documents/flats/$(flatId)).data.get('memberCount', 0) < 8
+          && (
+            (
+              request.auth.uid == memberId
+              && request.resource.data.role == 'admin'
+              && get(/databases/$(database)/documents/flats/$(flatId)).data.adminUid == request.auth.uid
+            )
+            || (
+              request.auth.uid == memberId
+              && request.resource.data.role == 'member'
+              && get(/databases/$(database)/documents/flats/$(flatId)).data.get('joinMode', 'auto') != 'approval'
+            )
+            || (
+              isAdmin(flatId)
+              && request.resource.data.role == 'member'
+            )
+          );
 
-        // Members can update/delete their own doc (status, nickname, etc.).
-        // Admin can update/delete any member doc (kick, role transfer).
+        // Members can update their own doc (status, nickname, etc.) but never their own role.
+        // Admin can update any member doc (role transfer).
         // Any flat member may update only the `status` field of another member — needed
         // for OOS auto-trigger when a swap request is accepted on a different user's device.
-        allow update, delete: if request.auth != null
+        allow update: if request.auth != null
           && (
-            request.auth.uid == memberId
-            || isAdmin(flatId)
+            isAdmin(flatId)
+            || (
+              request.auth.uid == memberId
+              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+            )
             || (
               isMember(flatId)
               && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])
             )
           );
+        // Leave (own doc) or kick (admin).
+        allow delete: if request.auth != null
+          && (request.auth.uid == memberId || isAdmin(flatId));
       }
 
       // ── Tasks ─────────────────────────────────────────────────────────────
@@ -319,7 +350,8 @@ service cloud.firestore {
           || (request.auth != null && resource.data.uid == request.auth.uid);
         // Any authenticated user may submit a join request for themselves
         allow create: if request.auth != null
-          && request.resource.data.uid == request.auth.uid;
+          && request.resource.data.uid == request.auth.uid
+          && request.resource.data.status == 'pending';
         // Admin can approve/reject (update status) or delete
         allow update, delete: if isAdmin(flatId);
       }

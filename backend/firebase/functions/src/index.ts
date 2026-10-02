@@ -1,7 +1,7 @@
 import * as functions from "firebase-functions/v1";
 import { logger } from "firebase-functions";
 import { initializeApp } from "firebase-admin/app";
-import { getFirestore, type Firestore, type Query } from "firebase-admin/firestore";
+import { FieldValue, getFirestore, type Firestore, type Query } from "firebase-admin/firestore";
 
 initializeApp();
 
@@ -20,6 +20,26 @@ export const purgeDeletedUser = functions
   .auth.user()
   .onDelete(async (user) => {
     await purgeUserData(getFirestore(), user.uid);
+  });
+
+/**
+ * Points a newly added member's profile at the flat. Covers admin approval of a join request,
+ * where the admin's client isn't allowed to write the requester's users/{uid} doc. Self-joins
+ * already wrote it, so this is a harmless no-op merge for them.
+ */
+export const linkMemberToUser = functions
+  .region("asia-south1")
+  .firestore.document("flats/{flatId}/members/{uid}")
+  .onCreate(async (_snap, context) => {
+    const { flatId, uid } = context.params;
+    const db = getFirestore();
+    const userRef = db.collection("users").doc(uid);
+    await db.runTransaction(async (tx) => {
+      const user = await tx.get(userRef);
+      const update: Record<string, unknown> = { flatIds: FieldValue.arrayUnion(flatId) };
+      if (!user.get("activeFlatId")) update.activeFlatId = flatId;
+      tx.set(userRef, update, { merge: true });
+    });
   });
 
 export async function purgeUserData(db: Firestore, uid: string): Promise<void> {

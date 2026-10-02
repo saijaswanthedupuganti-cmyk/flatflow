@@ -72,9 +72,13 @@ internal fun parseVacancyListingDocument(flatId: String, data: Map<String, Any?>
 class DiscoveryRepository(
     private val firestore: FirebaseFirestore = FirebaseFirestore.getInstance()
 ) {
-    /** Real-time vacancies — client-filters vacancy.active on embedded flat.vacancy map. */
+    /**
+     * Real-time vacancies. The vacancy.active filter is required by the security rules — an
+     * unfiltered flats query is denied, since flat IDs double as invite codes.
+     */
     fun observeActiveVacancies(): Flow<List<VacancyListing>> = callbackFlow {
         val registration = firestore.collection("flats")
+            .whereEqualTo("vacancy.active", true)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
                     close(error)

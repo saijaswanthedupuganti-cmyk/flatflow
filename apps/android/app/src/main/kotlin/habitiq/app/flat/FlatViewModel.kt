@@ -774,8 +774,8 @@ class FlatViewModel(
     fun approveJoinRequest(request: JoinRequest) {
         val flat = _flatId.value ?: return
         viewModelScope.launch {
-            flatsRepository.joinFlat(flat, request.uid, request.nickname, request.email)
-            firestoreUpdateJoinApproved(flat, request.id)
+            val joined = flatsRepository.joinFlat(flat, request.uid, request.nickname, request.email, linkUserProfile = false)
+            if (joined.isSuccess) firestoreUpdateJoinApproved(flat, request.id)
         }
     }
 

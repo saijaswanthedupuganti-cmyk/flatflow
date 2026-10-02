@@ -71,7 +71,17 @@ class FlatsRepository(
         flatId
     }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
 
-    suspend fun joinFlat(flatId: String, uid: String, nickname: String, email: String): Result<Unit> = runCatching {
+    /**
+     * [linkUserProfile] = false when an admin adds an approved requester: rules don't let anyone
+     * write another user's profile, so functions/linkMemberToUser points it at the flat instead.
+     */
+    suspend fun joinFlat(
+        flatId: String,
+        uid: String,
+        nickname: String,
+        email: String,
+        linkUserProfile: Boolean = true
+    ): Result<Unit> = runCatching {
         if (!flatExists(flatId)) throw FlatNotFoundException()
 
         firestore.runTransaction { transaction ->
@@ -98,16 +108,18 @@ class FlatsRepository(
             transaction.set(memberRef, memberData)
             transaction.update(flatRef, "memberCount", FieldValue.increment(1))
 
-            val userRef = firestore.collection("users").document(uid)
-            transaction.set(
-                userRef,
-                mapOf(
-                    "activeFlatId" to flatId,
-                    "flatIds" to FieldValue.arrayUnion(flatId),
-                    "email" to email
-                ),
-                SetOptions.merge()
-            )
+            if (linkUserProfile) {
+                val userRef = firestore.collection("users").document(uid)
+                transaction.set(
+                    userRef,
+                    mapOf(
+                        "activeFlatId" to flatId,
+                        "flatIds" to FieldValue.arrayUnion(flatId),
+                        "email" to email
+                    ),
+                    SetOptions.merge()
+                )
+            }
 
             null
         }.await()

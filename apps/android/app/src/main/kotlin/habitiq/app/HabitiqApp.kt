@@ -189,6 +189,8 @@ fun HabitiqApp() {
 
     // Home's photo hero bleeds under the status bar; it flips this on while it is on screen.
     val heroBleed = remember { mutableStateOf(false) }
+    // Once per process: rotation or theme changes never replay the intro.
+    var introDone by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val rootFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     HabitiqTheme {
         // The single status-bar inset for every screen; individual screens must not add their own.
@@ -203,8 +205,14 @@ fun HabitiqApp() {
             color = LocalHqColors.current.canvas,
         ) {
           habitiq.app.ui.components.HqTopBarHost {
-            if (!startupResolved) {
-                habitiq.app.ui.components.HqLoadingScreen()
+            if (!introDone) {
+                // Plays the full brand intro on cold start; it finishes only once startup has resolved.
+                habitiq.app.ui.components.HqLoadingScreen(ready = startupResolved, onFinished = { introDone = true })
+            } else if (!startupResolved) {
+                // A retry after a startup error: a quiet spinner, never a second full intro.
+                Box(Modifier.fillMaxSize().background(LocalHqColors.current.canvas), contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = LocalHqColors.current.actionPrimaryBg)
+                }
             } else if (startupError != null) {
                 Column(
                     Modifier.fillMaxSize().background(LocalHqColors.current.canvas).padding(24.dp),

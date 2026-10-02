@@ -51,6 +51,13 @@ import habitiq.app.ui.theme.LocalHqColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.semantics.Role
 
 private val loadingStory = listOf(
     "Different people.\nOne home.",
@@ -58,31 +65,42 @@ private val loadingStory = listOf(
     "Live together.\nManage together.",
 )
 
+/** Closing line, held while the progress bar completes. */
+private const val FinalLine = "Welcome home."
+
+/** Total length of the cold-start intro. Change this one value to lengthen or shorten it. */
+const val IntroDurationMs = 10_000L
+
 private val Settle = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 /** Fraction of the lockup image width taken by the house mark (the rest is the wordmark). */
 private const val MarkFraction = 0.275f
 
 /**
- * Startup screen. Concept: "Different people. One home."
+ * Cold-start intro (~[IntroDurationMs]). Concept: "Different people. One home."
  *
- * 1. A teal orb and a coral orb drift in from opposite sides and merge into one warm glow that
- *    then breathes slowly (the household).
- * 2. The house mark pops in on a soft spring, then the wordmark wipes open beside it.
- * 3. Story lines rise and fade one at a time with matching progress dots, looping while the app
- *    is still starting.
- * 4. "PREPARING YOUR SPACE" progress eases toward 95% and never claims completion; the caller
- *    removes this screen when startup resolves.
+ *  0.0-2.0s  teal and coral glows drift together; the house mark pops in; the wordmark wipes open.
+ *  2.0-8.5s  three story lines, ~2.1s each, with matching progress dots.
+ *  8.5-9.5s  "Welcome home." while "PREPARING YOUR SPACE" reaches 100%.
+ *  9.5-10s   the whole screen fades and lifts slightly into the app, then [onFinished].
  *
- * Everything animates transform/alpha only. With system animations off it renders its final frame.
+ * Progress is honest: it never shows 100% until [ready]. If startup is slower than the intro, the bar
+ * holds at 95% on the closing line. "Skip" ends early (as soon as [ready]). With system animations
+ * off, it shows the final frame and finishes as soon as the app is ready.
  */
 @Composable
-fun HqLoadingScreen(modifier: Modifier = Modifier) {
+fun HqLoadingScreen(
+    modifier: Modifier = Modifier,
+    ready: Boolean = false,
+    onFinished: () -> Unit = {},
+) {
     val c = LocalHqColors.current
     val context = LocalContext.current
     val still = remember {
         Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f
     }
+    val readyState = rememberUpdatedState(ready)
+    val finish = rememberUpdatedState(onFinished)
 
     val merge = remember { Animatable(if (still) 1f else 0f) }
     val markIn = remember { Animatable(if (still) 1f else 0f) }
@@ -90,7 +108,10 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
     val storyAlpha = remember { Animatable(if (still) 1f else 0f) }
     val progressIn = remember { Animatable(if (still) 1f else 0f) }
     val progress = remember { Animatable(if (still) 0.95f else 0f) }
-    val storyIndex = remember { mutableIntStateOf(0) }
+    val exit = remember { Animatable(0f) }
+    val skipIn = remember { Animatable(0f) }
+    val storyIndex = remember { mutableIntStateOf(if (still) loadingStory.size else 0) }
+    val skipRequested = remember { mutableStateOf(false) }
 
     val breath = rememberInfiniteTransition(label = "breath").animateFloat(
         initialValue = 0f,
@@ -99,32 +120,74 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
         label = "breathValue",
     )
 
-    LaunchedEffect(still) {
-        if (still) return@LaunchedEffect
+    LaunchedEffect(Unit) {
+        // Ends the intro: wait for the app, complete the bar, fade out, hand over.
+        suspend fun complete() {
+            snapshotFlow { readyState.value }.first { it }
+            if (!still) {
+                progress.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+                exit.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+            }
+            finish.value()
+        }
+        if (still) {
+            complete()
+            return@LaunchedEffect
+        }
         coroutineScope {
-            launch { merge.animateTo(1f, tween(1500, easing = Settle)) }
-            launch {
-                delay(650)
-                markIn.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow))
-            }
-            launch {
-                delay(1050)
-                wordReveal.animateTo(1f, tween(800, easing = Settle))
-            }
-            launch {
-                delay(1700)
-                while (true) {
-                    storyAlpha.animateTo(1f, tween(320, easing = FastOutSlowInEasing))
-                    delay(900)
-                    storyAlpha.animateTo(0f, tween(260, easing = FastOutSlowInEasing))
-                    storyIndex.intValue = (storyIndex.intValue + 1) % loadingStory.size
+            val intro = launch {
+                launch { merge.animateTo(1f, tween(1600, easing = Settle)) }
+                launch {
+                    delay(650)
+                    markIn.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow))
                 }
+                launch {
+                    delay(1100)
+                    wordReveal.animateTo(1f, tween(850, easing = Settle))
+                }
+                launch {
+                    delay(1600)
+                    skipIn.animateTo(1f, tween(300))
+                }
+                launch {
+                    delay(2000)
+                    // Three story lines: rise in, hold, fade.
+                    repeat(loadingStory.size) { i ->
+                        storyIndex.intValue = i
+                        storyAlpha.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
+                        delay(1300)
+                        storyAlpha.animateTo(0f, tween(380, easing = FastOutSlowInEasing))
+                    }
+                    // Closing line stays up until the intro hands over.
+                    storyIndex.intValue = loadingStory.size
+                    storyAlpha.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
+                }
+                launch {
+                    delay(2100)
+                    progressIn.animateTo(1f, tween(400, easing = LinearEasing))
+                    progress.animateTo(
+                        0.95f,
+                        tween((IntroDurationMs - 2100 - 400 - 900).toInt(), easing = CubicBezierEasing(0.35f, 0.1f, 0.25f, 1f)),
+                    )
+                }
+                delay(IntroDurationMs - 900)
             }
-            launch {
-                delay(1900)
-                progressIn.animateTo(1f, tween(350, easing = LinearEasing))
-                progress.animateTo(0.95f, tween(6000, easing = CubicBezierEasing(0.3f, 0.7f, 0.2f, 1f)))
+            // Skip cancels the remaining choreography; otherwise wait for the full intro.
+            val skipWatcher = launch {
+                snapshotFlow { skipRequested.value }.first { it }
+                intro.cancel()
             }
+            intro.join()
+            skipWatcher.cancel()
+            if (skipRequested.value) {
+                storyIndex.intValue = loadingStory.size
+                storyAlpha.snapTo(1f)
+                markIn.snapTo(1f)
+                wordReveal.snapTo(1f)
+                merge.snapTo(1f)
+                progressIn.snapTo(1f)
+            }
+            complete()
         }
     }
 
@@ -132,6 +195,12 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
         modifier
             .fillMaxSize()
             .background(c.canvas)
+            .graphicsLayer {
+                alpha = 1f - exit.value
+                val s = 1f + 0.03f * exit.value
+                scaleX = s
+                scaleY = s
+            }
             .semantics { contentDescription = "Application is loading" },
     ) {
         // Different people, converging: teal drifts in from the left, coral from the right.
@@ -162,6 +231,23 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
             )
         }
 
+        // Skip: small, top-right, appears after the logo lands.
+        if (!still) {
+            Box(
+                Modifier
+                    .align(Alignment.TopEnd)
+                    .statusBarsPadding()
+                    .padding(top = 8.dp, end = 12.dp)
+                    .alpha(skipIn.value)
+                    .size(width = 72.dp, height = 48.dp)
+                    .clip(CircleShape)
+                    .clickable(enabled = skipIn.value > 0.5f, role = Role.Button) { skipRequested.value = true },
+                contentAlignment = Alignment.Center,
+            ) {
+                Text("Skip", style = HqType.labelLarge, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
+            }
+        }
+
         BoxWithConstraints(Modifier.fillMaxSize()) {
             Column(
                 Modifier.fillMaxWidth().padding(top = maxHeight * 0.24f),
@@ -188,15 +274,16 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
                     Modifier.padding(top = 52.dp).fillMaxWidth().height(84.dp).padding(horizontal = 24.dp),
                     contentAlignment = Alignment.TopCenter,
                 ) {
+                    val i = storyIndex.intValue
                     Text(
-                        loadingStory[storyIndex.intValue],
+                        if (i < loadingStory.size) loadingStory[i] else FinalLine,
                         style = HqType.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
-                        color = c.textPrimary,
+                        color = if (i < loadingStory.size) c.textPrimary else c.textBrand,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.graphicsLayer {
                             alpha = storyAlpha.value
-                            translationY = (1f - storyAlpha.value) * 10.dp.toPx()
+                            translationY = (1f - storyAlpha.value) * 12.dp.toPx()
                         },
                     )
                 }
@@ -206,11 +293,13 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     loadingStory.indices.forEach { i ->
+                        val active = i == storyIndex.intValue
+                        val passed = i < storyIndex.intValue
                         Box(
                             Modifier
-                                .size(width = if (i == storyIndex.intValue) 18.dp else 6.dp, height = 6.dp)
+                                .size(width = if (active) 18.dp else 6.dp, height = 6.dp)
                                 .clip(CircleShape)
-                                .background(if (i == storyIndex.intValue) c.brandTeal else c.borderSubtle),
+                                .background(if (active || passed) c.brandTeal else c.borderSubtle),
                         )
                     }
                 }
@@ -228,7 +317,7 @@ fun HqLoadingScreen(modifier: Modifier = Modifier) {
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                 Text(
-                    "PREPARING YOUR SPACE",
+                    if (progress.value >= 0.999f) "READY" else "PREPARING YOUR SPACE",
                     style = HqType.labelSmall,
                     color = c.textSecondary,
                     fontWeight = FontWeight.ExtraBold,

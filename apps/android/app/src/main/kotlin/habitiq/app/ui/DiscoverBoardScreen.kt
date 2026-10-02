@@ -303,7 +303,8 @@ fun DiscoverBoardScreen(
             onClear = {
                 if (mode == DiscoverMode.USE_A_FLAT) vacancyFilters = VacancyFilters()
                 else seekerFilters = SeekerFilters()
-            }
+            },
+            resultCount = if (mode == DiscoverMode.USE_A_FLAT) filteredVacancies.size else filteredSeekers.size,
         )
     }
 

@@ -15,6 +15,32 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.font.FontWeight
+import habitiq.app.ui.components.HqTextButton
+import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqSize
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -22,7 +48,6 @@ import habitiq.app.discover.DiscoverFilterLogic
 import habitiq.app.discover.DiscoverMode
 import habitiq.app.discover.SeekerFilters
 import habitiq.app.discover.VacancyFilters
-import habitiq.app.ui.components.HqBottomSheet
 import habitiq.app.ui.components.HqButton
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqChip
@@ -32,6 +57,11 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
+/**
+ * Full-height filter sheet (opens fully, never half-way): fixed header with title, active-count pill,
+ * Reset and close; a scrolling body of evenly spaced sections divided by hairlines; and a fixed footer
+ * whose button shows the live result count, so people see the effect before they apply.
+ */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DiscoverFilterSheet(
@@ -42,25 +72,75 @@ fun DiscoverFilterSheet(
     onSeekerFiltersChange: (SeekerFilters) -> Unit,
     onDismiss: () -> Unit,
     onApply: () -> Unit,
-    onClear: () -> Unit
+    onClear: () -> Unit,
+    resultCount: Int? = null,
 ) {
-    HqBottomSheet(onDismiss = onDismiss, title = "Filters") {
-        // HqBottomSheet's own content Column isn't scrollable; the filter form is long enough
-        // (rent/budget, several dropdowns, a tag row) to need its own scroll, as the original did.
-        Column(Modifier.verticalScroll(rememberScrollState())) {
-            when (mode) {
-                DiscoverMode.USE_A_FLAT -> VacancyFilterFields(vacancyFilters, onVacancyFiltersChange)
-                DiscoverMode.FIND_A_PERSON -> SeekerFilterFields(seekerFilters, onSeekerFiltersChange)
+    val c = LocalHqColors.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val scope = rememberCoroutineScope()
+    val focusManager = LocalFocusManager.current
+    val active = if (mode == DiscoverMode.USE_A_FLAT) vacancyFilters.activeCount else seekerFilters.activeCount
+    fun close(then: () -> Unit) {
+        scope.launch { sheetState.hide() }.invokeOnCompletion { then() }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = c.surfaceRaised,
+        shape = RoundedCornerShape(topStart = HqRadius.sheet, topEnd = HqRadius.sheet),
+        scrimColor = if (c.isDark) Color.Black.copy(alpha = 0.64f) else Color(0xFF091C1A).copy(alpha = 0.42f),
+        dragHandle = {
+            Box(Modifier.padding(top = 10.dp, bottom = 4.dp).size(width = 40.dp, height = 4.dp).clip(CircleShape).background(c.borderControl))
+        },
+    ) {
+        Column(
+            Modifier.fillMaxWidth().fillMaxHeight(0.94f).imePadding()
+                .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } },
+        ) {
+            // Fixed header
+            Row(
+                Modifier.fillMaxWidth().padding(start = 22.dp, end = 10.dp, top = 6.dp, bottom = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text("Filters", style = HqType.titleMedium2, color = c.textPrimary)
+                if (active > 0) {
+                    Box(
+                        Modifier.clip(RoundedCornerShape(HqRadius.pill)).background(c.selectedBg).padding(horizontal = 9.dp, vertical = 2.dp),
+                    ) { Text("$active", style = HqType.labelMedium, color = c.textBrand, fontWeight = FontWeight.Bold) }
+                }
+                Spacer(Modifier.weight(1f))
+                HqTextButton(text = "Reset", onClick = onClear, enabled = active > 0)
+                IconButton(onClick = { close(onDismiss) }, modifier = Modifier.size(HqSize.target)) {
+                    Icon(Icons.Filled.Close, contentDescription = "Close filters", tint = c.iconDefault)
+                }
+            }
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderSubtle))
+
+            // Scrolling body
+            Column(
+                Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp, vertical = 22.dp),
+            ) {
+                when (mode) {
+                    DiscoverMode.USE_A_FLAT -> VacancyFilterFields(vacancyFilters, onVacancyFiltersChange)
+                    DiscoverMode.FIND_A_PERSON -> SeekerFilterFields(seekerFilters, onSeekerFiltersChange)
+                }
             }
 
-            Spacer(Modifier.height(HqSpacing.xl))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-                HqButton(text = "Reset", onClick = onClear, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))
-                HqButton(
-                    text = "Show results",
-                    onClick = { onApply(); onDismiss() },
-                    modifier = Modifier.weight(1f)
-                )
+            // Fixed footer with the live result count
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderSubtle))
+            Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 14.dp)) {
+                val noun = if (mode == DiscoverMode.USE_A_FLAT) "place" else "person"
+                val nouns = if (mode == DiscoverMode.USE_A_FLAT) "places" else "people"
+                val label = when (resultCount) {
+                    null -> "Show results"
+                    0 -> "No matches yet"
+                    1 -> "Show 1 $noun"
+                    else -> "Show $resultCount $nouns"
+                }
+                HqButton(text = label, onClick = { close { onApply(); onDismiss() } })
             }
         }
     }
@@ -120,7 +200,12 @@ private fun SeekerFilterFields(filters: SeekerFilters, onChange: (SeekerFilters)
     TagGroup("Lifestyle", filters.lifestyleTags) { onChange(filters.copy(lifestyleTags = it)) }
 }
 
-@Composable private fun FilterGap() = Spacer(Modifier.height(22.dp))
+@Composable
+private fun FilterGap() {
+    Spacer(Modifier.height(20.dp))
+    Box(Modifier.fillMaxWidth().height(1.dp).background(LocalHqColors.current.borderSubtle))
+    Spacer(Modifier.height(20.dp))
+}
 
 @Composable
 private fun FilterLabel(text: String) {

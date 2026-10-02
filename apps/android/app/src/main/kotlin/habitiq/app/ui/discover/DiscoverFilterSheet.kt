@@ -7,25 +7,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.MenuAnchorType
-import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.unit.dp
 import habitiq.app.discover.DiscoverFilterLogic
 import habitiq.app.discover.DiscoverMode
 import habitiq.app.discover.SeekerFilters
@@ -34,8 +25,8 @@ import habitiq.app.ui.components.HqBottomSheet
 import habitiq.app.ui.components.HqButton
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqChip
+import habitiq.app.ui.components.HqChipFlow
 import habitiq.app.ui.components.HqTextField
-import habitiq.app.ui.theme.HqRadius
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -79,71 +70,31 @@ private fun VacancyFilterFields(filters: VacancyFilters, onChange: (VacancyFilte
     HqTextField(
         value = filters.cityArea,
         onValueChange = { onChange(filters.copy(cityArea = it)) },
-        label = "City or area"
+        label = "City or area",
+        placeholder = "e.g. Kondapur, Hyderabad",
     )
-    Spacer(Modifier.height(HqSpacing.md))
-    Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-        HqTextField(
-            value = filters.rentMin,
-            onValueChange = { onChange(filters.copy(rentMin = it.filter { c -> c.isDigit() })) },
-            label = "Rent min (₹)",
-            modifier = Modifier.weight(1f)
-        )
-        HqTextField(
-            value = filters.rentMax,
-            onValueChange = { onChange(filters.copy(rentMax = it.filter { c -> c.isDigit() })) },
-            label = "Rent max (₹)",
-            modifier = Modifier.weight(1f)
-        )
-    }
-    Spacer(Modifier.height(HqSpacing.md))
-    FilterDropdown(
-        label = "Gender preference",
-        value = filters.genderPreference,
-        options = DiscoverFilterLogic.vacancyGenderOptions,
-        onSelect = { onChange(filters.copy(genderPreference = it)) }
+    FilterGap()
+    MoneyRange(
+        label = "Monthly rent",
+        min = filters.rentMin,
+        max = filters.rentMax,
+        onMin = { onChange(filters.copy(rentMin = it)) },
+        onMax = { onChange(filters.copy(rentMax = it)) },
     )
-    Spacer(Modifier.height(HqSpacing.sm))
-    FilterDropdown(
-        label = "Flat type",
-        value = filters.flatType,
-        options = DiscoverFilterLogic.flatTypeOptions,
-        onSelect = { onChange(filters.copy(flatType = it)) }
-    )
-    Spacer(Modifier.height(HqSpacing.sm))
-    FilterDropdown(
-        label = "Room type",
-        value = filters.roomType,
-        options = DiscoverFilterLogic.roomTypeOptions,
-        onSelect = { onChange(filters.copy(roomType = it)) }
-    )
-    Spacer(Modifier.height(HqSpacing.sm))
-    FilterDropdown(
-        label = "Listed within",
-        value = filters.availabilityDays?.toString() ?: "any",
-        options = DiscoverFilterLogic.availabilityOptions.map { (k, v) -> (k?.toString() ?: "any") to v },
-        onSelect = { selected ->
-            val days = if (selected == "any") null else selected.toIntOrNull()
-            onChange(filters.copy(availabilityDays = days))
-        }
-    )
-    Spacer(Modifier.height(HqSpacing.md))
-    val c = LocalHqColors.current
-    Text("Lifestyle & tags", style = HqType.labelLarge, color = c.textPrimary)
-    Spacer(Modifier.height(HqSpacing.sm))
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-        items(DiscoverFilterLogic.lifestyleTagOptions) { tag ->
-            val selected = filters.lifestyleTags.contains(tag)
-            HqChip(
-                label = tag,
-                selected = selected,
-                onClick = {
-                    val next = if (selected) filters.lifestyleTags - tag else filters.lifestyleTags + tag
-                    onChange(filters.copy(lifestyleTags = next))
-                }
-            )
-        }
-    }
+    FilterGap()
+    ChoiceGroup("Who can live here", DiscoverFilterLogic.vacancyGenderOptions, filters.genderPreference) { onChange(filters.copy(genderPreference = it)) }
+    FilterGap()
+    ChoiceGroup("Flat type", DiscoverFilterLogic.flatTypeOptions, filters.flatType) { onChange(filters.copy(flatType = it)) }
+    FilterGap()
+    ChoiceGroup("Room type", DiscoverFilterLogic.roomTypeOptions, filters.roomType) { onChange(filters.copy(roomType = it)) }
+    FilterGap()
+    ChoiceGroup(
+        "Listed within",
+        DiscoverFilterLogic.availabilityOptions.map { (k, v) -> (k?.toString() ?: "any") to v },
+        filters.availabilityDays?.toString() ?: "any",
+    ) { selected -> onChange(filters.copy(availabilityDays = if (selected == "any") null else selected.toIntOrNull())) }
+    FilterGap()
+    TagGroup("Lifestyle & amenities", filters.lifestyleTags) { onChange(filters.copy(lifestyleTags = it)) }
 }
 
 @Composable
@@ -151,94 +102,78 @@ private fun SeekerFilterFields(filters: SeekerFilters, onChange: (SeekerFilters)
     HqTextField(
         value = filters.cityArea,
         onValueChange = { onChange(filters.copy(cityArea = it)) },
-        label = "City or area"
+        label = "City or area",
+        placeholder = "e.g. Gachibowli, Hyderabad",
     )
-    Spacer(Modifier.height(HqSpacing.md))
-    Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-        HqTextField(
-            value = filters.budgetMin,
-            onValueChange = { onChange(filters.copy(budgetMin = it.filter { c -> c.isDigit() })) },
-            label = "Budget min (₹)",
-            modifier = Modifier.weight(1f)
-        )
-        HqTextField(
-            value = filters.budgetMax,
-            onValueChange = { onChange(filters.copy(budgetMax = it.filter { c -> c.isDigit() })) },
-            label = "Budget max (₹)",
-            modifier = Modifier.weight(1f)
-        )
-    }
-    Spacer(Modifier.height(HqSpacing.md))
-    FilterDropdown(
-        label = "Gender",
-        value = filters.gender,
-        options = DiscoverFilterLogic.seekerGenderOptions,
-        onSelect = { onChange(filters.copy(gender = it)) }
+    FilterGap()
+    MoneyRange(
+        label = "Their budget",
+        min = filters.budgetMin,
+        max = filters.budgetMax,
+        onMin = { onChange(filters.copy(budgetMin = it)) },
+        onMax = { onChange(filters.copy(budgetMax = it)) },
     )
-    Spacer(Modifier.height(HqSpacing.md))
-    val c = LocalHqColors.current
-    Text("Lifestyle tags", style = HqType.labelLarge, color = c.textPrimary)
-    Spacer(Modifier.height(HqSpacing.sm))
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-        items(DiscoverFilterLogic.lifestyleTagOptions) { tag ->
-            val selected = filters.lifestyleTags.contains(tag)
-            HqChip(
-                label = tag,
-                selected = selected,
-                onClick = {
-                    val next = if (selected) filters.lifestyleTags - tag else filters.lifestyleTags + tag
-                    onChange(filters.copy(lifestyleTags = next))
-                }
+    FilterGap()
+    ChoiceGroup("Gender", DiscoverFilterLogic.seekerGenderOptions, filters.gender) { onChange(filters.copy(gender = it)) }
+    FilterGap()
+    TagGroup("Lifestyle", filters.lifestyleTags) { onChange(filters.copy(lifestyleTags = it)) }
+}
+
+@Composable private fun FilterGap() = Spacer(Modifier.height(22.dp))
+
+@Composable
+private fun FilterLabel(text: String) {
+    Text(text, style = HqType.labelLarge, color = LocalHqColors.current.textPrimary, modifier = Modifier.padding(bottom = 10.dp))
+}
+
+/** Min / max amount pair with a rupee prefix, number keypad and "Any" placeholders. */
+@Composable
+private fun MoneyRange(label: String, min: String, max: String, onMin: (String) -> Unit, onMax: (String) -> Unit) {
+    Column {
+        FilterLabel(label)
+        Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+            HqTextField(
+                value = min,
+                onValueChange = { onMin(it.filter(Char::isDigit)) },
+                label = "Min (₹)",
+                placeholder = "Any",
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.weight(1f),
+            )
+            HqTextField(
+                value = max,
+                onValueChange = { onMax(it.filter(Char::isDigit)) },
+                label = "Max (₹)",
+                placeholder = "Any",
+                keyboardType = KeyboardType.Number,
+                modifier = Modifier.weight(1f),
             )
         }
     }
 }
 
-/**
- * No Hq dropdown/select component exists yet, so this keeps the native
- * ExposedDropdownMenuBox + OutlinedTextField (HqTextField has no readOnly/trailing-icon dropdown
- * affordance) but pulls its colors and type from the design tokens.
- */
-@OptIn(ExperimentalMaterial3Api::class)
+/** Single-choice chips: every option is visible and one tap away (replaces a dropdown). */
 @Composable
-private fun FilterDropdown(
-    label: String,
-    value: String,
-    options: List<Pair<String, String>>,
-    onSelect: (String) -> Unit
-) {
-    val c = LocalHqColors.current
-    var expanded by remember { mutableStateOf(false) }
-    val display = options.find { it.first == value }?.second ?: value
+private fun ChoiceGroup(label: String, options: List<Pair<String, String>>, value: String, onSelect: (String) -> Unit) {
+    Column(Modifier.selectableGroup()) {
+        FilterLabel(label)
+        HqChipFlow {
+            options.forEach { (key, text) ->
+                HqChip(label = text, selected = key == value, onClick = { onSelect(key) })
+            }
+        }
+    }
+}
 
-    ExposedDropdownMenuBox(expanded = expanded, onExpandedChange = { expanded = it }) {
-        OutlinedTextField(
-            value = display,
-            onValueChange = {},
-            readOnly = true,
-            label = { Text(label, style = HqType.labelLarge) },
-            textStyle = HqType.bodyLarge,
-            shape = RoundedCornerShape(HqRadius.md),
-            modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
-            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
-            colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = c.focus,
-                unfocusedBorderColor = c.borderSubtle,
-                focusedTextColor = c.textPrimary,
-                unfocusedTextColor = c.textPrimary,
-                focusedLabelColor = c.actionPrimaryBg,
-                unfocusedLabelColor = c.textSecondary,
-            )
-        )
-        ExposedDropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            options.forEach { (key, labelText) ->
-                DropdownMenuItem(
-                    text = { Text(labelText, style = HqType.bodyMedium, color = c.textPrimary) },
-                    onClick = {
-                        onSelect(key)
-                        expanded = false
-                    }
-                )
+/** Multi-select tags that wrap onto new lines instead of hiding off-screen. */
+@Composable
+private fun TagGroup(label: String, selected: Set<String>, onChange: (Set<String>) -> Unit) {
+    Column {
+        FilterLabel(label)
+        HqChipFlow {
+            DiscoverFilterLogic.lifestyleTagOptions.forEach { tag ->
+                val on = selected.contains(tag)
+                HqChip(label = tag, selected = on, onClick = { onChange(if (on) selected - tag else selected + tag) })
             }
         }
     }

@@ -18,12 +18,16 @@ import habitiq.app.ui.theme.LocalHqColors
  * swapping artwork. Never stretch: only the height is set and the aspect ratio is preserved.
  */
 @Composable
-fun HqWordmark(modifier: Modifier = Modifier, height: Dp = 36.dp) {
+fun HqWordmark(modifier: Modifier = Modifier, height: Dp = 36.dp, tint: androidx.compose.ui.graphics.Color? = null) {
     val c = LocalHqColors.current
     Image(
         painter = painterResource(R.drawable.oddroof_logo),
         contentDescription = "Oddroof",
         modifier = modifier.height(height),
-        colorFilter = if (isSystemInDarkTheme()) ColorFilter.tint(c.textPrimary) else null,
+        colorFilter = when {
+            tint != null -> ColorFilter.tint(tint)
+            isSystemInDarkTheme() -> ColorFilter.tint(c.textPrimary)
+            else -> null
+        },
     )
 }

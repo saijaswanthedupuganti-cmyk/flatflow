@@ -15,6 +15,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.window.DialogProperties
 import habitiq.app.ui.theme.HqRadius
@@ -46,7 +49,13 @@ fun HqBottomSheet(
         scrimColor = if (c.isDark) Color.Black.copy(alpha = 0.64f) else Color(0xFF091C1A).copy(alpha = 0.42f),
         modifier = modifier,
     ) {
-        Column(Modifier.fillMaxWidth().padding(horizontal = 22.dp, vertical = HqSpacing.md)) {
+        val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
+        // Sheets are separate windows: they need their own keyboard inset and tap-outside-to-dismiss-keyboard.
+        Column(
+            Modifier.fillMaxWidth().imePadding()
+                .pointerInput(Unit) { detectTapGestures { focusManager.clearFocus() } }
+                .padding(horizontal = 22.dp, vertical = HqSpacing.md),
+        ) {
             if (title != null) {
                 Text(title, style = HqType.titleMedium2, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.md))

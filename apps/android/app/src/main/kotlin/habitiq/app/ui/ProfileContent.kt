@@ -9,6 +9,13 @@ import habitiq.app.ui.components.HqMenuGroup
 import habitiq.app.ui.components.HqIcons
 import habitiq.app.ui.components.HqPageHeader
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
+import habitiq.app.ui.theme.HqRadius
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
@@ -76,26 +83,47 @@ fun ProfileHomeContent(
             },
         )
 
-        Row(Modifier.padding(top = 4.dp, bottom = 28.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+        // Identity card: one edit control (the header pencil); name and email never wrap mid-word.
+        Row(
+            Modifier.padding(top = 4.dp, bottom = 26.dp).fillMaxWidth()
+                .clip(RoundedCornerShape(HqRadius.card)).background(c.surfaceSubtle)
+                .clickable(role = Role.Button, onClick = onEdit)
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
             HqAvatar(name = model.displayName.ifBlank { model.email }, size = HqAvatarSize.PROFILE)
             Column(Modifier.weight(1f)) {
-                Text(model.displayName.ifBlank { "Oddroof" }, style = HqType.titleMedium2, color = c.textPrimary)
-                Text(model.email, style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = 3.dp))
+                Text(
+                    model.displayName.ifBlank { "Your profile" },
+                    style = HqType.titleMedium2,
+                    color = c.textPrimary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    model.email,
+                    style = HqType.bodyMedium,
+                    color = c.textSecondary,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 3.dp),
+                )
             }
-            HqButton(text = "Edit profile", onClick = onEdit, variant = HqButtonVariant.Secondary, fullWidth = false)
+            Icon(HqIcons.Chevron, contentDescription = null, tint = c.textMuted, modifier = Modifier.size(HqIconSize.sm))
         }
 
         HqMenuGroup("My flat") {
             if (model.flatName != null) {
                 HqMenuRow(model.flatName, support = model.flatSupport, icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
             } else {
-                HqMenuRow("You haven't joined a flat yet.", support = "Continue setup", icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
+                HqMenuRow("No flat yet", support = "Create or join a flat", icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
             }
         }
         Spacer(Modifier.size(21.dp))
         HqMenuGroup("Discovery") {
             HqMenuRow("My Discovery Profile", support = model.discoverySupport, icon = HqIcons.Discover, tone = HqTileTone.Coral, onClick = onOpenDiscovery)
-            HqMenuRow("My Posts", support = "Create and manage Discovery posts", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
+            HqMenuRow("My Posts", support = "Your rooms and looking posts", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
         }
         Spacer(Modifier.size(21.dp))
         HqMenuGroup("Preferences") {

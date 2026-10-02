@@ -31,11 +31,21 @@ fun HqPageHeader(
     modifier: Modifier = Modifier,
     subtitle: String? = null,
     onBack: (() -> Unit)? = null,
+    /** When true (default) a compact pinned bar with this title appears once the header scrolls away. */
+    pinOnScroll: Boolean = true,
     action: @Composable RowScope.() -> Unit = {},
 ) {
     val c = LocalHqColors.current
+    val host = LocalHqTopBar.current
+    val entry = if (pinOnScroll) rememberRegisteredTopBarEntry() else null
+    if (entry != null) {
+        entry.title = title
+        entry.onBack = onBack
+        entry.actions = action
+    }
+    val threshold = headerPinThresholdPx()
     Row(
-        modifier.fillMaxWidth().padding(bottom = HqSpacing.xxl),
+        modifier.fillMaxWidth().hqTrackHeader(entry, host, threshold).padding(bottom = HqSpacing.xxl),
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.md),
         verticalAlignment = Alignment.Top,
     ) {

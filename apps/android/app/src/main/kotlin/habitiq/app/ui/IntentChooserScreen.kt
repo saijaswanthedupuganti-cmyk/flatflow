@@ -67,6 +67,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.shape.RoundedCornerShape
 import habitiq.app.R
@@ -136,11 +140,7 @@ fun WelcomeScreen(onNext: () -> Unit, onLogin: () -> Unit) {
         Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 16.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                    Box(
-                        Modifier.size(30.dp).clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomEnd = 10.dp, bottomStart = 4.dp)).background(Color.White),
-                        contentAlignment = Alignment.Center,
-                    ) { Text("H", style = HqType.titleSmall2, color = LocalHqColors.current.textBrand) }
-                    Text("habitiq", style = HqType.titleSmall2, color = Color.White)
+                    HqWordmark(height = 26.dp, tint = Color.White)
                 }
                 Box(
                     Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onNext),
@@ -206,8 +206,13 @@ fun IntentChooserScreen(
     onExploreLater: () -> Unit = onSignOut
 ) {
     var step by rememberSaveable { mutableStateOf("goal") }
-    BackHandler(enabled = step != "goal") { step = "goal" }
     var goalMode by rememberSaveable { mutableStateOf(DiscoverMode.USE_A_FLAT.name) }
+    // Back from "done" returns to the search step it came from; every other step returns to the goal list.
+    BackHandler(enabled = step != "goal") {
+        step = if (step == "done") {
+            if (goalMode == DiscoverMode.FIND_A_PERSON.name) "findPerson" else "findFlat"
+        } else "goal"
+    }
     var name by rememberSaveable { mutableStateOf(userName) }
     var city by rememberSaveable { mutableStateOf("") }
     var budget by rememberSaveable { mutableStateOf("") }
@@ -218,6 +223,19 @@ fun IntentChooserScreen(
     var profileSaved by rememberSaveable { mutableStateOf(false) }
     var profileSaveError by rememberSaveable { mutableStateOf<String?>(null) }
     val c = LocalHqColors.current
+    val saveProfile = {
+        profileSaving = true
+        profileSaveError = null
+        onSaveProfile(name, city, gender) { success ->
+            profileSaving = false
+            if (success) {
+                profileSaved = true
+                step = "goal"
+            } else {
+                profileSaveError = "Couldn't save your profile. Check your connection and try again."
+            }
+        }
+    }
 
     Column(
         Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xxl)
@@ -226,9 +244,25 @@ fun IntentChooserScreen(
             "profile" -> {
                 Text("Your profile", style = HqType.headlineMedium, color = c.textPrimary)
                 Text("This helps the flat know who is joining.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl))
-                HqTextField(value = name, onValueChange = { name = it }, label = "Full name", leadingIcon = Icons.Filled.Badge)
+                HqTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = "Full name",
+                    placeholder = "e.g. Priya Sharma",
+                    leadingIcon = Icons.Filled.Badge,
+                    capitalization = KeyboardCapitalization.Words,
+                    contentType = ContentType.PersonFullName
+                )
                 Spacer(Modifier.height(HqSpacing.md))
-                HqTextField(value = city, onValueChange = { city = it }, label = "City / location", leadingIcon = Icons.Filled.LocationOn)
+                HqTextField(
+                    value = city,
+                    onValueChange = { city = it },
+                    label = "City / location",
+                    placeholder = "e.g. Hyderabad",
+                    leadingIcon = Icons.Filled.LocationOn,
+                    imeAction = ImeAction.Done,
+                    onImeAction = if (name.isNotBlank() && !profileSaving) saveProfile else null
+                )
                 Spacer(Modifier.height(HqSpacing.lg))
                 Text("I'm a", style = HqType.labelLarge, color = c.textSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), modifier = Modifier.padding(top = HqSpacing.sm)) {
@@ -244,19 +278,7 @@ fun IntentChooserScreen(
                     text = if (profileSaving) "Saving…" else "Continue",
                     enabled = name.isNotBlank() && !profileSaving,
                     loading = profileSaving,
-                    onClick = {
-                        profileSaving = true
-                        profileSaveError = null
-                        onSaveProfile(name, city, gender) { success ->
-                            profileSaving = false
-                            if (success) {
-                                profileSaved = true
-                                step = "goal"
-                            } else {
-                                profileSaveError = "Couldn't save your profile. Check your connection and try again."
-                            }
-                        }
-                    }
+                    onClick = saveProfile
                 )
             }
             "goal" -> {
@@ -273,11 +295,24 @@ fun IntentChooserScreen(
             }
             "findFlat", "findPerson" -> {
                 val people = step == "findPerson"
+                val continueToDone = {
+                    goalMode = if (people) DiscoverMode.FIND_A_PERSON.name else DiscoverMode.USE_A_FLAT.name
+                    step = "done"
+                }
                 Text(if (people) "Looking for a flatmate" else "Looking for a place", style = HqType.headlineMedium, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.lg))
-                HqTextField(value = city, onValueChange = { city = it }, label = "City / area", leadingIcon = Icons.Filled.LocationOn)
+                HqTextField(value = city, onValueChange = { city = it }, label = "City / area", placeholder = "e.g. Hyderabad", leadingIcon = Icons.Filled.LocationOn)
                 Spacer(Modifier.height(HqSpacing.md))
-                HqTextField(value = budget, onValueChange = { budget = it }, label = "Monthly budget (₹)", leadingIcon = Icons.Filled.CurrencyRupee)
+                HqTextField(
+                    value = budget,
+                    onValueChange = { budget = it },
+                    label = "Monthly budget (₹)",
+                    placeholder = "e.g. 12000",
+                    leadingIcon = Icons.Filled.CurrencyRupee,
+                    keyboardType = KeyboardType.Number,
+                    imeAction = ImeAction.Done,
+                    onImeAction = continueToDone
+                )
                 Spacer(Modifier.height(HqSpacing.lg))
                 Text(if (people) "Lifestyle" else "Room", style = HqType.labelLarge, color = c.textSecondary)
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), modifier = Modifier.padding(top = HqSpacing.sm)) {
@@ -290,10 +325,7 @@ fun IntentChooserScreen(
                     }
                 }
                 Spacer(Modifier.height(HqSpacing.xxl))
-                HqButton(text = "Continue", onClick = {
-                    goalMode = if (people) DiscoverMode.FIND_A_PERSON.name else DiscoverMode.USE_A_FLAT.name
-                    step = "done"
-                })
+                HqButton(text = "Continue", onClick = continueToDone)
             }
             else -> {
                 Image(

@@ -75,9 +75,15 @@ fun UseAFlatDiscoverContent(
     onOpenListing: (VacancyListing) -> Unit,
     onMyPosts: () -> Unit = {},
     onNearPlace: (() -> Unit)? = null,
+    header: @Composable () -> Unit = {},
+    listState: androidx.compose.foundation.lazy.LazyListState? = null,
 ) {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize()) {
+    // One scrolling list: the page header, search tools and results all move together.
+    LazyColumn(Modifier.fillMaxSize(), state = listState ?: androidx.compose.foundation.lazy.rememberLazyListState(), contentPadding = PaddingValues(bottom = HqSpacing.xxl)) {
+      item(key = "discover-top") {
+       Column {
+        header()
         SafetyBanner()
         Spacer(Modifier.height(HqSpacing.related))
 
@@ -120,14 +126,12 @@ fun UseAFlatDiscoverContent(
             hasFilters = filters.activeCount > 0
         )
 
+       }
+      }
         when {
-            isLoading -> {
-                DiscoveryLoading("Searching flats…")
-            }
-            loadError != null -> {
-                DiscoveryError("Couldn't load results.", "Check your connection and try again.", onRetry)
-            }
-            filteredVacancies.isEmpty() -> {
+            isLoading -> item { DiscoveryLoading("Searching flats…") }
+            loadError != null -> item { DiscoveryError("Couldn't load results.", "Check your connection and try again.", onRetry) }
+            filteredVacancies.isEmpty() -> item {
                 DiscoveryEmpty(
                     title = if (vacancies.isEmpty()) "No flats found" else "No flats match these filters",
                     body = if (vacancies.isEmpty()) {
@@ -139,14 +143,9 @@ fun UseAFlatDiscoverContent(
                     onAction = if (filters.activeCount > 0) onOpenFilters else null
                 )
             }
-            else -> {
-                LazyColumn(
-                    contentPadding = PaddingValues(start = HqSpacing.lg, end = HqSpacing.lg, top = HqSpacing.xs, bottom = HqSpacing.xxl),
-                    verticalArrangement = Arrangement.spacedBy(15.dp)
-                ) {
-                    items(filteredVacancies, key = { it.flatId }) { listing ->
-                        VacancyListingCard(listing, onOpenListing)
-                    }
+            else -> items(filteredVacancies, key = { it.flatId }) { listing ->
+                Box(Modifier.padding(horizontal = HqSpacing.lg).padding(top = HqSpacing.xs, bottom = 15.dp)) {
+                    VacancyListingCard(listing, onOpenListing)
                 }
             }
         }

@@ -1,6 +1,10 @@
 package habitiq.app.ui
 
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.border
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -157,7 +161,7 @@ fun ProfileScreen(
                     email = user?.email.orEmpty(),
                     flatName = flatInfo?.name,
                     flatSupport = "$role · ${members.size} ${if (members.size == 1) "member" else "members"}" + if (multiFlat) " · switch flats" else "",
-                    discoverySupport = if (myLooking?.active == true) "Your looking post is visible" else "Help people understand if you're a fit",
+                    discoverySupport = if (myLooking?.active == true) "Your looking post is visible" else "Tell people how you live",
                 ),
                 onEdit = { pane = ProfilePane.EDIT },
                 onOpenFlat = { if (flatInfo == null) onStartOnboarding() else pane = ProfilePane.FLAT },
@@ -212,7 +216,7 @@ private fun EditAccountPane(
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Edit profile", onBack = onBack)
-        Column(Modifier.padding(horizontal = HqSpacing.xl)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl).padding(bottom = HqSpacing.xxl)) {
             Box(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 25.dp), contentAlignment = Alignment.Center) {
                 habitiq.app.ui.components.HqAvatar(name.ifBlank { user?.email.orEmpty() }, size = habitiq.app.ui.components.HqAvatarSize.XL)
             }
@@ -226,7 +230,12 @@ private fun EditAccountPane(
                 value = name,
                 onValueChange = { name = it },
                 label = "Full name",
-                singleLine = true
+                placeholder = "e.g. Priya Sharma",
+                singleLine = true,
+                capitalization = KeyboardCapitalization.Words,
+                contentType = ContentType.PersonFullName,
+                imeAction = ImeAction.Done,
+                onImeAction = if (name.trim().isNotEmpty()) ({ onSave(name.trim()) }) else null
             )
             Spacer(Modifier.height(HqSpacing.md))
             HqTextField(
@@ -362,15 +371,17 @@ private fun DiscoveryProfilePane(
                 color = c.textSecondary,
                 modifier = Modifier.padding(bottom = HqSpacing.lg)
             )
-            HqTextField(city, { city = it }, label = "City", singleLine = true)
+            HqTextField(city, { city = it }, label = "City", placeholder = "e.g. Hyderabad", singleLine = true)
             Spacer(Modifier.height(HqSpacing.sm))
-            HqTextField(lookingIn, { lookingIn = it }, label = "Looking in", singleLine = true)
+            HqTextField(lookingIn, { lookingIn = it }, label = "Looking in", placeholder = "e.g. Gachibowli, Madhapur", singleLine = true)
             Spacer(Modifier.height(HqSpacing.sm))
             HqTextField(
                 budget,
                 { budget = it.filter { c2 -> c2.isDigit() } },
                 label = "Monthly budget (₹)",
-                singleLine = true
+                placeholder = "e.g. 12000",
+                singleLine = true,
+                keyboardType = KeyboardType.Number
             )
             Spacer(Modifier.height(HqSpacing.md))
             habitiq.app.ui.components.HqSectionTitle("Your information")
@@ -389,7 +400,7 @@ private fun DiscoveryProfilePane(
                 }
             }
             Spacer(Modifier.height(HqSpacing.sm))
-            HqTextField(bio, { bio = it }, label = "About you", singleLine = false, minLines = 3)
+            HqTextField(bio, { bio = it }, label = "About you", placeholder = "e.g. Software engineer, early riser, loves cooking", singleLine = false, minLines = 3)
             Spacer(Modifier.height(HqSpacing.md))
             habitiq.app.ui.components.HqSettingRow(
                 title = "Visible in Discovery",

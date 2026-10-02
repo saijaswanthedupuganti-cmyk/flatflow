@@ -51,6 +51,7 @@ fun HqSearchBar(
 ) {
     val c = LocalHqColors.current
     val shape = RoundedCornerShape(13.dp)
+    val searchFocus = androidx.compose.ui.platform.LocalFocusManager.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             Modifier.weight(1f).height(48.dp).clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(horizontal = 12.dp),
@@ -62,6 +63,8 @@ fun HqSearchBar(
                 if (value.isEmpty()) Text(placeholder, style = HqType.bodyMedium, color = c.textMuted, maxLines = 1)
                 BasicTextField(
                     value = value, onValueChange = onValueChange, singleLine = true,
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(imeAction = androidx.compose.ui.text.input.ImeAction.Search),
+                    keyboardActions = androidx.compose.foundation.text.KeyboardActions(onSearch = { searchFocus.clearFocus() }),
                     textStyle = HqType.bodyMedium.copy(color = c.textPrimary), cursorBrush = SolidColor(c.focus),
                     modifier = Modifier.fillMaxWidth().semantics { contentDescription = placeholder },
                 )
@@ -101,8 +104,9 @@ fun HqChipRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
 fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
     val shape = RoundedCornerShape(14.dp)
-    Box(modifier.defaultMinSize(minWidth = 48.dp, minHeight = 48.dp).clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = if (count > 0) "Connections, $count new" else "Connections" }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape), contentAlignment = Alignment.Center) {
+    // The ripple is clipped to the visible rounded tile, never a bare grey square.
+    Box(modifier.size(48.dp).semantics { contentDescription = if (count > 0) "Connections, $count new" else "Connections" }, contentAlignment = Alignment.Center) {
+        Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
             Icon(HqIcons.Message, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md))
         }
         if (count > 0) {
@@ -110,6 +114,21 @@ fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier
                 Text("$count", style = HqType.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
+    }
+}
+
+/** Header icon action in the same outlined 42dp tile as [HqInboxButton], so header actions match. */
+@Composable
+fun HqHeaderIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
+    val c = LocalHqColors.current
+    val shape = RoundedCornerShape(14.dp)
+    Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
+        Box(
+            Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape)
+                .clickable(role = Role.Button, onClick = onClick)
+                .semantics { this.contentDescription = contentDescription },
+            contentAlignment = Alignment.Center,
+        ) { Icon(icon, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md)) }
     }
 }
 
@@ -143,11 +162,16 @@ fun HqListingFrame(
  * For screens whose artwork runs under the status bar (Home hero, flat detail photo): tells the root to skip
  * its status-bar inset and switches the system icons to light while the screen is shown.
  */
+/** Screens that currently draw under the status bar. Overlapping screens (e.g. during a navigation
+ * transition) each hold a claim, so one leaving never turns the bleed off while another is shown. */
+private var heroBleedClaims = 0
+
 @Composable
 fun HqHeroBleedEffect(lightIcons: Boolean = true) {
     val bleed = habitiq.app.ui.theme.LocalHeroBleed.current
     val view = androidx.compose.ui.platform.LocalView.current
     androidx.compose.runtime.DisposableEffect(Unit) {
+        heroBleedClaims++
         bleed.value = true
         var ctx = view.context
         while (ctx is android.content.ContextWrapper && ctx !is android.app.Activity) ctx = ctx.baseContext
@@ -155,8 +179,11 @@ fun HqHeroBleedEffect(lightIcons: Boolean = true) {
         val controller = window?.let { androidx.core.view.WindowCompat.getInsetsController(it, view) }
         controller?.isAppearanceLightStatusBars = !lightIcons
         onDispose {
-            bleed.value = false
-            controller?.isAppearanceLightStatusBars = true
+            heroBleedClaims = (heroBleedClaims - 1).coerceAtLeast(0)
+            if (heroBleedClaims == 0) {
+                bleed.value = false
+                controller?.isAppearanceLightStatusBars = true
+            }
         }
     }
 }

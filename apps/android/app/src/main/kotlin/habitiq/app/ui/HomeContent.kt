@@ -21,6 +21,8 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -45,7 +47,10 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInWindow
 import androidx.core.view.WindowCompat
 import habitiq.app.R
 import habitiq.app.ui.components.HqAvatar
@@ -139,13 +144,28 @@ fun HomeContent(
 ) {
     val c = LocalHqColors.current
     HqHeroBleedEffect()
+    // Once the hero scrolls under the status bar, pin a solid compact bar (logo + notifications).
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val pinAtPx = WindowInsets.statusBars.getTop(density) + with(density) { 56.dp.toPx() }
+    val heroPinnedState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+    habitiq.app.ui.components.HqPinnedTopBar(
+        pinned = heroPinnedState.value,
+        showLogo = true,
+        actions = {
+            androidx.compose.material3.IconButton(onClick = onOpenNotifications, modifier = Modifier.size(HqSize.target)) {
+                Icon(HqIcons.Bell, contentDescription = "Notifications", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
+            }
+        },
+    )
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        HomeHero(model, onOpenFlatSwitcher, onInvite, onOpenExpenses, onOpenNotifications)
+        Box(Modifier.onGloballyPositioned { heroPinnedState.value = it.positionInWindow().y + it.size.height < pinAtPx }) {
+            HomeHero(model, onOpenFlatSwitcher, onInvite, onOpenExpenses, onOpenNotifications)
+        }
 
         Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(bottom = HqSpacing.screenEnd)) {
             HqSectionTitle("Today's tasks", action = "See all", onAction = onOpenTasks)
             if (model.tasks.isEmpty()) {
-                Text("Nothing is assigned to you right now.", style = HqType.bodyLarge, color = c.textSecondary)
+                HomeEmptyTasks()
             }
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 model.tasks.forEach { task ->
@@ -266,12 +286,7 @@ private fun HomeHero(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onInvit
 private fun HeroTopBar(model: HomeUiModel, onInvite: () -> Unit, onOpenNotifications: () -> Unit) {
     Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            Box(
-                Modifier.size(30.dp).clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomEnd = 10.dp, bottomStart = 4.dp))
-                    .background(Color.White.copy(alpha = .94f)),
-                contentAlignment = Alignment.Center,
-            ) { Text("H", style = HqType.titleSmall2, color = LocalHqColors.current.textBrand) }
-            Text("habitiq", style = HqType.titleSmall2, color = Color.White)
+            habitiq.app.ui.components.HqWordmark(height = 26.dp, tint = Color.White)
         }
         Box(
             Modifier.size(HqSize.target).clickable(role = Role.Button, onClick = onOpenNotifications)
@@ -336,19 +351,19 @@ private fun HeroStatusBand(model: HomeUiModel, onOpenExpenses: () -> Unit) {
     val moneyTitle = when {
         b.owe > 0 -> "You owe ${model.balanceText(b.owe)}"
         b.owed > 0 -> "You're owed ${model.balanceText(b.owed)}"
-        else -> "Expenses settled"
+        else -> "All settled"
     }
     val moneySupport = when {
         b.owe > 0 -> "To ${b.oweCount} ${if (b.oweCount == 1) "person" else "people"}"
         b.owed > 0 -> "From ${b.owedCount} ${if (b.owedCount == 1) "person" else "people"}"
-        else -> "Nobody owes anything"
+        else -> "No dues"
     }
     Row(
         Modifier.fillMaxWidth().background(Color(0xFF091917).copy(alpha = .76f)).drawBehind {
             drawLine(Color.White.copy(alpha = .09f), Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
         },
     ) {
-        StatusCell(Modifier.weight(1f), "${model.assignedCount}", "Tasks for you", model.summaryHeadline.trimEnd('.'), null)
+        StatusCell(Modifier.weight(1f), "${model.assignedCount}", if (model.assignedCount == 1) "Task for you" else "Tasks for you", if (model.assignedCount == 0) "All caught up" else "Due soon", null)
         StatusCell(Modifier.weight(1f), "₹", moneyTitle, moneySupport, onOpenExpenses)
     }
 }
@@ -357,16 +372,36 @@ private fun HeroStatusBand(model: HomeUiModel, onOpenExpenses: () -> Unit) {
 private fun StatusCell(modifier: Modifier, number: String, title: String, support: String, onClick: (() -> Unit)?) {
     Row(
         modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .defaultMinSize(minHeight = HqSize.target).padding(horizontal = HqSpacing.screenHorizontal, vertical = 14.dp),
+            .defaultMinSize(minHeight = HqSize.target).padding(start = HqSpacing.screenHorizontal, end = 8.dp, top = 16.dp, bottom = 16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Box(Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
             Text(number, style = HqType.titleSmall2, color = Color.White)
         }
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 2)
-            Text(support, style = HqType.labelSmall, color = Color.White.copy(alpha = .72f), maxLines = 2)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(support, style = HqType.labelSmall, color = Color.White.copy(alpha = .72f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+}
+
+/** Calm "all caught up" state for Today's tasks, instead of a bare sentence. */
+@Composable
+private fun HomeEmptyTasks() {
+    val c = LocalHqColors.current
+    val shape = RoundedCornerShape(20.dp)
+    Row(
+        Modifier.fillMaxWidth().clip(shape).background(c.surfaceSubtle).padding(horizontal = 16.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(c.selectedBg), contentAlignment = Alignment.Center) {
+            Icon(HqIcons.Check, null, tint = c.textBrand, modifier = Modifier.size(HqIconSize.md))
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text("You're all caught up", style = HqType.rowTitle, color = c.textPrimary)
+            Text("Nothing is assigned to you right now.", style = HqType.bodyMedium, color = c.textSecondary)
         }
     }
 }

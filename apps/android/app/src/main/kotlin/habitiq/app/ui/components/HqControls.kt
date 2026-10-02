@@ -22,6 +22,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -75,6 +79,57 @@ fun HqSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int
                     color = if (selected) c.textPrimary else c.textSecondary,
                     modifier = Modifier.padding(horizontal = HqSpacing.sm),
                 )
+            }
+        }
+    }
+}
+
+/**
+ * Secondary scope tabs (e.g. My tasks / All tasks) that sit under a primary [HqSegmentedControl].
+ * Lighter than a second segmented track so the two levels never look identical: text tabs with a
+ * count pill and a 2dp brand underline on the selected tab, over a hairline divider.
+ */
+@Composable
+fun HqScopeTabs(options: List<Pair<String, Int?>>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
+    val c = LocalHqColors.current
+    Box(modifier.fillMaxWidth()) {
+        Box(Modifier.align(Alignment.BottomStart).fillMaxWidth().height(1.dp).background(c.borderSubtle))
+        Row(Modifier.fillMaxWidth().selectableGroup(), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
+            options.forEachIndexed { index, (label, count) ->
+                val selected = index == selectedIndex
+                Column(
+                    Modifier.width(IntrinsicSize.Max)
+                        .defaultMinSize(minHeight = HqSize.target)
+                        .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
+                    verticalArrangement = Arrangement.Bottom,
+                ) {
+                    Row(
+                        Modifier.padding(vertical = 11.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(7.dp),
+                    ) {
+                        Text(
+                            label,
+                            style = HqType.labelLarge,
+                            fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                            color = if (selected) c.textPrimary else c.textSecondary,
+                            maxLines = 1,
+                        )
+                        if (count != null) {
+                            Box(
+                                Modifier.clip(RoundedCornerShape(HqRadius.pill))
+                                    .background(if (selected) c.selectedBg else c.surfaceSubtle)
+                                    .padding(horizontal = 7.dp, vertical = 1.dp),
+                            ) {
+                                Text("$count", style = HqType.labelSmall, fontWeight = FontWeight.Bold, color = if (selected) c.textBrand else c.textMuted)
+                            }
+                        }
+                    }
+                    Box(
+                        Modifier.fillMaxWidth().height(2.dp).clip(RoundedCornerShape(1.dp))
+                            .background(if (selected) c.brandTeal else Color.Transparent),
+                    )
+                }
             }
         }
     }

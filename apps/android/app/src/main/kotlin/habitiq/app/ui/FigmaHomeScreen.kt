@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Home
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -32,7 +30,22 @@ import habitiq.app.lib.formatInr
 import habitiq.app.lib.formatTimeAgo
 import habitiq.app.lib.formatWasDueLabel
 import habitiq.app.lib.pairwisePersonalBalances
-import habitiq.app.ui.components.HqEmptyState
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Text
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import habitiq.app.ui.components.HqArt
+import habitiq.app.ui.components.HqGroup
+import habitiq.app.ui.components.HqIcons
+import habitiq.app.ui.components.HqIllustration
+import habitiq.app.ui.components.HqMenuRow
+import habitiq.app.ui.components.HqTileTone
+import habitiq.app.ui.components.HqWordmark
+import habitiq.app.ui.theme.HqSpacing
+import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.components.HqErrorState
 import habitiq.app.ui.components.HqInlineLoading
 import habitiq.app.ui.theme.LocalHqColors
@@ -66,7 +79,7 @@ fun FigmaHomeScreen(
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         when (flatStatus) {
             is HomeFlatStatus.Loading -> HomeLoading()
-            is HomeFlatStatus.NoFlat -> NoFlatContent(onStartOnboarding)
+            is HomeFlatStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
             is HomeFlatStatus.Error -> HomeError((flatStatus as HomeFlatStatus.Error).message) {
                 homeViewModel.checkFlatStatus(); dashboardViewModel.load()
             }
@@ -86,7 +99,7 @@ fun FigmaHomeScreen(
                     onOpenActivity = onOpenActivity,
                     onOpenMembers = onOpenMembers,
                 )
-                is HomeDashboardStatus.NoFlat -> NoFlatContent(onStartOnboarding)
+                is HomeDashboardStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
             }
         }
     }
@@ -231,16 +244,67 @@ private fun plural(n: Int, singular: String, pluralForm: String = "${singular}s"
 private fun memberName(members: List<Member>, uid: String, currentUid: String) =
     if (uid == currentUid) "You" else members.find { it.uid == uid }?.nickname?.ifBlank { "A flatmate" } ?: "A flatmate"
 
+/**
+ * Home before the person belongs to a flat: brand, a warm illustration, a clear promise, and the three
+ * real ways forward as tappable rows (not one vague "Continue").
+ */
 @Composable
-private fun NoFlatContent(onStartOnboarding: () -> Unit) {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        HqEmptyState(
-            icon = Icons.Filled.Home,
-            title = "Let's get you set up",
-            message = "Tell us what you want to do first: manage a flat, find a flatmate, or join with a code.",
-            primaryLabel = "Continue",
-            onPrimaryClick = onStartOnboarding
+private fun NoFlatContent(onStartOnboarding: () -> Unit, onOpenDiscover: () -> Unit) {
+    val c = LocalHqColors.current
+    Column(
+        Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = HqSpacing.screenHorizontal)
+            .padding(top = 20.dp, bottom = HqSpacing.screenEnd),
+    ) {
+        HqWordmark(height = 28.dp)
+        Box(Modifier.fillMaxWidth().padding(top = 28.dp), contentAlignment = Alignment.Center) {
+            HqIllustration(HqArt.SharedHome, Modifier.fillMaxWidth(0.78f))
+        }
+        Text(
+            "WELCOME",
+            style = HqType.labelSmall,
+            color = c.textBrand,
+            fontWeight = FontWeight.ExtraBold,
+            modifier = Modifier.padding(top = 28.dp),
         )
+        Text(
+            "Shared living,\nmade easier.",
+            style = HqType.display,
+            color = c.textPrimary,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+        Text(
+            "Set up your home, join your flatmates, or find your next place. Pick where to start.",
+            style = HqType.bodyMedium,
+            color = c.textSecondary,
+            modifier = Modifier.padding(top = 8.dp, bottom = 22.dp),
+        )
+        HqGroup {
+            HqMenuRow(
+                title = "Set up my flat",
+                support = "Create a home and invite flatmates",
+                icon = HqIcons.Home,
+                tone = HqTileTone.Teal,
+                onClick = onStartOnboarding,
+            )
+            HqMenuRow(
+                title = "Join with a code",
+                support = "A flatmate shared an invite with you",
+                icon = HqIcons.Users,
+                tone = HqTileTone.Sand,
+                onClick = onStartOnboarding,
+            )
+            HqMenuRow(
+                title = "Find a flat or flatmate",
+                support = "Browse rooms and people in Discover",
+                icon = HqIcons.Discover,
+                tone = HqTileTone.Coral,
+                lastRow = true,
+                onClick = onOpenDiscover,
+            )
+        }
     }
 }
 

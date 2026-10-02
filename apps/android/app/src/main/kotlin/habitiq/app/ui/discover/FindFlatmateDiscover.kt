@@ -78,9 +78,14 @@ fun FindFlatmateDiscoverContent(
     onOpenProfile: (SeekerProfile) -> Unit,
     onConnect: (SeekerProfile) -> Unit,
     onMyPosts: () -> Unit = {},
+    header: @Composable () -> Unit = {},
+    listState: androidx.compose.foundation.lazy.LazyListState? = null,
 ) {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize()) {
+    LazyColumn(Modifier.fillMaxSize(), state = listState ?: androidx.compose.foundation.lazy.rememberLazyListState(), contentPadding = PaddingValues(bottom = HqSpacing.xxl)) {
+      item(key = "discover-top") {
+       Column {
+        header()
         habitiq.app.ui.components.HqSearchBar(
             value = filters.cityArea,
             onValueChange = { onFiltersChange(filters.copy(cityArea = it)) },
@@ -118,21 +123,22 @@ fun FindFlatmateDiscoverContent(
             }
         ) { onFiltersChange(SeekerFilters()) }
 
+       }
+      }
         when {
-            isLoading -> DiscoveryLoading("Finding people…")
-            loadError != null -> DiscoveryError("Couldn't load results.", loadError, onRetry)
-            filtered.isEmpty() -> DiscoveryEmpty(
-                title = "No flatmates found",
-                body = "Try removing one filter or expanding your search.",
-                actionLabel = if (filters.activeCount > 0) "Edit filters" else null,
-                onAction = if (filters.activeCount > 0) onOpenFilters else null,
-                person = true
-            )
-            else -> LazyColumn(
-                contentPadding = PaddingValues(start = HqSpacing.lg, end = HqSpacing.lg, top = HqSpacing.sm, bottom = HqSpacing.xxl),
-                verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
-            ) {
-                items(filtered, key = { it.id }) { seeker ->
+            isLoading -> item { DiscoveryLoading("Finding people…") }
+            loadError != null -> item { DiscoveryError("Couldn't load results.", loadError, onRetry) }
+            filtered.isEmpty() -> item {
+                DiscoveryEmpty(
+                    title = "No flatmates found",
+                    body = "Try removing one filter or expanding your search.",
+                    actionLabel = if (filters.activeCount > 0) "Edit filters" else null,
+                    onAction = if (filters.activeCount > 0) onOpenFilters else null,
+                    person = true
+                )
+            }
+            else -> items(filtered, key = { it.id }) { seeker ->
+                androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = HqSpacing.lg).padding(top = HqSpacing.sm, bottom = HqSpacing.md)) {
                     FlatmateCard(
                         seeker = seeker,
                         signals = Compatibility.seekerSignals(seeker, filters, viewerCity).map { it.label },

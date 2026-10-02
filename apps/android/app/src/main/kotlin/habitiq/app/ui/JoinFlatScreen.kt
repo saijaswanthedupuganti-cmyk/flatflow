@@ -2,6 +2,9 @@ package habitiq.app.ui
 
 import habitiq.app.ui.components.HqButtonVariant
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.draw.clip
 import habitiq.app.ui.theme.HqIconSize
 import androidx.compose.material3.Icon
@@ -83,7 +86,13 @@ fun JoinFlatScreen(
                 },
                 label = "Invite code",
                 placeholder = "FLAT-A3B9",
-                leadingIcon = Icons.Filled.VpnKey
+                leadingIcon = Icons.Filled.VpnKey,
+                keyboardType = KeyboardType.Ascii,
+                capitalization = KeyboardCapitalization.Characters,
+                imeAction = ImeAction.Done,
+                onImeAction = if (preview == null && code.isNotBlank() && state !is FlatUiState.Loading) {
+                    { viewModel.lookupFlat(code) }
+                } else null
             )
             Spacer(Modifier.height(HqSpacing.lg))
             val found = preview

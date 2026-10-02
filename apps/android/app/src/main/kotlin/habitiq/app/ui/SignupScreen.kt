@@ -135,6 +135,9 @@ fun SignupScreen(
                 leadingIcon = Icons.Filled.Lock,
                 contentType = ContentType.NewPassword,
                 imeAction = ImeAction.Done,
+                onImeAction = if (state !is AuthUiState.Loading && email.isNotBlank() && hasMinLength && hasLetterAndNumber && hasSpecial) {
+                    { viewModel.signUpWithEmail(email, password) }
+                } else null,
             )
             Spacer(Modifier.height(HqSpacing.md))
             PasswordRequirement("At least 8 characters", hasMinLength)

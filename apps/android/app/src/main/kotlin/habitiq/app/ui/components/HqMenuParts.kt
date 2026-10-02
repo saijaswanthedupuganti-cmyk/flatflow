@@ -24,6 +24,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqType
@@ -72,8 +73,8 @@ fun HqMenuRow(
         ) {
             if (icon != null) HqIconTile(icon, tone, size = 38)
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(title, style = HqType.rowTitle, color = if (danger) c.statusDangerFg else c.textPrimary)
-                if (support != null) Text(support, style = HqType.bodyMedium, color = c.textSecondary)
+                Text(title, style = HqType.rowTitle, color = if (danger) c.statusDangerFg else c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (support != null) Text(support, style = HqType.bodyMedium, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
             if (showChevron) Icon(HqIcons.Chevron, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.sm))
         }

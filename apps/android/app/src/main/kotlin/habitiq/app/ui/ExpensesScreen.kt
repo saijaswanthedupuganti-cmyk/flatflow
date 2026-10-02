@@ -34,6 +34,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import habitiq.app.data.FlatExpense
@@ -213,6 +214,27 @@ private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, cu
     val assignedPaise = selected.sumOf { parsePaise(customAmounts[it].orEmpty()) ?: 0L }
     val remainingPaise = totalPaise - assignedPaise
     val customValid = equalSplit || (totalPaise > 0 && remainingPaise == 0L)
+    val canSubmit = desc.isNotBlank() && totalPaise > 0 && selected.isNotEmpty() && customValid
+    fun submit() {
+        val amt = totalPaise / 100.0
+        saving = true
+        saveError = null
+        val custom = if (equalSplit) null else selected.associateWith { (parsePaise(customAmounts[it].orEmpty()) ?: 0L) / 100.0 }
+        viewModel.addExpense(
+            desc,
+            amt,
+            selected.toList(),
+            category.lowercase(),
+            splitType = if (equalSplit) "equal" else "custom",
+            customSplits = custom,
+            paidBy = paidBy,
+        ) { ok ->
+            saving = false
+            if (ok) onSaved("${formatInr(amt)} for $desc") else saveError = "Couldn't add the expense. Try again."
+        }
+    }
+    // The keyboard's Done key submits only when the form is complete; otherwise it just closes the keyboard.
+    val imeSubmit: (() -> Unit)? = if (canSubmit && !saving) ({ submit() }) else null
 
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Add expense", onBack = onBack)
@@ -232,6 +254,8 @@ private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, cu
             HqTextField(
                 value = amount, onValueChange = { amount = it }, label = "Amount (₹)", placeholder = "e.g., 1,200",
                 leadingIcon = Icons.Filled.CurrencyRupee, keyboardType = KeyboardType.Decimal,
+                imeAction = if (equalSplit) ImeAction.Done else ImeAction.Next,
+                onImeAction = if (equalSplit) imeSubmit else null,
             )
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
@@ -263,6 +287,7 @@ private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, cu
                 )
             }
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
+                val lastShareUid = members.lastOrNull { it.uid in selected }?.uid
                 members.forEach { member ->
                     val on = member.uid in selected
                     Row(
@@ -284,6 +309,8 @@ private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, cu
                             onValueChange = { customAmounts = customAmounts + (member.uid to it) },
                             label = "${member.nickname}'s share (₹)",
                             keyboardType = KeyboardType.Decimal,
+                            imeAction = if (member.uid == lastShareUid) ImeAction.Done else ImeAction.Next,
+                            onImeAction = if (member.uid == lastShareUid) imeSubmit else null,
                             modifier = Modifier.padding(start = HqSpacing.xxxl, bottom = HqSpacing.sm),
                         )
                     }
@@ -313,25 +340,8 @@ private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, cu
             HqButton(
                 text = if (saving) "Adding…" else "Add expense",
                 loading = saving,
-                enabled = desc.isNotBlank() && totalPaise > 0 && selected.isNotEmpty() && customValid,
-                onClick = {
-                    val amt = totalPaise / 100.0
-                    saving = true
-                    saveError = null
-                    val custom = if (equalSplit) null else selected.associateWith { (parsePaise(customAmounts[it].orEmpty()) ?: 0L) / 100.0 }
-                    viewModel.addExpense(
-                        desc,
-                        amt,
-                        selected.toList(),
-                        category.lowercase(),
-                        splitType = if (equalSplit) "equal" else "custom",
-                        customSplits = custom,
-                        paidBy = paidBy,
-                    ) { ok ->
-                        saving = false
-                        if (ok) onSaved("${formatInr(amt)} for $desc") else saveError = "Couldn't add the expense. Try again."
-                    }
-                }
+                enabled = canSubmit,
+                onClick = { submit() }
             )
         }
     }

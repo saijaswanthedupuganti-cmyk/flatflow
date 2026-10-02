@@ -216,6 +216,9 @@ fun DiscoverBoardScreen(
     val savedIds by prefs.savedFlats(uid).collectAsState(initial = emptySet())
     val savedScope = androidx.compose.runtime.rememberCoroutineScope()
     var flatFrom by rememberSaveable { mutableStateOf("browse") }
+    // Where the person profile / chat were opened from, so back returns there instead of browse.
+    var personFrom by rememberSaveable { mutableStateOf("browse") }
+    var chatFrom by rememberSaveable { mutableStateOf("browse") }
     val trustPrompted by prefs.discoveryTrustPrompted.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
 
@@ -227,8 +230,10 @@ fun DiscoverBoardScreen(
             surface == "create" || surface == "posts" || surface == "inbox" ->
                 if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse"
             surface == "flat" -> { surface = flatFrom; flatFrom = "browse" }
-            surface == "person" || surface == "saved" || surface == "map" -> surface = "browse"
-            surface == "chat" -> { surface = if (initialSurface == "inbox") "inbox" else "browse"; chatPartnerId = null }
+            surface == "person" -> { surface = personFrom; personFrom = "browse" }
+            surface == "saved" || surface == "map" -> surface = "browse"
+            surface == "chat" -> { surface = chatFrom; chatFrom = "browse"; chatPartnerId = null }
+            surface == "choose" && initialSurface == "entry" -> surface = "entry"
             else -> surface = "browse"
         }
     }
@@ -428,6 +433,7 @@ fun DiscoverBoardScreen(
                 if (canOpenChat(partner)) {
                     chatPartnerId = partner
                     chatContext = label
+                    chatFrom = "inbox"
                     surface = "chat"
                 }
             },
@@ -467,6 +473,7 @@ fun DiscoverBoardScreen(
                     } else emptyList(),
                     onOpenInterested = { personId ->
                         selectedSeekerId = personId
+                        personFrom = "flat"
                         surface = "person"
                     },
                     onBack = { surface = flatFrom; flatFrom = "browse" },
@@ -484,6 +491,7 @@ fun DiscoverBoardScreen(
                     onMessage = {
                         chatPartnerId = partner
                         chatContext = listing.flatName
+                        chatFrom = "flat"
                         surface = "chat"
                     },
                     onAccept = { viewModel.respondToConnection(it, true) },
@@ -521,7 +529,7 @@ fun DiscoverBoardScreen(
                     incomingRequestId = incomingId(seeker.id),
                     blocked = seeker.id in blockedIds,
                     isSelf = seeker.id == uid,
-                    onBack = { surface = "browse" },
+                    onBack = { surface = personFrom; personFrom = "browse" },
                     onConnect = {
                         connectTargetUid = seeker.id
                         connectName = seeker.displayName.ifBlank { "this person" }
@@ -532,6 +540,7 @@ fun DiscoverBoardScreen(
                     onMessage = {
                         chatPartnerId = seeker.id
                         chatContext = seeker.lookingIn.ifBlank { "Looking for a flat" }
+                        chatFrom = "person"
                         surface = "chat"
                     },
                     onAccept = { viewModel.respondToConnection(it, true) },
@@ -548,7 +557,7 @@ fun DiscoverBoardScreen(
                 viewModel = viewModel,
                 partnerId = partner,
                 contextLabel = chatContext,
-                onBack = { surface = if (initialSurface == "inbox") "inbox" else "browse"; chatPartnerId = null },
+                onBack = { surface = chatFrom; chatFrom = "browse"; chatPartnerId = null },
                 onReport = { reportTarget = partner to null },
                 onBlock = {
                     blockTarget = partner to chatContext.ifBlank { "this person" }
@@ -572,7 +581,7 @@ fun DiscoverBoardScreen(
             findingPerson = mode == DiscoverMode.FIND_A_PERSON,
             query = chooseQuery,
             onQuery = { chooseQuery = it },
-            onBack = { surface = "browse" },
+            onBack = { surface = if (initialSurface == "entry") "entry" else "browse" },
             onContinue = {
                 if (mode == DiscoverMode.FIND_A_PERSON) {
                     seekerFilters = seekerFilters.copy(cityArea = chooseQuery.trim())
@@ -607,6 +616,25 @@ fun DiscoverBoardScreen(
             HqButton(text = "Back to Discover", onClick = { surface = "browse" }, variant = HqButtonVariant.Secondary)
         }
         else -> Column(Modifier.fillMaxSize().background(c.canvas)) {
+            val flatList = androidx.compose.foundation.lazy.rememberLazyListState()
+            val personList = androidx.compose.foundation.lazy.rememberLazyListState()
+            val activeList = if (mode == DiscoverMode.USE_A_FLAT) flatList else personList
+            val pinPx = with(androidx.compose.ui.platform.LocalDensity.current) { 72.dp.toPx() }
+            val discoverPinned by androidx.compose.runtime.remember(activeList) {
+                androidx.compose.runtime.derivedStateOf { activeList.firstVisibleItemIndex > 0 || activeList.firstVisibleItemScrollOffset > pinPx }
+            }
+            habitiq.app.ui.components.HqPinnedTopBar(
+                pinned = discoverPinned,
+                title = "Discover",
+                actions = {
+                    habitiq.app.ui.components.HqHeaderIconButton(habitiq.app.ui.components.HqIcons.Heart, "Saved flats", { surface = "saved" })
+                    habitiq.app.ui.components.HqInboxButton(
+                        count = connections.count { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT },
+                        onClick = { surface = "inbox" },
+                    )
+                },
+            )
+            val discoverTop: @Composable () -> Unit = {
             DiscoverHeader(
                 onBack = { surface = "browse" },
                 onMyPosts = { surface = "posts" },
@@ -620,13 +648,14 @@ fun DiscoverBoardScreen(
                 Text(
                     when (mode) {
                         DiscoverMode.USE_A_FLAT -> "Find a place to live — flats, PGs and open rooms."
-                        DiscoverMode.FIND_A_PERSON -> "Find people who may fit a household. Not the same search as flats."
+                        DiscoverMode.FIND_A_PERSON -> "People looking for a home, matched to how you live."
                     },
                     style = HqType.bodySmall,
                     color = c.textSecondary
                 )
             }
             Spacer(Modifier.height(HqSpacing.sm))
+            }
             when (mode) {
                 DiscoverMode.USE_A_FLAT -> UseAFlatDiscoverContent(
                     vacancies = vacancies,
@@ -643,10 +672,12 @@ fun DiscoverBoardScreen(
                     },
                     onMyPosts = { surface = "posts" },
                     onNearPlace = { surface = "map" },
+                    header = discoverTop,
+                    listState = flatList,
                 )
                 DiscoverMode.FIND_A_PERSON -> {
                     if (!DiscoverFlags.FIND_FLATMATE) {
-                        FindPersonStub()
+                        Column { discoverTop(); FindPersonStub() }
                     } else {
                         FindFlatmateDiscoverContent(
                             seekers = seekers.filter { it.id != uid },
@@ -660,8 +691,11 @@ fun DiscoverBoardScreen(
                             trustConsent = trustConsent,
                             onOpenFilters = { showFilterSheet = true },
                             onMyPosts = { surface = "posts" },
+                            header = discoverTop,
+                            listState = personList,
                             onOpenProfile = {
                                 selectedSeekerId = it.id
+                                personFrom = "browse"
                                 surface = "person"
                             },
                             onConnect = { seeker ->
@@ -750,13 +784,23 @@ private fun DiscoverChoose(
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = if (findingPerson) "Find a person" else "Find a place", onBack = onBack)
-        Column(Modifier.padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
+        ) {
             Text(
                 if (findingPerson) "Search by location or lifestyle." else "Search flats, rooms and landmarks.",
                 style = HqType.bodyMedium,
                 color = c.textSecondary
             )
-            HqTextField(value = query, onValueChange = onQuery, label = "Search", placeholder = "City, area or landmark")
+            HqTextField(
+                value = query,
+                onValueChange = onQuery,
+                label = "Search",
+                placeholder = "City, area or landmark",
+                imeAction = androidx.compose.ui.text.input.ImeAction.Search,
+                onImeAction = onContinue
+            )
             Text("Recent searches", style = HqType.titleSmall, color = c.textPrimary)
             habitiq.app.ui.components.HqChipFlow {
                 listOf("2 BHK", "Private room", "Hyderabad").forEach { hint ->
@@ -775,12 +819,11 @@ private fun DiscoverHeader(onBack: () -> Unit, onMyPosts: () -> Unit, onInbox: (
     // the shell's + (vacancy / looking) and "My posts" sits on the list's section title.
     habitiq.app.ui.components.HqPageHeader(
         title = "Discover",
-        subtitle = "Find a place \u2014 or the right person.",
+        subtitle = "Find a place or the right people.",
+        pinOnScroll = false,
         modifier = Modifier.padding(start = HqSpacing.screenHorizontal, end = HqSpacing.screenHorizontal, top = HqSpacing.sm),
         action = {
-            androidx.compose.material3.IconButton(onClick = onSaved, modifier = Modifier.size(48.dp)) {
-                androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Heart, contentDescription = "Saved flats", tint = LocalHqColors.current.iconDefault, modifier = Modifier.size(HqIconSize.md))
-            }
+            habitiq.app.ui.components.HqHeaderIconButton(habitiq.app.ui.components.HqIcons.Heart, "Saved flats", onSaved)
             habitiq.app.ui.components.HqInboxButton(count = inboxCount, onClick = onInbox)
         },
     )
@@ -924,6 +967,8 @@ fun ChatScreen(
     var text by remember { mutableStateOf("") }
     var sending by remember { mutableStateOf(false) }
     var showSchedule by rememberSaveable { mutableStateOf(false) }
+    // Registered after Discover's outer handler, so back closes the schedule sub-screen first.
+    BackHandler(enabled = showSchedule) { showSchedule = false }
     val partnerName = vacancies.find { it.adminUid == partnerId }?.flatName
         ?: seekers.find { it.id == partnerId }?.displayName?.takeIf { it.isNotBlank() }
         ?: "Oddroof user"
@@ -1015,6 +1060,10 @@ fun ChatScreen(
                 androidx.compose.foundation.text.BasicTextField(
                     value = text, onValueChange = { text = it }, textStyle = HqType.bodyLarge.copy(color = c.textPrimary),
                     cursorBrush = androidx.compose.ui.graphics.SolidColor(c.focus), modifier = Modifier.fillMaxWidth(),
+                    keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(
+                        capitalization = androidx.compose.ui.text.input.KeyboardCapitalization.Sentences
+                    ),
+                    maxLines = 5,
                 )
             }
             val canSend = text.isNotBlank() && !sending

@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
+import androidx.compose.animation.togetherWith
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import habitiq.app.auth.AuthRepository
@@ -186,6 +189,7 @@ fun HabitiqApp() {
 
     // Home's photo hero bleeds under the status bar; it flips this on while it is on screen.
     val heroBleed = remember { mutableStateOf(false) }
+    val rootFocusManager = androidx.compose.ui.platform.LocalFocusManager.current
     HabitiqTheme {
         // The single status-bar inset for every screen; individual screens must not add their own.
         // Centre and cap the content column on tablets/foldables (design doc 7.2); phones are unaffected.
@@ -193,9 +197,12 @@ fun HabitiqApp() {
         androidx.compose.runtime.CompositionLocalProvider(habitiq.app.ui.theme.LocalHeroBleed provides heroBleed) {
         Surface(
             modifier = Modifier.widthIn(max = HqLayout.contentMax).fillMaxSize()
-                .then(if (heroBleed.value) Modifier else Modifier.statusBarsPadding()).imePadding(),
+                .then(if (heroBleed.value) Modifier else Modifier.statusBarsPadding()).imePadding()
+                // Android convention: tapping empty space dismisses the keyboard. Child clickables consume their own taps.
+                .pointerInput(Unit) { detectTapGestures { rootFocusManager.clearFocus() } },
             color = LocalHqColors.current.canvas,
         ) {
+          habitiq.app.ui.components.HqTopBarHost {
             if (!startupResolved) {
                 habitiq.app.ui.components.HqLoadingScreen()
             } else if (startupError != null) {
@@ -208,7 +215,15 @@ fun HabitiqApp() {
                     HqTextButton(text = "Try again", onClick = { startupAttempt += 1 })
                 }
             } else {
-                NavHost(navController = navController, startDestination = startDestination) {
+                val navMotion = !habitiq.app.ui.theme.hqReduceMotion()
+                NavHost(
+                    navController = navController,
+                    startDestination = startDestination,
+                    enterTransition = { if (navMotion) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300, easing = habitiq.app.ui.theme.HqEaseOut)) { it / 5 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40)) else androidx.compose.animation.EnterTransition.None },
+                    exitTransition = { if (navMotion) androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) else androidx.compose.animation.ExitTransition.None },
+                    popEnterTransition = { if (navMotion) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300, easing = habitiq.app.ui.theme.HqEaseOut)) { -it / 5 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40)) else androidx.compose.animation.EnterTransition.None },
+                    popExitTransition = { if (navMotion) androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { it / 6 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) else androidx.compose.animation.ExitTransition.None },
+                ) {
                     composable(Routes.WELCOME) {
                         WelcomeScreen(
                             onNext = { navController.navigate(Routes.SIGNUP) },
@@ -374,211 +389,229 @@ fun HabitiqApp() {
                             }
                         }
 
-                        when (profileOverlay) {
-                            "members" -> MembersScreen(flatViewModel, onBack = { profileOverlay = null })
-                            "flat_settings" -> FlatSettingsScreen(flatViewModel, onBack = { profileOverlay = null })
-                            "activity" -> ActivityLogScreen(flatViewModel, onBack = { profileOverlay = null })
-                        }
-
-                        if (profileOverlay == null && moneyOverlay != null) {
-                            when (moneyOverlay) {
-                                "expenses" -> ExpensesScreen(
-                                    flatViewModel,
-                                    onBack = { moneyOverlay = null },
-                                    onOpenBills = { moneyOverlay = "bills" }
-                                )
-                                "bills" -> BillsScreen(flatViewModel, onBack = { moneyOverlay = null })
-                            }
-                        } else if (profileOverlay == null) {
-                            when (tasksOverlay) {
-                                "going_away" -> GoingAwayScreen(
-                                    viewModel = flatViewModel,
-                                    onBack = { tasksOverlay = null },
-                                    onSent = {
-                                        tasksOverlay = null
-                                        selectedTab = AppTab.TASKS
-                                        manageAreaName = ManageFlatArea.TASKS.name
-                                    }
-                                )
-                                "create_type" -> CreateTaskTypeScreen(
-                                    onBack = { tasksOverlay = null },
-                                    onSelect = { type ->
-                                        createTaskType = if (type == TaskStructure.GROUP) "group_duty" else "rotating_duty"
-                                        tasksOverlay = when (type) {
-                                            TaskStructure.RECURRING, TaskStructure.GROUP -> "create_recurring"
-                                            TaskStructure.TEMP -> "create_temp"
-                                        }
-                                    }
-                                )
-                                "create_recurring" -> CreateRecurringTaskScreen(
-                                    viewModel = flatViewModel,
-                                    onBack = { tasksOverlay = "create_type" },
-                                    onCreated = { tasksOverlay = "task_created" },
-                                    taskType = createTaskType
-                                )
-                                "create_temp" -> CreateTempTaskScreen(
-                                    viewModel = flatViewModel,
-                                    onBack = { tasksOverlay = "create_type" },
-                                    onCreated = { tasksOverlay = "task_created" }
-                                )
-                                "task_created" -> TaskCreatedScreen(
-                                    onViewTask = {
-                                        tasksOverlay = null
-                                        selectedTab = AppTab.TASKS
-                                        manageAreaName = ManageFlatArea.TASKS.name
-                                    },
-                                    onAddAnother = { tasksOverlay = "create_type" }
-                                )
-                                else -> if (selectedTaskId != null) {
-                                    val task = flatViewModelTasks.find { it.taskId == selectedTaskId }
-                                    if (task != null) {
-                                        TaskDetailScreen(
-                                            task = task,
-                                            members = flatViewModelMembers,
-                                            currentUid = flatViewModelUser?.uid.orEmpty(),
-                                            onBack = { selectedTaskId = null },
-                                            onRequestSwap = { toUid ->
-                                                flatViewModel.createSwapRequest(task.taskId, toUid)
-                                                selectedTaskId = null
-                                            },
-                                            onComplete = {
-                                                flatViewModel.completeTask(task)
-                                                selectedTaskId = null
-                                            },
-                                            onOpenAway = {
-                                                selectedTaskId = null
-                                                tasksOverlay = "going_away"
-                                            },
-                                        )
-                                    } else {
-                                        selectedTaskId = null
-                                    }
+                        // Overlays slide in from the right when going deeper and back out when returning
+                        // (Android shared-axis X). The key captures the layer state so the outgoing screen
+                        // keeps rendering what it showed while it animates away.
+                        val overlayKey = OverlayKey(profileOverlay, moneyOverlay, tasksOverlay, selectedTaskId)
+                        val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
+                        androidx.compose.animation.AnimatedContent(
+                            targetState = overlayKey,
+                            transitionSpec = {
+                                if (reduceMotion) {
+                                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
                                 } else {
-                                    val manageArea = runCatching { ManageFlatArea.valueOf(manageAreaName) }.getOrDefault(ManageFlatArea.HUB)
-                                    // One contextual create action by place and role. Home and Profile have no
-                                    // verified create action, so the slot stays empty there.
-                                    val createAction: ShellCreate = when (selectedTab) {
-                                        // Figma: the raised plus on Manage is one Create menu for both tasks and expenses.
-                                        AppTab.TASKS -> ShellCreate.Menu(
-                                            buildList {
-                                                if (shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "create_type" })
-                                                add(CreateOption("Add expense") {
-                                                    manageAreaName = ManageFlatArea.EXPENSES.name
-                                                    flatViewModel.showAddExpenseTrigger.value = true
-                                                })
-                                                add(CreateOption("Bills") { moneyOverlay = "bills" })
-                                            }
-                                        )
-                                        // Discover has two kinds of post: a vacancy (admins) and "I'm looking" (everyone).
-                                        AppTab.DISCOVER -> {
-                                            val options = buildList {
-                                                if (shellIsAdmin) add(CreateOption("Post a vacancy") { discoverCreateType = "VACANCY"; discoverOpenCreate = true })
-                                                if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("Post that I'm looking") { discoverCreateType = "LOOKING"; discoverOpenCreate = true })
-                                            }
-                                            when (options.size) {
-                                                0 -> ShellCreate.None
-                                                1 -> ShellCreate.Direct(options[0].label, options[0].onClick)
-                                                else -> ShellCreate.Menu(options)
+                                    val forward = targetState.depth >= initialState.depth
+                                    val dir = if (forward) 1 else -1
+                                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(280, easing = habitiq.app.ui.theme.HqEaseOut)) { w -> dir * w / 5 } +
+                                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40))) togetherWith
+                                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240, easing = habitiq.app.ui.theme.HqEaseOut)) { w -> -dir * w / 8 } +
+                                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140)))
+                                }
+                            },
+                            label = "overlay",
+                        ) { k ->
+                            when (k.profile) {
+                                "members" -> MembersScreen(flatViewModel, onBack = { profileOverlay = null })
+                                "flat_settings" -> FlatSettingsScreen(flatViewModel, onBack = { profileOverlay = null })
+                                "activity" -> ActivityLogScreen(flatViewModel, onBack = { profileOverlay = null })
+                            }
+
+                            if (k.profile == null && k.money != null) {
+                                when (k.money) {
+                                    "expenses" -> ExpensesScreen(
+                                        flatViewModel,
+                                        onBack = { moneyOverlay = null },
+                                        onOpenBills = { moneyOverlay = "bills" }
+                                    )
+                                    "bills" -> BillsScreen(flatViewModel, onBack = { moneyOverlay = null })
+                                }
+                            } else if (k.profile == null) {
+                                when (k.tasks) {
+                                    "going_away" -> GoingAwayScreen(
+                                        viewModel = flatViewModel,
+                                        onBack = { tasksOverlay = null },
+                                        onSent = {
+                                            tasksOverlay = null
+                                            selectedTab = AppTab.TASKS
+                                            manageAreaName = ManageFlatArea.TASKS.name
+                                        }
+                                    )
+                                    "create_type" -> CreateTaskTypeScreen(
+                                        onBack = { tasksOverlay = null },
+                                        onSelect = { type ->
+                                            createTaskType = if (type == TaskStructure.GROUP) "group_duty" else "rotating_duty"
+                                            tasksOverlay = when (type) {
+                                                TaskStructure.RECURRING, TaskStructure.GROUP -> "create_recurring"
+                                                TaskStructure.TEMP -> "create_temp"
                                             }
                                         }
-                                        else -> ShellCreate.None
-                                    }
-                                    AppShell(
-                                        selectedTab = selectedTab,
-                                        createAction = createAction,
-                                        onTabSelected = {
-                                            if (it != selectedTab) moneyOverlay = null
-                                            selectedTab = it
+                                    )
+                                    "create_recurring" -> CreateRecurringTaskScreen(
+                                        viewModel = flatViewModel,
+                                        onBack = { tasksOverlay = "create_type" },
+                                        onCreated = { tasksOverlay = "task_created" },
+                                        taskType = createTaskType
+                                    )
+                                    "create_temp" -> CreateTempTaskScreen(
+                                        viewModel = flatViewModel,
+                                        onBack = { tasksOverlay = "create_type" },
+                                        onCreated = { tasksOverlay = "task_created" }
+                                    )
+                                    "task_created" -> TaskCreatedScreen(
+                                        onViewTask = {
+                                            tasksOverlay = null
+                                            selectedTab = AppTab.TASKS
+                                            manageAreaName = ManageFlatArea.TASKS.name
+                                        },
+                                        onAddAnother = { tasksOverlay = "create_type" }
+                                    )
+                                    else -> if (k.taskId != null) {
+                                        val task = flatViewModelTasks.find { it.taskId == k.taskId }
+                                        if (task != null) {
+                                            TaskDetailScreen(
+                                                task = task,
+                                                members = flatViewModelMembers,
+                                                currentUid = flatViewModelUser?.uid.orEmpty(),
+                                                onBack = { selectedTaskId = null },
+                                                onRequestSwap = { toUid ->
+                                                    flatViewModel.createSwapRequest(task.taskId, toUid)
+                                                    selectedTaskId = null
+                                                },
+                                                onComplete = {
+                                                    flatViewModel.completeTask(task)
+                                                    selectedTaskId = null
+                                                },
+                                                onOpenAway = {
+                                                    selectedTaskId = null
+                                                    tasksOverlay = "going_away"
+                                                },
+                                            )
+                                        } else {
+                                            selectedTaskId = null
                                         }
-                                    ) {
-                                        when (selectedTab) {
-                                            AppTab.HOME -> FigmaHomeScreen(
-                                                homeViewModel = homeViewModel,
-                                                dashboardViewModel = dashboardViewModel,
-                                                flatViewModel = flatViewModel,
-                                                adminHomeMode = adminHomeMode,
-                                                onAdminHomeModeChange = { adminHomeMode = it },
-                                                onOpenBills = {
-                                                    adminHomeMode = AdminHomeMode.EXPENSES
-                                                    moneyOverlay = "bills"
-                                                },
-                                                onStartOnboarding = {
-                                                    navController.navigate(Routes.INTENT_CHOOSER) {
-                                                        popUpTo(Routes.MAIN) { inclusive = true }
-                                                    }
-                                                },
-                                                onOpenFlatSwitcher = { showFlatSwitcher = true },
-                                                onOpenTasks = {
-                                                    selectedTab = AppTab.TASKS
-                                                    manageAreaName = ManageFlatArea.TASKS.name
-                                                },
-                                                onOpenTaskDetail = { selectedTaskId = it },
-                                                onOpenExpenses = {
-                                                    selectedTab = AppTab.TASKS
-                                                    manageAreaName = ManageFlatArea.EXPENSES.name
-                                                },
-                                                onReviewJoinRequests = { profileOverlay = "members" },
-                                                onReviewSwapRequests = { showSwapReview = true },
-                                                onOpenDiscover = { selectedTab = AppTab.DISCOVER },
-                                                onOpenMembers = { profileOverlay = "members" },
-                                                onOpenActivity = { profileOverlay = "activity" }
-                                            )
-                                            AppTab.DISCOVER -> DiscoverBoardScreen(
-                                                flatViewModel,
-                                                initialMode = discoverMode,
-                                                initialCity = mainDiscoverCity,
-                                                initialBudget = mainDiscoverBudget,
-                                                initialPreference = mainDiscoverPreference,
-                                                openCreatePost = discoverOpenCreate,
-                                                createPostType = discoverCreateType,
-                                                onCreatePostConsumed = { discoverOpenCreate = false },
-                                                openMyPosts = discoverOpenPosts,
-                                                onMyPostsConsumed = { discoverOpenPosts = false }
-                                            )
-                                            AppTab.TASKS -> ManageFlatHub(
-                                                viewModel = flatViewModel,
-                                                area = runCatching { ManageFlatArea.valueOf(manageAreaName) }
-                                                    .getOrDefault(ManageFlatArea.HUB),
-                                                onAreaChange = { manageAreaName = it.name },
-                                                onOpenGoingAway = { tasksOverlay = "going_away" },
-                                                onOpenTaskDetail = { selectedTaskId = it },
-                                                onOpenCreateTask = { tasksOverlay = "create_type" },
-                                                onReviewSwaps = { showSwapReview = true },
-                                                onOpenBills = { moneyOverlay = "bills" },
-                                                onOpenActivity = { profileOverlay = "activity" }
-                                            )
-                                            AppTab.PROFILE -> ProfileScreen(
-                                                user = user,
-                                                flatViewModel = flatViewModel,
-                                                onOpenSettings = { navController.navigate(Routes.SETTINGS) },
-                                                onOpenMembers = { profileOverlay = "members" },
-                                                onOpenFlatSettings = { profileOverlay = "flat_settings" },
-                                                onOpenActivity = { profileOverlay = "activity" },
-                                                onOpenFlatSwitcher = { showFlatSwitcher = true },
-                                                onOpenMyPosts = {
-                                                    selectedTab = AppTab.DISCOVER
-                                                    discoverOpenPosts = true
-                                                },
-                                                onStartOnboarding = {
-                                                    navController.navigate(Routes.INTENT_CHOOSER) {
-                                                        popUpTo(Routes.MAIN) { inclusive = true }
-                                                    }
-                                                },
-                                                onNoFlatRemaining = {
-                                                    homeViewModel.checkFlatStatus()
-                                                    dashboardViewModel.load()
-                                                    navController.navigate(Routes.INTENT_CHOOSER) {
-                                                        popUpTo(Routes.MAIN) { inclusive = true }
-                                                    }
-                                                },
-                                                onSignOut = { signOut() }
-                                            )
+                                    } else {
+                                        val manageArea = runCatching { ManageFlatArea.valueOf(manageAreaName) }.getOrDefault(ManageFlatArea.HUB)
+                                        // Figma: one global "Quick add" behind the raised plus on every tab. Flat
+                                        // actions appear only when the person is in a flat; tasks only for admins.
+                                        val inFlat = flatInfo != null
+                                        val createOptions = buildList {
+                                            if (inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "create_type" })
+                                            if (inFlat) add(CreateOption("Add expense") {
+                                                selectedTab = AppTab.TASKS
+                                                manageAreaName = ManageFlatArea.EXPENSES.name
+                                                flatViewModel.showAddExpenseTrigger.value = true
+                                            })
+                                            if (inFlat) add(CreateOption("Add monthly bill") { moneyOverlay = "bills" })
+                                            if (inFlat && shellIsAdmin) add(CreateOption("Post a vacancy") {
+                                                selectedTab = AppTab.DISCOVER
+                                                discoverCreateType = "VACANCY"; discoverOpenCreate = true
+                                            })
+                                            if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("Post that I'm looking") {
+                                                selectedTab = AppTab.DISCOVER
+                                                discoverCreateType = "LOOKING"; discoverOpenCreate = true
+                                            })
+                                        }
+                                        val createAction: ShellCreate = when (createOptions.size) {
+                                            0 -> ShellCreate.None
+                                            else -> ShellCreate.Menu(createOptions)
+                                        }
+                                        AppShell(
+                                            selectedTab = selectedTab,
+                                            createAction = createAction,
+                                            onTabSelected = {
+                                                if (it != selectedTab) moneyOverlay = null
+                                                selectedTab = it
+                                            }
+                                        ) {
+                                            when (selectedTab) {
+                                                AppTab.HOME -> FigmaHomeScreen(
+                                                    homeViewModel = homeViewModel,
+                                                    dashboardViewModel = dashboardViewModel,
+                                                    flatViewModel = flatViewModel,
+                                                    adminHomeMode = adminHomeMode,
+                                                    onAdminHomeModeChange = { adminHomeMode = it },
+                                                    onOpenBills = {
+                                                        adminHomeMode = AdminHomeMode.EXPENSES
+                                                        moneyOverlay = "bills"
+                                                    },
+                                                    onStartOnboarding = {
+                                                        navController.navigate(Routes.INTENT_CHOOSER) {
+                                                            popUpTo(Routes.MAIN) { inclusive = true }
+                                                        }
+                                                    },
+                                                    onOpenFlatSwitcher = { showFlatSwitcher = true },
+                                                    onOpenTasks = {
+                                                        selectedTab = AppTab.TASKS
+                                                        manageAreaName = ManageFlatArea.TASKS.name
+                                                    },
+                                                    onOpenTaskDetail = { selectedTaskId = it },
+                                                    onOpenExpenses = {
+                                                        selectedTab = AppTab.TASKS
+                                                        manageAreaName = ManageFlatArea.EXPENSES.name
+                                                    },
+                                                    onReviewJoinRequests = { profileOverlay = "members" },
+                                                    onReviewSwapRequests = { showSwapReview = true },
+                                                    onOpenDiscover = { selectedTab = AppTab.DISCOVER },
+                                                    onOpenMembers = { profileOverlay = "members" },
+                                                    onOpenActivity = { profileOverlay = "activity" }
+                                                )
+                                                AppTab.DISCOVER -> DiscoverBoardScreen(
+                                                    flatViewModel,
+                                                    initialMode = discoverMode,
+                                                    initialCity = mainDiscoverCity,
+                                                    initialBudget = mainDiscoverBudget,
+                                                    initialPreference = mainDiscoverPreference,
+                                                    openCreatePost = discoverOpenCreate,
+                                                    createPostType = discoverCreateType,
+                                                    onCreatePostConsumed = { discoverOpenCreate = false },
+                                                    openMyPosts = discoverOpenPosts,
+                                                    onMyPostsConsumed = { discoverOpenPosts = false }
+                                                )
+                                                AppTab.TASKS -> ManageFlatHub(
+                                                    viewModel = flatViewModel,
+                                                    area = runCatching { ManageFlatArea.valueOf(manageAreaName) }
+                                                        .getOrDefault(ManageFlatArea.HUB),
+                                                    onAreaChange = { manageAreaName = it.name },
+                                                    onOpenGoingAway = { tasksOverlay = "going_away" },
+                                                    onOpenTaskDetail = { selectedTaskId = it },
+                                                    onOpenCreateTask = { tasksOverlay = "create_type" },
+                                                    onReviewSwaps = { showSwapReview = true },
+                                                    onOpenBills = { moneyOverlay = "bills" },
+                                                    onOpenActivity = { profileOverlay = "activity" }
+                                                )
+                                                AppTab.PROFILE -> ProfileScreen(
+                                                    user = user,
+                                                    flatViewModel = flatViewModel,
+                                                    onOpenSettings = { navController.navigate(Routes.SETTINGS) },
+                                                    onOpenMembers = { profileOverlay = "members" },
+                                                    onOpenFlatSettings = { profileOverlay = "flat_settings" },
+                                                    onOpenActivity = { profileOverlay = "activity" },
+                                                    onOpenFlatSwitcher = { showFlatSwitcher = true },
+                                                    onOpenMyPosts = {
+                                                        selectedTab = AppTab.DISCOVER
+                                                        discoverOpenPosts = true
+                                                    },
+                                                    onStartOnboarding = {
+                                                        navController.navigate(Routes.INTENT_CHOOSER) {
+                                                            popUpTo(Routes.MAIN) { inclusive = true }
+                                                        }
+                                                    },
+                                                    onNoFlatRemaining = {
+                                                        homeViewModel.checkFlatStatus()
+                                                        dashboardViewModel.load()
+                                                        navController.navigate(Routes.INTENT_CHOOSER) {
+                                                            popUpTo(Routes.MAIN) { inclusive = true }
+                                                        }
+                                                    },
+                                                    onSignOut = { signOut() }
+                                                )
+                                            }
                                         }
                                     }
                                 }
                             }
-                        }
 
+                        }
                         FlatSwitcherSheet(
                             viewModel = flatViewModel,
                             visible = showFlatSwitcher,
@@ -690,8 +723,15 @@ fun HabitiqApp() {
                     }
                 }
             }
+          }
         }
         }
         }
     }
+}
+
+/** Snapshot of the layers drawn over the shell, used to animate between them. */
+private data class OverlayKey(val profile: String?, val money: String?, val tasks: String?, val taskId: String?) {
+    val depth: Int get() = listOf(profile, money, tasks, taskId).count { it != null } +
+        (if (tasks == "create_recurring" || tasks == "create_temp" || tasks == "task_created") 1 else 0)
 }

@@ -8,6 +8,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import habitiq.app.data.VacancyData
 import habitiq.app.flat.FlatViewModel
 import habitiq.app.ui.components.HqButton
@@ -43,7 +45,14 @@ fun FlatSettingsScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
         Row { TextButton(onClick = onBack) { Text("← Back", style = HqType.labelLarge, color = c.textBrand) } }
         Text("Manage flat", style = HqType.headlineMedium, color = c.textPrimary)
         Spacer(Modifier.height(HqSpacing.lg))
-        HqTextField(value = flatName, onValueChange = { flatName = it }, label = "Flat name")
+        HqTextField(
+            value = flatName,
+            onValueChange = { flatName = it },
+            label = "Flat name",
+            placeholder = "e.g. Sunrise Apartments 4B",
+            imeAction = ImeAction.Done,
+            onImeAction = if (flatName.isNotBlank()) ({ viewModel.renameFlat(flatName) }) else null
+        )
         Spacer(Modifier.height(HqSpacing.sm))
         HqButton(text = "Save name", onClick = { viewModel.renameFlat(flatName) })
         Spacer(Modifier.height(HqSpacing.lg))
@@ -58,13 +67,13 @@ fun FlatSettingsScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
             Checkbox(checked = vacancyActive, onCheckedChange = { vacancyActive = it })
             Text("List flat on Discover board", style = HqType.bodyMedium, color = c.textPrimary)
         }
-        HqTextField(value = city, onValueChange = { city = it }, label = "City")
+        HqTextField(value = city, onValueChange = { city = it }, label = "City", placeholder = "e.g. Hyderabad")
         Spacer(Modifier.height(HqSpacing.sm))
-        HqTextField(value = area, onValueChange = { area = it }, label = "Area")
+        HqTextField(value = area, onValueChange = { area = it }, label = "Area", placeholder = "e.g. Gachibowli")
         Spacer(Modifier.height(HqSpacing.sm))
-        HqTextField(value = rent, onValueChange = { rent = it }, label = "Rent per head (₹)")
+        HqTextField(value = rent, onValueChange = { rent = it }, label = "Rent per head (₹)", placeholder = "e.g. 12000", keyboardType = KeyboardType.Number)
         Spacer(Modifier.height(HqSpacing.sm))
-        HqTextField(value = beds, onValueChange = { beds = it }, label = "Beds available")
+        HqTextField(value = beds, onValueChange = { beds = it }, label = "Beds available", placeholder = "e.g. 1", keyboardType = KeyboardType.Number)
         Spacer(Modifier.height(HqSpacing.sm))
         Text("Gender preference", style = HqType.labelLarge, color = c.textPrimary)
         Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
@@ -73,7 +82,7 @@ fun FlatSettingsScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
             }
         }
         Spacer(Modifier.height(HqSpacing.sm))
-        HqTextField(value = about, onValueChange = { about = it }, label = "About the room", singleLine = false, minLines = 3)
+        HqTextField(value = about, onValueChange = { about = it }, label = "About the room", placeholder = "e.g. Sunny room, attached bath, 5 min to metro", singleLine = false, minLines = 3)
         Spacer(Modifier.height(HqSpacing.lg))
         HqButton(text = "Publish vacancy", onClick = {
             viewModel.updateVacancy(

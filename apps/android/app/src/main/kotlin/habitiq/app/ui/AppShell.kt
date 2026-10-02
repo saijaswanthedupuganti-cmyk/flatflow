@@ -3,6 +3,7 @@ package habitiq.app.ui
 import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.components.HqMenuRow
 import androidx.compose.foundation.background
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -92,12 +93,27 @@ fun AppShell(
     onTabSelected: (AppTab) -> Unit,
     modifier: Modifier = Modifier,
     createAction: ShellCreate = ShellCreate.None,
-    content: @Composable () -> Unit
+    content: @Composable (AppTab) -> Unit
 ) {
     val c = LocalHqColors.current
     var menuOpen by remember { mutableStateOf(false) }
     Column(modifier.fillMaxSize().background(c.canvas)) {
-        Box(Modifier.weight(1f)) { content() }
+        val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
+        // Material fade-through between top-level destinations: quick fade out, then fade + slight scale in.
+        androidx.compose.animation.AnimatedContent(
+            targetState = selectedTab,
+            modifier = Modifier.weight(1f),
+            transitionSpec = {
+                if (reduceMotion) {
+                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                } else {
+                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(210, delayMillis = 70)) +
+                        androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(210, delayMillis = 70), initialScale = 0.985f)) togetherWith
+                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90))
+                }
+            },
+            label = "tabs",
+        ) { tab -> Box(Modifier.fillMaxSize()) { content(tab) } }
         val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         if (!keyboardOpen) ShellBar(selectedTab, onTabSelected, createAction) { menuOpen = true }
     }
@@ -114,14 +130,20 @@ fun AppShell(
 private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, create: ShellCreate, onOpenMenu: () -> Unit) {
     val c = LocalHqColors.current
     val pill = RoundedCornerShape(HqRadius.navPill)
-    Box(Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().padding(start = 11.dp, end = 11.dp, top = 28.dp, bottom = 10.dp)) {
-        Row(
+    Box(Modifier.fillMaxWidth().background(c.canvas)) {
+      Box(Modifier.fillMaxWidth().navigationBarsPadding().padding(start = 11.dp, end = 11.dp, top = 28.dp, bottom = 10.dp)) {
+        // The pill surface is drawn as a separate layer so the raised create button is never clipped by it.
+        Box(
             Modifier
-                .fillMaxWidth()
+                .matchParentSize()
                 .shadow(14.dp, pill, ambientColor = c.textPrimary.copy(alpha = .15f), spotColor = c.textPrimary.copy(alpha = .15f))
                 .clip(pill)
                 .background(c.surfaceBase)
                 .border(1.dp, c.borderSubtle, pill)
+        )
+        Row(
+            Modifier
+                .fillMaxWidth()
                 .selectableGroup()
                 .defaultMinSize(minHeight = 70.dp)
                 .padding(horizontal = 10.dp),
@@ -140,6 +162,7 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
             BottomNavItem(AppTab.DISCOVER, selectedTab == AppTab.DISCOVER, Modifier.weight(1f)) { onTabSelected(AppTab.DISCOVER) }
             BottomNavItem(AppTab.PROFILE, selectedTab == AppTab.PROFILE, Modifier.weight(1f)) { onTabSelected(AppTab.PROFILE) }
         }
+      }
     }
 }
 

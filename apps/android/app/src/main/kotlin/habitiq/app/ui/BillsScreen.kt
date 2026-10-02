@@ -32,6 +32,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import habitiq.app.data.BillInstance
 import habitiq.app.data.RecurringBill
@@ -438,13 +440,35 @@ private fun AddRecurringBillScreen(viewModel: FlatViewModel, members: List<Membe
     var amount by remember { mutableStateOf("") }
     var billingDay by remember { mutableStateOf("1") }
     var isVariable by remember { mutableStateOf(false) }
+    val canSave = name.isNotBlank() && (isVariable || amount.toDoubleOrNull() != null)
+    val save = {
+        val amt = amount.toDoubleOrNull()
+        viewModel.createRecurringBill(name, if (isVariable) null else amt, billingDay.toIntOrNull() ?: 1, isVariable, members.map { it.uid })
+        onSaved()
+    }
 
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Add Recurring Bill", onBack = onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
             HqTextField(value = name, onValueChange = { name = it }, label = "Bill name", placeholder = "Rent, WiFi…", leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong)
-            if (!isVariable) HqTextField(value = amount, onValueChange = { amount = it }, label = "Amount (₹)", leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong)
-            HqTextField(value = billingDay, onValueChange = { billingDay = it }, label = "Billing day (1-28)", leadingIcon = Icons.Filled.CalendarMonth)
+            if (!isVariable) HqTextField(
+                value = amount,
+                onValueChange = { amount = it },
+                label = "Amount (₹)",
+                placeholder = "e.g. 12000",
+                leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong,
+                keyboardType = KeyboardType.Decimal
+            )
+            HqTextField(
+                value = billingDay,
+                onValueChange = { billingDay = it },
+                label = "Billing day (1-28)",
+                placeholder = "e.g. 5",
+                leadingIcon = Icons.Filled.CalendarMonth,
+                keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done,
+                onImeAction = if (canSave) save else null
+            )
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(
                     checked = isVariable,
@@ -453,11 +477,7 @@ private fun AddRecurringBillScreen(viewModel: FlatViewModel, members: List<Membe
                 )
                 Text("Variable amount (enter each month)", style = HqType.bodyMedium, color = c.textPrimary)
             }
-            HqButton(text = "Save bill", onClick = {
-                val amt = amount.toDoubleOrNull()
-                viewModel.createRecurringBill(name, if (isVariable) null else amt, billingDay.toIntOrNull() ?: 1, isVariable, members.map { it.uid })
-                onSaved()
-            })
+            HqButton(text = "Save bill", onClick = save)
         }
     }
 }
@@ -467,18 +487,27 @@ private fun SettleUpScreen(viewModel: FlatViewModel, members: List<Member>, uid:
     val c = LocalHqColors.current
     var toUid by remember { mutableStateOf(members.firstOrNull { it.uid != uid }?.uid.orEmpty()) }
     var amount by remember { mutableStateOf("") }
+    val record = {
+        amount.toDoubleOrNull()?.let { viewModel.recordManualSettlement(toUid, it) }
+        onBack()
+    }
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Settle up", onBack = onBack)
-        Column(Modifier.padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
+        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
             Text("Pay to", style = HqType.titleSmall, color = c.textPrimary)
             members.filter { it.uid != uid }.forEach { m ->
                 HqChip(label = m.nickname, selected = toUid == m.uid, onClick = { toUid = m.uid })
             }
-            HqTextField(value = amount, onValueChange = { amount = it }, label = "Amount (₹)")
-            HqButton(text = "Record settlement", onClick = {
-                amount.toDoubleOrNull()?.let { viewModel.recordManualSettlement(toUid, it) }
-                onBack()
-            })
+            HqTextField(
+                value = amount,
+                onValueChange = { amount = it },
+                label = "Amount (₹)",
+                placeholder = "e.g. 1500",
+                keyboardType = KeyboardType.Decimal,
+                imeAction = ImeAction.Done,
+                onImeAction = if (amount.toDoubleOrNull() != null && toUid.isNotBlank()) record else null
+            )
+            HqButton(text = "Record settlement", onClick = record)
         }
     }
 }

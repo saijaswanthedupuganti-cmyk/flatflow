@@ -64,10 +64,13 @@ fun HqTextField(
     onImeAction: (() -> Unit)? = null,
     /** Autofill / password-manager hint, e.g. [ContentType.EmailAddress]. */
     contentType: ContentType? = null,
+    /** Overrides the default capitalisation, e.g. Words for names, Characters for codes. */
+    capitalization: KeyboardCapitalization? = null,
 ) {
     val c = LocalHqColors.current
     val isError = errorText != null
     var passwordVisible by remember { mutableStateOf(false) }
+    val focusManager = androidx.compose.ui.platform.LocalFocusManager.current
     // Free text starts sentences with a capital; credentials, numbers and codes never autocapitalise or autocorrect.
     val freeText = !isPassword && keyboardType == KeyboardType.Text
 
@@ -106,14 +109,14 @@ fun HqTextField(
             shape = RoundedCornerShape(HqRadius.field),
             visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             keyboardOptions = KeyboardOptions(
-                capitalization = if (freeText) KeyboardCapitalization.Sentences else KeyboardCapitalization.None,
+                capitalization = capitalization ?: if (freeText) KeyboardCapitalization.Sentences else KeyboardCapitalization.None,
                 autoCorrectEnabled = freeText,
                 keyboardType = if (isPassword) KeyboardType.Password else keyboardType,
                 imeAction = if (singleLine) imeAction else ImeAction.Default,
             ),
             keyboardActions = if (onImeAction != null) {
-                KeyboardActions(onNext = { onImeAction() }, onDone = { onImeAction() }, onGo = { onImeAction() }, onSend = { onImeAction() })
-            } else KeyboardActions.Default,
+                KeyboardActions(onNext = { onImeAction() }, onDone = { onImeAction() }, onGo = { onImeAction() }, onSend = { onImeAction() }, onSearch = { onImeAction() })
+            } else KeyboardActions(onDone = { focusManager.clearFocus() }, onSearch = { focusManager.clearFocus() }),
             colors = OutlinedTextFieldDefaults.colors(
                 focusedContainerColor = c.surfaceBase,
                 unfocusedContainerColor = c.surfaceBase,

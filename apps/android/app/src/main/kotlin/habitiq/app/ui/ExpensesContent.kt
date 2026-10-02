@@ -46,7 +46,6 @@ import habitiq.app.ui.components.HqGroup
 import habitiq.app.ui.components.HqIllustration
 import habitiq.app.ui.components.HqRowDivider
 import habitiq.app.ui.components.HqSectionHeader
-import habitiq.app.ui.components.HqSegmentedControl
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqSpacing
@@ -125,8 +124,8 @@ fun ExpensesContent(
 
         Spacer(Modifier.size(18.dp))
         // Daily splits is this screen; Monthly bills opens its own screen, so selection stays on Daily.
-        HqSegmentedControl(
-            options = listOf("Daily Splits", "Monthly Bills"),
+        habitiq.app.ui.components.HqScopeTabs(
+            options = listOf("Daily splits" to null, "Monthly bills" to null),
             selectedIndex = 0,
             onSelect = { if (it == 1) onOpenBills() },
         )

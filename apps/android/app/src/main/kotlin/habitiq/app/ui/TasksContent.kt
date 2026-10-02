@@ -25,6 +25,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqArt
 import habitiq.app.ui.components.HqButton
@@ -33,7 +35,7 @@ import habitiq.app.ui.components.HqGroup
 import habitiq.app.ui.components.HqIllustration
 import habitiq.app.ui.components.HqNavRow
 import habitiq.app.ui.components.HqRowDivider
-import habitiq.app.ui.components.HqSegmentedControl
+import habitiq.app.ui.components.HqScopeTabs
 import habitiq.app.ui.components.HqTaskRow
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
@@ -97,27 +99,30 @@ fun TasksContent(
         Row(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 23.dp), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
                 Text(if (model.scope == TaskScope.Mine) "YOUR TASKS" else "ALL TASKS", style = HqType.labelSmall, color = c.textMuted, fontWeight = FontWeight.ExtraBold)
-                Text("$toDo to do", style = HqType.display.copy(fontSize = 29.sp), color = c.textPrimary)
+                Text(if (toDo == 0) "All clear" else "$toDo to do", style = HqType.display.copy(fontSize = 29.sp), color = c.textPrimary)
             }
             if (model.overdueCount > 0 || model.overdueOnly) {
                 HqChip(label = "${model.overdueCount} overdue", selected = model.overdueOnly, onClick = onToggleOverdue)
             }
         }
 
-        HqSegmentedControl(
-            options = listOf("My Tasks ${model.mineCount}", "All Tasks ${model.allCount}"),
+        HqScopeTabs(
+            options = listOf("My tasks" to model.mineCount, "All tasks" to model.allCount),
             selectedIndex = if (model.scope == TaskScope.Mine) 0 else 1,
             onSelect = { onScope(if (it == 0) TaskScope.Mine else TaskScope.All) },
         )
 
         Column(Modifier.padding(top = HqSpacing.md), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            HqCalloutCard(
-                title = if (model.away) "You're away" else "I'm away",
-                support = if (model.away) "Tasks skip you until you return. Tap to return." else "Pause your turns while you're out of town.",
-                icon = HqIcons.Clock,
-                tone = HqTileTone.Neutral,
-                onClick = onOpenAway,
-            )
+            // While away, the status leads; otherwise "I'm away" is a quiet action at the end of the list.
+            if (model.away) {
+                HqCalloutCard(
+                    title = "You're away",
+                    support = "Tasks skip you until you return. Tap to return.",
+                    icon = HqIcons.Clock,
+                    tone = HqTileTone.Neutral,
+                    onClick = onOpenAway,
+                )
+            }
             if (model.pendingSwapsForMe > 0) {
                 HqCalloutCard(
                     title = "Swap requests",
@@ -161,6 +166,17 @@ fun TasksContent(
                 }
             }
         }
+
+        if (!model.away) {
+            Spacer(Modifier.height(HqSpacing.xl))
+            HqCalloutCard(
+                title = "Going away?",
+                support = "Pause your turns while you're out of town.",
+                icon = HqIcons.Clock,
+                tone = HqTileTone.Neutral,
+                onClick = onOpenAway,
+            )
+        }
     }
 }
 
@@ -176,7 +192,10 @@ private fun EmptyTasks(model: TasksUiModel, onCreateTask: () -> Unit) {
         HqIllustration(HqArt.Checklist, Modifier.width(88.dp))
         when {
             model.overdueOnly -> Text("Nothing is overdue.", style = HqType.bodyLarge, color = c.textSecondary)
-            model.scope == TaskScope.Mine -> Text("No tasks assigned to you.", style = HqType.bodyLarge, color = c.textSecondary)
+            model.scope == TaskScope.Mine -> {
+                Text("Nothing on your plate", style = HqType.titleSmall2, color = c.textPrimary)
+                Text("No tasks are assigned to you right now.", style = HqType.bodyMedium, color = c.textSecondary)
+            }
             model.isAdmin -> {
                 Text("No tasks yet", style = HqType.titleSmall2, color = c.textPrimary)
                 Text("Create a simple rotation so everyone knows whose turn it is.", style = HqType.bodyMedium, color = c.textSecondary)

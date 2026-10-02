@@ -16,6 +16,9 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.delay
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.foundation.interaction.collectIsPressedAsState
+import androidx.compose.foundation.clickable
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalView
 
@@ -75,4 +78,33 @@ fun HqFadeUp(index: Int = 0, modifier: Modifier = Modifier, content: @Composable
     ) {
         content()
     }
+}
+
+
+/**
+ * Tappable surface with tactile feedback: the standard ripple plus a quick spring squash to 98%
+ * while pressed. Use for cards and rows (buttons already have their own press handling).
+ */
+fun Modifier.hqPressable(
+    enabled: Boolean = true,
+    role: androidx.compose.ui.semantics.Role? = androidx.compose.ui.semantics.Role.Button,
+    onClick: () -> Unit,
+): Modifier = composed {
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val reduce = hqReduceMotion()
+    val scale by animateFloatAsState(
+        targetValue = if (pressed && !reduce) 0.98f else 1f,
+        animationSpec = androidx.compose.animation.core.spring(dampingRatio = 0.6f, stiffness = 800f),
+        label = "pressable",
+    )
+    this
+        .graphicsLayer { scaleX = scale; scaleY = scale }
+        .clickable(
+            interactionSource = interaction,
+            indication = androidx.compose.material3.ripple(),
+            enabled = enabled,
+            role = role,
+            onClick = onClick,
+        )
 }

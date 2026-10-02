@@ -1,5 +1,7 @@
 package habitiq.app.ui.components
 
+import habitiq.app.ui.theme.hqPressable
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -106,7 +108,7 @@ fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier
     val shape = RoundedCornerShape(14.dp)
     // The ripple is clipped to the visible rounded tile, never a bare grey square.
     Box(modifier.size(48.dp).semantics { contentDescription = if (count > 0) "Connections, $count new" else "Connections" }, contentAlignment = Alignment.Center) {
-        Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape).clickable(role = Role.Button, onClick = onClick), contentAlignment = Alignment.Center) {
+        Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape).hqPressable(onClick = onClick), contentAlignment = Alignment.Center) {
             Icon(HqIcons.Message, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md))
         }
         if (count > 0) {
@@ -125,7 +127,7 @@ fun HqHeaderIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, co
     Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape)
-                .clickable(role = Role.Button, onClick = onClick)
+                .hqPressable(onClick = onClick)
                 .semantics { this.contentDescription = contentDescription },
             contentAlignment = Alignment.Center,
         ) { Icon(icon, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md)) }
@@ -150,7 +152,7 @@ fun HqListingFrame(
         modifier.fillMaxWidth()
             .shadow(4.dp, shape, ambientColor = c.textPrimary.copy(alpha = .07f), spotColor = c.textPrimary.copy(alpha = .07f))
             .clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
-            .clickable(role = Role.Button, onClick = onClick),
+            .hqPressable(onClick = onClick),
     ) {
         Box(Modifier.fillMaxWidth().height(photoHeight.dp).background(c.selectedBg)) { photo() }
         Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { body() }

@@ -1,5 +1,7 @@
 package habitiq.app.ui.components
 
+import habitiq.app.ui.theme.hqPressable
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -67,7 +69,7 @@ fun HqMenuRow(
     val c = LocalHqColors.current
     Column(modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).clickable(role = Role.Button, onClick = onClick).padding(vertical = 13.dp, horizontal = 1.dp),
+            Modifier.fillMaxWidth().defaultMinSize(minHeight = 56.dp).hqPressable(onClick = onClick).padding(vertical = 13.dp, horizontal = 1.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -88,7 +90,7 @@ fun HqDangerSoftButton(text: String, onClick: () -> Unit, modifier: Modifier = M
     val c = LocalHqColors.current
     Box(
         modifier.fillMaxWidth().defaultMinSize(minHeight = 49.dp).clip(RoundedCornerShape(15.dp)).background(c.warmBg)
-            .clickable(role = Role.Button, onClick = onClick),
+            .hqPressable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = HqType.buttonLabel, color = c.statusDangerFg, fontWeight = FontWeight.Bold) }
 }

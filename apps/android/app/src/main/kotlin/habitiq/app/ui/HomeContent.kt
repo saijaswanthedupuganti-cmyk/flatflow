@@ -162,6 +162,7 @@ fun HomeContent(
             HomeHero(model, onOpenFlatSwitcher, onInvite, onOpenExpenses, onOpenNotifications)
         }
 
+        habitiq.app.ui.theme.HqFadeUp(index = 2) {
         Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(bottom = HqSpacing.screenEnd)) {
             HqSectionTitle("Today's tasks", action = "See all", onAction = onOpenTasks)
             if (model.tasks.isEmpty()) {
@@ -223,6 +224,7 @@ fun HomeContent(
             HqGroup { HqNavRow(title = "Members", support = "${model.memberCount} ${if (model.memberCount == 1) "member" else "members"}", onClick = onOpenMembers) }
 
             DiscoverTeaser(onOpenDiscover)
+        }
         }
     }
 }

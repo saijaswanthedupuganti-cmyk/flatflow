@@ -1,5 +1,7 @@
 package habitiq.app.ui.components
 
+import habitiq.app.ui.theme.hqPressable
+
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -150,7 +152,7 @@ fun HqCalloutCard(
     val (bg, border) = if (tone == HqTileTone.Coral) Color(0xFFFFFAFA) to Color(0xFFF7D8D3) else c.surfaceBase to c.borderSubtle
     Row(
         modifier.fillMaxWidth().clip(shape).background(bg).border(1.dp, border, shape)
-            .clickable(role = Role.Button, onClick = onClick).padding(15.dp),
+            .hqPressable(onClick = onClick).padding(15.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {

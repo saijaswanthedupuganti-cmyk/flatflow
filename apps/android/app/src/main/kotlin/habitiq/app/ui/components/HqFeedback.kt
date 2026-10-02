@@ -16,6 +16,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -116,11 +118,33 @@ fun HqInlineLoading(label: String = "Loading…", modifier: Modifier = Modifier)
 @Composable
 fun HqSkeletonBlock(modifier: Modifier = Modifier.fillMaxWidth(), height: androidx.compose.ui.unit.Dp = 16.dp) {
     val c = LocalHqColors.current
+    val reduce = habitiq.app.ui.theme.hqReduceMotion()
+    // A soft light band sweeps across every skeleton block (static when system animations are off).
+    val sweep = androidx.compose.animation.core.rememberInfiniteTransition(label = "skeleton").animateFloat(
+        initialValue = -1f,
+        targetValue = if (reduce) -1f else 2f,
+        animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+            androidx.compose.animation.core.tween(1300, easing = androidx.compose.animation.core.LinearEasing),
+        ),
+        label = "skeletonSweep",
+    )
     androidx.compose.foundation.layout.Box(
         modifier
             .height(height)
             .clip(RoundedCornerShape(HqRadius.small))
             .background(c.surfaceSubtle)
+            .drawWithContent {
+                drawContent()
+                val w = size.width
+                val x = sweep.value * w
+                drawRect(
+                    androidx.compose.ui.graphics.Brush.horizontalGradient(
+                        listOf(androidx.compose.ui.graphics.Color.Transparent, c.surfaceBase.copy(alpha = 0.7f), androidx.compose.ui.graphics.Color.Transparent),
+                        startX = x - w * 0.5f,
+                        endX = x + w * 0.5f,
+                    ),
+                )
+            }
     )
 }
 

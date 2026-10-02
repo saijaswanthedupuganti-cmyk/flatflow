@@ -1,5 +1,7 @@
 package habitiq.app.ui.components
 
+import habitiq.app.ui.theme.hqPressable
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -177,7 +179,7 @@ fun HqNavRow(
     val c = LocalHqColors.current
     Row(
         modifier.fillMaxWidth().defaultMinSize(minHeight = if (support != null) HqSize.rowTwoLine else HqSize.row)
-            .clickable(role = Role.Button, onClick = onClick)
+            .hqPressable(onClick = onClick)
             .padding(horizontal = HqSpacing.component, vertical = HqSpacing.related),
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
         verticalAlignment = if (support != null) Alignment.Top else Alignment.CenterVertically,

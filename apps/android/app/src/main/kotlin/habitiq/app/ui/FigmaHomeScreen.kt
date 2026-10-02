@@ -13,6 +13,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.platform.LocalContext
 import habitiq.app.data.FlatTask
 import habitiq.app.flat.FlatViewModel
@@ -308,7 +310,20 @@ private fun NoFlatContent(onStartOnboarding: () -> Unit, onOpenDiscover: () -> U
     }
 }
 
-@Composable private fun HomeLoading() { Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { HqInlineLoading() } }
+/** Skeleton shaped like Home (hero, section title, two task rows, a card), not a bare spinner. */
+@Composable
+private fun HomeLoading() {
+    val c = LocalHqColors.current
+    Column(Modifier.fillMaxSize().semantics { contentDescription = "Loading your home" }) {
+        habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 380.dp)
+        Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = 28.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
+            habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(0.45f), height = 20.dp)
+            habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 68.dp)
+            habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 68.dp)
+            habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 120.dp)
+        }
+    }
+}
 
 @Composable
 private fun HomeError(message: String, onRetry: () -> Unit) {

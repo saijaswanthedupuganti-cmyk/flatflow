@@ -113,6 +113,7 @@ fun ProfileHomeContent(
             Icon(HqIcons.Chevron, contentDescription = null, tint = c.textMuted, modifier = Modifier.size(HqIconSize.sm))
         }
 
+        habitiq.app.ui.theme.HqFadeUp(index = 1) {
         HqMenuGroup("My flat") {
             if (model.flatName != null) {
                 HqMenuRow(model.flatName, support = model.flatSupport, icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
@@ -120,14 +121,19 @@ fun ProfileHomeContent(
                 HqMenuRow("No flat yet", support = "Create or join a flat", icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
             }
         }
+        }
         Spacer(Modifier.size(21.dp))
+        habitiq.app.ui.theme.HqFadeUp(index = 2) {
         HqMenuGroup("Discovery") {
             HqMenuRow("My Discovery Profile", support = model.discoverySupport, icon = HqIcons.Discover, tone = HqTileTone.Coral, onClick = onOpenDiscovery)
             HqMenuRow("My Posts", support = "Your rooms and looking posts", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
         }
+        }
         Spacer(Modifier.size(21.dp))
+        habitiq.app.ui.theme.HqFadeUp(index = 3) {
         HqMenuGroup("Preferences") {
             HqMenuRow("Privacy & Security", support = "App lock and account", icon = HqIcons.Shield, tone = HqTileTone.Neutral, lastRow = true, onClick = onOpenPreferences)
+        }
         }
         Spacer(Modifier.size(24.dp))
         HqDangerSoftButton("Sign out", onSignOut)

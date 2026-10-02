@@ -22,6 +22,8 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.draw.clip
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqInlineLoading
@@ -35,8 +37,19 @@ import habitiq.app.ui.theme.LocalHqColors
 
 @Composable
 fun DiscoveryLoading(label: String = "Loading…") {
-    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        HqInlineLoading(label = label)
+    // Listing-shaped skeletons (photo + two text lines) so the page keeps its shape while loading.
+    Column(
+        Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg, vertical = HqSpacing.sm)
+            .semantics { contentDescription = label },
+        verticalArrangement = Arrangement.spacedBy(18.dp),
+    ) {
+        repeat(2) {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 178.dp)
+                habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(0.7f), height = 18.dp)
+                habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(0.45f), height = 14.dp)
+            }
+        }
     }
 }
 

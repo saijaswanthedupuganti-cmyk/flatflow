@@ -1,5 +1,26 @@
 package habitiq.app.ui
 
+
+import androidx.compose.foundation.clickable
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.border
+import androidx.compose.animation.slideInVertically
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.statusBarsPadding
+import habitiq.app.ui.components.HqIcons
+import habitiq.app.ui.components.HqHeroBleedEffect
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.layout.width
+import habitiq.app.ui.components.HqIllustration
+import habitiq.app.ui.components.HqArt
+import androidx.activity.compose.BackHandler
+import habitiq.app.ui.components.HqWordmark
+import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqSize
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -64,6 +85,7 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
+/** The previous APK's starting options. Find a flat / Find a person explore Discover; Create and Join set up membership. */
 enum class OnboardingIntent {
     MANAGE_FLAT,
     FIND_FLATMATE,
@@ -72,85 +94,105 @@ enum class OnboardingIntent {
     FIND_PERSON
 }
 
-private val welcomePages = listOf(
-    "A home for people who live together" to listOf(
-        "Find verified flats and flatmates",
-        "Live with like-minded people",
-        "Manage tasks and expenses",
-        "A safer, simpler way to share living"
-    ),
-    "People, places and better living" to listOf(
-        "Whether you're finding a place, finding a flatmate, or managing your current flat",
-        "Habitiq makes shared living simple"
-    ),
-    "Built for real life together" to listOf(
-        "Verified homes and residents",
-        "Clear preferences up front",
-        "Easy join and invite flow",
-        "Manage household tasks and bills"
-    )
+private data class WelcomeSlide(val label: String, val title: String, val copy: String, val photo: Int)
+
+private val welcomeSlides = listOf(
+    WelcomeSlide("ONE HOME, IN SYNC", "Shared living,\nwithout the chasing.", "Keep tasks, rotations, daily expenses and monthly bills clear for everyone.", R.drawable.home_hero),
+    WelcomeSlide("DISCOVER YOUR FIT", "Find the place \u2014 or\nperson \u2014 that feels right.", "Explore profiles, approximate locations and compatible ways of living.", R.drawable.slide2),
+    WelcomeSlide("SEARCH AROUND YOUR LIFE", "Live closer to what\nmatters every day.", "Choose work, college or a landmark. Oddroof orders nearby homes around that place.", R.drawable.slide3),
 )
 
+/**
+ * First-run slides from the Figma Make onboarding: a full-bleed photo, a dark gradient, tracked label, large
+ * title and copy, progress dots and a pill Next button. Skip and "I already have an account" are kept.
+ */
 @Composable
 fun WelcomeScreen(onNext: () -> Unit, onLogin: () -> Unit) {
     var page by rememberSaveable { mutableStateOf(0) }
-    val c = LocalHqColors.current
+    BackHandler(enabled = page > 0) { page -= 1 }
     val reduce = hqReduceMotion()
-    Column(
-        Modifier.fillMaxSize().background(c.background).padding(HqSpacing.xxl)
-    ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            HqTextButton(text = "Skip", onClick = onNext)
-        }
+    val last = page == welcomeSlides.lastIndex
+    val ink = Color(0xFF091917)
+    HqHeroBleedEffect()
+    Box(Modifier.fillMaxSize().background(ink)) {
         AnimatedContent(
             targetState = page,
-            transitionSpec = {
-                val enter = fadeIn(tween(HqEnterDuration, easing = HqEaseOut)) +
-                    slideInHorizontally(tween(HqEnterDuration, easing = HqEaseOut)) { if (reduce) 0 else it / 10 }
-                enter togetherWith fadeOut(tween(140, easing = HqEaseOut))
-            },
-            label = "welcomePage"
+            transitionSpec = { fadeIn(tween(if (reduce) 0 else 600, easing = HqEaseOut)) togetherWith fadeOut(tween(if (reduce) 0 else 300)) },
+            label = "welcomePhoto",
+            modifier = Modifier.fillMaxSize(),
         ) { index ->
-            val (title, bullets) = welcomePages[index]
-            val art = if (index == 1) R.drawable.onboard_join else R.drawable.onboard_create
-            Column {
-                Image(
-                    painter = painterResource(art),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth().height(180.dp).clip(RoundedCornerShape(20.dp)),
-                    contentScale = ContentScale.Crop
-                )
-                Spacer(Modifier.height(HqSpacing.lg))
-                Text("habitiq", style = HqType.labelLarge, color = c.brandPrimary)
-                Spacer(Modifier.height(HqSpacing.sm))
-                Text(title, style = HqType.headlineMedium, color = c.textPrimary)
-                Column(Modifier.padding(top = HqSpacing.md), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    bullets.forEach { line ->
-                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                            Icon(Icons.Filled.CheckCircle, null, tint = c.brandPrimary, modifier = Modifier.size(18.dp))
-                            Text(line, style = HqType.bodyMedium, color = c.textSecondary)
-                        }
-                    }
+            androidx.compose.foundation.Image(
+                painterResource(welcomeSlides[index].photo), contentDescription = null,
+                contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize(),
+            )
+        }
+        Box(
+            Modifier.fillMaxSize().background(
+                androidx.compose.ui.graphics.Brush.verticalGradient(
+                    0f to ink.copy(alpha = .52f), .38f to ink.copy(alpha = .10f), .68f to ink.copy(alpha = .72f), 1f to ink.copy(alpha = .97f),
+                ),
+            ),
+        )
+        Column(Modifier.fillMaxSize().statusBarsPadding().navigationBarsPadding().padding(horizontal = 22.dp, vertical = 16.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+                    Box(
+                        Modifier.size(30.dp).clip(RoundedCornerShape(topStart = 10.dp, topEnd = 10.dp, bottomEnd = 10.dp, bottomStart = 4.dp)).background(Color.White),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("H", style = HqType.titleSmall2, color = LocalHqColors.current.textBrand) }
+                    Text("habitiq", style = HqType.titleSmall2, color = Color.White)
+                }
+                Box(
+                    Modifier.defaultMinSize(minHeight = 48.dp).clip(CircleShape).clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onNext),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        "Skip", style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clip(CircleShape).background(ink.copy(alpha = .18f)).border(1.dp, Color.White.copy(alpha = .28f), CircleShape).padding(horizontal = 14.dp, vertical = 8.dp),
+                    )
                 }
             }
-        }
-        Spacer(Modifier.weight(1f))
-        Row(
-            Modifier.fillMaxWidth().padding(bottom = HqSpacing.md),
-            horizontalArrangement = Arrangement.Center
-        ) {
-            welcomePages.indices.forEach { index ->
-                Box(
-                    Modifier.padding(horizontal = 4.dp).size(if (index == page) 18.dp else 7.dp, 7.dp)
-                        .clip(CircleShape).background(if (index == page) c.brandPrimary else c.borderDefault)
+            Text(
+                "%02d / 03".format(page + 1), style = HqType.titleMedium2, color = Color.White, fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.End).padding(top = 18.dp),
+            )
+            Spacer(Modifier.weight(1f))
+            AnimatedContent(
+                targetState = page,
+                transitionSpec = { (fadeIn(tween(if (reduce) 0 else 450, easing = HqEaseOut)) + slideInVertically(tween(if (reduce) 0 else 450, easing = HqEaseOut)) { if (reduce) 0 else it / 12 }) togetherWith fadeOut(tween(if (reduce) 0 else 120)) },
+                label = "welcomeCopy",
+            ) { index ->
+                val slide = welcomeSlides[index]
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(slide.label, style = HqType.labelSmall.copy(letterSpacing = 1.4.sp), color = Color(0xFF9BE5DC), fontWeight = FontWeight.ExtraBold)
+                    Text(slide.title, style = HqType.display.copy(fontSize = 35.sp, lineHeight = 38.sp), color = Color.White)
+                    Text(slide.copy, style = HqType.bodyLarge, color = Color.White.copy(alpha = .8f))
+                }
+            }
+            Spacer(Modifier.height(28.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    welcomeSlides.indices.forEach { index ->
+                        Box(
+                            Modifier.size(width = if (index == page) 24.dp else 7.dp, height = 7.dp).clip(CircleShape)
+                                .background(if (index == page) Color(0xFF14B8A6) else Color.White.copy(alpha = .35f))
+                                .clickable(role = androidx.compose.ui.semantics.Role.Button) { page = index }
+                                .semantics { contentDescription = "Show slide ${index + 1}" },
+                        )
+                    }
+                }
+                HqButton(
+                    text = if (last) "Choose your path" else "Next",
+                    onClick = { if (last) onNext() else page += 1 },
+                    fullWidth = false,
+                    trailingIcon = HqIcons.Arrow,
                 )
             }
+            HqTextButton(
+                text = "I already have an account", onClick = onLogin, color = Color.White,
+                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = 6.dp),
+            )
         }
-        HqButton(
-            text = if (page == welcomePages.lastIndex) "Get started" else "Next",
-            onClick = { if (page == welcomePages.lastIndex) onNext() else page += 1 }
-        )
-        HqTextButton(text = "I already have an account", onClick = onLogin, modifier = Modifier.align(Alignment.CenterHorizontally))
     }
 }
 
@@ -164,6 +206,7 @@ fun IntentChooserScreen(
     onExploreLater: () -> Unit = onSignOut
 ) {
     var step by rememberSaveable { mutableStateOf("goal") }
+    BackHandler(enabled = step != "goal") { step = "goal" }
     var goalMode by rememberSaveable { mutableStateOf(DiscoverMode.USE_A_FLAT.name) }
     var name by rememberSaveable { mutableStateOf(userName) }
     var city by rememberSaveable { mutableStateOf("") }
@@ -177,18 +220,12 @@ fun IntentChooserScreen(
     val c = LocalHqColors.current
 
     Column(
-        Modifier.fillMaxSize().background(c.background).verticalScroll(rememberScrollState()).padding(HqSpacing.xxl)
+        Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xxl)
     ) {
         when (step) {
             "profile" -> {
-                OnboardingStepLabel(3, "Set up your profile")
                 Text("Your profile", style = HqType.headlineMedium, color = c.textPrimary)
                 Text("This helps the flat know who is joining.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl))
-                Box(
-                    Modifier.size(88.dp).clip(CircleShape).background(c.surfaceSubtle).align(Alignment.CenterHorizontally),
-                    contentAlignment = Alignment.Center
-                ) { Icon(Icons.Filled.CameraAlt, "Add profile photo", tint = c.textSecondary, modifier = Modifier.size(34.dp)) }
-                Spacer(Modifier.height(HqSpacing.xl))
                 HqTextField(value = name, onValueChange = { name = it }, label = "Full name", leadingIcon = Icons.Filled.Badge)
                 Spacer(Modifier.height(HqSpacing.md))
                 HqTextField(value = city, onValueChange = { city = it }, label = "City / location", leadingIcon = Icons.Filled.LocationOn)
@@ -201,7 +238,7 @@ fun IntentChooserScreen(
                 }
                 Spacer(Modifier.height(HqSpacing.xxl))
                 profileSaveError?.let {
-                    Text(it, style = HqType.bodySmall, color = c.error, modifier = Modifier.padding(top = HqSpacing.sm))
+                    Text(it, style = HqType.bodySmall, color = c.statusDangerFg, modifier = Modifier.padding(top = HqSpacing.sm))
                 }
                 HqButton(
                     text = if (profileSaving) "Saving…" else "Continue",
@@ -223,22 +260,19 @@ fun IntentChooserScreen(
                 )
             }
             "goal" -> {
-                OnboardingStepLabel(1, "Choose your goal")
-                Text("What are you here for?", style = HqType.headlineMedium, color = c.textPrimary)
-                Text("You can change this later.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl))
-                IntentOptionCard(Icons.Default.Home, "Find a flat", "Look for rooms and places to move into.") { step = "findFlat" }
-                Spacer(Modifier.height(HqSpacing.md))
-                IntentOptionCard(Icons.Default.Person, "Find a person", "Look for potential flatmates.") { step = "findPerson" }
-                Spacer(Modifier.height(HqSpacing.md))
-                IntentOptionCard(Icons.Default.Group, "Create a flat", "Set up a shared household to manage together.") { onChoose(OnboardingIntent.MANAGE_FLAT) }
-                Spacer(Modifier.height(HqSpacing.md))
-                IntentOptionCard(Icons.Default.VpnKey, "Join a flat", "Have an invite code?") { onChoose(OnboardingIntent.JOIN_FLAT) }
+                Text("What brings you to Oddroof?", style = HqType.display, color = c.textPrimary)
+                Text("Choose the closest match. You can use every part of Oddroof later.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl))
+                IntentChoices(
+                    onFindFlat = { step = "findFlat" },
+                    onFindPerson = { step = "findPerson" },
+                    onCreateFlat = { onChoose(OnboardingIntent.MANAGE_FLAT) },
+                    onJoinFlat = { onChoose(OnboardingIntent.JOIN_FLAT) },
+                )
                 Spacer(Modifier.height(HqSpacing.xl))
                 HqTextButton(text = "Sign out", onClick = onSignOut, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
             "findFlat", "findPerson" -> {
                 val people = step == "findPerson"
-                OnboardingStepLabel(4, if (people) "Find a person" else "Find a flat")
                 Text(if (people) "Looking for a flatmate" else "Looking for a place", style = HqType.headlineMedium, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.lg))
                 HqTextField(value = city, onValueChange = { city = it }, label = "City / area", leadingIcon = Icons.Filled.LocationOn)
@@ -262,7 +296,6 @@ fun IntentChooserScreen(
                 })
             }
             else -> {
-                OnboardingStepLabel(5, "Start exploring")
                 Image(
                     painter = painterResource(R.drawable.onboard_create),
                     contentDescription = "Your new home is ready",
@@ -270,12 +303,12 @@ fun IntentChooserScreen(
                     contentScale = ContentScale.Crop
                 )
                 Spacer(Modifier.height(HqSpacing.xl))
-                Text("Welcome to Habitiq", style = HqType.headlineMedium, color = c.textPrimary)
+                Text("Welcome to Oddroof", style = HqType.headlineMedium, color = c.textPrimary)
                 Text("Let's find the right people and places for you.", style = HqType.bodyLarge, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.md, bottom = HqSpacing.lg))
                 HqCard {
                     (listOf("Account created") + (if (profileSaved) listOf("Profile set up") else emptyList()) + listOf("Your goal is ready")).forEach { item ->
                         Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(vertical = HqSpacing.xs)) {
-                            Icon(Icons.Filled.CheckCircle, null, tint = c.success, modifier = Modifier.size(20.dp))
+                            Icon(Icons.Filled.CheckCircle, null, tint = c.statusSuccessFg, modifier = Modifier.size(20.dp))
                             Spacer(Modifier.size(HqSpacing.sm))
                             Text(item, style = HqType.titleSmall, color = c.textPrimary)
                         }
@@ -294,48 +327,5 @@ fun IntentChooserScreen(
                 HqTextButton(text = "Explore later", onClick = onExploreLater, modifier = Modifier.align(Alignment.CenterHorizontally))
             }
         }
-    }
-}
-
-@Composable
-private fun IntentOptionCard(
-    icon: ImageVector,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    val c = LocalHqColors.current
-    HqCard(variant = HqCardVariant.Interactive, onClick = onClick) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg)
-        ) {
-            Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(c.brandPrimaryContainer),
-                contentAlignment = Alignment.Center
-            ) { Icon(icon, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.md)) }
-            Column(Modifier.weight(1f)) {
-                Text(title, style = HqType.titleMedium, color = c.textPrimary)
-                Text(subtitle, style = HqType.bodySmall, color = c.textSecondary, modifier = Modifier.padding(top = HqSpacing.xs))
-            }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = c.textTertiary, modifier = Modifier.size(HqIconSize.sm))
-        }
-    }
-}
-
-@Composable
-private fun OnboardingStepLabel(step: Int, label: String) {
-    val c = LocalHqColors.current
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
-        modifier = Modifier.padding(bottom = HqSpacing.lg)
-    ) {
-        Box(
-            Modifier.size(34.dp).clip(CircleShape).background(c.brandPrimaryContainer),
-            contentAlignment = Alignment.Center
-        ) { Text(step.toString(), style = HqType.titleSmall, color = c.brandPrimary) }
-        Text(label, style = HqType.labelLarge, color = c.textSecondary)
     }
 }

@@ -251,7 +251,7 @@ class FlatViewModel(
             return
         }
         if (toUid.isBlank() || toUid == uid) {
-            onResult(Result.failure(IllegalArgumentException("Choose another Habitiq member.")))
+            onResult(Result.failure(IllegalArgumentException("Choose another Oddroof member.")))
             return
         }
         viewModelScope.launch {
@@ -426,10 +426,14 @@ class FlatViewModel(
         currency: String = "INR",
         splitType: String = "equal",
         customSplits: Map<String, Double>? = null,
+        paidBy: String? = null,
         onDone: (Boolean) -> Unit = {}
     ) {
         val uid = currentUser.value?.uid ?: return onDone(false)
         val flat = _flatId.value ?: return onDone(false)
+        // The payer defaults to the person recording the expense; createdBy always stays the recorder.
+        val payer = paidBy ?: uid
+        if (payer != uid && _members.value.none { it.uid == payer }) return onDone(false)
         val participants = if (splitAmong.isNotEmpty()) splitAmong else _members.value.map { it.uid }
         val splits = when {
             customSplits != null -> customSplits
@@ -441,7 +445,7 @@ class FlatViewModel(
         }
         val expense = FlatExpense(
             id = UUID.randomUUID().toString(), description = description.trim(), amount = amount,
-            currency = currency, paidBy = uid, splitAmong = participants, splitType = splitType,
+            currency = currency, paidBy = payer, splitAmong = participants, splitType = splitType,
             splits = splits, category = category,
             date = LocalDate.now().toString(), createdBy = uid
         )
@@ -519,7 +523,7 @@ class FlatViewModel(
             totalBillsINR = monthBills.sumOf { it.amount ?: 0.0 },
             totalExpensesINR = monthExpenses.sumOf { it.amount },
             totalSettledINR = monthSettlements.sumOf { it.amount },
-            carryForwardOut = nets.filter { abs(it.value) > 0.5 }
+            carryForwardOut = nets.filter { abs(it.value) >= habitiq.app.lib.BALANCE_EPSILON }
         )
         viewModelScope.launch { billsRepository.closeMonth(flat, cycle, uid) }
     }

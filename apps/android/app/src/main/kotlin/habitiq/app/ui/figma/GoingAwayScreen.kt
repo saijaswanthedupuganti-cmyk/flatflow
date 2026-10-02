@@ -1,5 +1,10 @@
 package habitiq.app.ui.figma
 
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.CleaningServices
+import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -69,7 +74,7 @@ fun GoingAwayScreen(viewModel: FlatViewModel, onBack: () -> Unit, onSent: () -> 
         ) {
             StatusCard(pendingCount = myTasks.size)
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                Text("YOUR TASK LIST", color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 0.26.sp)
+                Text("Your task list", color = c.textSecondary, style = HqType.labelMedium)
                 if (myTasks.isEmpty()) {
                     Text("No pending tasks assigned to you.", color = c.textSecondary, style = HqType.bodyLarge)
                 } else {
@@ -88,7 +93,7 @@ fun GoingAwayScreen(viewModel: FlatViewModel, onBack: () -> Unit, onSent: () -> 
         }
         Column(
             Modifier.fillMaxWidth()
-                .background(c.background.copy(alpha = 0.92f))
+                .background(c.canvas)
                 .navigationBarsPadding()
                 .padding(HqSpacing.xl)
         ) {
@@ -111,17 +116,17 @@ private fun StatusCard(pendingCount: Int) {
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(HqRadius.md))
-            .background(c.brandPrimary)
+            .background(c.actionPrimaryBg)
             .padding(HqSpacing.lg),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("STATUS", color = c.onBrandPrimary.copy(alpha = 0.8f), style = HqType.labelSmall, letterSpacing = 0.55.sp)
-            Text("$pendingCount Pending Tasks", color = c.onBrandPrimary, style = HqType.headlineSmall)
+            Text("Status", color = c.actionPrimaryFg, style = HqType.labelMedium)
+            Text(if (pendingCount == 1) "1 pending task" else "$pendingCount pending tasks", color = c.actionPrimaryFg, style = HqType.headlineSmall)
         }
-        Box(Modifier.size(48.dp).clip(CircleShape).background(c.brandPrimaryHover), contentAlignment = Alignment.Center) {
-            Text("✈", style = HqType.headlineSmall)
+        Box(Modifier.size(48.dp).clip(CircleShape).background(c.actionPrimaryHover), contentAlignment = Alignment.Center) {
+            Icon(Icons.Filled.Luggage, contentDescription = null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.md))
         }
     }
 }
@@ -140,8 +145,8 @@ private fun GoingAwayTaskCard(
             Column {
                 StatusPill(
                     text = if (isOverdue) "Overdue" else dayLabel(task.dueDate),
-                    bg = if (isOverdue) c.errorContainer else c.surfaceSubtle,
-                    fg = if (isOverdue) c.error else c.textSecondary
+                    bg = if (isOverdue) c.statusDangerBg else c.surfaceSubtle,
+                    fg = if (isOverdue) c.statusDangerFg else c.textSecondary
                 )
                 Spacer(Modifier.height(HqSpacing.sm))
                 Text(task.name, color = c.textPrimary, style = HqType.titleMedium)
@@ -152,13 +157,13 @@ private fun GoingAwayTaskCard(
                 )
             }
             Box(Modifier.size(40.dp).clip(RoundedCornerShape(HqRadius.sm)).background(c.surfaceSubtle), contentAlignment = Alignment.Center) {
-                Text(taskEmoji(task.name), style = HqType.titleMedium)
+                Icon(taskIcon(task.name), contentDescription = null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
             }
         }
         Column(Modifier.fillMaxWidth().padding(top = 1.dp)) {
-            Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderDefault))
+            Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderSubtle))
             Spacer(Modifier.height(HqSpacing.lg))
-            Text("Reassign to:", color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 0.26.sp)
+            Text("Reassign to", color = c.textSecondary, style = HqType.labelMedium)
             Spacer(Modifier.height(HqSpacing.md))
             Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
                 members.forEach { member ->
@@ -169,7 +174,7 @@ private fun GoingAwayTaskCard(
                         Spacer(Modifier.height(HqSpacing.xs))
                         Text(
                             member.nickname.split(" ").firstOrNull() ?: member.nickname,
-                            color = if (selectedUid == member.uid) c.brandPrimary else c.textSecondary,
+                            color = if (selectedUid == member.uid) c.actionPrimaryBg else c.textSecondary,
                             style = HqType.labelSmall,
                             fontWeight = if (selectedUid == member.uid) FontWeight.Bold else FontWeight.Medium
                         )
@@ -188,17 +193,16 @@ private fun InfoBanner() {
     Row(
         Modifier.fillMaxWidth()
             .clip(RoundedCornerShape(HqRadius.md))
-            .background(c.surfaceDisabled)
-            .border(1.dp, c.borderDefault, RoundedCornerShape(HqRadius.md))
+            .background(c.disabledBg)
+            .border(1.dp, c.borderSubtle, RoundedCornerShape(HqRadius.md))
             .padding(HqSpacing.lg),
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)
     ) {
-        Icon(Icons.Filled.Info, null, tint = c.borderStrong, modifier = Modifier.size(HqIconSize.sm))
+        Icon(Icons.Filled.Info, null, tint = c.borderControl, modifier = Modifier.size(HqIconSize.sm))
         Text(
             "Requests will be sent to your flatmates. You'll be marked 'Away' only after all tasks are accepted.",
-            color = c.borderStrong,
-            style = HqType.labelMedium,
-            letterSpacing = 0.26.sp
+            color = c.borderControl,
+            style = HqType.labelMedium
         )
     }
 }
@@ -227,8 +231,8 @@ private fun frequencyLabel(freq: String) = when (freq) {
     else -> "Weekly recurring task"
 }
 
-private fun taskEmoji(name: String) = when {
-    name.contains("kitchen", true) || name.contains("clean", true) -> "🍳"
-    name.contains("trash", true) || name.contains("garbage", true) -> "🗑️"
-    else -> "📋"
+private fun taskIcon(name: String): ImageVector = when {
+    name.contains("kitchen", true) || name.contains("clean", true) -> Icons.Filled.CleaningServices
+    name.contains("trash", true) || name.contains("garbage", true) -> Icons.Filled.Delete
+    else -> Icons.Filled.Checklist
 }

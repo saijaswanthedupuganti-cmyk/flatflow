@@ -23,6 +23,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import habitiq.app.ui.theme.hqPressScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -30,6 +31,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -40,16 +42,24 @@ import habitiq.app.ui.theme.LocalHqColors
  */
 enum class HqButtonVariant { Primary, Secondary, Tertiary, Destructive }
 
-private data class HqButtonColors(val background: Color, val pressedBackground: Color, val content: Color, val border: Color?)
+private data class HqButtonColors(
+    val background: Color,
+    val pressedBackground: Color,
+    val content: Color,
+    val border: Color?,
+    val disabledBackground: Color,
+    val disabledContent: Color,
+    val disabledBorder: Color?,
+)
 
 @Composable
 private fun hqButtonColors(variant: HqButtonVariant): HqButtonColors {
     val c = LocalHqColors.current
     return when (variant) {
-        HqButtonVariant.Primary -> HqButtonColors(c.brandPrimary, c.brandPrimaryPressed, c.onBrandPrimary, null)
-        HqButtonVariant.Secondary -> HqButtonColors(c.brandPrimaryContainer, c.brandPrimaryContainer, c.brandPrimary, null)
-        HqButtonVariant.Tertiary -> HqButtonColors(Color.Transparent, Color.Transparent, c.brandPrimary, null)
-        HqButtonVariant.Destructive -> HqButtonColors(c.error, c.error, Color.White, null)
+        HqButtonVariant.Primary -> HqButtonColors(c.actionPrimaryBg, c.actionPrimaryPressed, c.actionPrimaryFg, null, c.disabledBg, c.disabledFg, null)
+        HqButtonVariant.Secondary -> HqButtonColors(c.actionSecondaryBg, c.actionSecondaryPressed, c.actionSecondaryFg, c.borderSubtle, c.disabledBg, c.disabledFg, c.disabledBorder)
+        HqButtonVariant.Tertiary -> HqButtonColors(Color.Transparent, c.actionTertiaryPressed, c.actionTertiaryFg, null, Color.Transparent, c.disabledFg, null)
+        HqButtonVariant.Destructive -> HqButtonColors(c.actionDangerBg, c.actionDangerPressed, c.actionDangerFg, null, c.disabledBg, c.disabledFg, null)
     }
 }
 
@@ -71,33 +81,43 @@ fun HqButton(
     loading: Boolean = false,
     fullWidth: Boolean = true,
     leadingIcon: ImageVector? = null,
+    trailingIcon: ImageVector? = null,
 ) {
     val colors = hqButtonColors(variant)
     val interactionSource = remember { MutableInteractionSource() }
     val pressed by interactionSource.collectIsPressedAsState()
     val isEnabled = enabled && !loading
 
+    // A loading button keeps its enabled colours (only interaction is blocked) so the label stays readable.
     val background = when {
-        !isEnabled -> colors.background.copy(alpha = 0.4f)
-        pressed -> colors.pressedBackground
+        !enabled -> colors.disabledBackground
+        pressed && !loading -> colors.pressedBackground
         else -> colors.background
     }
-    val contentColor = if (isEnabled) colors.content else colors.content.copy(alpha = 0.5f)
+    val contentColor = if (enabled) colors.content else colors.disabledContent
+    val borderColor = if (enabled) colors.border else colors.disabledBorder
+    val shape = RoundedCornerShape(HqRadius.button)
 
     Box(
         modifier = (if (fullWidth) modifier.fillMaxWidth() else modifier)
             .hqPressScale(pressed && isEnabled)
-            .clip(RoundedCornerShape(HqRadius.lg))
-            .let { m -> if (colors.border != null) m.border(1.dp, colors.border, RoundedCornerShape(HqRadius.lg)) else m }
+            .let { m ->
+                // Figma primary button: soft teal lift (0 8px 20px rgba(20,184,166,.2)).
+                if (variant == HqButtonVariant.Primary && isEnabled) {
+                    m.shadow(8.dp, shape, ambientColor = colors.background.copy(alpha = .2f), spotColor = colors.background.copy(alpha = .2f))
+                } else m
+            }
+            .clip(shape)
             .background(background)
-            .defaultMinSize(minHeight = habitiq.app.ui.theme.HqTouchTarget)
+            .let { m -> if (borderColor != null) m.border(1.dp, borderColor, shape) else m }
+            .defaultMinSize(minHeight = HqSize.button, minWidth = HqSize.target)
             .clickable(
                 enabled = isEnabled,
                 interactionSource = interactionSource,
                 role = Role.Button,
                 onClick = onClick,
             )
-            .padding(PaddingValues(vertical = HqSpacing.md, horizontal = HqSpacing.lg)),
+            .padding(PaddingValues(vertical = HqSpacing.md, horizontal = HqSpacing.xl)),
         contentAlignment = Alignment.Center,
     ) {
         Row(horizontalArrangement = Arrangement.Center, verticalAlignment = Alignment.CenterVertically) {
@@ -112,7 +132,11 @@ fun HqButton(
                 Icon(leadingIcon, contentDescription = null, tint = contentColor, modifier = Modifier.size(HqIconSize.sm))
                 Box(Modifier.size(HqSpacing.sm))
             }
-            Text(text, style = HqType.titleMedium, color = contentColor)
+            Text(text, style = HqType.buttonLabel, color = contentColor)
+            if (trailingIcon != null && !loading) {
+                Box(Modifier.size(HqSpacing.sm))
+                Icon(trailingIcon, contentDescription = null, tint = contentColor, modifier = Modifier.size(HqIconSize.sm))
+            }
         }
     }
 }
@@ -126,14 +150,15 @@ fun HqButton(
 @Composable
 fun HqTextButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true, color: Color? = null) {
     val c = LocalHqColors.current
-    val resolved = color ?: c.brandPrimary
-    Text(
-        text,
-        style = HqType.labelLarge,
-        color = if (enabled) resolved else c.textDisabled,
-        modifier = modifier
-            .defaultMinSize(minHeight = habitiq.app.ui.theme.HqTouchTarget)
+    val resolved = color ?: c.actionTertiaryFg
+    // The label is centred inside the full 48dp target, so it lines up with neighbouring text.
+    Box(
+        modifier
+            .defaultMinSize(minHeight = HqSize.target, minWidth = HqSize.target)
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
-            .padding(horizontal = HqSpacing.sm, vertical = HqSpacing.sm),
-    )
+            .padding(horizontal = HqSpacing.sm),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, style = HqType.labelMedium, color = if (enabled) resolved else c.disabledFg)
+    }
 }

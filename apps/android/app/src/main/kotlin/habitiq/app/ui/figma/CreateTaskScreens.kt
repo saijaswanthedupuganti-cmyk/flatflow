@@ -101,8 +101,8 @@ fun CreateRecurringTaskScreen(
             HqTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)", placeholder = "e.g. Include bathroom and common area", leadingIcon = Icons.Filled.EditNote)
             Spacer(Modifier.height(HqSpacing.huge))
         }
-        Column(Modifier.fillMaxWidth().background(c.background).navigationBarsPadding().padding(HqSpacing.xl)) {
-            saveError?.let { Text(it, color = c.error, style = HqType.bodySmall) }
+        Column(Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().padding(HqSpacing.xl)) {
+            saveError?.let { Text(it, color = c.statusDangerFg, style = HqType.bodySmall) }
             HqButton(
                 text = if (saving) "Creating…" else "Create task",
                 enabled = taskName.isNotBlank() && selected.isNotEmpty() && !saving,
@@ -160,8 +160,8 @@ fun CreateTempTaskScreen(viewModel: FlatViewModel, onBack: () -> Unit, onCreated
             }
             Spacer(Modifier.height(HqSpacing.huge))
         }
-        Column(Modifier.fillMaxWidth().background(c.background).navigationBarsPadding().padding(HqSpacing.xl)) {
-            saveError?.let { Text(it, color = c.error, style = HqType.bodySmall) }
+        Column(Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().padding(HqSpacing.xl)) {
+            saveError?.let { Text(it, color = c.statusDangerFg, style = HqType.bodySmall) }
             HqButton(
                 text = if (saving) "Assigning…" else "Assign Task",
                 enabled = taskName.isNotBlank() && assigneeUid != null && !saving,
@@ -184,14 +184,14 @@ fun TaskCreatedScreen(onViewTask: () -> Unit, onAddAnother: () -> Unit) {
     val c = LocalHqColors.current
     HqFadeUp(modifier = Modifier.fillMaxSize()) {
         Column(
-            Modifier.fillMaxSize().background(c.background).padding(HqSpacing.xxl),
+            Modifier.fillMaxSize().background(c.canvas).padding(HqSpacing.xxl),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                Modifier.size(88.dp).clip(CircleShape).background(c.successContainer),
+                Modifier.size(88.dp).clip(CircleShape).background(c.statusSuccessBg),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.CheckCircle, null, tint = c.success, modifier = Modifier.size(52.dp)) }
+            ) { Icon(Icons.Filled.CheckCircle, null, tint = c.statusSuccessFg, modifier = Modifier.size(52.dp)) }
             Spacer(Modifier.height(HqSpacing.xl))
             Text("Task created!", style = HqType.headlineMedium, color = c.textPrimary)
             Text(
@@ -211,26 +211,28 @@ fun TaskCreatedScreen(onViewTask: () -> Unit, onAddAnother: () -> Unit) {
 @Composable
 private fun SectionLabel(text: String) {
     val c = LocalHqColors.current
-    Text(text, color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 0.26.sp)
+    Text(text.uppercase(), color = c.textMuted, style = HqType.labelSmall, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
 }
 
 @Composable
 private fun MemberPickerRow(member: Member, selected: Boolean, onClick: () -> Unit) {
     val c = LocalHqColors.current
+    val shape = RoundedCornerShape(16.dp)
     Row(
         Modifier.fillMaxWidth()
-            .clip(RoundedCornerShape(HqRadius.md))
-            .background(if (selected) c.brandPrimaryContainer.copy(alpha = 0.4f) else c.surface)
-            .border(1.dp, if (selected) c.brandPrimary else c.borderDefault, RoundedCornerShape(HqRadius.md))
+            .clip(shape)
+            .background(if (selected) c.selectedBg else c.surfaceBase)
+            .border(1.dp, if (selected) c.selectedBorder else c.borderSubtle, shape)
             .clickable(onClick = onClick)
-            .padding(HqSpacing.md),
+            .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // HqAvatar has no built-in selected/checkmark affordance, so this keeps the shared
-        // MemberInitialAvatar primitive (out of this batch's scope) which already renders one.
-        MemberInitialAvatar(name = member.nickname, selected = selected)
-        Text(member.nickname, color = c.textPrimary, style = HqType.titleMedium, modifier = Modifier.weight(1f))
-        Icon(Icons.Filled.KeyboardArrowDown, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
+        habitiq.app.ui.components.HqAvatar(
+            member.nickname.ifBlank { "Member" }, size = habitiq.app.ui.components.HqAvatarSize.MD,
+            tone = habitiq.app.ui.components.hqToneFor(member.nickname, false),
+        )
+        Text(member.nickname, color = c.textPrimary, style = HqType.rowTitle, modifier = Modifier.weight(1f))
+        if (selected) Icon(habitiq.app.ui.components.HqIcons.Check, null, tint = c.selectedFg, modifier = Modifier.size(HqIconSize.sm))
     }
 }

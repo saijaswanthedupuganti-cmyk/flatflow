@@ -63,9 +63,9 @@ fun DiscoverFilterSheet(
 
             Spacer(Modifier.height(HqSpacing.xl))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-                HqButton(text = "Clear all", onClick = onClear, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))
+                HqButton(text = "Reset", onClick = onClear, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))
                 HqButton(
-                    text = "Apply",
+                    text = "Show results",
                     onClick = { onApply(); onDismiss() },
                     modifier = Modifier.weight(1f)
                 )
@@ -222,11 +222,11 @@ private fun FilterDropdown(
             modifier = Modifier.fillMaxWidth().menuAnchor(MenuAnchorType.PrimaryNotEditable, enabled = true),
             trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded) },
             colors = OutlinedTextFieldDefaults.colors(
-                focusedBorderColor = c.borderFocus,
-                unfocusedBorderColor = c.borderDefault,
+                focusedBorderColor = c.focus,
+                unfocusedBorderColor = c.borderSubtle,
                 focusedTextColor = c.textPrimary,
                 unfocusedTextColor = c.textPrimary,
-                focusedLabelColor = c.brandPrimary,
+                focusedLabelColor = c.actionPrimaryBg,
                 unfocusedLabelColor = c.textSecondary,
             )
         )

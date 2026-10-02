@@ -1,5 +1,13 @@
 package habitiq.app.ui
 
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.border
+import androidx.compose.foundation.shape.RoundedCornerShape
+import habitiq.app.lib.pairwisePersonalBalances
+import habitiq.app.lib.leaveFlatConsequences
+import habitiq.app.lib.LeaveMember
+import androidx.activity.compose.BackHandler
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -84,10 +92,13 @@ fun ProfileScreen(
     val loading by flatViewModel.loading.collectAsStateWithLifecycleCompat()
     val error by flatViewModel.error.collectAsStateWithLifecycleCompat()
     val seekers by flatViewModel.seekerProfiles.collectAsStateWithLifecycleCompat()
+    val expenses by flatViewModel.expenses.collectAsStateWithLifecycleCompat()
+    val settlements by flatViewModel.settlements.collectAsStateWithLifecycleCompat()
     val uid = user?.uid.orEmpty()
     val myLooking = seekers.find { it.id == uid }
 
     var pane by remember { mutableStateOf(ProfilePane.HOME) }
+    BackHandler(enabled = pane != ProfilePane.HOME) { pane = ProfilePane.HOME }
     var showLeaveConfirm by remember { mutableStateOf(false) }
     var showSignOutConfirm by remember { mutableStateOf(false) }
     var awaitingLeave by remember { mutableStateOf(false) }
@@ -135,31 +146,38 @@ fun ProfileScreen(
             onOpenFlatSwitcher = onOpenFlatSwitcher,
             onLeave = { showLeaveConfirm = true }
         )
-        else -> ProfileHomePane(
-            user = user,
-            displayName = (profile?.displayName?.ifBlank { null } ?: user?.displayName).orEmpty()
-                .ifBlank { user?.email?.substringBefore("@").orEmpty() },
-            isAdmin = isAdmin,
-            flatName = flatInfo?.name,
-            memberCount = members.size,
-            lookingActive = myLooking?.active == true,
-            multiFlat = (profile?.flatIds?.size ?: 0) > 1,
-            onEdit = { pane = ProfilePane.EDIT },
-            onOpenFlat = {
-                if (flatInfo == null) onStartOnboarding() else pane = ProfilePane.FLAT
-            },
-            onOpenDiscovery = { pane = ProfilePane.DISCOVERY },
-            onOpenMyPosts = onOpenMyPosts,
-            onOpenPreferences = onOpenSettings,
-            onSignOut = { showSignOutConfirm = true }
-        )
+        else -> {
+            val displayName = (profile?.displayName?.ifBlank { null } ?: user?.displayName).orEmpty()
+                .ifBlank { user?.email?.substringBefore("@").orEmpty() }
+            val role = if (isAdmin) "Admin" else "Member"
+            val multiFlat = (profile?.flatIds?.size ?: 0) > 1
+            ProfileHomeContent(
+                model = ProfileUiModel(
+                    displayName = displayName,
+                    email = user?.email.orEmpty(),
+                    flatName = flatInfo?.name,
+                    flatSupport = "$role · ${members.size} ${if (members.size == 1) "member" else "members"}" + if (multiFlat) " · switch flats" else "",
+                    discoverySupport = if (myLooking?.active == true) "Your looking post is visible" else "Help people understand if you're a fit",
+                ),
+                onEdit = { pane = ProfilePane.EDIT },
+                onOpenFlat = { if (flatInfo == null) onStartOnboarding() else pane = ProfilePane.FLAT },
+                onOpenDiscovery = { pane = ProfilePane.DISCOVERY },
+                onOpenMyPosts = onOpenMyPosts,
+                onOpenPreferences = onOpenSettings,
+                onSignOut = { showSignOutConfirm = true },
+            )
+        }
     }
 
     if (showLeaveConfirm) {
         HqConfirmDialog(
             title = "Leave this flat?",
-            message = "Your tasks will be reassigned. You can rejoin with the invite code.",
-            confirmLabel = "Leave",
+            message = leaveFlatConsequences(
+                members = members.map { LeaveMember(it.uid, it.role, "") },
+                leaverUid = uid,
+                hasUnsettledBalances = pairwisePersonalBalances(expenses, settlements, uid).isNotEmpty(),
+            ),
+            confirmLabel = "Leave flat",
             onConfirm = {
                 showLeaveConfirm = false
                 awaitingLeave = true
@@ -170,8 +188,8 @@ fun ProfileScreen(
     }
     if (showSignOutConfirm) {
         HqConfirmDialog(
-            title = "Sign out?",
-            message = "You'll need to sign in again to access Habitiq.",
+            title = "Sign out of Oddroof?",
+            message = "You'll need to sign in again to use Oddroof.",
             confirmLabel = "Sign out",
             onConfirm = {
                 showSignOutConfirm = false
@@ -182,130 +200,6 @@ fun ProfileScreen(
     }
 }
 
-@Composable
-private fun ProfileHomePane(
-    user: FirebaseUser?,
-    displayName: String,
-    isAdmin: Boolean,
-    flatName: String?,
-    memberCount: Int,
-    lookingActive: Boolean,
-    multiFlat: Boolean,
-    onEdit: () -> Unit,
-    onOpenFlat: () -> Unit,
-    onOpenDiscovery: () -> Unit,
-    onOpenMyPosts: () -> Unit,
-    onOpenPreferences: () -> Unit,
-    onSignOut: () -> Unit
-) {
-    val c = LocalHqColors.current
-    Column(
-        Modifier
-            .fillMaxSize()
-            .background(c.background)
-            .verticalScroll(rememberScrollState())
-            .padding(HqSpacing.xl)
-    ) {
-        Text("Profile", style = HqType.headlineLarge, color = c.textPrimary)
-        Spacer(Modifier.height(HqSpacing.xxl))
-        HqAvatar(
-            name = displayName.ifBlank { user?.email.orEmpty() },
-            size = HqAvatarSize.XL,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        Spacer(Modifier.height(HqSpacing.md))
-        Text(displayName.ifBlank { "Habitiq" }, style = HqType.titleLarge, color = c.textPrimary, modifier = Modifier.align(Alignment.CenterHorizontally))
-        Text(user?.email.orEmpty(), style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.align(Alignment.CenterHorizontally))
-        if (flatName != null) {
-            Text(
-                if (isAdmin) "Admin · $flatName" else "Member · $flatName",
-                style = HqType.bodySmall,
-                color = c.textTertiary,
-                modifier = Modifier.align(Alignment.CenterHorizontally).padding(top = HqSpacing.xs)
-            )
-        }
-        Spacer(Modifier.height(HqSpacing.md))
-        HqButton(
-            text = "Edit profile",
-            onClick = onEdit,
-            variant = HqButtonVariant.Secondary,
-            fullWidth = false,
-            modifier = Modifier.align(Alignment.CenterHorizontally),
-        )
-        Spacer(Modifier.height(HqSpacing.xxxl))
-        Text("MY FLAT", style = HqType.labelMedium, color = c.textTertiary)
-        Spacer(Modifier.height(HqSpacing.sm))
-        ProfileNavCard(
-            icon = { Icon(Icons.Filled.Home, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.md)) },
-            title = flatName ?: "No flat yet",
-            subtitle = when {
-                flatName == null -> "Create or join a flat to start"
-                else -> {
-                    val role = if (isAdmin) "Admin" else "Member"
-                    val extra = if (multiFlat) " · tap to switch" else ""
-                    "$role · $memberCount ${if (memberCount == 1) "member" else "members"}$extra"
-                }
-            },
-            onClick = onOpenFlat
-        )
-        Spacer(Modifier.height(HqSpacing.xl))
-        Text("DISCOVERY", style = HqType.labelMedium, color = c.textTertiary)
-        Spacer(Modifier.height(HqSpacing.sm))
-        ProfileNavCard(
-            icon = { Icon(Icons.Filled.PersonSearch, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.md)) },
-            title = "My Discovery profile",
-            subtitle = if (lookingActive) "Looking post is visible" else "Help people understand if you’re a fit",
-            onClick = onOpenDiscovery
-        )
-        Spacer(Modifier.height(HqSpacing.sm))
-        ProfileNavCard(
-            icon = { Icon(Icons.Filled.Home, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.md)) },
-            title = "My posts",
-            subtitle = "Create and manage Discovery posts",
-            onClick = onOpenMyPosts
-        )
-        Spacer(Modifier.height(HqSpacing.xl))
-        Text("APP", style = HqType.labelMedium, color = c.textTertiary)
-        Spacer(Modifier.height(HqSpacing.sm))
-        ProfileNavCard(
-            icon = { Icon(Icons.Filled.Settings, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.md)) },
-            title = "Preferences",
-            subtitle = "App lock and account",
-            onClick = onOpenPreferences
-        )
-        Spacer(Modifier.height(HqSpacing.xxxl))
-        Text("ACCOUNT", style = HqType.labelMedium, color = c.textTertiary)
-        Spacer(Modifier.height(HqSpacing.sm))
-        // Sign out is reversible (unlike Leave Flat / Delete Account), so it stays a low-emphasis
-        // neutral text action rather than a full Destructive button -- the confirm dialog above
-        // is where the actual action happens.
-        HqTextButton(text = "Sign out", onClick = onSignOut, color = c.textSecondary)
-    }
-}
-
-@Composable
-private fun ProfileNavCard(
-    icon: @Composable () -> Unit,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    val c = LocalHqColors.current
-    HqCard(onClick = onClick) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)
-        ) {
-            icon()
-            Column(Modifier.weight(1f)) {
-                Text(title, style = HqType.titleMedium, color = c.textPrimary)
-                Text(subtitle, style = HqType.bodySmall, color = c.textSecondary)
-            }
-            Icon(Icons.AutoMirrored.Filled.ArrowForward, null, tint = c.textTertiary, modifier = Modifier.size(HqIconSize.sm))
-        }
-    }
-}
 
 @Composable
 private fun EditAccountPane(
@@ -316,11 +210,14 @@ private fun EditAccountPane(
 ) {
     var name by remember { mutableStateOf(currentName) }
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Edit profile", onBack = onBack)
         Column(Modifier.padding(horizontal = HqSpacing.xl)) {
+            Box(Modifier.fillMaxWidth().padding(top = 5.dp, bottom = 25.dp), contentAlignment = Alignment.Center) {
+                habitiq.app.ui.components.HqAvatar(name.ifBlank { user?.email.orEmpty() }, size = habitiq.app.ui.components.HqAvatarSize.XL)
+            }
             Text(
-                "This is your Habitiq account — not your Discovery looking post.",
+                "This is your Oddroof account — not your Discovery looking post.",
                 style = HqType.bodyMedium,
                 color = c.textSecondary
             )
@@ -344,7 +241,7 @@ private fun EditAccountPane(
                 Text(
                     "Your photo comes from Google Sign-In. In-app photo upload isn’t available yet.",
                     style = HqType.caption,
-                    color = c.textTertiary,
+                    color = c.textMuted,
                     modifier = Modifier.padding(top = HqSpacing.sm)
                 )
             }
@@ -375,53 +272,55 @@ private fun MyFlatPane(
 ) {
     val context = LocalContext.current
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = flatName, onBack = onBack)
         Column(
-            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl)
+            Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl).padding(bottom = HqSpacing.xxl),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.md),
         ) {
-            Text(
-                if (isAdmin) "Admin · ${members.size} members" else "${members.size} members",
-                style = HqType.bodyMedium,
-                color = c.textSecondary
-            )
-            Spacer(Modifier.height(HqSpacing.lg))
-            members.forEach { member ->
-                val you = member.uid == uid
-                Text(
-                    buildString {
-                        append(member.nickname.ifBlank { "Member" })
-                        if (you) append("  ·  You")
-                        if (member.role.equals("admin", ignoreCase = true)) append("  ·  Admin")
-                    },
-                    style = HqType.bodyLarge,
-                    color = c.textPrimary,
-                    modifier = Modifier.padding(vertical = HqSpacing.xs)
-                )
+            // Figma flat-summary: a centred soft card with the flat, your role and the member avatars.
+            Column(
+                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(c.surfaceSubtle).padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Home, habitiq.app.ui.components.HqTileTone.Teal)
+                Text(flatName, style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.padding(top = 10.dp))
+                Text(if (isAdmin) "You're an admin" else "Member", style = HqType.bodyMedium, color = c.textSecondary)
+                Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
+                    members.take(5).forEach { member ->
+                        habitiq.app.ui.components.HqAvatar(
+                            member.nickname.ifBlank { "Member" }, size = habitiq.app.ui.components.HqAvatarSize.MD,
+                            tone = habitiq.app.ui.components.hqToneFor(member.nickname, member.uid == uid),
+                            modifier = Modifier.border(2.dp, Color.White, CircleShape),
+                        )
+                    }
+                }
+                Text("${members.size} ${if (members.size == 1) "member" else "members"}", style = HqType.labelMedium, color = c.textPrimary, fontWeight = FontWeight.Bold)
             }
-            HqTextButton(text = "All members", onClick = onOpenMembers)
             if (!flatId.isNullOrBlank()) {
-                Spacer(Modifier.height(HqSpacing.md))
-                Text("Invite code", style = HqType.labelMedium, color = c.textTertiary)
-                Text(flatId, style = HqType.titleMedium, color = c.brandPrimary)
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text("Invite code", style = HqType.labelMedium, color = c.textMuted)
+                    Text(flatId, style = HqType.code, color = c.textBrand)
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                    HqButton(text = "Share invite", onClick = { launchShareInviteCode(context, flatName, flatId) }, variant = HqButtonVariant.Secondary, fullWidth = false)
                     HqTextButton(text = "Copy", onClick = {
                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("Habitiq invite", flatId))
+                        cm.setPrimaryClip(ClipData.newPlainText("Oddroof invite", flatId))
                     })
-                    HqTextButton(text = "Share", onClick = { launchShareInviteCode(context, flatName, flatId) })
                 }
             }
-            if (multiFlat) {
-                HqTextButton(text = "Switch flat", onClick = onOpenFlatSwitcher)
+            habitiq.app.ui.components.HqMenuGroup(null) {
+                habitiq.app.ui.components.HqMenuRow("Members", support = "${members.size} in this flat", lastRow = !isAdmin && !multiFlat, onClick = onOpenMembers)
+                if (multiFlat) habitiq.app.ui.components.HqMenuRow("Switch flat", support = "Open another flat", lastRow = !isAdmin, onClick = onOpenFlatSwitcher)
+                if (isAdmin) {
+                    habitiq.app.ui.components.HqMenuRow("Flat settings", support = "Name, join mode and vacancy", onClick = onOpenFlatSettings)
+                    habitiq.app.ui.components.HqMenuRow("Activity log", support = "Everything that happened in the flat", lastRow = true, onClick = onOpenActivity)
+                }
             }
-            if (isAdmin) {
-                Spacer(Modifier.height(HqSpacing.sm))
-                HqButton(text = "Flat settings", onClick = onOpenFlatSettings)
-                HqTextButton(text = "Activity log", onClick = onOpenActivity)
-            }
-            Spacer(Modifier.height(HqSpacing.lg))
-            HqButton(text = "Leave flat", onClick = onLeave, variant = HqButtonVariant.Destructive)
+            Spacer(Modifier.height(HqSpacing.sm))
+            habitiq.app.ui.components.HqDangerSoftButton("Leave flat", onLeave)
         }
     }
 }
@@ -452,30 +351,30 @@ private fun DiscoveryProfilePane(
     )
 
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        HqBackAppBar(title = "Discovery profile", onBack = onBack)
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        HqBackAppBar(title = "Discovery Profile", onBack = onBack)
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl)
         ) {
             Text(
-                "This is what people see when they look for a flatmate — not your login email.",
+                "How you appear in Discover. This is not your login email.",
                 style = HqType.bodyMedium,
                 color = c.textSecondary,
                 modifier = Modifier.padding(bottom = HqSpacing.lg)
             )
             HqTextField(city, { city = it }, label = "City", singleLine = true)
             Spacer(Modifier.height(HqSpacing.sm))
-            HqTextField(lookingIn, { lookingIn = it }, label = "Areas you want", singleLine = true)
+            HqTextField(lookingIn, { lookingIn = it }, label = "Looking in", singleLine = true)
             Spacer(Modifier.height(HqSpacing.sm))
             HqTextField(
                 budget,
                 { budget = it.filter { c2 -> c2.isDigit() } },
-                label = "Budget (₹)",
+                label = "Monthly budget (₹)",
                 singleLine = true
             )
             Spacer(Modifier.height(HqSpacing.md))
-            Text("Your information", style = HqType.titleSmall, color = c.textPrimary)
-            Text("Optional. Used so others can understand you — not as a filter you set on people.", style = HqType.caption, color = c.textTertiary)
+            habitiq.app.ui.components.HqSectionTitle("Your information")
+            Text("Optional. Used so others can understand you — not as a filter you set on people.", style = HqType.caption, color = c.textMuted)
             Spacer(Modifier.height(HqSpacing.sm))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 identityOptions.forEach { (value, label) ->
@@ -483,8 +382,7 @@ private fun DiscoveryProfilePane(
                 }
             }
             Spacer(Modifier.height(HqSpacing.md))
-            Text("Lifestyle", style = HqType.titleSmall, color = c.textPrimary)
-            Spacer(Modifier.height(HqSpacing.sm))
+            habitiq.app.ui.components.HqSectionTitle("Lifestyle")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 DiscoverFilterLogic.lifestyleTagOptions.forEach { tag ->
                     HqChip(label = tag, selected = tag in tags, onClick = { tags = if (tag in tags) tags - tag else tags + tag })
@@ -493,12 +391,11 @@ private fun DiscoveryProfilePane(
             Spacer(Modifier.height(HqSpacing.sm))
             HqTextField(bio, { bio = it }, label = "About you", singleLine = false, minLines = 3)
             Spacer(Modifier.height(HqSpacing.md))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text("Visible in Discovery", style = HqType.titleSmall, color = c.textPrimary)
-                    Text("When on, this looking post can appear in Find a person.", style = HqType.caption, color = c.textTertiary)
-                }
-                Switch(checked = active, onCheckedChange = { active = it })
+            habitiq.app.ui.components.HqSettingRow(
+                title = "Visible in Discovery",
+                support = "When on, your looking post appears in Find a flatmate.",
+            ) {
+                habitiq.app.ui.components.HqSwitch(checked = active, onCheckedChange = { active = it }, contentDescription = "Visible in Discovery")
             }
             Spacer(Modifier.height(HqSpacing.xl))
             HqButton(
@@ -514,10 +411,10 @@ private fun DiscoveryProfilePane(
 @Composable
 private fun ProfileSkeleton() {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background).padding(HqSpacing.xl)) {
+    Column(Modifier.fillMaxSize().background(c.canvas).padding(HqSpacing.xl)) {
         HqSkeletonBlock(modifier = Modifier.fillMaxWidth(0.4f), height = HqSpacing.xxl)
         Spacer(Modifier.height(HqSpacing.xxl))
-        Box(Modifier.size(HqAvatarSize.XL.diameter).clip(CircleShape).background(c.surfaceDisabled).align(Alignment.CenterHorizontally))
+        Box(Modifier.size(HqAvatarSize.XL.diameter).clip(CircleShape).background(c.disabledBg).align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(HqSpacing.lg))
         HqSkeletonBlock(modifier = Modifier.fillMaxWidth(0.5f).align(Alignment.CenterHorizontally), height = 18.dp)
         Spacer(Modifier.height(HqSpacing.xxxl))

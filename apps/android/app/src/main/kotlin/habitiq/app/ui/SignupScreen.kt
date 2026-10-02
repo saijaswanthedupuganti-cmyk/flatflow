@@ -1,5 +1,9 @@
 package habitiq.app.ui
 
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.autofill.ContentType
+import habitiq.app.ui.components.HqWordmark
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -75,15 +79,12 @@ fun SignupScreen(
     Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(c.background)
+                .background(c.canvas)
                 .verticalScroll(rememberScrollState())
                 .padding(HqSpacing.xxl)
         ) {
             Spacer(Modifier.height(HqSpacing.xl))
-            Box(
-                Modifier.size(72.dp).clip(CircleShape).background(c.brandPrimaryContainer).align(Alignment.CenterHorizontally),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.Home, null, tint = c.brandPrimary, modifier = Modifier.size(36.dp)) }
+            HqWordmark()
             Spacer(Modifier.height(HqSpacing.lg))
             Text("Create your account", style = HqType.headlineLarge, color = c.textPrimary)
             Text(
@@ -122,6 +123,8 @@ fun SignupScreen(
                 onValueChange = { email = it },
                 label = "Email address",
                 leadingIcon = Icons.Filled.Email,
+                keyboardType = KeyboardType.Email,
+                contentType = ContentType.EmailAddress,
             )
             Spacer(Modifier.height(HqSpacing.md))
             HqTextField(
@@ -130,6 +133,8 @@ fun SignupScreen(
                 label = "Password",
                 isPassword = true,
                 leadingIcon = Icons.Filled.Lock,
+                contentType = ContentType.NewPassword,
+                imeAction = ImeAction.Done,
             )
             Spacer(Modifier.height(HqSpacing.md))
             PasswordRequirement("At least 8 characters", hasMinLength)
@@ -167,10 +172,10 @@ private fun PasswordRequirement(label: String, met: Boolean) {
         Icon(
             Icons.Filled.CheckCircle,
             null,
-            tint = if (met) c.success else c.textTertiary,
+            tint = if (met) c.statusSuccessFg else c.textMuted,
             modifier = Modifier.size(18.dp)
         )
         Spacer(Modifier.size(HqSpacing.sm))
-        Text(label, style = HqType.bodySmall, color = if (met) c.success else c.textSecondary)
+        Text(label, style = HqType.bodySmall, color = if (met) c.statusSuccessFg else c.textSecondary)
     }
 }

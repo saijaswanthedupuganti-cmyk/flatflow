@@ -88,20 +88,20 @@ object TrustCopy {
             return TrustPresentation(
                 TrustTier.UNRATED,
                 "Unrated",
-                "This person has not allowed Habitiq to use activity history for a trust tag."
+                "This person has not allowed Oddroof to use activity history for a trust tag."
             )
         }
         return if (memberCount > 0) {
             TrustPresentation(
                 TrustTier.HABITIQ_MEMBER,
-                "Habitiq member",
-                "This listing comes from a flat already using Habitiq for shared living. It is not a numerical trust score."
+                "Oddroof member",
+                "This listing comes from a flat already using Oddroof for shared living. It is not a numerical trust score."
             )
         } else {
             TrustPresentation(
                 TrustTier.NEW_TO_HABITIQ,
-                "New to Habitiq",
-                "New to Habitiq is a neutral tag. It does not mean low trust."
+                "New to Oddroof",
+                "New to Oddroof is a neutral tag. It does not mean low trust."
             )
         }
     }
@@ -116,8 +116,8 @@ object TrustCopy {
         }
         return TrustPresentation(
             TrustTier.NEW_TO_HABITIQ,
-            "New to Habitiq",
-            "New to Habitiq is a neutral tag. Habitiq does not show a trust percentage, and a single report does not change this tag."
+            "New to Oddroof",
+            "New to Oddroof is a neutral tag. Oddroof does not show a trust percentage, and a single report does not change this tag."
         )
     }
 }

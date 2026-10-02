@@ -1,5 +1,8 @@
 package habitiq.app.data
 
+import habitiq.app.lib.planLeave
+import habitiq.app.lib.LeaveTask
+import habitiq.app.lib.LeaveMember
 import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.DocumentReference
 import com.google.firebase.firestore.DocumentSnapshot
@@ -85,10 +88,10 @@ class UsersRepository(
     // Must run while the user is still signed in -- Firestore rules require request.auth.
     suspend fun deleteUserData(uid: String): Result<Unit> = runCatching {
         val userRef = firestore.collection("users").document(uid)
-        val flatId = resolveFlatIds(userRef, userRef.get().await()).first
-        if (flatId != null) {
-            leaveFlat(flatId, uid)
-        }
+        val (_, flatIds) = resolveFlatIds(userRef, userRef.get().await())
+        // Leave every flat, not just the active one, so no flat keeps a member record for a deleted account.
+        // One failing flat must not strand the rest, so each is attempted and any failure is recorded.
+        flatIds.forEach { id -> runCatching { leaveFlat(id, uid) }.onFailure { recordNonFatal(it) } }
         userRef.delete().await()
         Unit
     }.onFailure { recordNonFatal(it) }
@@ -103,10 +106,17 @@ class UsersRepository(
         FirebaseCrashlytics.getInstance().recordException(error)
     }
 
+    /**
+     * Leaves [flatId] without breaking it for the people who stay: this person's tasks pass to the
+     * next person in each rotation, a sole admin hands over to the longest-standing member, and the
+     * last member closes the flat. All of that runs first, while the leaver still has permission to
+     * do it; only then is their own member record removed.
+     */
     private suspend fun leaveFlat(flatId: String, uid: String): String? {
         val userRef = firestore.collection("users").document(uid)
         val userSnap = userRef.get().await()
         val flatIds = resolveFlatIds(userRef, userSnap).second
+        applyLeavePlan(flatId, uid)
         firestore.runTransaction { transaction ->
             val flatRef = firestore.collection("flats").document(flatId)
             val memberRef = flatRef.collection("members").document(uid)
@@ -128,5 +138,39 @@ class UsersRepository(
             null
         }.await()
         return flatIds.filter { it != flatId }.firstOrNull()
+    }
+
+    private suspend fun applyLeavePlan(flatId: String, uid: String) {
+        val flatRef = firestore.collection("flats").document(flatId)
+        val members = flatRef.collection("members").get().await().documents.map { doc ->
+            LeaveMember(
+                uid = doc.getString("uid") ?: doc.id,
+                role = doc.getString("role") ?: "member",
+                joinedAt = doc.getString("joinedAt").orEmpty(),
+            )
+        }
+        if (members.none { it.uid == uid }) return // already gone, nothing to hand over
+        val tasks = flatRef.collection("tasks").get().await().documents.map { doc ->
+            LeaveTask(
+                taskId = doc.id,
+                assignedUid = doc.getString("currentAssignedUserId").orEmpty(),
+                queueOrder = (doc.get("queueOrder") as? List<*>)?.mapNotNull { it?.toString() }.orEmpty(),
+            )
+        }
+        val plan = planLeave(uid, members, tasks)
+        plan.taskChanges.forEach { change ->
+            flatRef.collection("tasks").document(change.taskId).update(
+                mapOf("currentAssignedUserId" to change.newAssignee, "queueOrder" to change.newQueue)
+            ).await()
+        }
+        plan.promoteUid?.let { successor ->
+            flatRef.collection("members").document(successor).update("role", "admin").await()
+            flatRef.update("adminUid", successor).await()
+        }
+        val leaverIsAdmin = members.any { it.uid == uid && it.role == "admin" }
+        if (plan.closeFlat && leaverIsAdmin) {
+            // Last member out closes the flat. Only an admin may delete it; a lone non-admin just leaves.
+            flatRef.delete().await()
+        }
     }
 }

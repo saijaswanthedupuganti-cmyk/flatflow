@@ -1,5 +1,9 @@
 package habitiq.app.ui
 
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.autofill.ContentType
+import habitiq.app.ui.components.HqWordmark
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Box
@@ -72,15 +76,12 @@ fun LoginScreen(
     Column(
             modifier = Modifier
                 .fillMaxSize()
-                .background(c.background)
+                .background(c.canvas)
                 .verticalScroll(rememberScrollState())
                 .padding(HqSpacing.xxl)
         ) {
             Spacer(Modifier.height(HqSpacing.xl))
-            Box(
-                Modifier.size(72.dp).clip(CircleShape).background(c.brandPrimaryContainer).align(Alignment.CenterHorizontally),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.Filled.Home, null, tint = c.brandPrimary, modifier = Modifier.size(36.dp)) }
+            HqWordmark()
             Spacer(Modifier.height(HqSpacing.lg))
             Text("Welcome back", style = HqType.headlineLarge, color = c.textPrimary)
             Text(
@@ -119,6 +120,8 @@ fun LoginScreen(
                 onValueChange = { email = it },
                 label = "Email address",
                 leadingIcon = Icons.Filled.Email,
+                keyboardType = KeyboardType.Email,
+                contentType = ContentType.EmailAddress,
             )
             Spacer(Modifier.height(HqSpacing.md))
             HqTextField(
@@ -127,6 +130,9 @@ fun LoginScreen(
                 label = "Password",
                 isPassword = true,
                 leadingIcon = Icons.Filled.Lock,
+                contentType = ContentType.Password,
+                imeAction = ImeAction.Done,
+                onImeAction = { if (state !is AuthUiState.Loading) viewModel.signInWithEmail(email, password) },
             )
             Spacer(Modifier.height(HqSpacing.xl))
 

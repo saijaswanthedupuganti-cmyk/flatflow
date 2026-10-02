@@ -25,9 +25,10 @@ fun HqSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) 
     val c = LocalHqColors.current
     SnackbarHost(hostState, modifier = modifier) { data ->
         Snackbar(
-            shape = RoundedCornerShape(HqRadius.sm),
-            containerColor = c.textPrimary,
-            contentColor = c.background,
+            shape = RoundedCornerShape(HqRadius.control),
+            // Inverse message surface, paired only with text.inverse (design doc section 5.2).
+            containerColor = c.surfaceInverse,
+            contentColor = c.textInverse,
         ) {
             Text(data.visuals.message, style = HqType.bodyMedium)
         }

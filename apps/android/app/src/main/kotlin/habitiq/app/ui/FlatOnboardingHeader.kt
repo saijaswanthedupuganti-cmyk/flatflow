@@ -62,7 +62,7 @@ fun FlatOnboardingHeader(
                     .background(
                         Brush.verticalGradient(
                             0.45f to Color.Transparent,
-                            1f to c.background
+                            1f to c.canvas
                         )
                     )
             )

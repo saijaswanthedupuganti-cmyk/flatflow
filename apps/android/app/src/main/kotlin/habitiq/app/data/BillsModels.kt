@@ -187,3 +187,11 @@ data class ChatMessage(
         "viewingStatus" to viewingStatus
     )
 }
+
+/** User-facing bill state. Maps engine states onto the product vocabulary; never show the raw value. */
+fun billStatusLabel(status: String): String = when (status) {
+    "split_generated" -> "Shares ready"
+    "paid" -> "Paid"
+    "skipped" -> "Skipped"
+    else -> "Upcoming"
+}

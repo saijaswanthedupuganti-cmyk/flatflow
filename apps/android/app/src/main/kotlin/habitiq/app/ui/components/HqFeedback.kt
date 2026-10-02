@@ -45,9 +45,9 @@ fun HqEmptyState(
         modifier.fillMaxWidth().padding(HqSpacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, tint = c.textTertiary, modifier = Modifier.size(48.dp))
+        Icon(icon, contentDescription = null, tint = c.iconDefault, modifier = Modifier.size(48.dp))
         Spacer(Modifier.height(HqSpacing.lg))
-        Text(title, style = HqType.titleLarge, color = c.textPrimary, textAlign = TextAlign.Center)
+        Text(title, style = HqType.titleSmall2, color = c.textPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(HqSpacing.xs))
         Text(message, style = HqType.bodyMedium, color = c.textSecondary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(HqSpacing.xl))
@@ -76,7 +76,7 @@ fun HqErrorState(
         modifier.fillMaxWidth().padding(HqSpacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(title, style = HqType.titleLarge, color = c.textPrimary, textAlign = TextAlign.Center)
+        Text(title, style = HqType.titleSmall2, color = c.textPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(HqSpacing.xs))
         Text(message, style = HqType.bodyMedium, color = c.textSecondary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(HqSpacing.xl))
@@ -88,14 +88,14 @@ fun HqErrorState(
 @Composable
 fun HqInlineError(message: String, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    Text(message, style = HqType.bodySmall, color = c.error, modifier = modifier)
+    Text(message, style = HqType.bodyMedium, color = c.statusDangerFg, modifier = modifier)
 }
 
 /** A short inline confirmation/informational message that isn't an error (e.g. "Password reset email sent"). */
 @Composable
 fun HqInlineInfo(message: String, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    Text(message, style = HqType.bodySmall, color = c.brandPrimary, modifier = modifier)
+    Text(message, style = HqType.bodyMedium, color = c.textBrand, modifier = modifier)
 }
 
 /** Small inline spinner + label for a section still loading (design doc section 33 "InlineLoading"). Avoid a full-screen blocker for small refreshes. */
@@ -103,8 +103,8 @@ fun HqInlineInfo(message: String, modifier: Modifier = Modifier) {
 fun HqInlineLoading(label: String = "Loading…", modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
     Row(modifier, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = c.brandPrimary)
-        Text(label, style = HqType.bodySmall, color = c.textSecondary)
+        CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = c.textBrand)
+        Text(label, style = HqType.bodyMedium, color = c.textSecondary)
     }
 }
 
@@ -119,7 +119,7 @@ fun HqSkeletonBlock(modifier: Modifier = Modifier.fillMaxWidth(), height: androi
     androidx.compose.foundation.layout.Box(
         modifier
             .height(height)
-            .clip(RoundedCornerShape(HqRadius.sm))
+            .clip(RoundedCornerShape(HqRadius.small))
             .background(c.surfaceSubtle)
     )
 }

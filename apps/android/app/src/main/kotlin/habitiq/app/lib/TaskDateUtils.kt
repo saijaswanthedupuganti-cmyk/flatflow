@@ -46,10 +46,17 @@ fun defaultDueDateIso(daysFromNow: Long = 7): String =
     Instant.now().plus(daysFromNow, ChronoUnit.DAYS).toString()
 
 fun formatDueLabel(dueDate: String): String = when (parseTaskLocalDate(dueDate)) {
-    LocalDate.now() -> "Due Today"
-    LocalDate.now().plusDays(1) -> "Due Tomorrow"
+    LocalDate.now() -> "Due today"
+    LocalDate.now().plusDays(1) -> "Due tomorrow"
     null -> "Due soon"
     else -> "Due ${parseTaskLocalDate(dueDate)?.format(DateTimeFormatter.ofPattern("MMM d"))}"
+}
+
+/** Neutral, factual wording for an overdue task: states the date and does not assign blame. */
+fun formatWasDueLabel(dueDate: String): String = when (val date = parseTaskLocalDate(dueDate)) {
+    null -> "Past due"
+    LocalDate.now().minusDays(1) -> "Was due yesterday"
+    else -> "Was due ${date.format(DateTimeFormatter.ofPattern("MMM d"))}"
 }
 
 fun formatExpectedDue(dueDate: String): String = runCatching {

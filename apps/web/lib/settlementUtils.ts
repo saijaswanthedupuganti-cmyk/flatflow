@@ -1,5 +1,12 @@
 import type { Expense, BillInstance, Settlement } from '@/store/useFlatStore'
 
+/**
+ * Smallest balance, in rupees, that still counts as owed: half a paisa, so anything that rounds to
+ * Rs0.01 or more is shown and settled rather than called "all settled". Android uses the same value
+ * (BALANCE_EPSILON in SettlementUtils.kt). Change both together.
+ */
+export const BALANCE_EPSILON = 0.005
+
 export interface SuggestedSettlement {
   fromUserId: string
   toUserId: string
@@ -72,7 +79,7 @@ export function computeMonthNetBalances(
   // 1. Carry-forward from previous month
   if (carryForwardIn) {
     for (const [uid, amount] of Object.entries(carryForwardIn)) {
-      if (Math.abs(amount) >= 0.5) bump(uid, amount)
+      if (Math.abs(amount) >= BALANCE_EPSILON) bump(uid, amount)
     }
   }
 
@@ -125,8 +132,8 @@ export function suggestSettlements(
   netBalances: Record<string, number>,
 ): SuggestedSettlement[] {
   const people = Object.entries(netBalances).map(([uid, amt]) => ({ uid, amt }))
-  const debtors   = people.filter(p => p.amt < -0.5).sort((a, b) => a.amt - b.amt)
-  const creditors = people.filter(p => p.amt >  0.5).sort((a, b) => b.amt - a.amt)
+  const debtors   = people.filter(p => p.amt < -BALANCE_EPSILON).sort((a, b) => a.amt - b.amt)
+  const creditors = people.filter(p => p.amt >  BALANCE_EPSILON).sort((a, b) => b.amt - a.amt)
 
   const result: SuggestedSettlement[] = []
   let di = 0, ci = 0
@@ -135,13 +142,13 @@ export function suggestSettlements(
     const d = debtors[di]
     const c = creditors[ci]
     const payment = Math.min(Math.abs(d.amt), c.amt)
-    if (payment >= 0.5) {
+    if (payment >= BALANCE_EPSILON) {
       result.push({ fromUserId: d.uid, toUserId: c.uid, amount: Math.round(payment) })
     }
     d.amt += payment
     c.amt -= payment
-    if (Math.abs(d.amt) < 0.5) di++
-    if (c.amt < 0.5) ci++
+    if (Math.abs(d.amt) < BALANCE_EPSILON) di++
+    if (c.amt < BALANCE_EPSILON) ci++
   }
 
   return result
@@ -162,7 +169,7 @@ export function computeCarryForward(
     remaining[s.toUserId]   = (remaining[s.toUserId]   ?? 0) - s.amount
   }
   const nonZero = Object.fromEntries(
-    Object.entries(remaining).filter(([, v]) => Math.abs(v) >= 0.5),
+    Object.entries(remaining).filter(([, v]) => Math.abs(v) >= BALANCE_EPSILON),
   )
   return Object.keys(nonZero).length > 0 ? nonZero : null
 }

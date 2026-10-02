@@ -1,9 +1,16 @@
 package habitiq.app.ui.components
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -13,16 +20,14 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import habitiq.app.ui.theme.HqIconSize
-import habitiq.app.ui.theme.HqTouchTarget
+import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
 /**
- * One reusable app bar covering the variants in the design doc section 42, instead of hand-built
- * back buttons per screen. All variants share the same title style, back-button placement, and
- * transparent-on-surface background.
+ * One reusable app bar for every screen. It follows the Figma page header: an optional back button, then a
+ * large DM Sans title and trailing actions, on the canvas rather than in a Material bar.
  */
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun HqAppBarBase(
     title: String?,
@@ -31,22 +36,24 @@ private fun HqAppBarBase(
     actions: @Composable RowScope.() -> Unit = {},
 ) {
     val c = LocalHqColors.current
-    TopAppBar(
-        title = { title?.let { Text(it, style = HqType.titleLarge, color = c.textPrimary) } },
-        navigationIcon = {
-            if (onBack != null) {
-                IconButton(onClick = onBack, modifier = Modifier.size(HqTouchTarget)) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back", tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md))
-                }
+    Row(
+        modifier.fillMaxWidth().background(c.canvas)
+            .padding(start = if (onBack != null) 13.dp else 20.dp, end = 20.dp, top = 8.dp, bottom = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        if (onBack != null) {
+            IconButton(onClick = onBack, modifier = Modifier.size(HqSize.target)) {
+                Icon(HqIcons.Back, contentDescription = "Back", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
             }
-        },
-        actions = actions,
-        colors = TopAppBarDefaults.topAppBarColors(
-            containerColor = c.background,
-            titleContentColor = c.textPrimary,
-        ),
-        modifier = modifier,
-    )
+        }
+        if (title != null) {
+            Text(title, style = HqType.titleLarge2, color = c.textPrimary, maxLines = 2, modifier = Modifier.weight(1f))
+        } else {
+            Spacer(Modifier.weight(1f))
+        }
+        actions()
+    }
 }
 
 /** App-root screens (Home, Tasks, Expenses, Discover, Profile) -- title only, no back button. */

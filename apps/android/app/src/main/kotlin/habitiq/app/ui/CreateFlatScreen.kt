@@ -1,5 +1,6 @@
 package habitiq.app.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -45,6 +46,13 @@ fun CreateFlatScreen(
     var step by rememberSaveable { mutableStateOf(CreateFlatWizardStep.BASICS.name) }
     val wizardStep = CreateFlatWizardStep.valueOf(step)
 
+    // Step back through the wizard. Once the flat exists, back finishes the flow rather than
+    // returning to a form that could create a second flat.
+    BackHandler(enabled = !brilliantFlow && (wizardStep == CreateFlatWizardStep.LOCATION || createdFlatId != null)) {
+        val created = createdFlatId
+        if (created != null) onDone(created) else step = CreateFlatWizardStep.BASICS.name
+    }
+
     LaunchedEffect(createdFlatId) {
         if (createdFlatId != null && wizardStep == CreateFlatWizardStep.LOCATION) {
             step = CreateFlatWizardStep.SUCCESS.name
@@ -82,7 +90,7 @@ fun CreateFlatScreen(
                     style = HqType.bodyMedium,
                     modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.lg)
                 )
-                Text("Invite code: $createdFlatId", color = c.brandPrimary, style = HqType.titleMedium)
+                Text("Invite code: $createdFlatId", color = c.textBrand, style = HqType.titleMedium)
                 Spacer(Modifier.height(HqSpacing.xl))
                 HqButton(
                     text = "Share invite code",

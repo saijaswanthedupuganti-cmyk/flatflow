@@ -30,7 +30,7 @@ fun MembersScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
     val uid = currentUser?.uid.orEmpty()
     val pending = joinRequests.filter { it.status == "pending" }
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         Row(Modifier.padding(HqSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
             HqTextButton(text = "← Back", onClick = onBack)
             Text("Members", style = HqType.headlineSmall, color = c.textPrimary, modifier = Modifier.padding(start = HqSpacing.sm))

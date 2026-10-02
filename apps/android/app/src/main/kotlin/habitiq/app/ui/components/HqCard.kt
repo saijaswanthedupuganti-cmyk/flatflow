@@ -10,6 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -35,20 +36,22 @@ fun HqCard(
     modifier: Modifier = Modifier,
     variant: HqCardVariant = HqCardVariant.Standard,
     onClick: (() -> Unit)? = null,
-    padding: Dp = HqSpacing.lg,
-    /** Status-variant only: override the tinted container color, e.g. `c.successContainer` for an "all settled" state instead of the brand-tinted default. */
+    padding: Dp = HqSpacing.card,
+    /** Status-variant only: override the tinted container color, e.g. `c.statusSuccessBg` for an "all settled" state instead of the brand-tinted default. */
     statusTint: Color? = null,
     content: @Composable androidx.compose.foundation.layout.ColumnScope.() -> Unit,
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(HqRadius.lg)
+    val shape = RoundedCornerShape(HqRadius.card)
     val base = modifier
         .fillMaxWidth()
+        // Figma card lift: 0 7px 22px rgba(25,49,47,.035); Status cards are flat.
+        .then(if (variant == HqCardVariant.Status) Modifier else Modifier.shadow(2.dp, shape, ambientColor = c.textPrimary.copy(alpha = .06f), spotColor = c.textPrimary.copy(alpha = .06f)))
         .clip(shape)
         .then(
             when (variant) {
-                HqCardVariant.Status -> Modifier.background(statusTint ?: c.brandPrimaryContainer)
-                else -> Modifier.background(c.surface).border(1.dp, c.borderDefault, shape)
+                HqCardVariant.Status -> Modifier.background(statusTint ?: c.selectedBg)
+                else -> Modifier.background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
             }
         )
     val clickable = if (onClick != null) base.clickable(onClick = onClick) else base

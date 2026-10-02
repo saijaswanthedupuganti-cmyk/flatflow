@@ -1,5 +1,13 @@
 package habitiq.app.ui
 
+import androidx.compose.foundation.layout.Box
+import habitiq.app.ui.theme.HqSize
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -96,20 +104,19 @@ fun BiometricLockScreen(activity: FragmentActivity, onUnlocked: () -> Unit) {
         })
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Habitiq Vault")
+                .setTitle("Oddroof Vault")
                 .setSubtitle("Verify to access your flat")
                 .setNegativeButtonText("Cancel")
                 .build()
         )
     }
 
-    // Deliberately its own dark "vault" look regardless of the surrounding (light) app theme --
-    // not the light HqColorScheme other Discover screens use.
-    HabitiqTheme(dark = true) {
+    // The lock screen renders outside HabitiqApp, so it resolves the system theme itself.
+    HabitiqTheme {
         val c = LocalHqColors.current
-        Box(Modifier.fillMaxSize().background(c.background), contentAlignment = Alignment.Center) {
+        Box(Modifier.fillMaxSize().background(c.canvas), contentAlignment = Alignment.Center) {
             Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
-                Text("Habitiq is locked", style = HqType.headlineSmall, color = c.textPrimary)
+                Text("Oddroof is locked", style = HqType.headlineSmall, color = c.textPrimary)
                 Text(status, style = HqType.bodyMedium, color = c.textSecondary)
                 HqButton(text = "Unlock", onClick = { authenticate() }, fullWidth = false)
             }
@@ -126,8 +133,9 @@ fun DiscoverBoardScreen(
     initialCity: String = "",
     initialBudget: String = "",
     initialPreference: String = "",
-    initialSurface: String = "entry",
+    initialSurface: String = "browse",
     openCreatePost: Boolean = false,
+    createPostType: String? = null,
     onCreatePostConsumed: () -> Unit = {},
     openMyPosts: Boolean = false,
     onMyPostsConsumed: () -> Unit = {},
@@ -205,11 +213,30 @@ fun DiscoverBoardScreen(
     val context = LocalContext.current
     val prefs = remember { AppPreferences(context) }
     val trustConsent by prefs.discoveryTrustConsent.collectAsState(initial = false)
+    val savedIds by prefs.savedFlats(uid).collectAsState(initial = emptySet())
+    val savedScope = androidx.compose.runtime.rememberCoroutineScope()
+    var flatFrom by rememberSaveable { mutableStateOf("browse") }
     val trustPrompted by prefs.discoveryTrustPrompted.collectAsState(initial = false)
     val scope = rememberCoroutineScope()
 
+    // System back / swipe-back steps out of whichever Discover screen is open, exactly like the
+    // on-screen back arrows. Declared before the screens it covers so their own handlers win.
+    BackHandler(enabled = requestSentName != null || surface != "browse") {
+        when {
+            requestSentName != null -> requestSentName = null
+            surface == "create" || surface == "posts" || surface == "inbox" ->
+                if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse"
+            surface == "flat" -> { surface = flatFrom; flatFrom = "browse" }
+            surface == "person" || surface == "saved" || surface == "map" -> surface = "browse"
+            surface == "chat" -> { surface = if (initialSurface == "inbox") "inbox" else "browse"; chatPartnerId = null }
+            else -> surface = "browse"
+        }
+    }
+
+    var createInitialType by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(openCreatePost) {
         if (openCreatePost) {
+            createInitialType = createPostType
             surface = "create"
             onCreatePostConsumed()
         }
@@ -313,14 +340,14 @@ fun DiscoverBoardScreen(
     requestSentName?.let { name ->
         HqFadeUp(modifier = Modifier.fillMaxSize()) {
             Column(
-                Modifier.fillMaxSize().background(c.background).padding(HqSpacing.xxl),
+                Modifier.fillMaxSize().background(c.canvas).padding(HqSpacing.xxl),
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Box(
-                    Modifier.size(92.dp).clip(CircleShape).background(c.successContainer),
+                    Modifier.size(92.dp).clip(CircleShape).background(c.statusSuccessBg),
                     contentAlignment = Alignment.Center
-                ) { Icon(Icons.Filled.CheckCircle, null, tint = c.success, modifier = Modifier.size(54.dp)) }
+                ) { Icon(Icons.Filled.CheckCircle, null, tint = c.statusSuccessFg, modifier = Modifier.size(54.dp)) }
                 Spacer(Modifier.height(HqSpacing.xl))
                 Text("Request sent!", style = HqType.headlineMedium, color = c.textPrimary)
                 Text(
@@ -350,6 +377,7 @@ fun DiscoverBoardScreen(
 
     when (surface) {
         "create" -> CreateDiscoveryPostScreen(
+            initialType = createInitialType,
             isAdmin = isAdmin,
             flat = flatInfo,
             existingVacancy = flatInfo?.vacancy,
@@ -361,7 +389,7 @@ fun DiscoverBoardScreen(
                     surface = "published"
                 }
             },
-            onBack = { if (initialSurface != "entry" && onRootBack != null) onRootBack() else surface = "entry" },
+            onBack = { if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse" },
             publishing = discoveryPostLoading,
             uploadProgress = discoveryUploadProgress?.fraction,
             publishError = discoveryPostError,
@@ -389,7 +417,7 @@ fun DiscoverBoardScreen(
             onResumeLooking = { viewModel.setSeekerActive(true) },
             onEdit = { surface = "create" },
             onViewConnections = { surface = "inbox" },
-            onBack = { if (initialSurface != "entry" && onRootBack != null) onRootBack() else surface = "entry" }
+            onBack = { if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse" }
         )
         "inbox" -> ConnectionInboxScreen(
             uid = uid,
@@ -405,7 +433,7 @@ fun DiscoverBoardScreen(
             },
             onAccept = { viewModel.respondToConnection(it, true) },
             onDecline = { viewModel.respondToConnection(it, false) },
-            onBack = { if (initialSurface != "entry" && onRootBack != null) onRootBack() else surface = "entry" }
+            onBack = { if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse" }
         )
         "flat" -> {
             val listing = vacancies.find { it.flatId == selectedFlatId }
@@ -433,7 +461,7 @@ fun DiscoverBoardScreen(
                                 it.status != ConnectionStatus.DECLINED
                         }.map { conn ->
                             val name = seekers.find { it.id == conn.fromUid }?.displayName?.ifBlank { null }
-                                ?: "Habitiq user"
+                                ?: "Oddroof user"
                             conn.fromUid to name
                         }
                     } else emptyList(),
@@ -441,7 +469,11 @@ fun DiscoverBoardScreen(
                         selectedSeekerId = personId
                         surface = "person"
                     },
-                    onBack = { surface = "browse" },
+                    onBack = { surface = flatFrom; flatFrom = "browse" },
+                    saved = listing.flatId in savedIds,
+                    onToggleSave = {
+                        savedScope.launch { prefs.setFlatSaved(uid, listing.flatId, listing.flatId !in savedIds) }
+                    },
                     onConnect = {
                         connectTargetUid = partner
                         connectName = listing.flatName
@@ -461,6 +493,21 @@ fun DiscoverBoardScreen(
                 )
             }
         }
+        "saved" -> habitiq.app.ui.discover.SavedFlatsScreen(
+            saved = vacancies.filter { it.flatId in savedIds },
+            onOpen = { selectedFlatId = it.flatId; flatFrom = "saved"; surface = "flat" },
+            onRemove = { l -> savedScope.launch { prefs.setFlatSaved(uid, l.flatId, false) } },
+            onExplore = { surface = "browse" },
+            onBack = { surface = "browse" },
+        )
+        "map" -> habitiq.app.ui.discover.WorkplaceMapScreen(
+            onPicked = { area, city ->
+                vacancyFilters = vacancyFilters.copy(cityArea = area.ifBlank { city })
+                mode = DiscoverMode.USE_A_FLAT
+                surface = "browse"
+            },
+            onBack = { surface = "browse" },
+        )
         "person" -> {
             val seeker = seekers.find { it.id == selectedSeekerId }
             if (seeker == null) {
@@ -525,7 +572,7 @@ fun DiscoverBoardScreen(
             findingPerson = mode == DiscoverMode.FIND_A_PERSON,
             query = chooseQuery,
             onQuery = { chooseQuery = it },
-            onBack = { surface = "entry" },
+            onBack = { surface = "browse" },
             onContinue = {
                 if (mode == DiscoverMode.FIND_A_PERSON) {
                     seekerFilters = seekerFilters.copy(cityArea = chooseQuery.trim())
@@ -536,15 +583,15 @@ fun DiscoverBoardScreen(
             }
         )
         "published" -> Column(
-            Modifier.fillMaxSize().background(c.background).padding(HqSpacing.xxl),
+            Modifier.fillMaxSize().background(c.canvas).padding(HqSpacing.xxl),
             verticalArrangement = Arrangement.Center,
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Box(
-                Modifier.size(104.dp).clip(CircleShape).background(c.successContainer),
+                Modifier.size(104.dp).clip(CircleShape).background(c.statusSuccessBg),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = c.success, modifier = Modifier.size(62.dp))
+                Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = c.statusSuccessFg, modifier = Modifier.size(62.dp))
             }
             Spacer(Modifier.height(HqSpacing.xl))
             Text("Your listing is live!", style = HqType.headlineMedium, color = c.textPrimary)
@@ -557,19 +604,19 @@ fun DiscoverBoardScreen(
             )
             HqButton(text = "Manage post", onClick = { surface = "posts" })
             Spacer(Modifier.height(HqSpacing.md))
-            HqButton(text = "Back to Discover", onClick = { surface = "entry" }, variant = HqButtonVariant.Secondary)
+            HqButton(text = "Back to Discover", onClick = { surface = "browse" }, variant = HqButtonVariant.Secondary)
         }
-        else -> Column(Modifier.fillMaxSize().background(c.background)) {
+        else -> Column(Modifier.fillMaxSize().background(c.canvas)) {
             DiscoverHeader(
-                onBack = { surface = "entry" },
-                onPost = { surface = "create" },
+                onBack = { surface = "browse" },
                 onMyPosts = { surface = "posts" },
                 onInbox = { surface = "inbox" },
-                inboxCount = connections.count { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT }
+                inboxCount = connections.count { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT },
+                onSaved = { surface = "saved" },
             )
-            Column(Modifier.padding(horizontal = HqSpacing.lg)) {
+            Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
                 DiscoverModeToggle(mode, DiscoverFlags.FIND_FLATMATE) { mode = it }
-                Spacer(Modifier.height(HqSpacing.xs))
+                Spacer(Modifier.height(HqSpacing.sm))
                 Text(
                     when (mode) {
                         DiscoverMode.USE_A_FLAT -> "Find a place to live — flats, PGs and open rooms."
@@ -593,7 +640,9 @@ fun DiscoverBoardScreen(
                     onOpenListing = {
                         selectedFlatId = it.flatId
                         surface = "flat"
-                    }
+                    },
+                    onMyPosts = { surface = "posts" },
+                    onNearPlace = { surface = "map" },
                 )
                 DiscoverMode.FIND_A_PERSON -> {
                     if (!DiscoverFlags.FIND_FLATMATE) {
@@ -610,6 +659,7 @@ fun DiscoverBoardScreen(
                             viewerCity = flatInfo?.vacancy?.city,
                             trustConsent = trustConsent,
                             onOpenFilters = { showFilterSheet = true },
+                            onMyPosts = { surface = "posts" },
                             onOpenProfile = {
                                 selectedSeekerId = it.id
                                 surface = "person"
@@ -640,30 +690,32 @@ private fun DiscoverEntry(
     onInbox: () -> Unit
 ) {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background).verticalScroll(rememberScrollState()).padding(HqSpacing.xl)) {
+    Column(Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(HqSpacing.xl)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
             HqTextButton(text = "Posts", onClick = onPosts)
             HqTextButton(text = "Inbox", onClick = onInbox)
         }
         Text("Discover", style = HqType.headlineLarge, color = c.textPrimary)
         Text("Find your next place or the right people to live with.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = HqSpacing.lg))
-        DiscoverChoiceCard(Icons.Filled.Home, "Find a place", "Flats and rooms with space.") { onFindPlace() }
-        Spacer(Modifier.height(HqSpacing.md))
-        DiscoverChoiceCard(Icons.Filled.Person, "Find a person", "Flatmates and households.") { onFindPerson() }
+        androidx.compose.foundation.layout.Row(
+            Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max),
+            horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
+        ) {
+            habitiq.app.ui.IntentTile("Find a place", "Flats and rooms with space.", habitiq.app.ui.components.HqArt.SearchHouse, onFindPlace, Modifier.weight(1f))
+            habitiq.app.ui.IntentTile("Find a person", "Flatmates and households.", habitiq.app.ui.components.HqArt.IntentFlatmate, onFindPerson, Modifier.weight(1f))
+        }
         Spacer(Modifier.height(HqSpacing.xl))
-        Text("Popular locations", style = HqType.titleSmall, color = c.textPrimary)
-        Column(Modifier.padding(top = HqSpacing.sm), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            listOf("Hyderabad", "Gachibowli", "Hitech City", "Kondapur").chunked(2).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    row.forEach { city ->
-                        HqChip(label = city, selected = false, onClick = { onLocation(city) })
-                    }
-                }
+        Text("Search by area", style = HqType.titleSmall, color = c.textPrimary)
+        habitiq.app.ui.components.HqChipFlow(Modifier.padding(top = HqSpacing.sm)) {
+            listOf("Hyderabad", "Gachibowli", "Hitech City", "Kondapur").forEach { city ->
+                HqChip(label = city, selected = false, onClick = { onLocation(city) })
             }
         }
         if (isAdmin) {
             Spacer(Modifier.height(HqSpacing.xl))
-            DiscoverChoiceCard(Icons.Filled.Add, "Post a vacancy", "List a room in your flat.") { onPost() }
+            habitiq.app.ui.components.HqGroup {
+                habitiq.app.ui.components.HqNavRow(title = "Post a vacancy", support = "List a room in your flat.", onClick = onPost)
+            }
         }
     }
 }
@@ -678,7 +730,7 @@ private fun DiscoverChoiceCard(
     val c = LocalHqColors.current
     HqCard(variant = HqCardVariant.Interactive, onClick = onClick) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-            Icon(icon, null, tint = c.brandPrimary)
+            Icon(icon, null, tint = c.actionPrimaryBg)
             Column {
                 Text(title, style = HqType.titleMedium, color = c.textPrimary)
                 Text(subtitle, style = HqType.bodySmall, color = c.textSecondary)
@@ -696,7 +748,7 @@ private fun DiscoverChoose(
     onContinue: () -> Unit
 ) {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = if (findingPerson) "Find a person" else "Find a place", onBack = onBack)
         Column(Modifier.padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
             Text(
@@ -706,8 +758,10 @@ private fun DiscoverChoose(
             )
             HqTextField(value = query, onValueChange = onQuery, label = "Search", placeholder = "City, area or landmark")
             Text("Recent searches", style = HqType.titleSmall, color = c.textPrimary)
-            listOf("2 BHK", "Private room", "Hyderabad").forEach { hint ->
-                HqChip(label = hint, selected = query == hint, onClick = { onQuery(hint) })
+            habitiq.app.ui.components.HqChipFlow {
+                listOf("2 BHK", "Private room", "Hyderabad").forEach { hint ->
+                    HqChip(label = hint, selected = query == hint, onClick = { onQuery(hint) })
+                }
             }
             Spacer(Modifier.height(HqSpacing.lg))
             HqButton(text = "Continue", onClick = onContinue)
@@ -716,23 +770,20 @@ private fun DiscoverChoose(
 }
 
 @Composable
-private fun DiscoverHeader(onBack: () -> Unit, onPost: () -> Unit, onMyPosts: () -> Unit, onInbox: () -> Unit, inboxCount: Int) {
-    val c = LocalHqColors.current
-    Row(
-        Modifier.fillMaxWidth().padding(start = HqSpacing.xl, end = HqSpacing.md, top = HqSpacing.xl, bottom = HqSpacing.sm),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        HqTextButton(text = "←", onClick = onBack)
-        Column(Modifier.weight(1f)) {
-            Text("Discover", style = HqType.headlineLarge, color = c.textPrimary)
-            Text("Find your next place or the right people to live with", style = HqType.bodyMedium, color = c.textSecondary)
-        }
-        HqTextButton(text = "Post", onClick = onPost)
-        HqTextButton(text = "Mine", onClick = onMyPosts)
-        BadgedBox(badge = { if (inboxCount > 0) Badge { Text(inboxCount.toString()) } }) {
-            HqTextButton(text = "Inbox", onClick = onInbox)
-        }
-    }
+private fun DiscoverHeader(onBack: () -> Unit, onMyPosts: () -> Unit, onInbox: () -> Unit, inboxCount: Int, onSaved: () -> Unit = {}) {
+    // Figma Discover header: title and subtitle with the connections inbox on the right. Posting lives on
+    // the shell's + (vacancy / looking) and "My posts" sits on the list's section title.
+    habitiq.app.ui.components.HqPageHeader(
+        title = "Discover",
+        subtitle = "Find a place \u2014 or the right person.",
+        modifier = Modifier.padding(start = HqSpacing.screenHorizontal, end = HqSpacing.screenHorizontal, top = HqSpacing.sm),
+        action = {
+            androidx.compose.material3.IconButton(onClick = onSaved, modifier = Modifier.size(48.dp)) {
+                androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Heart, contentDescription = "Saved flats", tint = LocalHqColors.current.iconDefault, modifier = Modifier.size(HqIconSize.md))
+            }
+            habitiq.app.ui.components.HqInboxButton(count = inboxCount, onClick = onInbox)
+        },
+    )
 }
 
 @Composable
@@ -750,51 +801,14 @@ private fun FindPersonStub() {
     }
 }
 
-/** No Hq segmented-control component exists yet -- kept custom, restyled with tokens. */
+/** The two faces of Discover: finding a flat and finding a person. */
 @Composable
 private fun DiscoverModeToggle(mode: DiscoverMode, findPersonEnabled: Boolean, onModeChange: (DiscoverMode) -> Unit) {
-    val c = LocalHqColors.current
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(HqRadius.lg)).background(c.surfaceSubtle).padding(HqSpacing.xs)
-    ) {
-        DiscoverModeChip(
-            title = "Find Flat",
-            subtitle = "Places",
-            selected = mode == DiscoverMode.USE_A_FLAT,
-            onClick = { onModeChange(DiscoverMode.USE_A_FLAT) },
-            modifier = Modifier.weight(1f)
-        )
-        DiscoverModeChip(
-            title = "Find Flatmate",
-            subtitle = if (findPersonEnabled) "People" else "Soon",
-            selected = mode == DiscoverMode.FIND_A_PERSON,
-            onClick = { onModeChange(DiscoverMode.FIND_A_PERSON) },
-            modifier = Modifier.weight(1f)
-        )
-    }
-}
-
-@Composable
-private fun DiscoverModeChip(
-    title: String,
-    subtitle: String,
-    selected: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    val c = LocalHqColors.current
-    val bg = if (selected) c.brandPrimary else Color.Transparent
-    Column(
-        modifier
-            .clip(RoundedCornerShape(HqRadius.md))
-            .background(bg)
-            .clickable(onClick = onClick)
-            .padding(vertical = HqSpacing.sm, horizontal = HqSpacing.sm),
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(title, style = HqType.labelMedium, color = if (selected) c.onBrandPrimary else c.textPrimary)
-        Text(subtitle, style = HqType.caption, color = if (selected) c.onBrandPrimary.copy(alpha = 0.8f) else c.textTertiary)
-    }
+    habitiq.app.ui.components.HqSegmentedControl(
+        options = listOf("Find a Flat", if (findPersonEnabled) "Find a Flatmate" else "Find a Flatmate (soon)"),
+        selectedIndex = if (mode == DiscoverMode.USE_A_FLAT) 0 else 1,
+        onSelect = { onModeChange(if (it == 0) DiscoverMode.USE_A_FLAT else DiscoverMode.FIND_A_PERSON) },
+    )
 }
 
 @Composable
@@ -815,45 +829,77 @@ private fun ConnectionInboxScreen(
             ?: seekers.find { it.id == partner }?.displayName?.ifBlank { null }
             ?: "Connection"
     }
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        HqTextButton(text = "← Back", onClick = onBack, modifier = Modifier.padding(HqSpacing.sm))
-        Text("Interested people", style = HqType.headlineMedium, color = c.textPrimary, modifier = Modifier.padding(horizontal = HqSpacing.xl))
-        Text("Review requests before you open a conversation.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(horizontal = HqSpacing.xl, vertical = HqSpacing.xs))
-        val visible = connections.filter {
-            when (filter) {
-                "new" -> it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT
-                "accepted" -> it.status == ConnectionStatus.ACCEPTED || it.status == ConnectionStatus.CONVERSATION_OPEN
-                else -> true
-            }
-        }
-        Row(Modifier.padding(horizontal = HqSpacing.xl, vertical = HqSpacing.sm), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            HqChip("All (${connections.size})", selected = filter == "all", onClick = { filter = "all" })
-            HqChip("New (${connections.count { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT }})", selected = filter == "new", onClick = { filter = "new" })
-            HqChip("Accepted", selected = filter == "accepted", onClick = { filter = "accepted" })
-        }
-        if (visible.isEmpty()) {
+    // Figma Connections: Requests (incoming), Sent (waiting), Connected (open conversations).
+    val incoming = connections.filter { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT }
+    val sent = connections.filter { it.toUid != uid && it.status == ConnectionStatus.REQUEST_SENT }
+    val connected = connections.filter { it.status == ConnectionStatus.ACCEPTED || it.status == ConnectionStatus.CONVERSATION_OPEN || it.status == ConnectionStatus.MATCHED }
+    Column(Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal).padding(bottom = HqSpacing.screenEnd)) {
+        habitiq.app.ui.components.HqPageHeader(
+            title = "Connections",
+            subtitle = "Your Discovery requests and conversations",
+            onBack = onBack,
+            modifier = Modifier.padding(top = HqSpacing.sm),
+        )
+        if (connections.isEmpty()) {
             DiscoveryEmpty(
-                title = if (filter == "new") "No new requests" else "Nothing here yet",
+                title = "Nothing here yet",
                 body = "Interested people will appear here when they contact you."
             )
-        } else {
-            LazyColumn(contentPadding = PaddingValues(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                items(visible, key = { it.id }) { conn ->
+        }
+        if (incoming.isNotEmpty()) {
+            habitiq.app.ui.components.HqSectionTitle("Requests")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                incoming.forEach { conn ->
                     val partner = conn.partnerId(uid)
-                    HqCard {
-                        Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                            Text(label(partner), style = HqType.titleMedium, color = c.textPrimary)
-                            Text(conn.status.name.replace('_', ' ').lowercase(), style = HqType.caption, color = c.textTertiary)
-                            if (conn.message.isNotBlank()) Text(conn.message, style = HqType.bodySmall, color = c.textSecondary)
-                            if (conn.toUid == uid && conn.status == ConnectionStatus.REQUEST_SENT) {
-                                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                                    HqButton(text = "Accept", onClick = { onAccept(conn.id) }, fullWidth = false)
-                                    HqButton(text = "Decline", onClick = { onDecline(conn.id) }, variant = HqButtonVariant.Secondary, fullWidth = false)
-                                }
-                            } else if (conn.status == ConnectionStatus.ACCEPTED || conn.status == ConnectionStatus.CONVERSATION_OPEN) {
-                                HqTextButton(text = "Message", onClick = { onOpenChat(partner, label(partner)) })
+                    val name = label(partner)
+                    val shape = RoundedCornerShape(18.dp)
+                    Row(
+                        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(11.dp), verticalAlignment = Alignment.Top,
+                    ) {
+                        habitiq.app.ui.components.HqAvatar(name, size = habitiq.app.ui.components.HqAvatarSize.MD, tone = habitiq.app.ui.components.hqToneFor(name, false))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(name, style = HqType.rowTitle, color = c.textPrimary)
+                            if (conn.message.isNotBlank()) Text(conn.message, style = HqType.bodyMedium, color = c.textSecondary)
+                            Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                                HqButton(text = "Accept", onClick = { onAccept(conn.id) }, fullWidth = false)
+                                HqButton(text = "Decline", onClick = { onDecline(conn.id) }, variant = HqButtonVariant.Tertiary, fullWidth = false)
                             }
                         }
+                    }
+                }
+            }
+        }
+        if (sent.isNotEmpty()) {
+            habitiq.app.ui.components.HqSectionTitle("Sent")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                sent.forEach { conn ->
+                    val name = label(conn.partnerId(uid))
+                    habitiq.app.ui.components.HqCalloutCard(
+                        title = name, support = "Waiting for a reply",
+                        icon = habitiq.app.ui.components.HqIcons.Clock, tone = habitiq.app.ui.components.HqTileTone.Neutral, onClick = {},
+                    )
+                }
+            }
+        }
+        if (connected.isNotEmpty()) {
+            habitiq.app.ui.components.HqSectionTitle("Connected")
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                connected.forEach { conn ->
+                    val partner = conn.partnerId(uid)
+                    val name = label(partner)
+                    val shape = RoundedCornerShape(18.dp)
+                    Row(
+                        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
+                            .clickable(role = androidx.compose.ui.semantics.Role.Button) { onOpenChat(partner, name) }.padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        habitiq.app.ui.components.HqAvatar(name, size = habitiq.app.ui.components.HqAvatarSize.MD, tone = habitiq.app.ui.components.hqToneFor(name, false))
+                        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text(name, style = HqType.rowTitle, color = c.textPrimary)
+                            Text(if (conn.status == ConnectionStatus.MATCHED) "Matched" else "Tap to message", style = HqType.bodyMedium, color = c.textSecondary)
+                        }
+                        Icon(habitiq.app.ui.components.HqIcons.Chevron, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.sm))
                     }
                 }
             }
@@ -880,7 +926,7 @@ fun ChatScreen(
     var showSchedule by rememberSaveable { mutableStateOf(false) }
     val partnerName = vacancies.find { it.adminUid == partnerId }?.flatName
         ?: seekers.find { it.id == partnerId }?.displayName?.takeIf { it.isNotBlank() }
-        ?: "Habitiq user"
+        ?: "Oddroof user"
     val threadLabel = contextLabel.ifBlank {
         vacancies.find { it.adminUid == partnerId }?.let { "${it.area} · ${it.city}".trim(' ', '·') }.orEmpty()
     }
@@ -899,19 +945,17 @@ fun ChatScreen(
         return
     }
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        HqBackAppBar(
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        habitiq.app.ui.components.HqPageHeader(
             title = partnerName,
+            subtitle = threadLabel.takeIf { it.isNotBlank() }?.let { "Interested in: $it" },
             onBack = onBack,
-            actions = {
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = 0.dp),
+            action = {
                 HqTextButton(text = "Report", onClick = onReport)
-                Spacer(Modifier.width(HqSpacing.sm))
                 HqTextButton(text = "Block", onClick = onBlock)
-            }
+            },
         )
-        if (threadLabel.isNotBlank()) {
-            Text(threadLabel, style = HqType.bodySmall, color = c.textSecondary, modifier = Modifier.padding(horizontal = HqSpacing.lg))
-        }
         if (isFlatConversation) {
             HqButton(
                 text = "Schedule a viewing",
@@ -921,9 +965,9 @@ fun ChatScreen(
                 modifier = Modifier.padding(horizontal = HqSpacing.lg, vertical = HqSpacing.sm)
             )
         }
-        Surface(Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg, vertical = HqSpacing.sm), color = c.warningContainer, shape = RoundedCornerShape(HqRadius.md)) {
+        Surface(Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg, vertical = HqSpacing.sm), color = c.statusWarningBg, shape = RoundedCornerShape(HqRadius.md)) {
             Row(Modifier.padding(HqSpacing.md), verticalAlignment = Alignment.CenterVertically) {
-                Icon(Icons.Default.Warning, null, tint = c.warning, modifier = Modifier.size(HqIconSize.sm))
+                Icon(Icons.Default.Warning, null, tint = c.statusWarningFg, modifier = Modifier.size(HqIconSize.sm))
                 Spacer(Modifier.width(HqSpacing.sm))
                 Text("Stay safe. Don’t send money before viewing. Never share sensitive personal information.", style = HqType.caption, color = c.textPrimary)
             }
@@ -937,49 +981,57 @@ fun ChatScreen(
             items(messages.reversed(), key = { it.id }) { msg ->
                 val mine = msg.senderId == uid?.uid
                 Box(Modifier.fillMaxWidth(), contentAlignment = if (mine) Alignment.CenterEnd else Alignment.CenterStart) {
-                    Surface(color = if (mine) c.brandPrimary else c.surface, shape = RoundedCornerShape(HqRadius.md)) {
+                    Surface(
+                        color = if (mine) c.actionPrimaryBg else c.surfaceSubtle,
+                        shape = RoundedCornerShape(topStart = 18.dp, topEnd = 18.dp, bottomStart = if (mine) 18.dp else 4.dp, bottomEnd = if (mine) 4.dp else 18.dp),
+                    ) {
                         if (msg.isViewingRequest && msg.viewingTime != null) {
                             Column(Modifier.padding(HqSpacing.md), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                                    Icon(Icons.Filled.CalendarMonth, null, tint = if (mine) c.onBrandPrimary else c.brandPrimary)
-                                    Text("Viewing request", style = HqType.titleSmall, color = if (mine) c.onBrandPrimary else c.textPrimary)
+                                    Icon(Icons.Filled.CalendarMonth, null, tint = if (mine) c.actionPrimaryFg else c.actionPrimaryBg)
+                                    Text("Viewing request", style = HqType.titleSmall, color = if (mine) c.actionPrimaryFg else c.textPrimary)
                                 }
                                 Text(
                                     java.time.Instant.ofEpochMilli(msg.viewingTime).atZone(ZoneId.systemDefault()).format(DateTimeFormatter.ofPattern("EEE, d MMM · h:mm a")),
                                     style = HqType.labelLarge,
-                                    color = if (mine) c.onBrandPrimary else c.brandPrimary
+                                    color = if (mine) c.actionPrimaryFg else c.actionPrimaryBg
                                 )
-                                Text(msg.content, color = if (mine) c.onBrandPrimary else c.textSecondary, style = HqType.bodySmall)
+                                Text(msg.content, color = if (mine) c.actionPrimaryFg else c.textSecondary, style = HqType.bodySmall)
                             }
                         } else {
-                            Text(msg.content, Modifier.padding(HqSpacing.sm), color = if (mine) c.onBrandPrimary else c.textPrimary, style = HqType.bodyMedium)
+                            Text(msg.content, Modifier.padding(horizontal = 14.dp, vertical = 10.dp), color = if (mine) c.actionPrimaryFg else c.textPrimary, style = HqType.bodyMedium)
                         }
                     }
                 }
             }
         }
-        Row(Modifier.padding(HqSpacing.lg).fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            HqTextField(
-                value = text,
-                onValueChange = { text = it },
-                label = "Message",
-                placeholder = "Message…",
-                modifier = Modifier.weight(1f)
-            )
-            HqButton(
-                text = if (sending) "…" else "Send",
-                enabled = text.isNotBlank() && !sending,
-                fullWidth = false,
-                onClick = {
-                    if (text.isNotBlank()) {
-                        sending = true
-                        viewModel.sendMessage(partnerId, text) { sent ->
-                            if (sent) text = ""
-                            sending = false
+        // Figma composer: a rounded field with a round send button on the right.
+        Row(
+            Modifier.padding(HqSpacing.lg).fillMaxWidth().clip(RoundedCornerShape(26.dp)).background(c.surfaceSubtle).padding(start = 18.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+        ) {
+            Box(Modifier.weight(1f).padding(vertical = 10.dp)) {
+                if (text.isEmpty()) Text("Write a message", style = HqType.bodyLarge, color = c.textMuted)
+                androidx.compose.foundation.text.BasicTextField(
+                    value = text, onValueChange = { text = it }, textStyle = HqType.bodyLarge.copy(color = c.textPrimary),
+                    cursorBrush = androidx.compose.ui.graphics.SolidColor(c.focus), modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            val canSend = text.isNotBlank() && !sending
+            Box(
+                Modifier.size(HqSize.target).clip(CircleShape).background(if (canSend) c.actionPrimaryBg else c.disabledBg)
+                    .clickable(enabled = canSend, role = androidx.compose.ui.semantics.Role.Button) {
+                        if (text.isNotBlank()) {
+                            sending = true
+                            viewModel.sendMessage(partnerId, text) { sent ->
+                                if (sent) text = ""
+                                sending = false
+                            }
                         }
                     }
-                }
-            )
+                    .semantics { contentDescription = "Send message" },
+                contentAlignment = Alignment.Center,
+            ) { Icon(habitiq.app.ui.components.HqIcons.Arrow, null, tint = if (canSend) c.actionPrimaryFg else c.disabledFg, modifier = Modifier.size(HqIconSize.md)) }
         }
     }
 }
@@ -997,7 +1049,7 @@ private fun ScheduleViewingScreen(
     var selectedTime by rememberSaveable { mutableStateOf("11:00") }
     var note by rememberSaveable { mutableStateOf("") }
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Schedule a viewing", onBack = onBack)
         Column(
             Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(HqSpacing.xl),

@@ -1,4 +1,5 @@
 import type { Expense, Settlement, Currency } from '@/store/useFlatStore'
+import { BALANCE_EPSILON } from '@/lib/settlementUtils'
 
 export interface Balance {
   userId: string
@@ -56,8 +57,9 @@ export function computeBalances(
   const result: Balance[] = []
   for (const [currency, pairs] of Object.entries(pair)) {
     for (const [uid, amount] of Object.entries(pairs)) {
-      if (Math.abs(amount) >= 0.5) {
-        result.push({ userId: uid, amount: Math.round(amount), currency: currency as Currency })
+      if (Math.abs(amount) >= BALANCE_EPSILON) {
+        // Keep paise: rounding to a whole rupee would turn a real balance into "settled".
+        result.push({ userId: uid, amount: Math.round(amount * 100) / 100, currency: currency as Currency })
       }
     }
   }

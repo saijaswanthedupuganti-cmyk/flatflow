@@ -69,13 +69,15 @@ fun CreateDiscoveryPostScreen(
     publishing: Boolean = false,
     uploadProgress: Float? = null,
     publishError: String? = null,
-    onClearError: () -> Unit = {}
+    onClearError: () -> Unit = {},
+    /** "VACANCY" or "LOOKING" to skip the type choice when the person already picked one (e.g. from the + menu). */
+    initialType: String? = null
 ) {
     val c = LocalHqColors.current
     val context = LocalContext.current
     val draftStore = remember { DiscoveryDraftStore(context) }
     val scope = rememberCoroutineScope()
-    var typeName by rememberSaveable { mutableStateOf<String?>(null) }
+    var typeName by rememberSaveable { mutableStateOf(initialType) }
     val type = typeName?.let { runCatching { DiscoveryPostType.valueOf(it) }.getOrNull() }
     var showDiscard by remember { mutableStateOf(false) }
 
@@ -83,7 +85,7 @@ fun CreateDiscoveryPostScreen(
         if (showDiscard) showDiscard = false else showDiscard = true
     }
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqTextButton(text = "← Back", onClick = { if (type == null) onBack() else showDiscard = true }, modifier = Modifier.padding(start = HqSpacing.sm, top = HqSpacing.sm))
         when (type) {
             null -> PostTypeSelection(
@@ -146,7 +148,7 @@ private fun PostTypeSelection(
         if (lookingEnabled) {
             HqButton(text = "I'm looking for a flat", onClick = onLooking, variant = HqButtonVariant.Secondary)
         } else {
-            Text("Looking posts are not enabled in this build.", style = HqType.bodySmall, color = c.textTertiary)
+            Text("Looking posts are not enabled in this build.", style = HqType.bodySmall, color = c.textMuted)
         }
     }
 }
@@ -278,7 +280,7 @@ private fun VacancyWizard(
         LinearProgressIndicator(
             progress = { (step + 1) / 9f },
             modifier = Modifier.fillMaxWidth(),
-            color = c.brandPrimary,
+            color = c.textBrand,
             trackColor = c.surfaceSubtle,
         )
         Spacer(Modifier.height(HqSpacing.lg))
@@ -322,11 +324,11 @@ private fun VacancyWizard(
                             modifier = Modifier.fillMaxWidth().height(140.dp).clip(RoundedCornerShape(12.dp)),
                             contentScale = ContentScale.Crop,
                             placeholder = ColorPainter(c.surfaceSubtle),
-                            error = ColorPainter(c.errorContainer)
+                            error = ColorPainter(c.statusDangerBg)
                         )
                         Spacer(Modifier.height(HqSpacing.sm))
                         Text("Photo ${index + 1}${if (coverPhoto == uri) " · Cover" else ""}", style = HqType.titleSmall, color = c.textPrimary)
-                        Text(uri.lastPathSegment ?: "Selected image", style = HqType.caption, color = c.textTertiary)
+                        Text(uri.lastPathSegment ?: "Selected image", style = HqType.caption, color = c.textMuted)
                         Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                             if (coverPhoto != uri) HqTextButton(text = "Set cover", onClick = { coverPhotoString = uri.toString() })
                             if (index > 0) HqTextButton(text = "Move up", onClick = {
@@ -433,9 +435,9 @@ private fun VacancyWizard(
                 }
             }
             7 -> {
-                Text("Target seeker budget (optional)", style = HqType.headlineSmall, color = c.textPrimary)
+                Text("Budget range for flatmates (optional)", style = HqType.headlineSmall, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                Text("Help seekers filter by their ideal budget range:", style = HqType.bodySmall, color = c.textSecondary)
+                Text("Helps people who are looking find this listing by budget.", style = HqType.bodyMedium, color = c.textSecondary)
                 Spacer(Modifier.height(HqSpacing.sm))
                 HqTextField(budgetMin, { budgetMin = it.filter(Char::isDigit).take(9) }, "Min budget (₹, optional)", modifier = Modifier.fillMaxWidth())
                 Spacer(Modifier.height(HqSpacing.sm))
@@ -448,25 +450,25 @@ private fun VacancyWizard(
                 Spacer(Modifier.height(HqSpacing.md))
                 HqCard {
                     Text("Summary preview", style = HqType.titleMedium, color = c.textPrimary)
-                    Text("📍 $city · $area", style = HqType.bodyMedium, color = c.textSecondary)
-                    Text("🏠 ${beds.toIntOrNull() ?: 1} room${if ((beds.toIntOrNull() ?: 1) == 1) "" else "s"} available · ₹$rent/mo", style = HqType.bodyMedium, color = c.textSecondary)
-                    Text("🛏 $roomType · $furnishing", style = HqType.bodySmall, color = c.textTertiary)
+                    Text("$city · $area", style = HqType.bodyMedium, color = c.textSecondary)
+                    Text("${beds.toIntOrNull() ?: 1} room${if ((beds.toIntOrNull() ?: 1) == 1) "" else "s"} available · ₹$rent/mo", style = HqType.bodyMedium, color = c.textSecondary)
+                    Text("$roomType · $furnishing", style = HqType.bodySmall, color = c.textMuted)
                     if (selectedPhotos.isNotEmpty() || !existing?.photoUrls.isNullOrEmpty()) {
-                        Text("📷 ${selectedPhotos.size + (existing?.photoUrls?.size ?: 0)} total photos", style = HqType.bodySmall, color = c.textTertiary)
+                        Text("${selectedPhotos.size + (existing?.photoUrls?.size ?: 0)} total photos", style = HqType.bodySmall, color = c.textMuted)
                     }
                 }
             }
         }
         if (publishError != null) {
             Spacer(Modifier.height(HqSpacing.sm))
-            Text(publishError, style = HqType.bodySmall, color = c.error)
+            Text(publishError, style = HqType.bodySmall, color = c.statusDangerFg)
         }
         if (uploadProgress != null && uploadProgress > 0f) {
             Spacer(Modifier.height(HqSpacing.sm))
             LinearProgressIndicator(
                 progress = { uploadProgress },
                 modifier = Modifier.fillMaxWidth(),
-                color = c.brandPrimary,
+                color = c.textBrand,
                 trackColor = c.surfaceSubtle,
             )
             Text("Uploading photos… ${(uploadProgress * 100).toInt()}%", style = HqType.caption, color = c.textSecondary)
@@ -645,7 +647,7 @@ private fun LookingWizard(
             HqChip(label = tag, selected = tag in tags, onClick = { tags = if (tag in tags) tags - tag else tags + tag })
         }
         HqTextField(bio, { bio = it.take(600); onClearError() }, "About you", modifier = Modifier.fillMaxWidth(), helperText = "${bio.length}/600", singleLine = false, minLines = 3)
-        if (publishError != null) Text(publishError, style = HqType.bodySmall, color = c.error)
+        if (publishError != null) Text(publishError, style = HqType.bodySmall, color = c.statusDangerFg)
         Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
             HqButton(text = "Cancel", onClick = onCancel, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))
             HqButton(

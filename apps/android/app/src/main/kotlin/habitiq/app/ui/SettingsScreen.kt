@@ -59,35 +59,36 @@ fun SettingsScreen(
     val c = LocalHqColors.current
     val deleting = deleteState is DeleteAccountState.Deleting
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        HqBackAppBar(title = "Preferences", onBack = onBack)
-        Column(Modifier.padding(horizontal = HqSpacing.xl)) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        habitiq.app.ui.components.HqPageHeader(
+            title = "Privacy & Security",
+            subtitle = "Manage your account preferences",
+            onBack = onBack,
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
+        )
+        Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
             Text(user?.email ?: "unknown", style = HqType.bodyMedium, color = c.textSecondary)
-            Spacer(Modifier.height(HqSpacing.xxl))
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Spacer(Modifier.height(HqSpacing.lg))
+            habitiq.app.ui.components.HqSettingRow(
+                title = "Biometric lock",
+                support = "Use your fingerprint or face to open Oddroof",
             ) {
-                Column(Modifier.weight(1f)) {
-                    Text("Biometric app lock", style = HqType.titleSmall, color = c.textPrimary)
-                    Text("Require fingerprint/face when returning to app", style = HqType.bodySmall, color = c.textSecondary)
-                }
-                Switch(
+                habitiq.app.ui.components.HqSwitch(
                     checked = biometricEnabled,
-                    onCheckedChange = { enabled ->
-                        scope.launch { prefs.setBiometricLockEnabled(enabled) }
-                    }
+                    onCheckedChange = { enabled -> scope.launch { prefs.setBiometricLockEnabled(enabled) } },
+                    contentDescription = "Biometric lock",
                 )
             }
 
             Spacer(Modifier.height(HqSpacing.xxl))
-            // Sign out is reversible, unlike account deletion -- keep it visually distinct from
-            // the truly destructive action below it instead of both reading equally severe.
-            HqButton(text = "Sign out", onClick = onSignOut, variant = HqButtonVariant.Secondary, enabled = !deleting)
-            Spacer(Modifier.height(HqSpacing.md))
-            HqButton(text = "Delete Account", onClick = { showConfirmDialog = true }, variant = HqButtonVariant.Destructive, enabled = !deleting)
+            habitiq.app.ui.components.HqMenuGroup("Danger zone") {
+                habitiq.app.ui.components.HqMenuRow(
+                    title = "Delete account", support = "Permanently delete your data", danger = true, lastRow = true,
+                    onClick = { if (!deleting) showConfirmDialog = true },
+                )
+            }
+            Spacer(Modifier.height(HqSpacing.xl))
+            habitiq.app.ui.components.HqDangerSoftButton("Sign out", onSignOut)
             when (val current = deleteState) {
                 is DeleteAccountState.Deleting -> {
                     Spacer(Modifier.height(HqSpacing.md))
@@ -105,8 +106,8 @@ fun SettingsScreen(
     if (showConfirmDialog) {
         HqConfirmDialog(
             title = "Delete your account?",
-            message = "This permanently deletes your account. This cannot be undone.",
-            confirmLabel = "Delete",
+            message = "This permanently deletes your account and removes you from every flat you're in. Your tasks pass to the next person in each rotation. It can't be undone.",
+            confirmLabel = "Delete account",
             onConfirm = { showConfirmDialog = false; viewModel.deleteAccount() },
             onDismiss = { showConfirmDialog = false },
         )

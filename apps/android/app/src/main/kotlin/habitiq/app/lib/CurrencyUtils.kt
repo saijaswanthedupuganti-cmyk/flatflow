@@ -23,3 +23,14 @@ fun formatInr(amount: Double): String {
     val fraction = parts.getOrNull(1).orEmpty()
     return "₹$grouped" + if (fraction == "00") "" else ".$fraction"
 }
+
+/**
+ * Parses user-typed money into whole paise so split totals compare exactly, with no floating-point
+ * drift. Returns null for blank, negative or non-numeric input; extra decimals round half-up.
+ */
+fun parsePaise(text: String): Long? =
+    text.trim().replace(",", "").toBigDecimalOrNull()
+        ?.takeIf { it.signum() >= 0 }
+        ?.setScale(2, RoundingMode.HALF_UP)
+        ?.movePointRight(2)
+        ?.toLong()

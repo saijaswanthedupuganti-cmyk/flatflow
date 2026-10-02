@@ -2,7 +2,7 @@
 <resources>
     <style name="Theme.Habitiq" parent="android:Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/habitiq_window_background</item>
-        <item name="android:navigationBarColor">@color/habitiq_window_background</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
         <item name="android:statusBarColor">@android:color/transparent</item>
         <item name="android:windowLightStatusBar">true</item>
     </style>

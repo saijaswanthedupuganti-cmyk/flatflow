@@ -1,5 +1,22 @@
 package habitiq.app.ui.discover
 
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.text.font.FontWeight
+import habitiq.app.ui.components.HqIcons
+import habitiq.app.ui.components.HqListingFrame
+import habitiq.app.ui.components.HqSectionTitle
+import habitiq.app.ui.components.HqChipRow
+import habitiq.app.ui.components.HqSearchBar
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import habitiq.app.ui.components.HqTagFlow
+import habitiq.app.ui.components.HqIllustration
+import habitiq.app.ui.components.HqArt
+import androidx.compose.ui.graphics.Color
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -21,7 +38,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -56,61 +72,44 @@ fun UseAFlatDiscoverContent(
     loadError: String?,
     onRetry: () -> Unit,
     onOpenFilters: () -> Unit,
-    onOpenListing: (VacancyListing) -> Unit
+    onOpenListing: (VacancyListing) -> Unit,
+    onMyPosts: () -> Unit = {},
+    onNearPlace: (() -> Unit)? = null,
 ) {
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize()) {
         SafetyBanner()
-        Spacer(Modifier.height(HqSpacing.sm))
+        Spacer(Modifier.height(HqSpacing.related))
 
-        FlatDiscoveryBanner()
-        Spacer(Modifier.height(HqSpacing.md))
-
-        Row(
-            Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)
-        ) {
-            HqTextField(
-                value = filters.cityArea,
-                onValueChange = { onFiltersChange(filters.copy(cityArea = it)) },
-                label = "Where",
-                placeholder = "Search city, area or landmark",
-                leadingIcon = Icons.Default.Search,
-                modifier = Modifier.weight(1f)
-            )
-            BadgedBox(
-                badge = {
-                    if (filters.activeCount > 0) {
-                        Badge(containerColor = c.brandPrimary) {
-                            Text(filters.activeCount.toString(), color = c.onBrandPrimary)
-                        }
-                    }
-                }
-            ) {
-                FilledTonalIconButton(
-                    onClick = onOpenFilters,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = c.brandPrimaryContainer,
-                        contentColor = c.brandPrimary
-                    )
-                ) {
-                    Icon(Icons.Default.FilterList, contentDescription = "Filters")
-                }
+        HqSearchBar(
+            value = filters.cityArea,
+            onValueChange = { onFiltersChange(filters.copy(cityArea = it)) },
+            placeholder = "Search area or landmark",
+            onFilters = onOpenFilters,
+            activeFilters = filters.activeCount,
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal),
+        )
+        if (onNearPlace != null) {
+            Spacer(Modifier.height(10.dp))
+            Box(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
+                habitiq.app.ui.components.HqCalloutCard(
+                    title = "Find a home near a place",
+                    support = "Choose work, college, or any landmark",
+                    icon = HqIcons.Pin,
+                    tone = habitiq.app.ui.components.HqTileTone.Teal,
+                    onClick = onNearPlace,
+                )
             }
         }
-
-        Text("Popular cities", style = HqType.labelLarge, color = c.textSecondary, modifier = Modifier.padding(horizontal = HqSpacing.lg, vertical = HqSpacing.sm))
-        LazyRow(
-            contentPadding = PaddingValues(horizontal = HqSpacing.lg),
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)
-        ) {
-            items(listOf("Hyderabad", "Bangalore", "Chennai", "Delhi", "Mumbai", "Pune")) { city ->
+        Spacer(Modifier.height(14.dp))
+        HqChipRow(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
+            listOf("Hyderabad", "Bangalore", "Chennai", "Delhi", "Mumbai", "Pune").forEach { city ->
                 HqChip(label = city, selected = filters.cityArea.equals(city, ignoreCase = true), onClick = {
                     onFiltersChange(filters.copy(cityArea = city))
                 })
             }
         }
+        HqSectionTitle("Places for you", action = "My posts", onAction = onMyPosts, modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal))
         if (filters.activeCount > 0) {
             ActiveFilterChips(filters, onFiltersChange)
         }
@@ -143,7 +142,7 @@ fun UseAFlatDiscoverContent(
             else -> {
                 LazyColumn(
                     contentPadding = PaddingValues(start = HqSpacing.lg, end = HqSpacing.lg, top = HqSpacing.xs, bottom = HqSpacing.xxl),
-                    verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
+                    verticalArrangement = Arrangement.spacedBy(15.dp)
                 ) {
                     items(filteredVacancies, key = { it.flatId }) { listing ->
                         VacancyListingCard(listing, onOpenListing)
@@ -154,77 +153,46 @@ fun UseAFlatDiscoverContent(
     }
 }
 
-/** No Hq banner/alert component exists yet -- kept as a custom Surface, restyled with the warning tokens. */
+/** One-line safety reminder with its link, in the warning tokens. Wraps naturally and never overlaps. */
 @Composable
 private fun SafetyBanner() {
     val c = LocalHqColors.current
     val context = LocalContext.current
-    Surface(
-        modifier = Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg),
-        color = c.warningContainer,
-        shape = RoundedCornerShape(HqRadius.lg),
-        tonalElevation = 0.dp,
-        shadowElevation = 0.dp
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = HqSpacing.screenHorizontal)
+            .clip(RoundedCornerShape(HqRadius.control)).background(c.statusWarningBg)
+            .padding(start = HqSpacing.related, end = HqSpacing.xs),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)
     ) {
-        Row(
-            Modifier.padding(horizontal = HqSpacing.md, vertical = HqSpacing.sm),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)
-        ) {
-            Icon(Icons.Default.Info, null, tint = c.warning, modifier = Modifier.size(HqIconSize.sm))
-            Column(Modifier.weight(1f)) {
-                Text(
-                    "Never pay rent before viewing in person.",
-                    style = HqType.labelMedium,
-                    color = c.textPrimary
-                )
-                HqTextButton(
-                    text = "Safety tips",
-                    onClick = {
-                        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://habitiq.app/safety")))
-                    }
-                )
-            }
-        }
+        Icon(Icons.Default.Info, null, tint = c.statusWarningFg, modifier = Modifier.size(HqIconSize.sm))
+        Text(
+            "Never pay rent before viewing in person.",
+            style = HqType.bodyMedium, color = c.textPrimary,
+            modifier = Modifier.weight(1f).padding(vertical = HqSpacing.sm),
+        )
+        HqTextButton(
+            text = "Safety tips",
+            onClick = { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://habitiq.app/safety"))) }
+        )
     }
 }
 
 @Composable
 private fun ActiveFilterChips(filters: VacancyFilters, onChange: (VacancyFilters) -> Unit) {
-    val chips = buildList {
-        if (filters.rentMin.isNotBlank() || filters.rentMax.isNotBlank()) {
-            add("Rent" to { onChange(filters.copy(rentMin = "", rentMax = "")) })
-        }
+    val chips = buildList<Pair<String, () -> Unit>> {
+        if (filters.cityArea.isNotBlank()) add(filters.cityArea to { onChange(filters.copy(cityArea = "")) })
+        if (filters.rentMin.isNotBlank() || filters.rentMax.isNotBlank()) add("Rent" to { onChange(filters.copy(rentMin = "", rentMax = "")) })
         if (filters.genderPreference != "any") {
-            add(DiscoverFilterLogic.formatGenderPreference(filters.genderPreference) to {
-                onChange(filters.copy(genderPreference = "any"))
-            })
+            add(DiscoverFilterLogic.formatGenderPreference(filters.genderPreference) to { onChange(filters.copy(genderPreference = "any")) })
         }
-        if (filters.flatType != "any") {
-            add(DiscoverFilterLogic.formatFlatType(filters.flatType) to { onChange(filters.copy(flatType = "any")) })
-        }
+        if (filters.flatType != "any") add(DiscoverFilterLogic.formatFlatType(filters.flatType) to { onChange(filters.copy(flatType = "any")) })
         if (filters.roomType != "any") {
-            val label = if (filters.roomType == "private") "Private room" else "Shared room"
-            add(label to { onChange(filters.copy(roomType = "any")) })
+            add((if (filters.roomType == "private") "Private room" else "Shared room") to { onChange(filters.copy(roomType = "any")) })
         }
-        filters.lifestyleTags.forEach { tag ->
-            add(tag to { onChange(filters.copy(lifestyleTags = filters.lifestyleTags - tag)) })
-        }
+        filters.lifestyleTags.forEach { tag -> add(tag to { onChange(filters.copy(lifestyleTags = filters.lifestyleTags - tag)) }) }
     }
-    if (chips.isEmpty()) return
-
-    LazyRow(
-        contentPadding = PaddingValues(horizontal = HqSpacing.lg, vertical = HqSpacing.sm),
-        horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)
-    ) {
-        items(chips) { (label, clear) ->
-            // HqChip has no trailing-icon slot, so the clear affordance is folded into the label.
-            HqChip(label = "$label  ×", selected = true, onClick = clear)
-        }
-        item {
-            HqTextButton(text = "Clear all", onClick = { onChange(VacancyFilters()) })
-        }
-    }
+    AppliedFilters(chips) { onChange(VacancyFilters()) }
 }
 
 @Composable
@@ -240,154 +208,75 @@ private fun ResultsHeader(shown: Int, total: Int, hasFilters: Boolean) {
             style = HqType.labelLarge,
             color = c.textPrimary
         )
-        Text("Find flat", style = HqType.caption, color = c.textTertiary)
     }
 }
 
 @Composable
 fun VacancyListingCard(listing: VacancyListing, onOpen: (VacancyListing) -> Unit) {
     val c = LocalHqColors.current
-    HqCard(onClick = { onOpen(listing) }, padding = 0.dp) {
-        Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            Box(Modifier.fillMaxWidth().height(148.dp).clip(RoundedCornerShape(topStart = HqRadius.lg, topEnd = HqRadius.lg))) {
-                val cover = listing.photoUrls.firstOrNull()
-                if (cover != null) {
-                    AsyncImage(
-                        model = cover,
-                        contentDescription = "Photo of ${listing.flatName}",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        placeholder = ColorPainter(c.surfaceSubtle),
-                        error = ColorPainter(c.surfaceSubtle),
-                        fallback = ColorPainter(c.surfaceSubtle)
-                    )
-                    if (listing.photoUrls.size > 1) {
-                        Text(
-                            "1/${listing.photoUrls.size}",
-                            style = HqType.labelSmall,
-                            color = c.textPrimary,
-                            modifier = Modifier.align(Alignment.BottomEnd).padding(HqSpacing.sm)
-                                .background(c.surface.copy(alpha = 0.92f), RoundedCornerShape(HqRadius.full))
-                                .padding(horizontal = HqSpacing.sm, vertical = HqSpacing.xs)
-                        )
-                    }
-                } else {
-                    Image(
-                        painter = painterResource(R.drawable.onboard_create),
-                        contentDescription = "Illustration placeholder; this listing has no room photo",
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop,
-                        alignment = Alignment.Center
+    val cover = listing.photoUrls.firstOrNull()
+    HqListingFrame(
+        onClick = { onOpen(listing) },
+        photoHeight = if (cover != null) 178 else 130,
+        photo = {
+            if (cover != null) {
+                AsyncImage(
+                    model = cover,
+                    contentDescription = "Photo of ${listing.flatName}",
+                    modifier = Modifier.fillMaxSize(),
+                    contentScale = ContentScale.Crop,
+                    placeholder = ColorPainter(c.surfaceSubtle),
+                    error = ColorPainter(c.surfaceSubtle),
+                    fallback = ColorPainter(c.surfaceSubtle),
+                )
+                if (listing.photoUrls.size > 1) {
+                    Text(
+                        "1 / ${listing.photoUrls.size}", style = HqType.labelSmall, color = Color.White, fontWeight = FontWeight.Bold,
+                        modifier = Modifier.align(Alignment.TopEnd).padding(12.dp).clip(RoundedCornerShape(99.dp)).background(Color(0xCC142322)).padding(horizontal = 9.dp, vertical = 5.dp),
                     )
                 }
+            } else {
+                HqIllustration(HqArt.Home, Modifier.align(Alignment.Center).size(96.dp))
             }
-            Column(Modifier.padding(horizontal = HqSpacing.md).padding(bottom = HqSpacing.md), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            Row(verticalAlignment = Alignment.Top) {
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        listing.flatName,
-                        style = HqType.titleLarge,
-                        color = c.textPrimary,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                        Icon(Icons.Default.LocationOn, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.xs))
-                        Text(
-                            "${listing.area}, ${listing.city}".trim(',', ' '),
-                            style = HqType.labelMedium,
-                            color = c.textSecondary,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
+        },
+        body = {
+            Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.related), verticalAlignment = Alignment.Top) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(listing.flatName, style = HqType.titleSmall2, color = c.textPrimary, maxLines = 3, overflow = TextOverflow.Ellipsis)
+                    Text("${listing.area}, ${listing.city}".trim(',', ' '), style = HqType.bodyMedium, color = c.textSecondary, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
                 listing.rentPerHead?.let { rent ->
                     Column(horizontalAlignment = Alignment.End) {
-                        Text(
-                            formatInr(rent),
-                            style = HqType.titleLarge,
-                            color = c.brandPrimary
-                        )
-                        Text("/head", style = HqType.caption, color = c.textTertiary)
+                        Text(formatInr(rent), style = HqType.titleSmall2, color = c.textPrimary)
+                        Text("per head", style = HqType.labelSmall, color = c.textMuted)
                     }
                 }
             }
-
+            Text(
+                listOfNotNull(
+                    DiscoverFilterLogic.formatRoomType(listing.roomType, listing.bedsAvailable),
+                    listing.flatType.takeIf { it.isNotBlank() }?.let { DiscoverFilterLogic.formatFlatType(it) },
+                    DiscoverFilterLogic.formatGenderPreference(listing.preferredGender),
+                ).joinToString(" \u00b7 "),
+                style = HqType.bodyMedium, color = c.textSecondary,
+            )
             if (listing.about.isNotBlank()) {
+                Text(listing.about, style = HqType.bodyMedium, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+            HqTagFlow(listing.displayTags(), maxRows = 2, onMore = { onOpen(listing) })
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    listing.about,
-                    style = HqType.bodySmall,
-                    color = c.textSecondary,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
+                    if (listing.memberCount > 0) "Hosted by an Oddroof member \u00b7 ${listing.memberCount} in flat" else "Posted by an Oddroof member",
+                    style = HqType.labelSmall, color = c.textSecondary, modifier = Modifier.weight(1f),
                 )
-            }
-
-            val tags = listing.displayTags()
-            if (tags.isNotEmpty()) {
-                LazyRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                    items(tags) { tag ->
-                        HqChip(label = tag, selected = true)
-                    }
-                }
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HqChip(label = DiscoverFilterLogic.formatRoomType(listing.roomType, listing.bedsAvailable))
-                if (listing.flatType.isNotBlank()) {
-                    HqChip(label = DiscoverFilterLogic.formatFlatType(listing.flatType))
-                }
-                HqChip(label = DiscoverFilterLogic.formatGenderPreference(listing.preferredGender))
-            }
-
-            Row(
-                Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                    Icon(Icons.Default.HomeWork, null, tint = c.info, modifier = Modifier.size(HqIconSize.xs))
-                    val memberLabel = if (listing.memberCount > 0) {
-                        "Habitiq member · ${listing.memberCount} in flat"
-                    } else {
-                        "Posted by Habitiq member"
-                    }
-                    Text(memberLabel, style = HqType.caption, color = c.textTertiary)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(HqIcons.Shield, null, tint = c.textBrand, modifier = Modifier.size(15.dp))
+                    Text("Oddroof member", style = HqType.labelSmall, color = c.textBrand, fontWeight = FontWeight.Bold)
                 }
             }
             listing.health?.headline?.takeIf { it.isNotBlank() }?.let { headline ->
-                Text("Flat health · $headline", style = HqType.labelLarge, color = c.brandPrimary)
+                Text("Flat health \u00b7 $headline", style = HqType.labelMedium, color = c.textBrand)
             }
-
-            HqButton(text = "View flat", onClick = { onOpen(listing) })
-            }
-        }
-    }
-}
-
-@Composable
-private fun FlatDiscoveryBanner() {
-    val c = LocalHqColors.current
-    Box(
-        Modifier.fillMaxWidth().padding(horizontal = HqSpacing.lg).height(132.dp)
-            .clip(RoundedCornerShape(HqRadius.lg))
-    ) {
-        Image(
-            painter = painterResource(R.drawable.onboard_join),
-            contentDescription = "Flatmates welcoming someone home",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.Center
-        )
-        Box(Modifier.fillMaxSize().background(Brush.horizontalGradient(listOf(c.textPrimary.copy(alpha = 0.78f), c.textPrimary.copy(alpha = 0.08f)))))
-        Column(Modifier.align(Alignment.CenterStart).padding(HqSpacing.lg)) {
-            Text("Verified homes", style = HqType.titleLarge, color = c.onBrandPrimary)
-            Text("Real people. Better living.", style = HqType.bodyMedium, color = c.onBrandPrimary.copy(alpha = 0.9f))
-        }
-    }
+        },
+    )
 }

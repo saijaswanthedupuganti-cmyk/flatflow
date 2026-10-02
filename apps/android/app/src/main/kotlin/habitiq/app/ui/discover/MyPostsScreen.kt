@@ -1,5 +1,10 @@
 package habitiq.app.ui.discover
 
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,13 +55,19 @@ fun MyPostsScreen(
 ) {
     val c = LocalHqColors.current
     var tab by remember { mutableStateOf("active") }
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        HqTextButton(text = "← Back", onClick = onBack, modifier = Modifier.padding(start = HqSpacing.sm, top = HqSpacing.sm))
-        Text("My posts", style = HqType.headlineMedium, color = c.textPrimary, modifier = Modifier.padding(horizontal = HqSpacing.xl))
-        Row(Modifier.padding(HqSpacing.xl), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            HqChip(label = "Active", selected = tab == "active", onClick = { tab = "active" })
-            HqChip(label = "Past", selected = tab == "past", onClick = { tab = "past" })
-        }
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        habitiq.app.ui.components.HqPageHeader(
+            title = "My Posts",
+            subtitle = "Manage what people see in Discover",
+            onBack = onBack,
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
+        )
+        habitiq.app.ui.components.HqSegmentedControl(
+            options = listOf("Active", "Past"),
+            selectedIndex = if (tab == "active") 0 else 1,
+            onSelect = { tab = if (it == 0) "active" else "past" },
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.sm),
+        )
         val vacancyStatus = vacancy?.let { PostStatusLogic.fromVacancy(it.active, it.postStatus) }
         val lookingStatus = mySeeker?.let { PostStatusLogic.fromSeeker(it.active) }
         val vacancyActive = vacancyStatus == DiscoveryPostStatus.PUBLISHED
@@ -76,6 +87,18 @@ fun MyPostsScreen(
             contentPadding = PaddingValues(HqSpacing.lg),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
         ) {
+            item {
+                Row(
+                    Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(c.statusWarningBg).padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(20.dp))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Keep locations approximate", style = HqType.labelMedium, color = c.textPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        Text("Exact addresses are never shown on public posts.", style = HqType.bodyMedium, color = c.textPrimary)
+                    }
+                }
+            }
             if (showVacancy && flat != null) {
                 item {
                     PostManageCard(
@@ -132,22 +155,35 @@ private fun PostManageCard(
     onConnections: () -> Unit
 ) {
     val c = LocalHqColors.current
-    HqCard(modifier = Modifier.fillMaxWidth()) {
-        Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            Text(title, style = HqType.titleLarge, color = c.textPrimary)
-            Text(subtitle, style = HqType.bodySmall, color = c.textSecondary)
-            Text(status.lowercase().replaceFirstChar { it.uppercase() }, style = HqType.labelMedium, color = c.brandPrimary)
-            Text(meta, style = HqType.caption, color = c.textTertiary)
-            if (canManage) {
-                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    HqButton(text = "Edit", onClick = onEdit, variant = HqButtonVariant.Secondary, fullWidth = false)
-                    if (isPublished) HqButton(text = "Pause", onClick = onPause, variant = HqButtonVariant.Secondary, fullWidth = false)
-                    else HqButton(text = "Resume", onClick = onResume, fullWidth = false)
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    HqButton(text = "Connections", onClick = onConnections, variant = HqButtonVariant.Secondary, fullWidth = false)
-                    if (allowClose) HqTextButton(text = "Close", onClick = onClose)
-                }
+    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(14.dp),
+        verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+    ) {
+        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+            habitiq.app.ui.components.HqIconTile(
+                if (title.startsWith("Looking")) habitiq.app.ui.components.HqIcons.Profile else habitiq.app.ui.components.HqIcons.Home,
+                habitiq.app.ui.components.HqTileTone.Teal, size = 46,
+            )
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                habitiq.app.ui.components.HqBadge(
+                    status.lowercase().replaceFirstChar { it.uppercase() },
+                    if (isPublished) habitiq.app.ui.components.HqBadgeTone.Success else habitiq.app.ui.components.HqBadgeTone.Neutral,
+                )
+                Text(title, style = HqType.titleSmall2, color = c.textPrimary)
+                Text(subtitle, style = HqType.bodyMedium, color = c.textSecondary)
+                Text(meta, style = HqType.labelSmall, color = c.textMuted)
+            }
+        }
+        if (canManage) {
+            Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                HqButton(text = "Edit", onClick = onEdit, variant = HqButtonVariant.Secondary, fullWidth = false)
+                if (isPublished) HqButton(text = "Pause", onClick = onPause, variant = HqButtonVariant.Secondary, fullWidth = false)
+                else HqButton(text = "Resume", onClick = onResume, fullWidth = false)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                HqButton(text = "Connections", onClick = onConnections, variant = HqButtonVariant.Secondary, fullWidth = false)
+                if (allowClose) HqTextButton(text = "Close", onClick = onClose)
             }
         }
     }

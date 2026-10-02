@@ -39,8 +39,8 @@ fun FlatSettingsScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
     var preferredGender by remember(vacancy?.preferredGender) { mutableStateOf(vacancy?.preferredGender ?: "any") }
     val genderOptions = listOf("any" to "Anyone", "male" to "Male", "female" to "Female", "women_only" to "Women only")
 
-    Column(Modifier.fillMaxSize().background(c.background).verticalScroll(rememberScrollState()).padding(HqSpacing.xl)) {
-        Row { TextButton(onClick = onBack) { Text("← Back", style = HqType.labelLarge, color = c.brandPrimary) } }
+    Column(Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(HqSpacing.xl)) {
+        Row { TextButton(onClick = onBack) { Text("← Back", style = HqType.labelLarge, color = c.textBrand) } }
         Text("Manage flat", style = HqType.headlineMedium, color = c.textPrimary)
         Spacer(Modifier.height(HqSpacing.lg))
         HqTextField(value = flatName, onValueChange = { flatName = it }, label = "Flat name")

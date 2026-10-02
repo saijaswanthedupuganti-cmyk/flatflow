@@ -1,5 +1,40 @@
 package habitiq.app.ui.figma
 
+import habitiq.app.lib.formatDueLabel
+import habitiq.app.ui.components.hqTaskMotifVector
+import habitiq.app.ui.components.hqTaskMotifFor
+import habitiq.app.ui.components.HqBottomSheet
+import habitiq.app.ui.components.HqIcons
+import habitiq.app.ui.components.HqTileTone
+import habitiq.app.ui.components.HqCalloutCard
+import habitiq.app.ui.components.hqToneFor
+import habitiq.app.ui.components.HqAvatarSize
+import habitiq.app.ui.components.HqAvatar
+import habitiq.app.ui.components.HqBadgeTone
+import habitiq.app.ui.components.HqBadge
+import habitiq.app.ui.components.HqSectionTitle
+import habitiq.app.ui.components.HqPageHeader
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.shadow
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material.icons.filled.Checklist
+import androidx.compose.material.icons.filled.Luggage
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -49,174 +84,173 @@ data class QueueEntry(
 
 enum class QueueState { NOW, NEXT, SKIPPED, QUEUED }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TaskDetailScreen(
     task: FlatTask,
     members: List<Member>,
     currentUid: String,
     onBack: () -> Unit,
-    onRequestSwap: (String) -> Unit = {}
+    onRequestSwap: (String) -> Unit = {},
+    onComplete: (() -> Unit)? = null,
+    onOpenAway: (() -> Unit)? = null,
 ) {
     val c = LocalHqColors.current
     val queue = remember(task, members) { buildQueue(task, members) }
-    val overdueDays = remember(task) { computeOverdueDays(task) }
+    val mine = task.currentAssignedUserId == currentUid
+    val done = task.status == "completed"
+    val overdue = effectiveTaskStatus(task) == "overdue"
+    val assignee = members.find { it.uid == task.currentAssignedUserId }
+    var swapOpen by remember { mutableStateOf(false) }
 
     FigmaScreenBackground {
-        HqBackAppBar(title = task.name, onBack = onBack)
         Column(
-            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl),
-            verticalArrangement = Arrangement.spacedBy(HqSpacing.xxxl)
+            Modifier.weight(1f).verticalScroll(rememberScrollState())
+                .padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.screenEnd),
         ) {
-            TaskSummaryCard(task, overdueDays)
-            Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                HqChip(label = task.type.replace('_', ' ').replaceFirstChar { it.uppercase() }, selected = true)
-                HqChip(label = task.frequency.replaceFirstChar { it.uppercase() }, selected = false)
-                HqChip(label = task.priority.replaceFirstChar { it.uppercase() }, selected = false)
-            }
-            val next = queue.firstOrNull { it.state == QueueState.NEXT } ?: queue.firstOrNull { it.state == QueueState.NOW }
-            if (next != null) {
-                HqCard {
-                    Text("Next assignee", style = HqType.labelMedium, color = c.textSecondary)
-                    Text(next.member.nickname, style = HqType.titleMedium, color = c.textPrimary)
-                    Text(next.subtitle, style = HqType.bodySmall, color = c.textSecondary)
+            HqPageHeader(title = "Task details", onBack = onBack)
+
+            // Figma task-focus: dark card with status, title, notes, due/assignee tiles and the main action.
+            Column(
+                Modifier.fillMaxWidth()
+                    .shadow(17.dp, RoundedCornerShape(26.dp), ambientColor = c.textPrimary.copy(alpha = .18f), spotColor = c.textPrimary.copy(alpha = .18f))
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(Brush.linearGradient(if (done) listOf(Color(0xFF27534C), Color(0xFF1B3E39)) else listOf(Color(0xFF193C38), Color(0xFF112D2A))))
+                    .padding(20.dp),
+            ) {
+                hqTaskMotifFor(task.name)?.let {
+                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
+                        Icon(hqTaskMotifVector(it), null, tint = Color(0xFF86D9CE).copy(alpha = .18f), modifier = Modifier.size(110.dp))
+                    }
+                }
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                    HqBadge(
+                        when { done -> "Completed"; overdue -> "Overdue"; else -> formatDueLabel(task.dueDate) },
+                        if (done) HqBadgeTone.Success else HqBadgeTone.Warning,
+                    )
+                    Text(task.frequency.replaceFirstChar { it.uppercase() }, style = HqType.labelSmall, color = Color(0xFFB8C8C5))
+                }
+                Text(task.name, style = HqType.titleLarge2, color = Color.White, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+                if (task.notes.isNotBlank()) Text(task.notes, style = HqType.bodyMedium, color = Color(0xFFBDC9C7))
+                Row(Modifier.padding(top = 18.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FocusTile(Modifier.weight(1f), label = "DUE", value = formatDueLabel(task.dueDate)) {
+                        Box(Modifier.size(31.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x3314B8A6)), contentAlignment = Alignment.Center) {
+                            Icon(HqIcons.Clock, null, tint = Color(0xFF8DE2D8), modifier = Modifier.size(17.dp))
+                        }
+                    }
+                    FocusTile(Modifier.weight(1f), label = "ASSIGNED TO", value = if (mine) "You" else assignee?.nickname?.substringBefore(" ") ?: "Unassigned") {
+                        HqAvatar(assignee?.nickname ?: "?", size = HqAvatarSize.SM, tone = hqToneFor(assignee?.nickname.orEmpty(), mine))
+                    }
+                }
+                if (onComplete != null && mine) {
+                    HqButton(
+                        text = if (done) "Task completed" else "Mark as complete",
+                        onClick = onComplete,
+                        enabled = !done,
+                        leadingIcon = HqIcons.Check,
+                    )
+                } else if (!mine && !done) {
+                    Text(
+                        "${assignee?.nickname?.substringBefore(" ") ?: "A flatmate"} is on this task",
+                        style = HqType.labelMedium, color = Color(0xFFAEBDBA),
+                    )
                 }
             }
+
             if (queue.isNotEmpty()) {
-                Text("Rotation", style = HqType.titleSmall, color = c.textPrimary)
-                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    queue.take(6).forEach { entry ->
-                        val label = entry.member.nickname.substringBefore(" ").take(1)
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(Modifier.size(40.dp).clip(CircleShape).background(if (entry.state == QueueState.NOW) c.brandPrimary else c.surfaceSubtle), contentAlignment = Alignment.Center) {
-                                Text(label, color = if (entry.state == QueueState.NOW) c.textOnBrand else c.textPrimary, style = HqType.labelLarge)
-                            }
-                            Text(entry.member.nickname.substringBefore(" "), style = HqType.caption, color = c.textSecondary)
+                HqSectionTitle("Rotation")
+                Row(
+                    Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp), ambientColor = c.textPrimary.copy(alpha = .05f), spotColor = c.textPrimary.copy(alpha = .05f))
+                        .clip(RoundedCornerShape(20.dp)).background(c.surfaceBase).border(1.dp, c.borderSubtle, RoundedCornerShape(20.dp))
+                        .padding(horizontal = 14.dp, vertical = 16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                ) {
+                    queue.take(3).forEach { entry ->
+                        val label = when (entry.state) {
+                            QueueState.NOW -> "NOW"; QueueState.NEXT -> "NEXT"; QueueState.SKIPPED -> "AWAY"; QueueState.QUEUED -> "THEN"
+                        }
+                        val name = entry.member.nickname.substringBefore(" ")
+                        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Text(
+                                label, style = HqType.labelSmall, fontWeight = FontWeight.ExtraBold,
+                                color = if (entry.state == QueueState.NOW) c.textBrand else c.textMuted,
+                            )
+                            HqAvatar(entry.member.nickname, size = HqAvatarSize.LG, tone = hqToneFor(entry.member.nickname, entry.member.uid == currentUid))
+                            Text(if (entry.member.uid == currentUid) "You" else name, style = HqType.labelMedium, color = c.textPrimary, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
             }
-            HqCard {
-                Text("History", style = HqType.titleSmall, color = c.textPrimary)
-                Text(
-                    if (task.lastCompletedAt.isBlank()) "No completions yet" else "Last completed ${task.lastCompletedAt}",
-                    style = HqType.bodySmall,
-                    color = c.textSecondary
-                )
-            }
-            HqCard {
-                Text("Reminders", style = HqType.titleSmall, color = c.textPrimary)
-                Text("Every ${task.frequency}", style = HqType.bodySmall, color = c.textSecondary)
-            }
-            HqCard {
-                Text("Notes", style = HqType.titleSmall, color = c.textPrimary)
-                Text(task.notes.ifBlank { "No notes yet" }, style = HqType.bodySmall, color = c.textSecondary)
-            }
-            Row(Modifier.fillMaxWidth().padding(horizontal = HqSpacing.xs), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text("ROTATION QUEUE", color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 1.3.sp)
-                Text("${queue.size} Members", color = c.brandPrimary, style = HqType.labelSmall)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                queue.forEachIndexed { index, entry ->
-                    QueueMemberCard(entry, showConnector = index < queue.lastIndex)
+
+            if (mine && !done) {
+                HqSectionTitle("Can't do this turn?")
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    if (onOpenAway != null) {
+                        HqCalloutCard("I'm unavailable", "Pause my turns temporarily", HqIcons.Clock, HqTileTone.Neutral, onClick = onOpenAway)
+                    }
+                    HqCalloutCard("Request a swap", "Ask a flatmate to take this task", HqIcons.Users, HqTileTone.Teal, onClick = { swapOpen = true })
+                }
+                Row(
+                    Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color(0xFFEFF8F6)).padding(14.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Icon(HqIcons.Home, null, tint = c.textBrand, modifier = Modifier.size(HqIconSize.sm))
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text("Keep our home running smoothly.", style = HqType.labelMedium, color = c.textBrand, fontWeight = FontWeight.Bold)
+                        Text("If you can't do this task, pause your turns or request a swap with a flatmate.", style = HqType.bodyMedium, color = c.textBrand)
+                    }
                 }
             }
-            if (task.currentAssignedUserId == currentUid && task.status != "completed") {
-                Text("Request swap", style = HqType.titleSmall, color = c.textPrimary)
-                members.filter { it.uid != currentUid && it.status != "out_of_station" }.forEach { m ->
-                    HqButton(text = "Ask ${m.nickname} to cover", onClick = { onRequestSwap(m.uid) }, variant = HqButtonVariant.Secondary)
+
+            HqSectionTitle("History")
+            Text(
+                if (task.lastCompletedAt.isBlank()) "No completions yet" else "Last completed ${task.lastCompletedAt}",
+                style = HqType.bodyMedium, color = c.textSecondary,
+            )
+        }
+    }
+
+    if (swapOpen) {
+        val candidates = members.filter { it.uid != currentUid && it.status != "out_of_station" }
+        var picked by remember { mutableStateOf(candidates.firstOrNull()?.uid) }
+        HqBottomSheet(onDismiss = { swapOpen = false }, title = "Request a swap") {
+            Text("Choose someone available for this turn.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = 12.dp))
+            candidates.forEach { m ->
+                val selected = picked == m.uid
+                Row(
+                    Modifier.fillMaxWidth().padding(vertical = 4.dp).clip(RoundedCornerShape(16.dp))
+                        .background(if (selected) c.selectedBg else c.surfaceBase)
+                        .border(1.dp, if (selected) c.selectedBorder else c.borderSubtle, RoundedCornerShape(16.dp))
+                        .selectable(selected = selected, role = androidx.compose.ui.semantics.Role.RadioButton, onClick = { picked = m.uid })
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    HqAvatar(m.nickname, size = HqAvatarSize.MD, tone = hqToneFor(m.nickname, false))
+                    Text(m.nickname, style = HqType.rowTitle, color = c.textPrimary, modifier = Modifier.weight(1f))
+                    if (selected) Icon(HqIcons.Check, null, tint = c.selectedFg, modifier = Modifier.size(HqIconSize.sm))
                 }
             }
+            Row(Modifier.padding(top = 14.dp, bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Icon(HqIcons.Clock, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
+                Text("The task remains yours until it is accepted. Rotation changes only after acceptance.", style = HqType.bodyMedium, color = c.textSecondary)
+            }
+            HqButton(text = "Send swap request", enabled = picked != null, onClick = { picked?.let { onRequestSwap(it) }; swapOpen = false })
             Spacer(Modifier.height(HqSpacing.xxl))
         }
     }
 }
 
 @Composable
-private fun TaskSummaryCard(task: FlatTask, overdueDays: Int?) {
-    val c = LocalHqColors.current
-    HqCard(variant = HqCardVariant.Standard, padding = HqSpacing.xxl) {
-        Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
-            Box(Modifier.size(48.dp).clip(RoundedCornerShape(HqRadius.lg)).background(c.brandPrimaryContainer), contentAlignment = Alignment.Center) {
-                Text("🧹", style = HqType.titleLarge)
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                if (overdueDays != null && overdueDays > 0) {
-                    Box(Modifier.clip(RoundedCornerShape(HqRadius.full)).background(c.errorContainer).padding(horizontal = HqSpacing.sm, vertical = 2.dp)) {
-                        Text("${overdueDays}d overdue", color = c.error, style = HqType.labelSmall)
-                    }
-                }
-                Text(task.name, color = c.textPrimary, style = HqType.headlineSmall)
-                Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg), verticalAlignment = Alignment.CenterVertically) {
-                    Text("📅 ${task.frequency.replaceFirstChar { it.uppercase() }}", color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 0.26.sp)
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                        Box(Modifier.size(8.dp).clip(CircleShape).background(c.warning))
-                        Text("${task.priority.replaceFirstChar { it.uppercase() }} Priority", color = c.textSecondary, style = HqType.labelMedium, letterSpacing = 0.26.sp)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun QueueMemberCard(entry: QueueEntry, showConnector: Boolean) {
-    val c = LocalHqColors.current
-    val isNow = entry.state == QueueState.NOW
-    val isSkipped = entry.state == QueueState.SKIPPED
-    val (bgColor, borderColor, textColor) = avatarPalette(entry.position - 1)
-    val cardBg = if (isSkipped) c.surfaceSubtle else c.surface
-    val cardBorder = when (entry.state) {
-        QueueState.NOW -> 2.dp to c.brandPrimary
-        else -> 1.dp to c.borderDefault
-    }
-    Box {
-        if (showConnector) {
-            Box(
-                Modifier.align(Alignment.TopStart).offset(x = 24.dp, y = 48.dp)
-                    .width(2.dp).height(80.dp).background(c.borderDefault)
-            )
-        }
-        Row(
-            Modifier.fillMaxWidth()
-                .clip(RoundedCornerShape(HqRadius.xl))
-                .background(cardBg)
-                .border(cardBorder.first, cardBorder.second, RoundedCornerShape(HqRadius.xl))
-                .padding(horizontal = 17.dp, vertical = if (isNow) 18.dp else 17.dp),
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Box(
-                Modifier.size(48.dp).clip(CircleShape).background(bgColor).border(2.dp, borderColor, CircleShape),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(memberInitials(entry.member.nickname), color = textColor, style = HqType.titleMedium)
-            }
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.Top) {
-                    Column(Modifier.weight(1f)) {
-                        Text(
-                            entry.member.nickname,
-                            color = c.textPrimary.copy(alpha = if (isSkipped) 0.6f else 1f),
-                            style = if (isNow) HqType.titleMedium else HqType.bodyMedium,
-                        )
-                        if (isSkipped) {
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
-                                Icon(Icons.Filled.Flight, null, tint = c.warning, modifier = Modifier.size(HqIconSize.xs))
-                                Text("Out of Station (Skipped)", color = c.warning, style = HqType.labelSmall)
-                            }
-                        } else {
-                            Text(entry.subtitle, color = c.textSecondary, style = HqType.labelSmall)
-                        }
-                    }
-                    when (entry.state) {
-                        QueueState.NOW -> Box(Modifier.clip(RoundedCornerShape(HqRadius.full)).background(c.brandPrimary).padding(horizontal = HqSpacing.md, vertical = HqSpacing.xs)) {
-                            Text("NOW", color = c.onBrandPrimary, style = HqType.labelSmall)
-                        }
-                        QueueState.NEXT -> Text("Next", color = c.brandPrimary, style = HqType.labelSmall)
-                        else -> Text("Position ${entry.position}", color = c.textSecondary, style = HqType.labelSmall)
-                    }
-                }
-            }
+private fun FocusTile(modifier: Modifier, label: String, value: String, leading: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier.defaultMinSize(minHeight = 54.dp).clip(shape).background(Color.White.copy(alpha = .06f)).border(1.dp, Color.White.copy(alpha = .1f), shape).padding(9.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+    ) {
+        leading()
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(label, style = HqType.labelSmall, color = Color(0xFF91A6A3), fontWeight = FontWeight.Bold)
+            Text(value, style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -236,13 +270,10 @@ private fun buildQueue(task: FlatTask, members: List<Member>): List<QueueEntry> 
             else -> QueueState.QUEUED
         }
         val subtitle = when (state) {
-            QueueState.NOW -> {
-                val reliability = "${member.reliabilityScore}% reliability"
-                val lastDone = formatLastDone(task.lastCompletedAt)
-                if (lastDone.isNotBlank()) "$lastDone · $reliability" else reliability
-            }
+            // Rotation shows engine order only: no reliability or score values (design doc 3.3 / 3.5).
+            QueueState.NOW -> formatLastDone(task.lastCompletedAt)
             QueueState.NEXT -> "Expected: ${formatExpectedDue(task.dueDate)}"
-            QueueState.QUEUED -> "Reliability: ${member.reliabilityScore}%"
+            QueueState.QUEUED -> ""
             QueueState.SKIPPED -> ""
         }
         QueueEntry(member, position, state, subtitle)

@@ -85,6 +85,7 @@ android {
     testOptions {
         unitTests {
             isReturnDefaultValues = true
+            isIncludeAndroidResources = true
         }
     }
 }
@@ -122,4 +123,8 @@ dependencies {
     implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
+    // Headless screenshot rendering of Compose screens (test-only; nothing ships in the APK).
+    testImplementation(libs.robolectric)
+    testImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
 }

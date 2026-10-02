@@ -40,7 +40,7 @@ fun CreateFlatLocationScreen(
     modifier: Modifier = Modifier
 ) {
     val c = LocalHqColors.current
-    Column(modifier.fillMaxSize().background(c.background)) {
+    Column(modifier.fillMaxSize().background(c.canvas)) {
         FlatWizardLocationHeader(
             currentStep = 2,
             onBack = onBack,
@@ -90,8 +90,8 @@ fun CreateFlatLocationScreen(
         Column(
             Modifier
                 .fillMaxWidth()
-                .background(c.background)
-                .border(1.dp, c.borderDefault)
+                .background(c.canvas)
+                .border(1.dp, c.borderSubtle)
                 .padding(horizontal = HqSpacing.xl)
                 .padding(top = HqSpacing.xxl, bottom = HqSpacing.xxl)
                 .navigationBarsPadding(),

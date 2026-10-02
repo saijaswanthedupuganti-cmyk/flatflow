@@ -27,7 +27,7 @@ class HabitiqFcmService : FirebaseMessagingService() {
     override fun onMessageReceived(remoteMessage: RemoteMessage) {
         super.onMessageReceived(remoteMessage)
         val data = remoteMessage.data
-        val title = data["title"] ?: remoteMessage.notification?.title ?: "Habitiq"
+        val title = data["title"] ?: remoteMessage.notification?.title ?: "Oddroof"
         val body = data["body"] ?: remoteMessage.notification?.body ?: "New flat update"
         val type = data["type"] ?: "info"
         FcmNotificationHelper.showLocalNotification(this, title, body, type)

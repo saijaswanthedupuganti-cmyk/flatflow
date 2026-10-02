@@ -64,8 +64,8 @@ fun CreateTaskTypeScreen(onBack: () -> Unit, onSelect: (TaskStructure) -> Unit) 
                 title = "Recurring Duty",
                 description = "Rotates between members — daily, weekly, or monthly. Skips people who are out of station automatically.",
                 example = "e.g. Garbage duty → Sai this week, Rahul next week",
-                accent = c.brandPrimary,
-                accentBg = c.brandPrimaryContainer,
+                accent = c.actionPrimaryBg,
+                accentBg = c.selectedBg,
                 icon = Icons.Filled.Repeat,
                 onClick = { onSelect(TaskStructure.RECURRING) }
             )
@@ -74,8 +74,8 @@ fun CreateTaskTypeScreen(onBack: () -> Unit, onSelect: (TaskStructure) -> Unit) 
                 title = "Group Task",
                 description = "Split one job across people — each gets their own part. Can be one-time or repeat every week/month.",
                 example = "e.g. Sunday Cleaning → Sai: kitchen · Rahul: bedroom",
-                accent = c.info,
-                accentBg = c.infoContainer,
+                accent = c.statusInfoFg,
+                accentBg = c.statusInfoBg,
                 icon = Icons.Filled.Groups,
                 onClick = { onSelect(TaskStructure.GROUP) }
             )
@@ -83,9 +83,9 @@ fun CreateTaskTypeScreen(onBack: () -> Unit, onSelect: (TaskStructure) -> Unit) 
             TaskTypeCard(
                 title = "Temp Task",
                 description = "Assign one quick job to one person. When they mark it done, it's closed — no rotation, no repeat.",
-                example = "e.g. Buy vegetables today → Sai → done ✓",
-                accent = c.warning,
-                accentBg = c.warningContainer,
+                example = "e.g. Buy vegetables today, assigned to Sai, then marked done",
+                accent = c.statusWarningFg,
+                accentBg = c.statusWarningBg,
                 icon = Icons.Filled.Bolt,
                 onClick = { onSelect(TaskStructure.TEMP) }
             )

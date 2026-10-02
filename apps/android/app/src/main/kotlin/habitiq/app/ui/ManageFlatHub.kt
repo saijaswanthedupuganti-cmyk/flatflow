@@ -1,5 +1,16 @@
 package habitiq.app.ui
 
+import habitiq.app.ui.components.HqIcons
+import habitiq.app.ui.components.HqManageSwitch
+import habitiq.app.ui.components.HqPageHeader
+import habitiq.app.lib.formatTimeAgo
+import androidx.compose.foundation.layout.Box
+import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqSize
+import habitiq.app.ui.components.HqTextButton
+import habitiq.app.lib.formatActivityTime
+import habitiq.app.lib.activityActionLabel
+import habitiq.app.lib.formatInr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -68,29 +79,38 @@ fun ManageFlatHub(
     onOpenBills: () -> Unit,
     onOpenActivity: () -> Unit
 ) {
-    val c = LocalHqColors.current
-    when (area) {
-        ManageFlatArea.TASKS -> TasksScreen(
-                viewModel = viewModel,
-                onBack = { onAreaChange(ManageFlatArea.HUB) },
-                onOpenGoingAway = onOpenGoingAway,
-                onOpenTaskDetail = onOpenTaskDetail,
-                onOpenCreateTask = onOpenCreateTask,
-                onReviewSwaps = onReviewSwaps,
-                modifier = Modifier.fillMaxSize()
+    // Figma Manage: one screen with a Tasks / Expenses switch under the page header. HUB is the legacy
+    // landing value and now simply means Tasks, so existing callers and saved state keep working.
+    val onExpenses = area == ManageFlatArea.EXPENSES
+    val header: @Composable () -> Unit = {
+        Column {
+            HqPageHeader(title = "Manage Flat", subtitle = "Everything your home needs, in one place.")
+            HqManageSwitch(
+                options = listOf("Tasks" to HqIcons.Check, "Expenses" to HqIcons.Receipt),
+                selectedIndex = if (onExpenses) 1 else 0,
+                onSelect = { onAreaChange(if (it == 1) ManageFlatArea.EXPENSES else ManageFlatArea.TASKS) },
+                modifier = Modifier.padding(bottom = 23.dp),
             )
-        ManageFlatArea.EXPENSES -> ExpensesScreen(
+        }
+    }
+    if (onExpenses) {
+        ExpensesScreen(
             viewModel,
-            onBack = { onAreaChange(ManageFlatArea.HUB) },
+            onBack = null,
             onOpenBills = onOpenBills,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
+            header = header,
         )
-        ManageFlatArea.HUB -> ManageFlatLanding(
+    } else {
+        TasksScreen(
             viewModel = viewModel,
-            onAreaChange = onAreaChange,
+            onBack = null,
+            onOpenGoingAway = onOpenGoingAway,
             onOpenTaskDetail = onOpenTaskDetail,
+            onOpenCreateTask = onOpenCreateTask,
             onReviewSwaps = onReviewSwaps,
-            onOpenActivity = onOpenActivity
+            modifier = Modifier.fillMaxSize(),
+            header = header,
         )
     }
 }
@@ -109,215 +129,112 @@ private fun ManageFlatLanding(
     val tasks by viewModel.tasks.collectAsStateWithLifecycleCompat()
     val expenses by viewModel.expenses.collectAsStateWithLifecycleCompat()
     val settlements by viewModel.settlements.collectAsStateWithLifecycleCompat()
-    val billInstances by viewModel.billInstances.collectAsStateWithLifecycleCompat()
     val swapRequests by viewModel.swapRequests.collectAsStateWithLifecycleCompat()
     val activity by viewModel.activity.collectAsStateWithLifecycleCompat()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycleCompat()
     val uid = currentUser?.uid.orEmpty()
 
-    val myTasks = tasks.filter { it.currentAssignedUserId == uid }
-    val mine = myTasks.count { effectiveTaskStatus(it) != "completed" }
-    val myOverdueTasks = myTasks.filter { effectiveTaskStatus(it) == "overdue" }
-        .sortedByDescending { daysOverdue(it.dueDate) }
-    val overdue = myOverdueTasks.size
-
-    val monthNets = remember(expenses, billInstances, settlements, uid) {
-        computeMonthNetBalances(currentMonthKey(), expenses, billInstances, settlements)
-    }
-    val myNet = monthNets[uid] ?: 0.0
-    val people = remember(expenses, settlements, uid) { pairwisePersonalBalances(expenses, settlements, uid) }
-    val owePeople = people.count { it.value < -0.5 }
-    val totalIOwe = people.values.filter { it < -0.5 }.sumOf { abs(it) }
-
-    val myPendingSwaps = swapRequests.filter { it.status == "pending" && it.toUserId == uid }
-    val allMyPendingSwaps = swapRequests.filter {
-        it.status == "pending" && (it.toUserId == uid || it.fromUserId == uid)
+    val model = remember(flatInfo, members, tasks, expenses, settlements, swapRequests, activity, uid) {
+        buildManageModel(
+            flatName = flatInfo?.name.orEmpty(),
+            memberCount = members.size.takeIf { it > 0 } ?: flatInfo?.memberCount ?: 0,
+            tasks = tasks,
+            balances = pairwisePersonalBalances(expenses, settlements, uid),
+            pendingSwapsForMe = swapRequests.count { it.status == "pending" && it.toUserId == uid },
+            waitingSwaps = swapRequests.count { it.status == "pending" && it.fromUserId == uid },
+            activity = activity,
+            members = members,
+            uid = uid,
+        )
     }
 
-    val hasAttention = myOverdueTasks.isNotEmpty() || totalIOwe > 0.5 || allMyPendingSwaps.isNotEmpty()
-
-    Column(
-        Modifier.fillMaxSize().background(c.background).verticalScroll(rememberScrollState()).padding(HqSpacing.xl),
-        verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
-    ) {
-        FlatContextHeader(name = flatInfo?.name.orEmpty(), memberCount = members.size.takeIf { it > 0 } ?: flatInfo?.memberCount ?: 0)
-
-        Spacer(Modifier.height(HqSpacing.sm))
-        Text("MANAGE YOUR FLAT", style = HqType.labelMedium, color = c.textTertiary)
-
-        HubCard(
-            icon = Icons.Filled.Checklist,
-            iconTint = c.brandPrimary,
-            iconBackground = c.brandPrimaryContainer,
-            title = "Tasks",
-            subtitle = when {
-                overdue > 0 -> "$mine active · $overdue overdue"
-                mine == 1 -> "1 active task assigned to you"
-                else -> "$mine active tasks assigned to you"
-            },
-            onClick = { onAreaChange(ManageFlatArea.TASKS) }
-        )
-        HubCard(
-            icon = Icons.Filled.Payments,
-            iconTint = c.warning,
-            iconBackground = c.warningContainer,
-            title = "Expenses",
-            subtitle = when {
-                myNet < -0.5 -> "You owe ₹${abs(myNet).toInt()}" + if (owePeople > 0) " to $owePeople ${if (owePeople == 1) "person" else "people"}" else ""
-                myNet > 0.5 -> "You're owed ₹${myNet.toInt()}"
-                else -> "All balances settled"
-            },
-            onClick = { onAreaChange(ManageFlatArea.EXPENSES) }
-        )
-
-        Spacer(Modifier.height(HqSpacing.sm))
-        Text("NEEDS YOUR ATTENTION", style = HqType.labelMedium, color = c.textTertiary)
-
-        if (!hasAttention) {
-            HqCard(variant = HqCardVariant.Status, statusTint = c.successContainer) {
-                Text("You're all caught up.", style = HqType.bodyMedium, color = c.success)
-            }
-        } else {
-            myOverdueTasks.firstOrNull()?.let { task ->
-                val days = daysOverdue(task.dueDate)
-                AttentionCard(
-                    icon = Icons.Filled.Warning,
-                    tint = c.errorContainer,
-                    iconTint = c.error,
-                    title = "Overdue task",
-                    body = task.name,
-                    meta = "${days}d overdue · assigned to you" + if (overdue > 1) " · ${overdue - 1} more overdue" else "",
-                    ctaLabel = "View task",
-                    onClick = { onOpenTaskDetail(task.taskId) }
-                )
-            }
-            if (totalIOwe > 0.5) {
-                AttentionCard(
-                    icon = Icons.Filled.Payments,
-                    tint = c.warningContainer,
-                    iconTint = c.warning,
-                    title = "Payment due",
-                    body = "₹${totalIOwe.toInt()}",
-                    meta = "to $owePeople ${if (owePeople == 1) "person" else "people"}",
-                    ctaLabel = "Pay now",
-                    onClick = {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        ManageContent(
+            model = model,
+            onOpenTasks = { onAreaChange(ManageFlatArea.TASKS) },
+            onOpenExpenses = { onAreaChange(ManageFlatArea.EXPENSES) },
+            onAttention = { item ->
+                when (item.kind) {
+                    ManageAttention.Kind.OverdueTask -> item.taskId?.let(onOpenTaskDetail)
+                    ManageAttention.Kind.Balance -> {
                         viewModel.showBalancesTrigger.value = true
                         onAreaChange(ManageFlatArea.EXPENSES)
                     }
-                )
-            }
-            if (allMyPendingSwaps.isNotEmpty()) {
-                AttentionCard(
-                    icon = Icons.Filled.SwapHoriz,
-                    tint = c.infoContainer,
-                    iconTint = c.info,
-                    title = if (allMyPendingSwaps.size == 1) "Swap request" else "Swap requests",
-                    body = "${allMyPendingSwaps.size} ${if (allMyPendingSwaps.size == 1) "request" else "requests"}",
-                    meta = if (myPendingSwaps.isNotEmpty()) "${myPendingSwaps.size} needs your response" else "waiting on a flatmate",
-                    ctaLabel = "Review",
-                    onClick = onReviewSwaps
-                )
-            }
-        }
-
-        if (activity.isNotEmpty()) {
-            Spacer(Modifier.height(HqSpacing.sm))
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text("RECENT ACTIVITY", style = HqType.labelMedium, color = c.textTertiary)
-                TextButton(onClick = onOpenActivity) {
-                    Text("View all", style = HqType.labelLarge, color = c.brandPrimary)
+                    ManageAttention.Kind.Swaps -> onReviewSwaps()
                 }
-            }
-            activity.take(3).forEach { entry ->
-                HqCard(padding = HqSpacing.md) {
-                    Text(entry.details, style = HqType.bodyMedium, color = c.textPrimary)
-                    Text(
-                        "${entry.action} · ${entry.timestamp.take(19).replace('T', ' ')}",
-                        style = HqType.caption,
-                        color = c.textTertiary
-                    )
-                }
-            }
-        }
-
-        Spacer(Modifier.height(HqSpacing.xxl))
+            },
+            onOpenActivity = onOpenActivity,
+        )
     }
 }
 
-@Composable
-private fun FlatContextHeader(name: String, memberCount: Int) {
-    val c = LocalHqColors.current
-    Column {
-        Text("Manage", style = HqType.headlineLarge, color = c.textPrimary)
-        Text(
-            "Keep your household running smoothly.",
-            style = HqType.bodyMedium,
-            color = c.textSecondary
-        )
-        if (name.isNotBlank()) {
-            Text(
-                "$name · ${if (memberCount == 1) "1 member" else "$memberCount members"}",
-                style = HqType.caption,
-                color = c.textTertiary,
-                modifier = Modifier.padding(top = HqSpacing.xs)
+internal fun buildManageModel(
+    flatName: String,
+    memberCount: Int,
+    tasks: List<habitiq.app.data.FlatTask>,
+    balances: Map<String, Double>,
+    pendingSwapsForMe: Int,
+    waitingSwaps: Int,
+    activity: List<habitiq.app.data.FlatActivity>,
+    members: List<habitiq.app.flats.Member>,
+    uid: String,
+): ManageUiModel {
+    fun plural(n: Int, one: String, many: String = one + "s") = "$n ${if (n == 1) one else many}"
+    val mine = tasks.filter { it.currentAssignedUserId == uid && effectiveTaskStatus(it) != "completed" }
+    val overdueMine = mine.filter { effectiveTaskStatus(it) == "overdue" }.sortedByDescending { daysOverdue(it.dueDate) }
+    val owe = balances.filter { it.value < 0 }
+    val owed = balances.filter { it.value > 0 }
+    val totalOwe = owe.values.sumOf { abs(it) }
+    val totalOwed = owed.values.sum()
+
+    val tasksLines = buildList {
+        if (mine.isEmpty()) add(TileLine("Nothing assigned to you"))
+        else {
+            add(TileLine("${mine.size} assigned"))
+            if (overdueMine.isNotEmpty()) add(TileLine("${overdueMine.size} overdue", urgent = true))
+        }
+    }
+    // Both directions are named; opposite balances are never reported as settled.
+    val expensesLines = buildList {
+        if (totalOwe > 0) add(TileLine("You owe ${formatInr(totalOwe)}"))
+        if (totalOwed > 0) add(TileLine("You're owed ${formatInr(totalOwed)}"))
+        if (totalOwe <= 0 && totalOwed <= 0) add(TileLine("All settled"))
+    }
+
+    val attention = buildList {
+        overdueMine.firstOrNull()?.let { task ->
+            val days = daysOverdue(task.dueDate)
+            add(
+                ManageAttention(
+                    ManageAttention.Kind.OverdueTask,
+                    if (overdueMine.size > 1) "${overdueMine.size} overdue tasks" else "Overdue task",
+                    "${task.name} · " + (if (days <= 1L) "was due yesterday" else "was due $days days ago"),
+                    task.taskId,
+                )
+            )
+        }
+        if (totalOwe > 0) {
+            add(ManageAttention(ManageAttention.Kind.Balance, "Balance to settle", "You owe ${formatInr(totalOwe)} to ${plural(owe.size, "person", "people")}"))
+        }
+        if (pendingSwapsForMe + waitingSwaps > 0) {
+            add(
+                ManageAttention(
+                    ManageAttention.Kind.Swaps,
+                    if (pendingSwapsForMe + waitingSwaps == 1) "Swap request" else "Swap requests",
+                    if (pendingSwapsForMe > 0) "${pendingSwapsForMe} waiting for your answer" else "Waiting on a flatmate",
+                )
             )
         }
     }
-}
 
-@Composable
-private fun AttentionCard(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    tint: androidx.compose.ui.graphics.Color,
-    iconTint: androidx.compose.ui.graphics.Color,
-    title: String,
-    body: String,
-    meta: String,
-    ctaLabel: String,
-    onClick: () -> Unit
-) {
-    val c = LocalHqColors.current
-    HqCard(variant = HqCardVariant.Status, statusTint = tint) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-            Icon(icon, null, tint = iconTint, modifier = Modifier.size(HqIconSize.md))
-            Column(Modifier.weight(1f)) {
-                Text(title.uppercase(), style = HqType.labelSmall, color = c.textSecondary)
-                Text(body, style = HqType.titleLarge, color = c.textPrimary)
-                Text(meta, style = HqType.bodySmall, color = c.textSecondary)
-            }
-        }
-        Spacer(Modifier.height(HqSpacing.sm))
-        HqButton(text = ctaLabel, onClick = onClick, variant = HqButtonVariant.Secondary, fullWidth = false)
-    }
-}
-
-@Composable
-private fun HubCard(
-    icon: ImageVector,
-    iconTint: Color,
-    iconBackground: Color,
-    title: String,
-    subtitle: String,
-    onClick: () -> Unit
-) {
-    val c = LocalHqColors.current
-    HqCard(variant = HqCardVariant.Interactive, onClick = onClick, padding = HqSpacing.xl) {
-        Row(
-            Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg)
-        ) {
-            androidx.compose.foundation.layout.Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(iconBackground),
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(icon, null, tint = iconTint, modifier = Modifier.size(HqIconSize.md))
-            }
-            Column(Modifier.weight(1f)) {
-                Text(title, style = HqType.titleLarge, color = c.textPrimary)
-                Text(subtitle, style = HqType.bodySmall, color = c.textSecondary)
-            }
-            Icon(Icons.Filled.ChevronRight, null, tint = c.textTertiary, modifier = Modifier.size(HqIconSize.md))
-        }
-    }
+    return ManageUiModel(
+        flatContext = if (flatName.isNotBlank()) "$flatName · ${plural(memberCount, "member")}" else "",
+        tasksLines = tasksLines,
+        expensesLines = expensesLines,
+        attention = attention,
+        activity = activity.take(3).map { entry ->
+            val who = if (entry.userId == uid) "You" else members.find { it.uid == entry.userId }?.nickname?.ifBlank { null } ?: "A flatmate"
+            HomeActivityItem("$who ${entry.details}", formatTimeAgo(entry.timestamp))
+        },
+    )
 }

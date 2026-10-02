@@ -12,9 +12,10 @@
         android:allowBackup="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
-        android:label="Habitiq"
+        android:label="Oddroof"
         android:usesCleartextTraffic="false"
         android:hardwareAccelerated="true"
+        android:enableOnBackInvokedCallback="true"
         android:theme="@style/Theme.Habitiq">
 
         <meta-data
@@ -32,7 +33,7 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
-            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
+            android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout|uiMode|fontScale|density|layoutDirection|locale"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Habitiq">
             <intent-filter>

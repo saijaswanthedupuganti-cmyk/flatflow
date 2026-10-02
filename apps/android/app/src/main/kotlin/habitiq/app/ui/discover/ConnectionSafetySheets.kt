@@ -62,16 +62,16 @@ fun ConnectionRequestSheet(
     HqBottomSheet(onDismiss = onDismiss, title = "Send connection request") {
         Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
             Box(
-                Modifier.size(72.dp).clip(CircleShape).background(c.infoContainer),
+                Modifier.size(72.dp).clip(CircleShape).background(c.statusInfoBg),
                 contentAlignment = Alignment.Center
-            ) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = c.info) }
+            ) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = c.statusInfoFg) }
         }
         Spacer(Modifier.height(HqSpacing.md))
         Text("To: $toName", style = HqType.bodyMedium, color = c.textSecondary)
-        Text(contextLine, style = HqType.bodySmall, color = c.textTertiary)
+        Text(contextLine, style = HqType.bodySmall, color = c.textMuted)
         Spacer(Modifier.height(HqSpacing.sm))
         Text(
-            "Phone numbers stay hidden until you both accept. Chat stays in Habitiq.",
+            "Keep conversations in Oddroof. Share personal details only when you're comfortable.",
             style = HqType.bodySmall,
             color = c.textSecondary
         )
@@ -111,7 +111,7 @@ fun ReportSheet(
     var selected by remember { mutableStateOf(ReportReasons.first()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = c.surface,
+        containerColor = c.surfaceBase,
         title = { Text(title, style = HqType.titleLarge, color = c.textPrimary) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
@@ -159,8 +159,8 @@ fun TrustConsentDialog(
     onNotNow: () -> Unit
 ) {
     HqConfirmDialog(
-        title = "How Habitiq uses your activity",
-        message = "We can use chore completion, expense settlement and dispute history to show a qualitative Habitiq trust tag — never a percentage. You can stay Unrated.",
+        title = "How Oddroof uses your activity",
+        message = "We can use chore completion, expense settlement and dispute history to show a qualitative Oddroof trust tag — never a percentage. You can stay Unrated.",
         confirmLabel = "Allow",
         onConfirm = onAllow,
         onDismiss = onNotNow,

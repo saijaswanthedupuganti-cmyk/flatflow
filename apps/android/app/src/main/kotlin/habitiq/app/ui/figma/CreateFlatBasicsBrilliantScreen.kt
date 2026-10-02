@@ -49,14 +49,7 @@ fun CreateFlatBasicsBrilliantScreen(
     val c = LocalHqColors.current
     val loading = state is FlatUiState.Loading
 
-    Box(modifier.fillMaxSize().background(c.background)) {
-        Box(
-            Modifier
-                .size(256.dp)
-                .offset(x = 200.dp, y = (-128).dp)
-                .clip(RoundedCornerShape(HqRadius.full))
-                .background(c.brandPrimary.copy(alpha = 0.2f))
-        )
+    Box(modifier.fillMaxSize().background(c.canvas)) {
         Column(Modifier.fillMaxSize()) {
             FlatWizardBrilliantHeader(currentStep = 1, onBack = onBack, onSkip = onSkip)
             Column(
@@ -72,19 +65,18 @@ fun CreateFlatBasicsBrilliantScreen(
                         .fillMaxWidth()
                         .height(120.dp)
                         .clip(RoundedCornerShape(HqRadius.md))
-                        .background(c.brandPrimaryContainer),
+                        .background(c.selectedBg),
                     contentAlignment = Alignment.Center
                 ) {
-                    Icon(Icons.Filled.Home, null, tint = c.brandPrimary, modifier = Modifier.size(HqIconSize.xl))
+                    Icon(Icons.Filled.Home, null, tint = c.actionPrimaryBg, modifier = Modifier.size(HqIconSize.xl))
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                     Text(
                         buildAnnotatedString {
                             append("Create your ")
-                            withStyle(SpanStyle(color = c.brandPrimary, fontWeight = FontWeight.SemiBold)) {
+                            withStyle(SpanStyle(color = c.textBrand, fontWeight = FontWeight.SemiBold)) {
                                 append("shared home")
                             }
-                            append(" 🏡")
                         },
                         color = c.textPrimary,
                         style = HqType.headlineMedium
@@ -109,10 +101,10 @@ fun CreateFlatBasicsBrilliantScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Box(
-                            Modifier.size(HqIconSize.xl).clip(RoundedCornerShape(HqRadius.full)).background(c.brandPrimary),
+                            Modifier.size(HqIconSize.xl).clip(RoundedCornerShape(HqRadius.full)).background(c.actionPrimaryBg),
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Filled.Lock, null, tint = c.onBrandPrimary, modifier = Modifier.size(HqIconSize.sm))
+                            Icon(Icons.Filled.Lock, null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.sm))
                         }
                         Column {
                             Text("Your flat, your rules.", color = c.textPrimary, style = HqType.bodyLarge)

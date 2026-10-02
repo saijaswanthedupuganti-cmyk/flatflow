@@ -16,8 +16,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqButton
 import habitiq.app.ui.components.HqTextButton
@@ -43,18 +41,7 @@ fun CreateFlatBasicsPremiumScreen(
     val c = LocalHqColors.current
     val types = listOf("apartment" to "Apartment", "house" to "Independent House")
 
-    Box(modifier.fillMaxSize().background(c.background)) {
-        Box(
-            Modifier
-                .fillMaxWidth()
-                .height(390.dp)
-                .background(
-                    Brush.radialGradient(
-                        colors = listOf(c.brandPrimary.copy(alpha = 0.08f), Color.Transparent),
-                        radius = 400f
-                    )
-                )
-        )
+    Box(modifier.fillMaxSize().background(c.canvas)) {
         Column(Modifier.fillMaxSize()) {
             FlatWizardPremiumHeader(currentStep = 1, onBack = onBack, onSkip = onSkip)
             Column(
@@ -125,10 +112,10 @@ private fun FlatTypeOption(label: String, selected: Boolean, onClick: () -> Unit
             .then(
                 if (selected) {
                     Modifier
-                        .background(c.brandPrimaryContainer)
-                        .border(2.dp, c.brandPrimary, shape)
+                        .background(c.selectedBg)
+                        .border(2.dp, c.actionPrimaryBg, shape)
                 } else {
-                    Modifier.border(1.dp, c.borderDefault, shape)
+                    Modifier.border(1.dp, c.borderSubtle, shape)
                 }
             )
             .clickable(onClick = onClick)
@@ -141,15 +128,15 @@ private fun FlatTypeOption(label: String, selected: Boolean, onClick: () -> Unit
                 .clip(RoundedCornerShape(HqRadius.full))
                 .then(
                     if (selected) {
-                        Modifier.background(c.brandPrimary)
+                        Modifier.background(c.actionPrimaryBg)
                     } else {
-                        Modifier.border(1.dp, c.borderDefault, RoundedCornerShape(HqRadius.full))
+                        Modifier.border(1.dp, c.borderSubtle, RoundedCornerShape(HqRadius.full))
                     }
                 ),
             contentAlignment = Alignment.Center
         ) {
             if (selected) {
-                Icon(Icons.Filled.Check, null, tint = c.onBrandPrimary, modifier = Modifier.size(12.dp))
+                Icon(Icons.Filled.Check, null, tint = c.actionPrimaryFg, modifier = Modifier.size(12.dp))
             }
         }
         Spacer(Modifier.width(HqSpacing.xxl))

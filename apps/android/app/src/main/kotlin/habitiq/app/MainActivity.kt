@@ -2,6 +2,8 @@ package habitiq.app
 
 import android.os.Bundle
 import androidx.activity.compose.setContent
+import androidx.activity.SystemBarStyle
+import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.*
 import androidx.fragment.app.FragmentActivity
 import androidx.lifecycle.Lifecycle
@@ -21,6 +23,8 @@ class MainActivity : FragmentActivity() {
     private lateinit var appPreferences: AppPreferences
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Light-first launch: system bar icons stay dark regardless of the OS appearance.
+        applyEdgeToEdge()
         super.onCreate(savedInstanceState)
         appPreferences = AppPreferences(this)
         FcmNotificationHelper.createNotificationChannel(this)
@@ -54,6 +58,18 @@ class MainActivity : FragmentActivity() {
 
         registerFcmToken()
     }
+
+    // Dark mode / font size / locale changes are handled in place so unsaved input survives them
+    // (design doc 11.2). The system-bar icon style has to be re-resolved by hand when that happens.
+    override fun onConfigurationChanged(newConfig: android.content.res.Configuration) {
+        super.onConfigurationChanged(newConfig)
+        applyEdgeToEdge()
+    }
+
+    private fun applyEdgeToEdge() = enableEdgeToEdge(
+        statusBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.TRANSPARENT),
+        navigationBarStyle = SystemBarStyle.light(android.graphics.Color.TRANSPARENT, android.graphics.Color.argb(0x1A, 0, 0, 0)),
+    )
 
     // The shared notification backend still targets legacy FCM registration tokens.
     // Migrate this together with the backend contract before switching to FID registration.

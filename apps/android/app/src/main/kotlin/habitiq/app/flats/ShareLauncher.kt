@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 
 fun launchShareInviteCode(context: Context, flatName: String, flatId: String) {
-    val message = "Join my flat \"$flatName\" on Habitiq! Use code $flatId to join."
+    val message = "Join my flat \"$flatName\" on Oddroof! Use code $flatId to join."
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_TEXT, message)

@@ -1,5 +1,13 @@
 package habitiq.app
 
+import habitiq.app.discover.DiscoverFlags
+import habitiq.app.ui.CreateOption
+import habitiq.app.ui.ShellCreate
+import habitiq.app.ui.theme.HqLayout
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.imePadding
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -74,13 +81,14 @@ import habitiq.app.ui.figma.GoingAwayScreen
 import habitiq.app.ui.figma.TaskDetailScreen
 import habitiq.app.ui.figma.TaskCreatedScreen
 import habitiq.app.ui.figma.TaskStructure
-import habitiq.app.ui.PlusActionSheet
 import habitiq.app.ui.ProfileScreen
 import habitiq.app.ui.SettingsScreen
 import habitiq.app.ui.SignupScreen
 import habitiq.app.ui.WelcomeScreen
 import habitiq.app.ui.collectAsStateWithLifecycleCompat
-import habitiq.app.ui.theme.HabitiqBrand
+import habitiq.app.ui.theme.HqType
+import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.theme.HabitiqTheme
 
 private object Routes {
@@ -176,25 +184,28 @@ fun HabitiqApp() {
         }
     }
 
+    // Home's photo hero bleeds under the status bar; it flips this on while it is on screen.
+    val heroBleed = remember { mutableStateOf(false) }
     HabitiqTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+        // The single status-bar inset for every screen; individual screens must not add their own.
+        // Centre and cap the content column on tablets/foldables (design doc 7.2); phones are unaffected.
+        Box(Modifier.fillMaxSize().background(LocalHqColors.current.canvas), contentAlignment = Alignment.TopCenter) {
+        androidx.compose.runtime.CompositionLocalProvider(habitiq.app.ui.theme.LocalHeroBleed provides heroBleed) {
+        Surface(
+            modifier = Modifier.widthIn(max = HqLayout.contentMax).fillMaxSize()
+                .then(if (heroBleed.value) Modifier else Modifier.statusBarsPadding()).imePadding(),
+            color = LocalHqColors.current.canvas,
+        ) {
             if (!startupResolved) {
-                Box(
-                    Modifier.fillMaxSize().background(HabitiqBrand.Canvas),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = HabitiqBrand.Primary)
-                }
+                habitiq.app.ui.components.HqLoadingScreen()
             } else if (startupError != null) {
                 Column(
-                    Modifier.fillMaxSize().background(HabitiqBrand.Canvas).padding(24.dp),
+                    Modifier.fillMaxSize().background(LocalHqColors.current.canvas).padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Spacer(Modifier.padding(80.dp))
-                    Text(startupError ?: "", color = HabitiqBrand.Ink)
-                    TextButton(onClick = { startupAttempt += 1 }) {
-                        Text("Try again", color = HabitiqBrand.PrimarySoft)
-                    }
+                    Text(startupError ?: "", color = LocalHqColors.current.textPrimary, style = HqType.bodyLarge)
+                    HqTextButton(text = "Try again", onClick = { startupAttempt += 1 })
                 }
             } else {
                 NavHost(navController = navController, startDestination = startDestination) {
@@ -312,6 +323,7 @@ fun HabitiqApp() {
                         var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
                         var showSwapReview by remember { mutableStateOf(false) }
                         var discoverOpenCreate by remember { mutableStateOf(false) }
+                        var discoverCreateType by remember { mutableStateOf<String?>(null) }
                         var discoverOpenPosts by remember { mutableStateOf(false) }
                         var manageAreaName by rememberSaveable { mutableStateOf(ManageFlatArea.HUB.name) }
 
@@ -324,6 +336,7 @@ fun HabitiqApp() {
                         }
 
                         val flatViewModelTasks by flatViewModel.tasks.collectAsStateWithLifecycleCompat()
+                        val shellIsAdmin by flatViewModel.isAdmin.collectAsStateWithLifecycleCompat()
                         val flatViewModelMembers by flatViewModel.members.collectAsStateWithLifecycleCompat()
                         val flatViewModelSwaps by flatViewModel.swapRequests.collectAsStateWithLifecycleCompat()
                         val flatViewModelUser by flatViewModel.currentUser.collectAsStateWithLifecycleCompat()
@@ -338,6 +351,26 @@ fun HabitiqApp() {
                                 adminHomeMode = AdminHomeMode.EXPENSES
                                 moneyOverlay = "bills"
                                 flatViewModel.showBillsTrigger.value = false
+                            }
+                        }
+
+                        // One back handler for everything layered over the shell, innermost first. Screens
+                        // rendered below register their own handlers after this one, so theirs take priority.
+                        // Last step: any tab other than Home returns to Home before the app exits.
+                        BackHandler(
+                            enabled = profileOverlay != null || moneyOverlay != null || tasksOverlay != null ||
+                                selectedTaskId != null ||
+                                selectedTab != AppTab.HOME
+                        ) {
+                            when {
+                                profileOverlay != null -> profileOverlay = null
+                                moneyOverlay != null -> moneyOverlay = null
+                                tasksOverlay != null -> tasksOverlay = when (tasksOverlay) {
+                                    "create_recurring", "create_temp" -> "create_type"
+                                    else -> null
+                                }
+                                selectedTaskId != null -> selectedTaskId = null
+                                else -> selectedTab = AppTab.HOME
                             }
                         }
 
@@ -407,14 +440,52 @@ fun HabitiqApp() {
                                             onRequestSwap = { toUid ->
                                                 flatViewModel.createSwapRequest(task.taskId, toUid)
                                                 selectedTaskId = null
-                                            }
+                                            },
+                                            onComplete = {
+                                                flatViewModel.completeTask(task)
+                                                selectedTaskId = null
+                                            },
+                                            onOpenAway = {
+                                                selectedTaskId = null
+                                                tasksOverlay = "going_away"
+                                            },
                                         )
                                     } else {
                                         selectedTaskId = null
                                     }
                                 } else {
+                                    val manageArea = runCatching { ManageFlatArea.valueOf(manageAreaName) }.getOrDefault(ManageFlatArea.HUB)
+                                    // One contextual create action by place and role. Home and Profile have no
+                                    // verified create action, so the slot stays empty there.
+                                    val createAction: ShellCreate = when (selectedTab) {
+                                        // Figma: the raised plus on Manage is one Create menu for both tasks and expenses.
+                                        AppTab.TASKS -> ShellCreate.Menu(
+                                            buildList {
+                                                if (shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "create_type" })
+                                                add(CreateOption("Add expense") {
+                                                    manageAreaName = ManageFlatArea.EXPENSES.name
+                                                    flatViewModel.showAddExpenseTrigger.value = true
+                                                })
+                                                add(CreateOption("Bills") { moneyOverlay = "bills" })
+                                            }
+                                        )
+                                        // Discover has two kinds of post: a vacancy (admins) and "I'm looking" (everyone).
+                                        AppTab.DISCOVER -> {
+                                            val options = buildList {
+                                                if (shellIsAdmin) add(CreateOption("Post a vacancy") { discoverCreateType = "VACANCY"; discoverOpenCreate = true })
+                                                if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("Post that I'm looking") { discoverCreateType = "LOOKING"; discoverOpenCreate = true })
+                                            }
+                                            when (options.size) {
+                                                0 -> ShellCreate.None
+                                                1 -> ShellCreate.Direct(options[0].label, options[0].onClick)
+                                                else -> ShellCreate.Menu(options)
+                                            }
+                                        }
+                                        else -> ShellCreate.None
+                                    }
                                     AppShell(
                                         selectedTab = selectedTab,
+                                        createAction = createAction,
                                         onTabSelected = {
                                             if (it != selectedTab) moneyOverlay = null
                                             selectedTab = it
@@ -459,6 +530,7 @@ fun HabitiqApp() {
                                                 initialBudget = mainDiscoverBudget,
                                                 initialPreference = mainDiscoverPreference,
                                                 openCreatePost = discoverOpenCreate,
+                                                createPostType = discoverCreateType,
                                                 onCreatePostConsumed = { discoverOpenCreate = false },
                                                 openMyPosts = discoverOpenPosts,
                                                 onMyPostsConsumed = { discoverOpenPosts = false }
@@ -618,6 +690,8 @@ fun HabitiqApp() {
                     }
                 }
             }
+        }
+        }
         }
     }
 }

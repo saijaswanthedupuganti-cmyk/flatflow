@@ -23,7 +23,7 @@ import habitiq.app.ui.theme.LocalHqColors
 @Composable
 fun FlatWizardPremiumHeader(
     currentStep: Int,
-    totalSteps: Int = 5,
+    totalSteps: Int = 2,
     onBack: () -> Unit,
     onSkip: (() -> Unit)? = null,
     modifier: Modifier = Modifier
@@ -32,7 +32,7 @@ fun FlatWizardPremiumHeader(
     Row(
         modifier
             .fillMaxWidth()
-            .background(c.background.copy(alpha = 0.85f))
+            .background(c.canvas)
             .padding(start = HqSpacing.lg, end = HqSpacing.xxl, top = HqSpacing.xxl, bottom = HqSpacing.xxl),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -65,12 +65,12 @@ fun FlatWizardPremiumHeader(
                             .height(2.dp)
                             .width(if (active && index == currentStep - 1) 40.dp else 12.dp)
                             .clip(RoundedCornerShape(HqRadius.full))
-                            .background(if (active) c.brandPrimary else c.borderDefault)
+                            .background(if (active) c.actionPrimaryBg else c.borderSubtle)
                     )
                 }
             }
             Text(
-                "$currentStep OF $totalSteps",
+                "Step $currentStep of $totalSteps",
                 color = c.textSecondary,
                 style = HqType.labelMedium
             )
@@ -95,7 +95,7 @@ fun FlatWizardPremiumHeader(
 @Composable
 fun FlatWizardLocationHeader(
     currentStep: Int,
-    totalSteps: Int = 5,
+    totalSteps: Int = 2,
     onBack: () -> Unit,
     onSkip: (() -> Unit)? = null,
     showHeaderSkip: Boolean = false,
@@ -105,7 +105,7 @@ fun FlatWizardLocationHeader(
     Row(
         modifier
             .fillMaxWidth()
-            .background(c.background)
+            .background(c.canvas)
             .padding(horizontal = HqSpacing.xl, vertical = HqSpacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -127,7 +127,7 @@ fun FlatWizardLocationHeader(
                         .height(3.dp)
                         .width(32.dp)
                         .clip(RoundedCornerShape(HqRadius.full))
-                        .background(if (index < currentStep) c.brandPrimary else c.borderDefault)
+                        .background(if (index < currentStep) c.actionPrimaryBg else c.borderSubtle)
                 )
             }
         }
@@ -135,7 +135,7 @@ fun FlatWizardLocationHeader(
             if (showHeaderSkip && onSkip != null) {
                 Text(
                     "Skip",
-                    color = c.brandPrimary,
+                    color = c.textBrand,
                     style = HqType.labelMedium,
                     modifier = Modifier
                         .clip(RoundedCornerShape(HqRadius.sm))
@@ -144,7 +144,7 @@ fun FlatWizardLocationHeader(
                 )
             }
             Text(
-                "$currentStep of $totalSteps",
+                "Step $currentStep of $totalSteps",
                 color = c.textSecondary,
                 style = HqType.caption
             )
@@ -165,7 +165,7 @@ fun FlatWizardBrilliantHeader(
     Row(
         modifier
             .fillMaxWidth()
-            .background(c.background.copy(alpha = 0.95f))
+            .background(c.canvas)
             .padding(horizontal = HqSpacing.xl, vertical = HqSpacing.lg),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
@@ -183,7 +183,7 @@ fun FlatWizardBrilliantHeader(
                         .height(4.dp)
                         .width(32.dp)
                         .clip(RoundedCornerShape(HqRadius.full))
-                        .background(if (index < currentStep) c.brandPrimary else c.borderDefault)
+                        .background(if (index < currentStep) c.actionPrimaryBg else c.borderSubtle)
                 )
             }
             Spacer(Modifier.width(HqSpacing.sm))

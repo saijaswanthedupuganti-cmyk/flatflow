@@ -1,5 +1,10 @@
 package habitiq.app.ui.discover
 
+import androidx.compose.foundation.layout.Row
+import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.width
+import habitiq.app.ui.components.HqIllustration
+import habitiq.app.ui.components.HqArt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -55,17 +60,7 @@ fun DiscoveryEmpty(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
     ) {
-        Box(
-            Modifier.size(HqSpacing.xxhuge).clip(RoundedCornerShape(HqRadius.xl)).background(c.brandPrimaryContainer),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                if (person) Icons.Default.PersonSearch else Icons.Default.HomeWork,
-                null,
-                tint = c.brandPrimary,
-                modifier = Modifier.size(HqIconSize.lg)
-            )
-        }
+        HqIllustration(if (person) HqArt.IntentFlatmate else HqArt.SearchHouse, Modifier.width(96.dp))
         Text(title, style = HqType.titleLarge, color = c.textPrimary)
         Text(body, style = HqType.bodyMedium, color = c.textSecondary)
         if (actionLabel != null && onAction != null) {
@@ -83,10 +78,24 @@ fun DiscoveryError(title: String, body: String, onRetry: (() -> Unit)? = null) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)
     ) {
-        Text(title, style = HqType.titleMedium, color = c.error)
+        Text(title, style = HqType.titleMedium, color = c.statusDangerFg)
         Text(body, style = HqType.bodySmall, color = c.textSecondary)
         if (onRetry != null) {
             HqButton(text = "Retry", onClick = onRetry, variant = HqButtonVariant.Secondary, fullWidth = false)
         }
+    }
+}
+
+/** Count, a way to clear everything, and each applied filter as a removable chip, wrapped onto as many lines as needed. */
+@Composable
+fun AppliedFilters(chips: List<Pair<String, () -> Unit>>, onClearAll: () -> Unit) {
+    if (chips.isEmpty()) return
+    val c = LocalHqColors.current
+    Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("${chips.size} applied", style = HqType.labelSmall, color = c.textSecondary, modifier = Modifier.weight(1f))
+            HqTextButton(text = "Clear all", onClick = onClearAll)
+        }
+        habitiq.app.ui.components.HqChipFlow { chips.forEach { (label, remove) -> habitiq.app.ui.components.HqRemovableChip(label, remove) } }
     }
 }

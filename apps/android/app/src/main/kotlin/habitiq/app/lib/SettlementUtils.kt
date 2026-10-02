@@ -9,6 +9,13 @@ import kotlin.math.abs
 import kotlin.math.min
 import kotlin.math.roundToInt
 
+/**
+ * Smallest balance, in rupees, that still counts as owed: half a paisa, so anything that rounds to
+ * Rs0.01 or more is shown and settled instead of being called "all settled". Web uses the same
+ * value in apps/web/lib/settlementUtils.ts. Change both together.
+ */
+const val BALANCE_EPSILON = 0.005
+
 data class SuggestedSettlement(val fromUserId: String, val toUserId: String, val amount: Double)
 
 fun currentMonthKey(): String = LocalDate.now().format(DateTimeFormatter.ofPattern("yyyy-MM"))
@@ -24,7 +31,7 @@ fun computeMonthNetBalances(
     fun bump(uid: String, delta: Double) { net[uid] = (net[uid] ?: 0.0) + delta }
 
     carryForwardIn?.forEach { (uid, amount) ->
-        if (abs(amount) >= 0.5) bump(uid, amount)
+        if (abs(amount) >= BALANCE_EPSILON) bump(uid, amount)
     }
 
     for (instance in billInstances) {
@@ -65,8 +72,8 @@ fun computeMonthNetBalances(
 
 fun suggestSettlements(netBalances: Map<String, Double>): List<SuggestedSettlement> {
     val people = netBalances.map { (uid, amt) -> uid to amt }.toMutableList()
-    val debtors = people.filter { it.second < -0.5 }.sortedBy { it.second }.toMutableList()
-    val creditors = people.filter { it.second > 0.5 }.sortedByDescending { it.second }.toMutableList()
+    val debtors = people.filter { it.second < -BALANCE_EPSILON }.sortedBy { it.second }.toMutableList()
+    val creditors = people.filter { it.second > BALANCE_EPSILON }.sortedByDescending { it.second }.toMutableList()
     val result = mutableListOf<SuggestedSettlement>()
     var di = 0
     var ci = 0
@@ -74,13 +81,13 @@ fun suggestSettlements(netBalances: Map<String, Double>): List<SuggestedSettleme
         val d = debtors[di]
         val c = creditors[ci]
         val payment = min(abs(d.second), c.second)
-        if (payment >= 0.5) {
+        if (payment >= BALANCE_EPSILON) {
             result.add(SuggestedSettlement(d.first, c.first, payment.roundToInt().toDouble()))
         }
         debtors[di] = d.first to (d.second + payment)
         creditors[ci] = c.first to (c.second - payment)
-        if (abs(debtors[di].second) < 0.5) di++
-        if (creditors[ci].second < 0.5) ci++
+        if (abs(debtors[di].second) < BALANCE_EPSILON) di++
+        if (creditors[ci].second < BALANCE_EPSILON) ci++
     }
     return result
 }
@@ -109,7 +116,7 @@ fun pairwisePersonalBalances(
             calculated[settlement.fromUserId] = (calculated[settlement.fromUserId] ?: 0.0) - settlement.amount
         }
     }
-    return calculated.filter { abs(it.value) > 0.5 }
+    return calculated.filter { abs(it.value) >= BALANCE_EPSILON }
 }
 
 fun computeEqualSplits(amount: Double, participants: List<String>): Map<String, Double> {
@@ -120,4 +127,46 @@ fun computeEqualSplits(amount: Double, participants: List<String>): Map<String, 
     val last = participants.last()
     result[last] = amount - rounded * (participants.size - 1)
     return result
+}
+
+/**
+ * One line of the explanation behind a pairwise balance. [amount] is signed from the current
+ * person's point of view: positive means the other person owes them, negative means they owe.
+ */
+data class PairContribution(
+    val label: String,
+    val amount: Double,
+    val date: String,
+    val isSettlement: Boolean,
+)
+
+/**
+ * Lists exactly what [pairwisePersonalBalances] sums for one counterparty, so the breakdown a
+ * person sees always reconciles with the headline balance. Keep the two in lock-step.
+ */
+fun pairwiseContributions(
+    expenses: List<FlatExpense>,
+    settlements: List<Settlement>,
+    currentUid: String,
+    otherUid: String,
+): List<PairContribution> {
+    val lines = mutableListOf<PairContribution>()
+    expenses.forEach { expense ->
+        if (expense.paidBy == currentUid) {
+            val share = expense.splits[otherUid]
+            if (otherUid != currentUid && share != null) {
+                lines += PairContribution(expense.description, share, expense.date, isSettlement = false)
+            }
+        } else if (expense.paidBy == otherUid && expense.splitAmong.contains(currentUid)) {
+            lines += PairContribution(expense.description, -(expense.splits[currentUid] ?: 0.0), expense.date, isSettlement = false)
+        }
+    }
+    settlements.forEach { settlement ->
+        if (settlement.fromUserId == currentUid && settlement.toUserId == otherUid) {
+            lines += PairContribution("Settlement recorded", settlement.amount, settlement.date, isSettlement = true)
+        } else if (settlement.toUserId == currentUid && settlement.fromUserId == otherUid) {
+            lines += PairContribution("Settlement recorded", -settlement.amount, settlement.date, isSettlement = true)
+        }
+    }
+    return lines.sortedByDescending { it.date }
 }

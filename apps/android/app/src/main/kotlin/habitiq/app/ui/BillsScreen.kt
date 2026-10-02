@@ -1,5 +1,18 @@
 package habitiq.app.ui
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.border
+import androidx.activity.compose.BackHandler
+import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqSize
+import habitiq.app.data.billStatusLabel
+import habitiq.app.lib.formatInr
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -57,6 +70,13 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
     var showAddBill by remember { mutableStateOf(false) }
     var showSettle by remember { mutableStateOf(false) }
     var selectedBillId by remember { mutableStateOf<String?>(null) }
+    BackHandler(enabled = showAddBill || showSettle || selectedBillId != null) {
+        when {
+            showAddBill -> showAddBill = false
+            showSettle -> showSettle = false
+            else -> selectedBillId = null
+        }
+    }
     LaunchedEffect(trigger) { if (trigger) { tab = "Bills"; viewModel.showBillsTrigger.value = false } }
 
     if (showAddBill) {
@@ -80,13 +100,19 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
     val month = currentMonthKey()
     val monthInstances = instances.filter { it.month == month }
 
-    Column(Modifier.fillMaxSize().background(c.background)) {
-        if (onBack != null) HqBackAppBar(title = "Monthly bills", onBack = onBack) else HqRootAppBar(title = "Monthly bills")
-        Row(Modifier.padding(horizontal = HqSpacing.lg), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            listOf("Bills", "Collections").forEach { label ->
-                HqChip(label = label, selected = tab == label, onClick = { tab = label })
-            }
-        }
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
+        habitiq.app.ui.components.HqPageHeader(
+            title = "Monthly Bills",
+            subtitle = "Recurring household bills for $month",
+            onBack = onBack,
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.md),
+        )
+        habitiq.app.ui.components.HqSegmentedControl(
+            options = listOf("Bills", "Collections", "Close month"),
+            selectedIndex = when (tab) { "Bills" -> 0; "Collections" -> 1; else -> 2 },
+            onSelect = { tab = listOf("Bills", "Collections", "Close")[it] },
+            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xs),
+        )
         when (tab) {
             "Bills" -> {
                 if (bills.isEmpty()) {
@@ -111,7 +137,7 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
                 }
                 LazyColumn(contentPadding = PaddingValues(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                     if (bills.isNotEmpty()) item {
-                        Text("Upcoming bills", style = HqType.titleMedium, color = c.textPrimary)
+                        habitiq.app.ui.components.HqListHeading("Upcoming", right = month)
                     }
                     items(bills.filter { it.active }, key = { it.id }) { bill ->
                         RecurringBillCard(bill, monthInstances.find { it.templateId == bill.id }, isAdmin, members,
@@ -155,18 +181,63 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
                     suggestSettlements(nets)
                 }
                 val isMonthClosed = viewModel.monthCycles.collectAsStateWithLifecycleCompat().value.any { it.month == month && it.status == "closed" }
-                Column(Modifier.padding(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    if (isAdmin && !isMonthClosed) {
-                        HqButton(text = "Close month ($month)", onClick = { viewModel.closeMonth(month) })
+                val total = monthInstances.sumOf { it.amount ?: 0.0 }
+                val paid = monthInstances.count { it.status == "paid" }
+                val skipped = monthInstances.count { it.status == "skipped" }
+                val outstanding = suggestions.sumOf { it.amount }
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
+                    verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+                ) {
+                    // Figma close-month-hero.
+                    val heroShape = RoundedCornerShape(20.dp)
+                    Row(
+                        Modifier.fillMaxWidth().clip(heroShape).background(c.surfaceSubtle).padding(18.dp),
+                        horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Receipt, habitiq.app.ui.components.HqTileTone.Sand)
+                        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                            Text("MONTHLY TOTAL", style = HqType.labelSmall, color = c.textMuted, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                            Text(formatInr(total), style = HqType.titleMedium2, color = c.textPrimary)
+                            Text("${monthInstances.size} household ${if (monthInstances.size == 1) "bill" else "bills"}", style = HqType.bodyMedium, color = c.textSecondary)
+                        }
                     }
-                    // "Closed"/"all settled" are calm/positive states -- success token, not a warning color.
-                    if (isMonthClosed) Text("Month $month is closed.", style = HqType.bodyMedium, color = c.success)
-                    if (suggestions.isEmpty()) Text("All settled for $month!", style = HqType.bodyMedium, color = c.success)
+                    if (isMonthClosed) {
+                        Text("Month $month is closed.", style = HqType.bodyMedium, color = c.statusSuccessFg)
+                    } else {
+                        habitiq.app.ui.components.HqSectionTitle("Before you close")
+                        if (suggestions.isNotEmpty()) {
+                            Row(
+                                Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.statusWarningBg).padding(15.dp),
+                                horizontalArrangement = Arrangement.spacedBy(11.dp),
+                            ) {
+                                Text("!", style = HqType.titleSmall2, color = c.statusWarningFg)
+                                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                                    Text("${suggestions.size} ${if (suggestions.size == 1) "balance is" else "balances are"} still outstanding", style = HqType.rowTitle, color = c.statusWarningFg)
+                                    Text("You can close the month now, but these balances will carry forward.", style = HqType.bodyMedium, color = c.statusWarningFg)
+                                }
+                            }
+                        }
+                    }
+                    ReviewRow("Paid bills", "$paid")
+                    ReviewRow("Skipped bills", "$skipped")
+                    ReviewRow("Outstanding balances", formatInr(outstanding), warning = outstanding > 0)
+                    if (suggestions.isEmpty()) Text("All settled for $month!", style = HqType.bodyMedium, color = c.statusSuccessFg)
                     suggestions.forEach { s -> SettlementSuggestionRow(s, members, onConfirm = { viewModel.recordSettlement(s) }) }
-                    Spacer(Modifier.height(HqSpacing.sm))
-                    Text("Recorded settlements", style = HqType.titleSmall, color = c.textPrimary)
-                    settlements.take(10).forEach { st -> SettlementHistoryRow(st, members) }
+                    Row(
+                        Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.textSecondary, modifier = Modifier.size(19.dp))
+                        Text("Closing a month does not process payments. It creates a clear record for your flat.", style = HqType.bodyMedium, color = c.textSecondary)
+                    }
+                    if (isAdmin && !isMonthClosed) {
+                        HqButton(text = "Close $month", onClick = { viewModel.closeMonth(month) })
+                    }
                     HqButton(text = "Manual settle up", onClick = { showSettle = true }, variant = HqButtonVariant.Secondary)
+                    Spacer(Modifier.height(HqSpacing.sm))
+                    habitiq.app.ui.components.HqSectionTitle("Recorded settlements")
+                    settlements.take(10).forEach { st -> SettlementHistoryRow(st, members) }
                 }
             }
         }
@@ -175,8 +246,8 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
         FloatingActionButton(
             onClick = { showAddBill = true },
             modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.BottomEnd).padding(HqSpacing.lg),
-            containerColor = c.brandPrimary,
-            contentColor = c.onBrandPrimary,
+            containerColor = c.actionPrimaryBg,
+            contentColor = c.actionPrimaryFg,
         ) { Icon(Icons.Filled.Add, "Add bill") }
     }
 }
@@ -194,22 +265,37 @@ private fun RecurringBillCard(
         bill.name.contains("rent", true) || bill.name.contains("home", true) -> Icons.Filled.Home
         else -> Icons.AutoMirrored.Filled.ReceiptLong
     }
-    HqCard(variant = HqCardVariant.Interactive, onClick = onOpen) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-            Box(
-                Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(c.warningContainer),
-                contentAlignment = Alignment.Center
-            ) { Icon(icon, null, tint = c.warning) }
-            Column(Modifier.weight(1f)) {
-                Text(bill.name, style = HqType.titleSmall, color = c.textPrimary)
+    val shape = RoundedCornerShape(18.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen).padding(15.dp),
+        verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            // Figma bill-date: the billing day over a small month label.
+            Column(
+                Modifier.size(width = 43.dp, height = 48.dp).clip(RoundedCornerShape(11.dp)).background(c.surfaceSubtle),
+                horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
+            ) {
+                Text("${bill.billingDay}", style = HqType.titleSmall2, color = c.textPrimary)
+                Text("DAY", style = HqType.labelSmall, color = c.textMuted)
+            }
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                Text(bill.name, style = HqType.rowTitle, color = c.textPrimary)
                 Text(
-                    if (bill.isVariable) "Variable · due day ${bill.billingDay}" else "₹${bill.amount?.toInt() ?: 0} / month · due day ${bill.billingDay}",
-                    style = HqType.bodySmall, color = c.textSecondary
+                    if (bill.isVariable) "Variable amount" else "${formatInr(bill.amount ?: 0.0)} / month",
+                    style = HqType.bodyMedium, color = c.textSecondary
+                )
+            }
+            if (instance != null) {
+                habitiq.app.ui.components.HqBadge(
+                    billStatusLabel(instance.status),
+                    if (instance.status == "paid") habitiq.app.ui.components.HqBadgeTone.Success else habitiq.app.ui.components.HqBadgeTone.Info,
                 )
             }
         }
         if (instance != null) {
-            Text("This month: ${instance.status}${instance.amount?.let { a -> " · ₹${a.toInt()}" } ?: ""}", style = HqType.bodySmall, color = c.brandPrimary)
+            instance.amount?.let { a -> Text("This month: ${formatInr(a)}", style = HqType.bodyMedium, color = c.textBrand) }
             if (instance.status == "split_generated" && instance.paidBy.isNotEmpty()) {
                 HqTextButton(text = "Mark paid", onClick = { onMarkPaid(instance) })
             }
@@ -233,11 +319,16 @@ private fun BillInstanceRow(
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
             Column {
                 Text(inst.name, style = HqType.titleSmall, color = c.textPrimary)
-                Text("${inst.status} · payer: $payer", style = HqType.bodySmall, color = c.textSecondary)
-                inst.amount?.let { Text("₹${it.toInt()}", style = HqType.bodyMedium, color = c.textPrimary) }
+                Text("${billStatusLabel(inst.status)} · Paid by $payer", style = HqType.bodyMedium, color = c.textSecondary)
+                // paidBy and collectorId are different people; the payer does not collect from themselves.
+                if (collectorId != inst.paidBy) {
+                    val collector = members.find { it.uid == collectorId }?.nickname ?: collectorId
+                    Text("Collecting shares: $collector", style = HqType.bodyMedium, color = c.textSecondary)
+                }
+                inst.amount?.let { Text(formatInr(it), style = HqType.amountRow, color = c.textPrimary) }
             }
             Column {
-                if (inst.status == "split_generated") HqTextButton(text = "Paid", onClick = onMarkPaid)
+                if (inst.status == "split_generated") HqTextButton(text = "Mark paid", onClick = onMarkPaid)
                 if (isAdmin && inst.status != "skipped") HqTextButton(text = "Skip", onClick = onSkip)
             }
         }
@@ -251,9 +342,9 @@ private fun BillInstanceRow(
                         Checkbox(
                             checked = collected,
                             onCheckedChange = { onToggleCollected(uid, it) },
-                            colors = CheckboxDefaults.colors(checkedColor = c.brandPrimary, uncheckedColor = c.borderDefault),
+                            colors = CheckboxDefaults.colors(checkedColor = c.actionPrimaryBg, checkmarkColor = c.actionPrimaryFg, uncheckedColor = c.borderControl),
                         )
-                        Text("$name ${if (collected) "received" else "pending"}", style = HqType.bodySmall, color = c.textSecondary)
+                        Text("$name ${if (collected) "paid their share" else "has not paid yet"}", style = HqType.bodyMedium, color = c.textSecondary)
                     }
                 }
             }
@@ -291,7 +382,7 @@ private fun BillDetailScreen(
 ) {
     val c = LocalHqColors.current
     fun nameOf(uid: String) = members.find { it.uid == uid }?.nickname ?: uid
-    Column(Modifier.fillMaxSize().background(c.background).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = bill.name, onBack = onBack)
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(HqSpacing.xl),
@@ -316,7 +407,7 @@ private fun BillDetailScreen(
                         Text(
                             if (current) "Pays this round" else "In the rotation",
                             style = HqType.bodySmall,
-                            color = if (current) c.brandPrimary else c.textSecondary
+                            color = if (current) c.actionPrimaryBg else c.textSecondary
                         )
                     }
                 }
@@ -329,8 +420,8 @@ private fun BillDetailScreen(
                     HqCard {
                         Text(inst.month, style = HqType.titleSmall, color = c.textPrimary)
                         Text(
-                            "${inst.status} · paid by ${nameOf(inst.paidBy)}${inst.amount?.let { " · ₹${it.toInt()}" } ?: ""}",
-                            style = HqType.bodySmall,
+                            "${billStatusLabel(inst.status)} · Paid by ${nameOf(inst.paidBy)}${inst.amount?.let { " · ${formatInr(it)}" } ?: ""}",
+                            style = HqType.bodyMedium,
                             color = c.textSecondary
                         )
                     }
@@ -348,7 +439,7 @@ private fun AddRecurringBillScreen(viewModel: FlatViewModel, members: List<Membe
     var billingDay by remember { mutableStateOf("1") }
     var isVariable by remember { mutableStateOf(false) }
 
-    Column(Modifier.fillMaxSize().background(c.background).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Add Recurring Bill", onBack = onBack)
         Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
             HqTextField(value = name, onValueChange = { name = it }, label = "Bill name", placeholder = "Rent, WiFi…", leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong)
@@ -358,7 +449,7 @@ private fun AddRecurringBillScreen(viewModel: FlatViewModel, members: List<Membe
                 Checkbox(
                     checked = isVariable,
                     onCheckedChange = { isVariable = it },
-                    colors = CheckboxDefaults.colors(checkedColor = c.brandPrimary, uncheckedColor = c.borderDefault),
+                    colors = CheckboxDefaults.colors(checkedColor = c.actionPrimaryBg, checkmarkColor = c.actionPrimaryFg, uncheckedColor = c.borderControl),
                 )
                 Text("Variable amount (enter each month)", style = HqType.bodyMedium, color = c.textPrimary)
             }
@@ -376,7 +467,7 @@ private fun SettleUpScreen(viewModel: FlatViewModel, members: List<Member>, uid:
     val c = LocalHqColors.current
     var toUid by remember { mutableStateOf(members.firstOrNull { it.uid != uid }?.uid.orEmpty()) }
     var amount by remember { mutableStateOf("") }
-    Column(Modifier.fillMaxSize().background(c.background).statusBarsPadding()) {
+    Column(Modifier.fillMaxSize().background(c.canvas)) {
         HqBackAppBar(title = "Settle up", onBack = onBack)
         Column(Modifier.padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
             Text("Pay to", style = HqType.titleSmall, color = c.textPrimary)
@@ -390,4 +481,14 @@ private fun SettleUpScreen(viewModel: FlatViewModel, members: List<Member>, uid:
             })
         }
     }
+}
+
+@Composable
+private fun ReviewRow(label: String, value: String, warning: Boolean = false) {
+    val c = LocalHqColors.current
+    Row(Modifier.fillMaxWidth().padding(vertical = 12.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+        Text(label, style = HqType.bodyLarge, color = c.textSecondary)
+        Text(value, style = HqType.amountRow, color = if (warning) c.statusWarningFg else c.textPrimary)
+    }
+    Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderSubtle))
 }

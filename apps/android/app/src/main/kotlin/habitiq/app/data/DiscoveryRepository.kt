@@ -128,7 +128,7 @@ class DiscoveryRepository(
         listingFlatId: String?,
         seekerId: String?
     ): Result<String> = runCatching {
-        require(fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid) { "Choose another Habitiq member." }
+        require(fromUid.isNotBlank() && toUid.isNotBlank() && fromUid != toUid) { "Choose another Oddroof member." }
         val context = listingFlatId ?: seekerId ?: "direct"
         val id = connectionDocumentId(fromUid, toUid, context)
         val now = Instant.now().toString()

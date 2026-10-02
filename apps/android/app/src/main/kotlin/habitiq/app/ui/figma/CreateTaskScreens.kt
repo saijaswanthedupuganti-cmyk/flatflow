@@ -20,6 +20,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import habitiq.app.flat.FlatViewModel
@@ -57,6 +58,17 @@ fun CreateRecurringTaskScreen(
 
     LaunchedEffect(members) {
         if (selected.isEmpty()) selected = members.map { it.uid }.toSet()
+    }
+    val canCreate = taskName.isNotBlank() && selected.isNotEmpty() && !saving
+    fun create() {
+        val queue = members.filter { selected.contains(it.uid) }.map { it.uid }
+        val due = startFrom.takeIf { Regex("""\d{4}-\d{2}-\d{2}""").containsMatchIn(it) }
+        saving = true
+        saveError = null
+        viewModel.createTask(taskName, frequency, priority, queue, taskType, dueDate = due, notes = notes) { ok ->
+            saving = false
+            if (ok) onCreated() else saveError = "Couldn't create the task. Try again."
+        }
     }
 
     FigmaScreenBackground {
@@ -98,24 +110,18 @@ fun CreateRecurringTaskScreen(
                     }
                 }
             }
-            HqTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)", placeholder = "e.g. Include bathroom and common area", leadingIcon = Icons.Filled.EditNote)
+            HqTextField(value = notes, onValueChange = { notes = it }, label = "Notes (optional)", placeholder = "e.g. Include bathroom and common area", leadingIcon = Icons.Filled.EditNote,
+                imeAction = ImeAction.Done,
+                onImeAction = if (canCreate) ({ create() }) else null
+            )
             Spacer(Modifier.height(HqSpacing.huge))
         }
         Column(Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().padding(HqSpacing.xl)) {
             saveError?.let { Text(it, color = c.statusDangerFg, style = HqType.bodySmall) }
             HqButton(
                 text = if (saving) "Creating…" else "Create task",
-                enabled = taskName.isNotBlank() && selected.isNotEmpty() && !saving,
-                onClick = {
-                    val queue = members.filter { selected.contains(it.uid) }.map { it.uid }
-                    val due = startFrom.takeIf { Regex("""\d{4}-\d{2}-\d{2}""").containsMatchIn(it) }
-                    saving = true
-                    saveError = null
-                    viewModel.createTask(taskName, frequency, priority, queue, taskType, dueDate = due, notes = notes) { ok ->
-                        saving = false
-                        if (ok) onCreated() else saveError = "Couldn't create the task. Try again."
-                    }
-                }
+                enabled = canCreate,
+                onClick = { create() }
             )
         }
     }
@@ -130,6 +136,16 @@ fun CreateTempTaskScreen(viewModel: FlatViewModel, onBack: () -> Unit, onCreated
     var priority by remember { mutableStateOf("medium") }
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
+    val canAssign = taskName.isNotBlank() && assigneeUid != null && !saving
+    fun assign() {
+        val uid = assigneeUid ?: return
+        saving = true
+        saveError = null
+        viewModel.createTask(taskName, "one_time", priority, listOf(uid)) { ok ->
+            saving = false
+            if (ok) onCreated() else saveError = "Couldn't assign the task. Try again."
+        }
+    }
 
     FigmaScreenBackground {
         HqBackAppBar(title = "Temp Task", onBack = onBack)
@@ -143,7 +159,10 @@ fun CreateTempTaskScreen(viewModel: FlatViewModel, onBack: () -> Unit, onCreated
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.xl)
         ) {
-            HqTextField(value = taskName, onValueChange = { taskName = it }, label = "Task", placeholder = "e.g., Buy groceries", leadingIcon = Icons.Filled.TaskAlt)
+            HqTextField(value = taskName, onValueChange = { taskName = it }, label = "Task", placeholder = "e.g., Buy groceries", leadingIcon = Icons.Filled.TaskAlt,
+                imeAction = ImeAction.Done,
+                onImeAction = if (canAssign) ({ assign() }) else null
+            )
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 SectionLabel("ASSIGN TO")
                 members.forEach { member ->
@@ -164,16 +183,8 @@ fun CreateTempTaskScreen(viewModel: FlatViewModel, onBack: () -> Unit, onCreated
             saveError?.let { Text(it, color = c.statusDangerFg, style = HqType.bodySmall) }
             HqButton(
                 text = if (saving) "Assigning…" else "Assign Task",
-                enabled = taskName.isNotBlank() && assigneeUid != null && !saving,
-                onClick = {
-                    val uid = assigneeUid ?: return@HqButton
-                    saving = true
-                    saveError = null
-                    viewModel.createTask(taskName, "one_time", priority, listOf(uid)) { ok ->
-                        saving = false
-                        if (ok) onCreated() else saveError = "Couldn't assign the task. Try again."
-                    }
-                }
+                enabled = canAssign,
+                onClick = { assign() }
             )
         }
     }

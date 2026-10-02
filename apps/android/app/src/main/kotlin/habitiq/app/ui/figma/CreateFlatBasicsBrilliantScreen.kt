@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -93,7 +94,9 @@ fun CreateFlatBasicsBrilliantScreen(
                     onValueChange = onCityChange,
                     label = "City",
                     placeholder = "Hyderabad",
-                    helperText = "We'll use this to help you find the best local services."
+                    helperText = "We'll use this to help you find the best local services.",
+                    imeAction = ImeAction.Done,
+                    onImeAction = if (flatName.isNotBlank() && !loading) onCreateFlat else null
                 )
                 HqCard {
                     Row(

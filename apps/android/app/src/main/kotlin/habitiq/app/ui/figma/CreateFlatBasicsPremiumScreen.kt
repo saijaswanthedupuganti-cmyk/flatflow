@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqButton
@@ -69,7 +70,9 @@ fun CreateFlatBasicsPremiumScreen(
                     onValueChange = onFlatNameChange,
                     label = "Flat Name",
                     placeholder = "e.g. The Penthouse, Cozy 3BHK",
-                    leadingIcon = Icons.Filled.Home
+                    leadingIcon = Icons.Filled.Home,
+                    imeAction = ImeAction.Done,
+                    onImeAction = if (flatName.isNotBlank()) onContinue else null
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
                     Text(

@@ -13,6 +13,9 @@ import androidx.compose.material.icons.filled.PinDrop
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.autofill.ContentType
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqButton
 import habitiq.app.ui.components.HqTextButton
@@ -76,13 +79,18 @@ fun CreateFlatLocationScreen(
                 )
                 HqTextField(value = area, onValueChange = onAreaChange, label = "Area / Locality", placeholder = "Madhapur", leadingIcon = Icons.Filled.LocationOn)
                 HqTextField(value = city, onValueChange = onCityChange, label = "City", placeholder = "Hyderabad", leadingIcon = Icons.Filled.LocationCity)
-                HqTextField(value = pincode, onValueChange = onPincodeChange, label = "Pincode", placeholder = "500081", leadingIcon = Icons.Filled.PinDrop)
+                HqTextField(value = pincode, onValueChange = onPincodeChange, label = "Pincode", placeholder = "500081", leadingIcon = Icons.Filled.PinDrop,
+                    keyboardType = KeyboardType.Number,
+                    contentType = ContentType.PostalCode
+                )
                 HqTextField(
                     value = landmark,
                     onValueChange = onLandmarkChange,
                     label = "Nearby Landmark (Optional)",
                     placeholder = "Eg. DLF, Image Hospital",
-                    leadingIcon = Icons.Filled.LocationOn
+                    leadingIcon = Icons.Filled.LocationOn,
+                    imeAction = ImeAction.Done,
+                    onImeAction = onContinue
                 )
             }
             Spacer(Modifier.height(120.dp))

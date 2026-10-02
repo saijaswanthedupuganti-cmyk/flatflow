@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.background
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Send
@@ -60,39 +62,44 @@ fun ConnectionRequestSheet(
         mutableStateOf("Hi $toName, this looks like a good fit. Are you still looking?")
     }
     HqBottomSheet(onDismiss = onDismiss, title = "Send connection request") {
-        Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(72.dp).clip(CircleShape).background(c.statusInfoBg),
-                contentAlignment = Alignment.Center
-            ) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = c.statusInfoFg) }
-        }
-        Spacer(Modifier.height(HqSpacing.md))
-        Text("To: $toName", style = HqType.bodyMedium, color = c.textSecondary)
-        Text(contextLine, style = HqType.bodySmall, color = c.textMuted)
-        Spacer(Modifier.height(HqSpacing.sm))
-        Text(
-            "Keep conversations in Oddroof. Share personal details only when you're comfortable.",
-            style = HqType.bodySmall,
-            color = c.textSecondary
-        )
-        Spacer(Modifier.height(HqSpacing.md))
-        HqTextField(
-            value = message,
-            onValueChange = { message = it.take(400) },
-            label = "Why are you interested?",
-            leadingIcon = Icons.AutoMirrored.Filled.Send
-        )
-        if (error != null) {
+        // Scrolls so the message field and Send button stay reachable above the keyboard on short screens.
+        Column(Modifier.verticalScroll(rememberScrollState())) {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier.size(72.dp).clip(CircleShape).background(c.statusInfoBg),
+                    contentAlignment = Alignment.Center
+                ) { Icon(Icons.AutoMirrored.Filled.Send, null, tint = c.statusInfoFg) }
+            }
+            Spacer(Modifier.height(HqSpacing.md))
+            Text("To: $toName", style = HqType.bodyMedium, color = c.textSecondary)
+            Text(contextLine, style = HqType.bodySmall, color = c.textMuted)
             Spacer(Modifier.height(HqSpacing.sm))
-            HqInlineError(error)
+            Text(
+                "Keep conversations in Oddroof. Share personal details only when you're comfortable.",
+                style = HqType.bodySmall,
+                color = c.textSecondary
+            )
+            Spacer(Modifier.height(HqSpacing.md))
+            HqTextField(
+                value = message,
+                onValueChange = { message = it.take(400) },
+                label = "Why are you interested?",
+                leadingIcon = Icons.AutoMirrored.Filled.Send,
+                singleLine = false,
+                minLines = 3
+            )
+            if (error != null) {
+                Spacer(Modifier.height(HqSpacing.sm))
+                HqInlineError(error)
+            }
+            Spacer(Modifier.height(HqSpacing.lg))
+            HqButton(
+                text = if (sending) "Sending…" else "Send request",
+                onClick = { onSend(message.trim()) },
+                enabled = !sending && message.isNotBlank(),
+                loading = sending
+            )
         }
-        Spacer(Modifier.height(HqSpacing.lg))
-        HqButton(
-            text = if (sending) "Sending…" else "Send request",
-            onClick = { onSend(message.trim()) },
-            enabled = !sending && message.isNotBlank(),
-            loading = sending
-        )
     }
 }
 

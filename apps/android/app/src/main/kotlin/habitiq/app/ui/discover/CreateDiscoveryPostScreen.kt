@@ -35,6 +35,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import habitiq.app.data.VacancyData
@@ -169,6 +171,8 @@ private fun VacancyWizard(
     val c = LocalHqColors.current
     val scope = rememberCoroutineScope()
     var step by rememberSaveable { mutableIntStateOf(0) }
+    // Registered after the screen's discard handler, so back walks to the previous step before offering discard.
+    BackHandler(enabled = step > 0) { step -= 1 }
     var city by rememberSaveable { mutableStateOf(existing?.city.orEmpty()) }
     var area by rememberSaveable { mutableStateOf(existing?.area.orEmpty()) }
     var rent by rememberSaveable { mutableStateOf(existing?.rentPerHead?.toInt()?.toString().orEmpty()) }
@@ -273,6 +277,22 @@ private fun VacancyWizard(
         }
     }
 
+    val stepValid = when (step) {
+        0 -> city.isNotBlank() && area.isNotBlank() && (beds.toIntOrNull() ?: 0) in 1..8
+        3 -> (rent.toDoubleOrNull() ?: 0.0) > 0
+        else -> true
+    }
+    fun goNext() {
+        if (stepValid) {
+            showErrors = false
+            step += 1
+        } else {
+            showErrors = true
+        }
+    }
+    // Done on a step's last field advances only when the step is complete; otherwise it just closes the keyboard.
+    val imeNext: (() -> Unit)? = if (stepValid && step < 8) ({ goNext() }) else null
+
     Column(Modifier.padding(HqSpacing.xl).verticalScroll(rememberScrollState())) {
         Text("Post a vacancy", style = HqType.headlineMedium, color = c.textPrimary)
         Text("Step ${step + 1} of 9", style = HqType.labelMedium, color = c.textSecondary)
@@ -293,11 +313,11 @@ private fun VacancyWizard(
                     Text("This is the flat you manage · ${flat.memberCount} current member${if (flat.memberCount == 1) "" else "s"}", style = HqType.bodySmall, color = c.textSecondary)
                 }
                 Spacer(Modifier.height(HqSpacing.md))
-                HqTextField(city, { city = it.take(80); showErrors = false; onClearError() }, "City", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && city.isBlank()) "Enter a city." else null)
+                HqTextField(city, { city = it.take(80); showErrors = false; onClearError() }, "City", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Hyderabad", errorText = if (showErrors && city.isBlank()) "Enter a city." else null)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(area, { area = it.take(120); showErrors = false; onClearError() }, "Area / neighbourhood", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && area.isBlank()) "Enter an approximate area." else null)
+                HqTextField(area, { area = it.take(120); showErrors = false; onClearError() }, "Area / neighbourhood", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Gachibowli", errorText = if (showErrors && area.isBlank()) "Enter an approximate area." else null)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(beds, { beds = it.filter(Char::isDigit).take(2); showErrors = false }, "Rooms available", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && (beds.toIntOrNull() ?: 0) !in 1..8) "Enter between 1 and 8 rooms." else null)
+                HqTextField(beds, { beds = it.filter(Char::isDigit).take(2); showErrors = false }, "Rooms available", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. 1", keyboardType = KeyboardType.Number, imeAction = ImeAction.Done, onImeAction = imeNext, errorText = if (showErrors && (beds.toIntOrNull() ?: 0) !in 1..8) "Enter between 1 and 8 rooms." else null)
             }
             1 -> {
                 Text("Add clear photos", style = HqType.headlineSmall, color = c.textPrimary)
@@ -367,9 +387,9 @@ private fun VacancyWizard(
             3 -> {
                 Text("Rent & security deposit", style = HqType.headlineSmall, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(rent, { rent = it.filter(Char::isDigit).take(9); showErrors = false }, "Monthly rent per head (₹)", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && (rent.toDoubleOrNull() ?: 0.0) <= 0) "Enter monthly rent." else null)
+                HqTextField(rent, { rent = it.filter(Char::isDigit).take(9); showErrors = false }, "Monthly rent per head (₹)", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. 12000", keyboardType = KeyboardType.Number, errorText = if (showErrors && (rent.toDoubleOrNull() ?: 0.0) <= 0) "Enter monthly rent." else null)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(deposit, { deposit = it.filter(Char::isDigit).take(9) }, "Security deposit (₹, optional)", modifier = Modifier.fillMaxWidth())
+                HqTextField(deposit, { deposit = it.filter(Char::isDigit).take(9) }, "Security deposit (₹, optional)", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. 25000", keyboardType = KeyboardType.Number, imeAction = ImeAction.Done, onImeAction = imeNext)
                 Spacer(Modifier.height(HqSpacing.md))
                 ChoiceRow(
                     title = "Notice period",
@@ -381,7 +401,7 @@ private fun VacancyWizard(
             4 -> {
                 Text("Dates & timing", style = HqType.headlineSmall, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(availableFrom, { availableFrom = it.take(40) }, "Available from (e.g. Immediately, 1 Nov)", modifier = Modifier.fillMaxWidth())
+                HqTextField(availableFrom, { availableFrom = it.take(40) }, "Available from", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Immediately, 1 Nov", imeAction = ImeAction.Done, onImeAction = imeNext)
                 Spacer(Modifier.height(HqSpacing.md))
                 ChoiceRow(
                     title = "Move-in timing",
@@ -439,14 +459,14 @@ private fun VacancyWizard(
                 Spacer(Modifier.height(HqSpacing.sm))
                 Text("Helps people who are looking find this listing by budget.", style = HqType.bodyMedium, color = c.textSecondary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(budgetMin, { budgetMin = it.filter(Char::isDigit).take(9) }, "Min budget (₹, optional)", modifier = Modifier.fillMaxWidth())
+                HqTextField(budgetMin, { budgetMin = it.filter(Char::isDigit).take(9) }, "Min budget (₹, optional)", modifier = Modifier.fillMaxWidth(), placeholder = "Any", keyboardType = KeyboardType.Number)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(budgetMax, { budgetMax = it.filter(Char::isDigit).take(9) }, "Max budget (₹, optional)", modifier = Modifier.fillMaxWidth())
+                HqTextField(budgetMax, { budgetMax = it.filter(Char::isDigit).take(9) }, "Max budget (₹, optional)", modifier = Modifier.fillMaxWidth(), placeholder = "Any", keyboardType = KeyboardType.Number, imeAction = ImeAction.Done, onImeAction = imeNext)
             }
             8 -> {
                 Text("About the home & review", style = HqType.headlineSmall, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(about, { about = it.take(800) }, "Tell prospective flatmates about the home", modifier = Modifier.fillMaxWidth(), singleLine = false, minLines = 4, helperText = "${about.length}/800")
+                HqTextField(about, { about = it.take(800) }, "Tell prospective flatmates about the home", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Sunny 3BHK, 5 min to metro, quiet building", singleLine = false, minLines = 4, helperText = "${about.length}/800")
                 Spacer(Modifier.height(HqSpacing.md))
                 HqCard {
                     Text("Summary preview", style = HqType.titleMedium, color = c.textPrimary)
@@ -483,19 +503,7 @@ private fun VacancyWizard(
             if (step < 8) {
                 HqButton(
                     text = "Next",
-                    onClick = {
-                        val valid = when (step) {
-                            0 -> city.isNotBlank() && area.isNotBlank() && (beds.toIntOrNull() ?: 0) in 1..8
-                            3 -> (rent.toDoubleOrNull() ?: 0.0) > 0
-                            else -> true
-                        }
-                        if (valid) {
-                            showErrors = false
-                            step += 1
-                        } else {
-                            showErrors = true
-                        }
-                    },
+                    onClick = { goNext() },
                     modifier = Modifier.weight(1f)
                 )
             } else {
@@ -635,9 +643,9 @@ private fun LookingWizard(
     Column(Modifier.padding(HqSpacing.xl).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
         Text("Looking for a flat", style = HqType.headlineSmall, color = c.textPrimary)
         Text("This is a looking post, not a vacancy.", style = HqType.bodySmall, color = c.textSecondary)
-        HqTextField(city, { city = it.take(80); showErrors = false; onClearError() }, "Your city", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && city.isBlank()) "Enter your city." else null)
-        HqTextField(lookingIn, { lookingIn = it.take(160); showErrors = false; onClearError() }, "Areas you want", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && lookingIn.isBlank()) "Enter at least one preferred area." else null)
-        HqTextField(budget, { budget = it.filter { c2 -> c2.isDigit() }.take(9); showErrors = false; onClearError() }, "Budget (₹)", modifier = Modifier.fillMaxWidth(), errorText = if (showErrors && (budget.toDoubleOrNull() ?: 0.0) <= 0) "Enter a budget greater than zero." else null)
+        HqTextField(city, { city = it.take(80); showErrors = false; onClearError() }, "Your city", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Hyderabad", errorText = if (showErrors && city.isBlank()) "Enter your city." else null)
+        HqTextField(lookingIn, { lookingIn = it.take(160); showErrors = false; onClearError() }, "Areas you want", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Gachibowli, Madhapur", errorText = if (showErrors && lookingIn.isBlank()) "Enter at least one preferred area." else null)
+        HqTextField(budget, { budget = it.filter { c2 -> c2.isDigit() }.take(9); showErrors = false; onClearError() }, "Budget (₹)", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. 12000", keyboardType = KeyboardType.Number, imeAction = ImeAction.Done, errorText = if (showErrors && (budget.toDoubleOrNull() ?: 0.0) <= 0) "Enter a budget greater than zero." else null)
         Text("Gender (optional, structured)", style = HqType.bodySmall, color = c.textPrimary)
         DiscoverFilterLogic.seekerGenderOptions.forEach { (value, label) ->
             HqChip(label = label, selected = gender == value, onClick = { gender = value })
@@ -646,7 +654,7 @@ private fun LookingWizard(
         DiscoverFilterLogic.lifestyleTagOptions.forEach { tag ->
             HqChip(label = tag, selected = tag in tags, onClick = { tags = if (tag in tags) tags - tag else tags + tag })
         }
-        HqTextField(bio, { bio = it.take(600); onClearError() }, "About you", modifier = Modifier.fillMaxWidth(), helperText = "${bio.length}/600", singleLine = false, minLines = 3)
+        HqTextField(bio, { bio = it.take(600); onClearError() }, "About you", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Software engineer, early riser, loves cooking", helperText = "${bio.length}/600", singleLine = false, minLines = 3)
         if (publishError != null) Text(publishError, style = HqType.bodySmall, color = c.statusDangerFg)
         Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
             HqButton(text = "Cancel", onClick = onCancel, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))

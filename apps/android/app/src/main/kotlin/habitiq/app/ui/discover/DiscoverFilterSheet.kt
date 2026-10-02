@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import habitiq.app.discover.DiscoverFilterLogic
@@ -146,6 +147,7 @@ private fun MoneyRange(label: String, min: String, max: String, onMin: (String) 
                 label = "Max (₹)",
                 placeholder = "Any",
                 keyboardType = KeyboardType.Number,
+                imeAction = ImeAction.Done,
                 modifier = Modifier.weight(1f),
             )
         }

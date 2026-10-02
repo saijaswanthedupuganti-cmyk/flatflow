@@ -369,11 +369,17 @@ fun HabitiqApp() {
 
                         // Add-expense is opened inside ExpensesScreen via showAddExpenseTrigger.
                         // Do not steal it into a full-screen overlay (that hid Manage Flat).
+                        // Monthly bills is a scope inside Manage > Expenses, not a separate screen.
+                        fun openMonthlyBills() {
+                            moneyOverlay = null
+                            selectedTab = AppTab.TASKS
+                            manageAreaName = ManageFlatArea.EXPENSES.name
+                            flatViewModel.expenseScopeMonthly.value = true
+                        }
                         LaunchedEffect(triggerBills) {
                             if (triggerBills) {
                                 adminHomeMode = AdminHomeMode.EXPENSES
-                                moneyOverlay = "bills"
-                                flatViewModel.showBillsTrigger.value = false
+                                openMonthlyBills()
                             }
                         }
 
@@ -429,7 +435,7 @@ fun HabitiqApp() {
                                     "expenses" -> ExpensesScreen(
                                         flatViewModel,
                                         onBack = { moneyOverlay = null },
-                                        onOpenBills = { moneyOverlay = "bills" }
+                                        onOpenBills = { openMonthlyBills() }
                                     )
                                     "bills" -> BillsScreen(flatViewModel, onBack = { moneyOverlay = null })
                                 }
@@ -507,9 +513,10 @@ fun HabitiqApp() {
                                             if (inFlat) add(CreateOption("Add expense") {
                                                 selectedTab = AppTab.TASKS
                                                 manageAreaName = ManageFlatArea.EXPENSES.name
+                                                flatViewModel.expenseScopeMonthly.value = false
                                                 flatViewModel.showAddExpenseTrigger.value = true
                                             })
-                                            if (inFlat) add(CreateOption("Add monthly bill") { moneyOverlay = "bills" })
+                                            if (inFlat && shellIsAdmin) add(CreateOption("Add monthly bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
                                             if (inFlat && shellIsAdmin) add(CreateOption("Post a vacancy") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "VACANCY"; discoverOpenCreate = true
@@ -540,7 +547,7 @@ fun HabitiqApp() {
                                                     onAdminHomeModeChange = { adminHomeMode = it },
                                                     onOpenBills = {
                                                         adminHomeMode = AdminHomeMode.EXPENSES
-                                                        moneyOverlay = "bills"
+                                                        openMonthlyBills()
                                                     },
                                                     onStartOnboarding = {
                                                         navController.navigate(Routes.INTENT_CHOOSER) {
@@ -584,7 +591,7 @@ fun HabitiqApp() {
                                                     onOpenTaskDetail = { selectedTaskId = it },
                                                     onOpenCreateTask = { tasksOverlay = "create_type" },
                                                     onReviewSwaps = { showSwapReview = true },
-                                                    onOpenBills = { moneyOverlay = "bills" },
+                                                    onOpenBills = { openMonthlyBills() },
                                                     onOpenActivity = { profileOverlay = "activity" }
                                                 )
                                                 AppTab.PROFILE -> ProfileScreen(

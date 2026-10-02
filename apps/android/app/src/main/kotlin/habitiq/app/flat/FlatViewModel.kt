@@ -141,6 +141,10 @@ class FlatViewModel(
     val showAddTaskTrigger = MutableStateFlow(false)
     val showAddExpenseTrigger = MutableStateFlow(false)
     val showBillsTrigger = MutableStateFlow(false)
+    /** Manage > Expenses scope: false = Daily splits, true = Monthly bills. Survives tab switches. */
+    val expenseScopeMonthly = MutableStateFlow(false)
+    /** Opens the add-bill form inside Monthly bills (from Quick add). */
+    val showAddBillTrigger = MutableStateFlow(false)
     /** Manage Flat's "Payment due" attention card opens Expenses with the balance list pre-expanded. */
     val showBalancesTrigger = MutableStateFlow(false)
 

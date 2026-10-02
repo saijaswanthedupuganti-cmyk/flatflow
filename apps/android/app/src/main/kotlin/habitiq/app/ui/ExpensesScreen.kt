@@ -86,6 +86,7 @@ fun ExpensesScreen(
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycleCompat()
     val triggerAdd by viewModel.showAddExpenseTrigger.collectAsStateWithLifecycleCompat()
     val triggerBalances by viewModel.showBalancesTrigger.collectAsStateWithLifecycleCompat()
+    val monthly by viewModel.expenseScopeMonthly.collectAsStateWithLifecycleCompat()
 
     var showAdd by remember { mutableStateOf(false) }
     var justAdded by remember { mutableStateOf<String?>(null) }
@@ -144,12 +145,26 @@ fun ExpensesScreen(
         buildExpensesModel(balances, expenses, settlements, members, uid)
     }
 
+    if (monthly) {
+        // Same screen, other scope: the header and the Daily/Monthly switch stay exactly where they were.
+        BillsScreen(
+            viewModel,
+            onBack = if (header == null) onBack else null,
+            modifier = modifier,
+            header = {
+                if (header != null) header()
+                ExpenseScopeTabs(monthly = true, onSelect = { viewModel.expenseScopeMonthly.value = it })
+            },
+        )
+        return
+    }
+
     Box(modifier.fillMaxSize().background(c.canvas)) {
         Column(Modifier.fillMaxSize()) {
             if (header == null) { if (onBack != null) HqBackAppBar(title = "Expenses", onBack = onBack) else HqRootAppBar(title = "Expenses") }
             ExpensesContent(
                 model = model,
-                onOpenBills = onOpenBills,
+                onOpenBills = { viewModel.expenseScopeMonthly.value = true },
                 onSettle = { person ->
                     val raw = balances[person.key] ?: 0.0
                     pending = PendingSettlement(person.key, person.name, abs(raw), youOwe = raw < 0)

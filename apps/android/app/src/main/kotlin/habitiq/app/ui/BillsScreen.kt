@@ -31,6 +31,8 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -58,7 +60,13 @@ import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
 @Composable
-fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
+fun BillsScreen(
+    viewModel: FlatViewModel,
+    onBack: (() -> Unit)? = null,
+    modifier: Modifier = Modifier,
+    /** When set, the screen is embedded (Manage > Expenses > Monthly bills): no page header or FAB of its own. */
+    header: (@Composable () -> Unit)? = null,
+) {
     val c = LocalHqColors.current
     val bills by viewModel.recurringBills.collectAsStateWithLifecycleCompat()
     val instances by viewModel.billInstances.collectAsStateWithLifecycleCompat()
@@ -67,6 +75,7 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycleCompat()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycleCompat()
     val trigger by viewModel.showBillsTrigger.collectAsStateWithLifecycleCompat()
+    val addTrigger by viewModel.showAddBillTrigger.collectAsStateWithLifecycleCompat()
 
     var tab by remember { mutableStateOf("Bills") }
     var showAddBill by remember { mutableStateOf(false) }
@@ -80,6 +89,9 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
         }
     }
     LaunchedEffect(trigger) { if (trigger) { tab = "Bills"; viewModel.showBillsTrigger.value = false } }
+    LaunchedEffect(addTrigger, isAdmin) {
+        if (addTrigger) { if (isAdmin) showAddBill = true; viewModel.showAddBillTrigger.value = false }
+    }
 
     if (showAddBill) {
         AddRecurringBillScreen(viewModel, members, onBack = { showAddBill = false }, onSaved = { showAddBill = false })
@@ -102,19 +114,36 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
     val month = currentMonthKey()
     val monthInstances = instances.filter { it.month == month }
 
-    Column(Modifier.fillMaxSize().background(c.canvas)) {
-        habitiq.app.ui.components.HqPageHeader(
-            title = "Monthly Bills",
-            subtitle = "Recurring household bills for $month",
-            onBack = onBack,
-            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.md),
-        )
-        habitiq.app.ui.components.HqSegmentedControl(
-            options = listOf("Bills", "Collections", "Close month"),
-            selectedIndex = when (tab) { "Bills" -> 0; "Collections" -> 1; else -> 2 },
-            onSelect = { tab = listOf("Bills", "Collections", "Close")[it] },
-            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xs),
-        )
+    // One scrolling column so an embedding header (Manage title, Tasks/Expenses, Daily/Monthly) scrolls with it.
+    Column(
+        modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState())
+            .padding(bottom = HqSpacing.screenEnd + 72.dp),
+    ) {
+        if (header != null) {
+            Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm)) { header() }
+            Spacer(Modifier.height(HqSpacing.md))
+        } else {
+            habitiq.app.ui.components.HqPageHeader(
+                title = "Monthly Bills",
+                subtitle = "Recurring household bills for $month",
+                onBack = onBack,
+                modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.md),
+            )
+        }
+        // Third level of hierarchy: light chips, so it never looks like the switches above it.
+        Row(
+            Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal),
+            horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+        ) {
+            listOf("Bills" to "Bills", "Collections" to "Collections", "Close" to "Close month").forEach { (key, label) ->
+                habitiq.app.ui.components.HqChip(label = label, selected = tab == key, onClick = { tab = key })
+            }
+        }
+        if (isAdmin && tab == "Bills" && bills.isNotEmpty()) {
+            Box(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.md)) {
+                HqButton(text = "Add bill", onClick = { showAddBill = true }, variant = HqButtonVariant.Secondary, leadingIcon = habitiq.app.ui.components.HqIcons.Plus)
+            }
+        }
         when (tab) {
             "Bills" -> {
                 if (bills.isEmpty()) {
@@ -137,18 +166,18 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
                         )
                     }
                 }
-                LazyColumn(contentPadding = PaddingValues(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    if (bills.isNotEmpty()) item {
+                Column(Modifier.padding(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                    if (bills.isNotEmpty()) {
                         habitiq.app.ui.components.HqListHeading("Upcoming", right = month)
                     }
-                    items(bills.filter { it.active }, key = { it.id }) { bill ->
+                    bills.filter { it.active }.forEach { bill ->
                         RecurringBillCard(bill, monthInstances.find { it.templateId == bill.id }, isAdmin, members,
                             onOpen = { selectedBillId = bill.id },
                             onGenerate = { amt -> viewModel.generateBill(bill.id, amt) },
                             onMarkPaid = { inst -> viewModel.markBillPaid(inst.id) })
                     }
                     bills.firstOrNull { it.active && it.rotationQueue.isNotEmpty() }?.let { bill ->
-                        item {
+                        run {
                             Spacer(Modifier.height(HqSpacing.sm))
                             Text("Payer rotation", style = HqType.titleMedium, color = c.textPrimary)
                             Spacer(Modifier.height(HqSpacing.sm))
@@ -167,8 +196,11 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
                     }
                 }
             }
-            "Collections" -> LazyColumn(contentPadding = PaddingValues(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                items(monthInstances, key = { it.id }) { inst ->
+            "Collections" -> Column(Modifier.padding(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                if (monthInstances.isEmpty()) {
+                    Text("No bills generated for $month yet.", style = HqType.bodyMedium, color = c.textSecondary)
+                }
+                monthInstances.forEach { inst ->
                     BillInstanceRow(
                         inst, members, isAdmin, currentUser?.uid.orEmpty(),
                         onMarkPaid = { viewModel.markBillPaid(inst.id) },
@@ -188,7 +220,7 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
                 val skipped = monthInstances.count { it.status == "skipped" }
                 val outstanding = suggestions.sumOf { it.amount }
                 Column(
-                    Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
+                    Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
                     verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
                 ) {
                     // Figma close-month-hero.
@@ -244,7 +276,7 @@ fun BillsScreen(viewModel: FlatViewModel, onBack: (() -> Unit)? = null) {
             }
         }
     }
-    if (isAdmin && tab == "Bills") {
+    if (header == null && isAdmin && tab == "Bills") {
         FloatingActionButton(
             onClick = { showAddBill = true },
             modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.BottomEnd).padding(HqSpacing.lg),

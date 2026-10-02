@@ -123,12 +123,8 @@ fun ExpensesContent(
         }
 
         Spacer(Modifier.size(18.dp))
-        // Daily splits is this screen; Monthly bills opens its own screen, so selection stays on Daily.
-        habitiq.app.ui.components.HqScopeTabs(
-            options = listOf("Daily splits" to null, "Monthly bills" to null),
-            selectedIndex = 0,
-            onSelect = { if (it == 1) onOpenBills() },
-        )
+        // In-place switch: Monthly bills replaces this content below the same header (no navigation).
+        ExpenseScopeTabs(monthly = false, onSelect = { monthly -> if (monthly) onOpenBills() })
 
         if (model.people.isNotEmpty()) {
             HqSectionTitle("Breakdown")
@@ -224,4 +220,15 @@ private fun EmptyExpenses(onAddExpense: () -> Unit) {
         Text("Start tracking shared spending with your flat.", style = HqType.bodyMedium, color = c.textSecondary)
         HqButton(text = "Add expense", onClick = onAddExpense, fullWidth = false)
     }
+}
+
+/** Daily splits / Monthly bills switch shared by both Expenses scopes so it never moves or restyles. */
+@Composable
+fun ExpenseScopeTabs(monthly: Boolean, onSelect: (Boolean) -> Unit, modifier: Modifier = Modifier) {
+    habitiq.app.ui.components.HqScopeTabs(
+        options = listOf("Daily splits" to null, "Monthly bills" to null),
+        selectedIndex = if (monthly) 1 else 0,
+        onSelect = { onSelect(it == 1) },
+        modifier = modifier,
+    )
 }

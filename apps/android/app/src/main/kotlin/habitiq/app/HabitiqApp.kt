@@ -502,6 +502,9 @@ fun HabitiqApp() {
                                         }
                                     )
                                     "create_type" -> CreateTaskTypeScreen(
+                                        exampleNames = flatViewModelMembers
+                                            .sortedByDescending { it.uid == flatViewModelUser?.uid }
+                                            .map { it.nickname },
                                         onBack = { tasksOverlay = null },
                                         onSelect = { type ->
                                             createTaskType = if (type == TaskStructure.GROUP) "group_duty" else "rotating_duty"

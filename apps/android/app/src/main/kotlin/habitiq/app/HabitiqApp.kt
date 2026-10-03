@@ -589,6 +589,43 @@ fun HabitiqApp() {
                                                 flatViewModel.ensureDiscovery() // flat-search answers need vacancies loaded
                                                 if (agentMode == habitiq.app.agent.AgentInputMode.Voice) talk()
                                             },
+                                            overlayOpen = agentOpen,
+                                            overlay = { micCenter ->
+                                                habitiq.app.ui.agent.VoiceOverlay(
+                                                    state = agentState,
+                                                    mode = agentMode,
+                                                    level = agentLevel,
+                                                    micCenter = micCenter,
+                                                    onClose = { agentViewModel.reset(); agentOpen = false },
+                                                    onTalk = { talk() },
+                                                    onStop = { agentViewModel.stopListening() },
+                                                    onSubmit = { agentViewModel.submitText(it) },
+                                                    onChoose = { agentViewModel.choose(it) },
+                                                    onUseText = { agentViewModel.useTextMode() },
+                                                    onUseVoice = { agentViewModel.useVoiceMode(); talk() },
+                                                    onAllowMic = { micPermission.launch(android.Manifest.permission.RECORD_AUDIO) },
+                                                    onOpen = { link ->
+                                                        agentViewModel.reset(); agentOpen = false
+                                                        when (link) {
+                                                            habitiq.app.agent.AgentLink.BALANCES -> {
+                                                                selectedTab = AppTab.TASKS
+                                                                manageAreaName = ManageFlatArea.EXPENSES.name
+                                                                flatViewModel.showBalancesTrigger.value = true
+                                                            }
+                                                            habitiq.app.agent.AgentLink.EXPENSES -> {
+                                                                selectedTab = AppTab.TASKS
+                                                                manageAreaName = ManageFlatArea.EXPENSES.name
+                                                            }
+                                                            habitiq.app.agent.AgentLink.TASKS -> {
+                                                                selectedTab = AppTab.TASKS
+                                                                manageAreaName = ManageFlatArea.TASKS.name
+                                                            }
+                                                            habitiq.app.agent.AgentLink.BILLS -> openMonthlyBills()
+                                                            habitiq.app.agent.AgentLink.DISCOVER -> selectedTab = AppTab.DISCOVER
+                                                        }
+                                                    },
+                                                )
+                                            },
                                             onTabSelected = {
                                                 if (it != selectedTab) moneyOverlay = null
                                                 selectedTab = it
@@ -677,41 +714,6 @@ fun HabitiqApp() {
                                                     onSignOut = { signOut() }
                                                 )
                                             }
-                                        }
-                                        if (agentOpen) {
-                                            habitiq.app.ui.agent.AgentSheet(
-                                                state = agentState,
-                                                mode = agentMode,
-                                                level = agentLevel,
-                                                onDismiss = { agentViewModel.reset(); agentOpen = false },
-                                                onTalk = { talk() },
-                                                onStop = { agentViewModel.stopListening() },
-                                                onSubmit = { agentViewModel.submitText(it) },
-                                                onChoose = { agentViewModel.choose(it) },
-                                                onUseText = { agentViewModel.useTextMode() },
-                                                onUseVoice = { agentViewModel.useVoiceMode(); talk() },
-                                                onAllowMic = { micPermission.launch(android.Manifest.permission.RECORD_AUDIO) },
-                                                onOpen = { link ->
-                                                    agentViewModel.reset(); agentOpen = false
-                                                    when (link) {
-                                                        habitiq.app.agent.AgentLink.BALANCES -> {
-                                                            selectedTab = AppTab.TASKS
-                                                            manageAreaName = ManageFlatArea.EXPENSES.name
-                                                            flatViewModel.showBalancesTrigger.value = true
-                                                        }
-                                                        habitiq.app.agent.AgentLink.EXPENSES -> {
-                                                            selectedTab = AppTab.TASKS
-                                                            manageAreaName = ManageFlatArea.EXPENSES.name
-                                                        }
-                                                        habitiq.app.agent.AgentLink.TASKS -> {
-                                                            selectedTab = AppTab.TASKS
-                                                            manageAreaName = ManageFlatArea.TASKS.name
-                                                        }
-                                                        habitiq.app.agent.AgentLink.BILLS -> openMonthlyBills()
-                                                        habitiq.app.agent.AgentLink.DISCOVER -> selectedTab = AppTab.DISCOVER
-                                                    }
-                                                },
-                                            )
                                         }
                                     }
                                 }

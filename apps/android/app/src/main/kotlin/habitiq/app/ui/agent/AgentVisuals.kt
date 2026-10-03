@@ -55,45 +55,6 @@ import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 import kotlin.math.roundToLong
 
-/**
- * Three soft teal→coral rings around a mic. They breathe slowly and swell with [level] (0..1).
- * Uses transform-only drawing. With [animate] false it's a still glow.
- */
-@Composable
-fun VoiceAura(level: Float, animate: Boolean, modifier: Modifier = Modifier) {
-    val c = LocalHqColors.current
-    val voice by animateFloatAsState(if (animate) level else 0f, spring(dampingRatio = 0.6f, stiffness = 280f), label = "voice")
-    val breath = if (animate) {
-        rememberInfiniteTransition(label = "aura").animateFloat(
-            initialValue = 0f, targetValue = 1f,
-            animationSpec = infiniteRepeatable(tween(1800, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-            label = "breath",
-        ).value
-    } else 0f
-    Box(modifier.size(148.dp).semantics { contentDescription = "Listening" }, contentAlignment = Alignment.Center) {
-        Canvas(Modifier.size(148.dp)) {
-            val base = size.minDimension / 2
-            listOf(1f to .14f, .78f to .22f, .58f to .34f).forEachIndexed { i, (scale, alpha) ->
-                val swell = 1f + (0.05f * breath + 0.20f * voice) * (3 - i) / 3f
-                val r = base * scale * swell.coerceAtMost(1f / scale)
-                drawCircle(
-                    Brush.radialGradient(
-                        listOf(c.brandTeal.copy(alpha = alpha), c.brandCoral.copy(alpha = alpha * .55f), Color.Transparent),
-                        center = center, radius = r,
-                    ),
-                    radius = r,
-                )
-            }
-        }
-        Box(
-            Modifier.size(60.dp).graphicsLayer { val s = 1f + 0.06f * voice; scaleX = s; scaleY = s }
-                .shadow(12.dp, CircleShape, ambientColor = c.brandTeal.copy(alpha = .4f), spotColor = c.brandTeal.copy(alpha = .4f))
-                .clip(CircleShape).background(c.actionPrimaryBg),
-            contentAlignment = Alignment.Center,
-        ) { Icon(Icons.Rounded.Mic, null, tint = c.actionPrimaryFg, modifier = Modifier.size(28.dp)) }
-    }
-}
-
 /** Cards rise and settle in once. Returns a 0..1 progress; it's 1 immediately when [animate] is false. */
 @Composable
 private fun rememberEntrance(animate: Boolean): Float {
@@ -132,12 +93,10 @@ private fun categoryLook(category: String): Pair<ImageVector, HqTileTone> = when
 private fun CardFrame(p: Float, content: @Composable () -> Unit) {
     val c = LocalHqColors.current
     val shape = RoundedCornerShape(22.dp)
-    Box(
-        Modifier.entrance(p).fillMaxWidth()
-            .shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .10f))
-            .clip(shape).background(c.surfaceRaised).border(1.dp, c.borderSubtle, shape)
-            .padding(18.dp),
-    ) { content() }
+    val surface = if (LocalAgentGlass.current) Modifier.glass(shape, strong = true)
+    else Modifier.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .10f))
+        .clip(shape).background(c.surfaceRaised).border(1.dp, c.borderSubtle, shape)
+    Box(Modifier.entrance(p).fillMaxWidth().then(surface).padding(18.dp)) { content() }
 }
 
 @Composable

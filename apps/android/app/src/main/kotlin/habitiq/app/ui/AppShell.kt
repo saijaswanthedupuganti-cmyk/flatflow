@@ -19,8 +19,10 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.draw.blur
+import androidx.compose.ui.layout.boundsInRoot
+import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.foundation.combinedClickable
-import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -109,11 +111,17 @@ fun AppShell(
     modifier: Modifier = Modifier,
     createAction: ShellCreate = ShellCreate.None,
     onMic: (() -> Unit)? = null,
+    overlayOpen: Boolean = false,
+    overlay: @Composable (micCenter: androidx.compose.ui.geometry.Offset?) -> Unit = {},
     content: @Composable (AppTab) -> Unit
 ) {
     val c = LocalHqColors.current
     var menuOpen by remember { mutableStateOf(false) }
-    Column(modifier.fillMaxSize().background(c.canvas)) {
+    var micCenter by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
+    // The voice overlay frosts the whole app behind it (real blur on Android 12+, the overlay's veil below that).
+    val blur by androidx.compose.animation.core.animateDpAsState(if (overlayOpen) 28.dp else 0.dp, tween(340), label = "appBlur")
+    Box(modifier.fillMaxSize()) {
+    Column(Modifier.fillMaxSize().then(if (blur > 0.dp) Modifier.blur(blur) else Modifier).background(c.canvas)) {
         val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
         // Material fade-through between top-level destinations: quick fade out, then fade + slight scale in.
         Box(Modifier.weight(1f)) {
@@ -143,8 +151,15 @@ fun AppShell(
                 create = createAction,
                 menuOpen = menuOpen,
                 onMic = onMic?.let { mic -> { menuOpen = false; mic() } },
+                onMicPositioned = { micCenter = it },
             ) { menuOpen = !menuOpen }
         }
+    }
+    androidx.compose.animation.AnimatedVisibility(
+        visible = overlayOpen,
+        enter = androidx.compose.animation.fadeIn(tween(160)),
+        exit = androidx.compose.animation.fadeOut(tween(220)),
+    ) { overlay(micCenter) }
     }
     androidx.activity.compose.BackHandler(enabled = menuOpen) { menuOpen = false }
 }
@@ -154,7 +169,7 @@ fun AppShell(
  * create action raised out of the top edge. Destinations and their order are unchanged.
  */
 @Composable
-private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, create: ShellCreate, menuOpen: Boolean, onMic: (() -> Unit)?, onOpenMenu: () -> Unit) {
+private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, create: ShellCreate, menuOpen: Boolean, onMic: (() -> Unit)?, onMicPositioned: (androidx.compose.ui.geometry.Offset) -> Unit = {}, onOpenMenu: () -> Unit) {
     val c = LocalHqColors.current
     val pill = RoundedCornerShape(HqRadius.navPill)
     Box(Modifier.fillMaxWidth().background(c.canvas)) {
@@ -183,6 +198,7 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
                 when {
                     onMic != null -> MicButton(
                         menuOpen = menuOpen,
+                        onPositioned = onMicPositioned,
                         onTap = { if (menuOpen) onOpenMenu() else onMic() },
                         onLongPress = when (create) {
                             ShellCreate.None -> null
@@ -236,29 +252,34 @@ private fun CreateButton(label: String, open: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * The agent entry: the same raised button as Quick add with a mic glyph. Tap talks to Oddroof;
- * long-press opens Quick add. While Quick add is open the button shows × and a tap closes it.
+ * The agent entry, as in the Oddroof reference: a raised blue circle with a white ring, a soft blue
+ * glow and the five-bar voice glyph. Tap talks to Oddroof; long-press opens Quick add. While Quick
+ * add is open it shows × and a tap closes it.
  */
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
-private fun MicButton(menuOpen: Boolean, onTap: () -> Unit, onLongPress: (() -> Unit)?) {
+private fun MicButton(menuOpen: Boolean, onPositioned: (androidx.compose.ui.geometry.Offset) -> Unit, onTap: () -> Unit, onLongPress: (() -> Unit)?) {
     val c = LocalHqColors.current
     val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
-    val press by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.5f, stiffness = 900f), label = "micPress")
-    val fill by animateColorAsState(if (menuOpen) c.textPrimary else c.actionPrimaryBg, tween(220), label = "micFill")
-    val glyph by animateColorAsState(if (menuOpen) c.canvas else c.actionPrimaryFg, tween(220), label = "micGlyph")
-    val shape = RoundedCornerShape(17.dp)
+    val press by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = 900f), label = "micPress")
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    val blue = habitiq.app.ui.agent.VoiceColors
     Box(
         Modifier
-            .offset(y = (-24).dp)
+            .offset(y = (-26).dp)
+            .onGloballyPositioned { onPositioned(it.boundsInRoot().center) }
             .graphicsLayer { scaleX = press; scaleY = press }
-            .shadow(10.dp, shape, ambientColor = c.brandTeal.copy(alpha = .35f), spotColor = c.brandTeal.copy(alpha = .35f))
-            .size(54.dp)
-            .clip(shape)
-            .background(fill)
-            .border(4.dp, c.surfaceBase, shape)
+            .shadow(18.dp, CircleShape, ambientColor = blue.buttonBottom.copy(alpha = .55f), spotColor = blue.buttonBottom.copy(alpha = .55f))
+            .size(64.dp)
+            .clip(CircleShape)
+            .background(c.surfaceBase)
+            .padding(4.dp)
+            .clip(CircleShape)
+            .background(
+                if (menuOpen) androidx.compose.ui.graphics.Brush.verticalGradient(listOf(c.textPrimary, c.textPrimary))
+                else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(blue.buttonTop, blue.buttonBottom))
+            )
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
@@ -273,12 +294,13 @@ private fun MicButton(menuOpen: Boolean, onTap: () -> Unit, onLongPress: (() -> 
             .semantics { contentDescription = if (menuOpen) "Close quick add" else "Talk to Oddroof" },
         contentAlignment = Alignment.Center,
     ) {
-        Icon(
-            if (menuOpen) HqIcons.Plus else androidx.compose.material.icons.Icons.Rounded.Mic,
-            contentDescription = null,
-            tint = glyph,
-            modifier = Modifier.size(27.dp).graphicsLayer { rotationZ = if (menuOpen) 45f else 0f },
-        )
+        if (menuOpen) {
+            Icon(HqIcons.Plus, null, tint = c.canvas, modifier = Modifier.size(27.dp).graphicsLayer { rotationZ = 45f })
+        } else {
+            androidx.compose.foundation.Canvas(Modifier.size(28.dp)) {
+                with(habitiq.app.ui.agent.VoiceGlyph) { draw(center, size.height) }
+            }
+        }
     }
 }
 

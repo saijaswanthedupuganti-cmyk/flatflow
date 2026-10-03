@@ -199,7 +199,7 @@ object LocalIntentParser {
 
     private val WHO_OWES = rx("who (?:owes|all owe|still owes|hasnt paid|has not paid|havent paid|have not paid)")
     private val MY_BALANCE = rx("(?:what|how much) do i owe|my balance|do i owe|am i owed|kitna dena|how much (?:should|do) i pay|my dues")
-    private val DUE_TODAY = rx("due today|whats due|what is due|todays tasks|what do i have today|anything due")
+    private val DUE_TODAY = rx("due today|whats due|what is due|todays tasks|what do i have today|anything due|(?:need|have) to do today")
     private val MY_DUTIES = rx("my (?:tasks|task|duties|duty|chores|chore|turn|work)")
     private val BILLS = rx("bills?")
     private val BILLS_ASK = rx("pending|due|unpaid|show|list|any|which|what")

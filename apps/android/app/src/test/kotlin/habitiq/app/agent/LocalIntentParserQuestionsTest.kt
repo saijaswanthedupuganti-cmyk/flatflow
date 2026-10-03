@@ -20,7 +20,7 @@ class LocalIntentParserQuestionsTest {
     }
 
     @Test fun `due today questions`() {
-        listOf("What's due today?", "what is due", "today's tasks", "what do i have today", "anything due today")
+        listOf("What's due today?", "what is due", "today's tasks", "what do i have today", "anything due today", "What do I need to do today?")
             .forEach { assertEquals(it, answer(AgentQuery.DueToday), parse(it)) }
     }
 

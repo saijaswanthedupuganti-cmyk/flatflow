@@ -39,7 +39,8 @@
 2. **Numbers that are not money** ("2 bhk", "4 oct", "3 days") must not be read as amounts. Pinned in Task 2 (`non-money numbers are skipped`).
 3. **Common words that look like names** ("gave" against a member called Dave) must not match by edit distance. Pinned in Task 3 (`vocabulary words only match exactly`).
 4. **Signed-out or no-flat users** tapping the mic must get a clear "join a flat first" answer, not a crash or an empty card. Pinned in Task 5 (`not in a flat`) and Task 6 (`answers without a flat`).
-5. **Mic permission denied, or no recogniser on the device** must land in text mode with a reason, never a stuck "Listening…". Pinned in Task 8 (`permission error switches to text mode`, `unavailable recogniser switches to text mode`).
+5. **Misuse:** illegal goods ("ganja 500"), abuse or threats must be refused before parsing, while look-alike household words ("weeding", "coke", "killed the cockroaches") pass. Pinned in Task 5b and Task 8 (`misuse is refused before parsing`).
+6. **Mic permission denied, or no recogniser on the device** must land in text mode with a reason, never a stuck "Listening…". Pinned in Task 8 (`permission error switches to text mode`, `unavailable recogniser switches to text mode`).
 
 ## File Structure
 
@@ -51,6 +52,7 @@
 | Create `app/src/main/kotlin/habitiq/app/agent/DatePhrases.kt` | today/tomorrow/this week/next week/weekend → date range |
 | Create `app/src/main/kotlin/habitiq/app/agent/NameMatcher.kt` | Member matching by first name with edit distance |
 | Create `app/src/main/kotlin/habitiq/app/agent/LocalIntentParser.kt` | Text → `ParseResult` (questions, flat search, settle, expense) |
+| Create `app/src/main/kotlin/habitiq/app/agent/ContentGuard.kt` | Acceptable-use gate: refuses illegal goods, abuse and threats before parsing |
 | Create `app/src/main/kotlin/habitiq/app/agent/QueryResolver.kt` | `AgentQuery` → `AgentAnswer` from live data; `cardFor` builds action cards |
 | Create `app/src/main/kotlin/habitiq/app/agent/VoiceInput.kt` | `SpeechSource` interface, `SpeechEvent`, `AndroidVoiceInput`, error mapping |
 | Create `app/src/main/kotlin/habitiq/app/agent/AgentViewModel.kt` | UI state machine |
@@ -1172,6 +1174,111 @@ git commit -m "feat(agent): parse expenses and settlements with clarify for ambi
 
 ---
 
+### Task 5b: Content guard (acceptable use)
+
+Oddroof is for running a shared home. The agent must not become a way to log illegal purchases, abuse a flatmate, or plant offensive text in shared records, because anything it records is visible to the whole flat. The guard runs on every request, voice or typed, **before** parsing. A blocked request gets one calm, non-judgemental line and never becomes a card. M1 makes no writes, but this gate is in place before M2 starts writing.
+
+**Files:**
+- Create: `app/src/main/kotlin/habitiq/app/agent/ContentGuard.kt`
+- Test: `app/src/test/kotlin/habitiq/app/agent/ContentGuardTest.kt`
+
+**Interfaces:**
+- Consumes: `normalizeUtterance` (Task 2)
+- Produces: `object ContentGuard { const val REFUSAL: String; fun reasonToBlock(raw: String): String? }`. It returns `REFUSAL` when the request must be refused and null when it's fine. Task 8's `AgentViewModel.submitText` calls it before `LocalIntentParser.parse`.
+
+- [ ] **Step 1: Write the failing test**
+
+```kotlin
+package habitiq.app.agent
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
+import org.junit.Test
+
+class ContentGuardTest {
+    @Test fun `illegal goods and services are refused`() {
+        listOf("bought ganja 500", "Weed for 800 split with ravi", "paid 2000 for mdma", "spent 300 on charas",
+            "bribe to watchman 500", "hawala 10000", "satta 1000", "bought a pistol 5000")
+            .forEach { assertEquals(it, ContentGuard.REFUSAL, ContentGuard.reasonToBlock(it)) }
+    }
+
+    @Test fun `harassment and threats are refused`() {
+        listOf("ravi is a useless idiot add 200", "I will kill priya", "beat him up 500")
+            .forEach { assertEquals(it, ContentGuard.REFUSAL, ContentGuard.reasonToBlock(it)) }
+    }
+
+    @Test fun `everyday household words are not blocked`() {
+        listOf("bought groceries 560", "paid ravi 200", "weeding the balcony plants 150", "coke and chips 120",
+            "gas cylinder 1100", "pest control 900", "killed the cockroaches, bought spray 250", "what do i owe")
+            .forEach { assertNull(it, ContentGuard.reasonToBlock(it)) }
+    }
+}
+```
+
+`"killed the cockroaches"` is allowed on purpose: threats are matched as phrases ("will kill", "beat him"), never as a bare verb.
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "habitiq.app.agent.ContentGuardTest"`
+Expected: FAIL, `Unresolved reference: ContentGuard`.
+
+- [ ] **Step 3: Write `ContentGuard.kt`**
+
+```kotlin
+package habitiq.app.agent
+
+/**
+ * Acceptable-use gate for the agent. Anything the agent records lands in shared flat data, so it
+ * refuses requests that log illegal goods or services, or that carry abuse or threats. Matching is
+ * whole-word on normalised text, so "weeding" and "coke" stay fine.
+ *
+ * Keep the lists short and specific: a false refusal of a real chore costs more trust than it saves.
+ * Hindi/Telugu abuse terms are maintained by Sai; add them to ABUSE_WORDS (lowercase, romanised).
+ */
+object ContentGuard {
+    const val REFUSAL = "I can't help with that one. Oddroof is for shared home stuff like groceries, bills and chores."
+
+    private val ILLEGAL_WORDS = setOf(
+        "ganja", "weed", "charas", "hash", "cocaine", "mdma", "ecstasy", "lsd", "heroin", "meth", "drugs",
+        "pistol", "revolver", "gun", "bullets", "ammo",
+        "bribe", "hawala", "satta", "matka", "escort", "escorts",
+    )
+    private val ABUSE_WORDS = setOf(
+        "idiot", "stupid", "moron", "bastard", "bitch", "slut", "whore",
+    )
+    private val THREAT_PHRASES = listOf(
+        Regex("""\bwill (?:kill|hurt|beat|slap)\b"""),
+        Regex("""\b(?:kill|hurt|beat|slap) (?:him|her|you|them)\b"""),
+        Regex("""\bbeat (?:him|her|them) up\b"""),
+    )
+
+    fun reasonToBlock(raw: String): String? {
+        val text = normalizeUtterance(raw)
+        val words = text.split(' ').toSet()
+        return when {
+            words.any { it in ILLEGAL_WORDS } -> REFUSAL
+            words.any { it in ABUSE_WORDS } -> REFUSAL
+            THREAT_PHRASES.any { it.containsMatchIn(text) } -> REFUSAL
+            else -> null
+        }
+    }
+}
+```
+
+- [ ] **Step 4: Run test to verify it passes**
+
+Run: `./gradlew :app:testDebugUnitTest --tests "habitiq.app.agent.ContentGuardTest"`
+Expected: PASS (3 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add apps/android/app/src/main/kotlin/habitiq/app/agent/ContentGuard.kt apps/android/app/src/test/kotlin/habitiq/app/agent/ContentGuardTest.kt
+git commit -m "feat(agent): acceptable-use guard for illegal goods, abuse and threats"
+```
+
+---
+
 ### Task 6: QueryResolver and plan previews
 
 **Files:**
@@ -1604,7 +1711,7 @@ git commit -m "feat(agent): en-IN speech input behind a SpeechSource interface"
 - Test: `app/src/test/kotlin/habitiq/app/agent/AgentViewModelTest.kt`
 
 **Interfaces:**
-- Consumes: `SpeechSource`, `SpeechEvent`, `SpeechErrorKind` (Task 7); `LocalIntentParser.parse` (Tasks 4–5); `QueryResolver.resolve`, `cardFor`, `AgentCard` (Tasks 1, 6); `HouseholdState`
+- Consumes: `ContentGuard.reasonToBlock`, `ContentGuard.REFUSAL` (Task 5b); `SpeechSource`, `SpeechEvent`, `SpeechErrorKind` (Task 7); `LocalIntentParser.parse` (Tasks 4–5); `QueryResolver.resolve`, `cardFor`, `AgentCard` (Tasks 1, 6); `HouseholdState`
 - Produces:
   - `enum class AgentInputMode { Voice, Text }`
   - `sealed interface AgentUiState` with `Idle(notice: String? = null)`, `Listening(partial: String)`, `Checking(transcript: String)`, `Answer(transcript: String, answer: AgentAnswer)`, `Preview(transcript: String, summary: String, card: AgentCard)`, `Clarify(transcript: String, question: String, options: List<ClarifyOption>)`, `NotUnderstood(transcript: String, message: String)`, `Error(transcript: String, message: String)`
@@ -1722,6 +1829,12 @@ class AgentViewModelTest {
         val p = vm.state.value as AgentUiState.Preview
         assertEquals("Record ₹200 you paid Ravi", p.summary)
         assertEquals(AgentCard.Payment("You", "Ravi", 20_000), p.card)
+    }
+
+    @Test fun `misuse is refused before parsing`() = runTest {
+        vm.submitText("bought ganja 500")
+        advanceUntilIdle()
+        assertEquals(AgentUiState.NotUnderstood("bought ganja 500", ContentGuard.REFUSAL), vm.state.value)
     }
 
     @Test fun `unknown request is not understood`() = runTest {
@@ -1867,6 +1980,10 @@ class AgentViewModel(
         _state.value = AgentUiState.Checking(transcript)
         work = viewModelScope.launch {
             delay(checkingMs) // long enough for "Checking your flat" to read
+            ContentGuard.reasonToBlock(transcript)?.let {
+                _state.value = AgentUiState.NotUnderstood(transcript, it)
+                return@launch
+            }
             val home = household()
             _state.value = when (val result = LocalIntentParser.parse(transcript, home, today())) {
                 ParseResult.NeedsModel -> AgentUiState.NotUnderstood(transcript, NOT_YET)
@@ -1910,7 +2027,7 @@ class AgentViewModel(
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `./gradlew :app:testDebugUnitTest --tests "habitiq.app.agent.AgentViewModelTest"`
-Expected: PASS (11 tests). If `voice question flows…` stays in `Listening("")`, the collector in `init` hasn't started yet. The `advanceUntilIdle()` right after `startListening()` is there to start it, so keep it.
+Expected: PASS (12 tests). If `voice question flows…` stays in `Listening("")`, the collector in `init` hasn't started yet. The `advanceUntilIdle()` right after `startListening()` is there to start it, so keep it.
 
 - [ ] **Step 6: Commit**
 

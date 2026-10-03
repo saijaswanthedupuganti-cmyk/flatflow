@@ -229,6 +229,24 @@ Privacy:
 - Transcripts are not persisted beyond the current sheet session.
 - Privacy Policy gets a "Voice & AI assistant" section; Play data-safety form updated (audio: processed on device, not collected; app activity text: sent to Google for processing, not stored by Oddroof).
 
+### 4.1 Acceptable use and misuse guardrails (must be done before public launch)
+
+Everything the agent records lands in data the whole flat can see, so misuse affects other people, not just the requester. Added 2026-10-03 at Sai's request: "mistakes should not be done… fix before the launching".
+
+| Layer | Guardrail | Milestone |
+|---|---|---|
+| Input gate | `ContentGuard` refuses requests about illegal goods/services (drugs, weapons, bribes, betting), abuse, and threats, before parsing, with one calm line: "I can't help with that one. Oddroof is for shared home stuff like groceries, bills and chores." Whole-word matching so household words ("weeding", "coke") pass. Sai maintains the romanised Hindi/Telugu abuse list. | M1 |
+| Scope gate | The agent can only produce the fixed action types in §2.2. It can't send messages, post to Discover, change roles, or delete anything (§1, out of scope). | M1–M2 |
+| Validation | `PlanValidator` (§2.6): amount ₹1–₹1,00,000, known ids only, role checks; Firestore rules remain the final authority. | M2 |
+| Approval | Nothing is written without the user tapping **Approve** on the card. | M2 |
+| Traceability | Agent-created records keep `createdBy = <uid>` (existing) and add `source: "agent"`, so a flatmate or admin can see who recorded what and how. Edits and deletes go through existing activity logging. | M2 |
+| Output gate | `ContentGuard` also runs on titles produced by Gemini before they're shown or saved. | M3 |
+| Model safety | Gemini `safetySettings` set to block medium-and-above for harassment, hate speech, sexually explicit and dangerous content; the system instruction tells it to refuse out-of-scope or harmful requests and return `Unsupported`. | M3 |
+| Abuse limits | `AgentUsageGuard`: 30 model calls/user/day (§4); plus at most 20 agent-created records/user/hour, enforced in the client and by a Firestore rule rate check. | M2–M3 |
+| Reporting | Flatmates can already report and block users (`reportUser`, `blockUser`); agent-created records are covered by the same path. | existing |
+| Legal | Terms of Service: an "Acceptable use" clause (no illegal, abusive or harassing content; the user is responsible for what they record; Oddroof may remove content and suspend accounts). An "AI assistant" clause: suggestions may be wrong, the user confirms every action, money records aren't financial or legal advice. The Privacy Policy "Voice & AI assistant" section (§4). | M4, before launch |
+| Launch check | Misuse corpus test (≥ 40 phrases: illegal, abusive, threats, plus look-alike household phrases that must pass) runs green; manual red-team pass by Sai in English, Hinglish and Tenglish. | M4 |
+
 ## 5. Testing
 
 | Unit | Tests |
@@ -248,7 +266,7 @@ Each milestone ends with a building APK and green unit tests.
 1. **Agent shell:** orb in nav (tap/long-press), glass agent sheet, glass nav/top bar, `VoiceInput`, text mode, `LocalIntentParser` for money + questions, `QueryResolver`, Answer cards. Zero AI cost.
 2. **Plans & actions:** Plan cards with editing, Approve → `PlanExecutor`, Done/haptics/TTS, task + going-away parsing, Clarify flow.
 3. **Gemini:** `HouseholdSnapshot`, `GeminiPlanner` with schema, App Check, `AgentUsageGuard`, Remote Config model key, `FindFlats` via model.
-4. **Compliance & polish:** Privacy Policy section (web `apps/web/app/privacy`), data-safety notes, Settings toggle, accessibility pass.
+4. **Compliance & polish:** Privacy Policy section (web `apps/web/app/privacy`), Terms "Acceptable use" + "AI assistant" clauses (§4.1), misuse corpus + red-team pass, data-safety notes, Settings toggle, accessibility pass.
 
 ### One-time console setup (Sai, at milestone 3)
 

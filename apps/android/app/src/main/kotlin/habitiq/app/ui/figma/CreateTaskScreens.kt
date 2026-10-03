@@ -28,6 +28,7 @@ import habitiq.app.flats.Member
 import habitiq.app.ui.collectAsStateWithLifecycleCompat
 import habitiq.app.ui.components.HqBackAppBar
 import habitiq.app.ui.components.HqButton
+import habitiq.app.ui.components.HqDateField
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqChip
 import habitiq.app.ui.components.HqTextField
@@ -101,7 +102,7 @@ fun CreateRecurringTaskScreen(
                     }
                 }
             }
-            HqTextField(value = startFrom, onValueChange = { startFrom = it }, label = "Start from", placeholder = "Today, or YYYY-MM-DD", leadingIcon = Icons.Filled.CalendarMonth)
+            HqDateField(value = startFrom, onValueChange = { startFrom = it }, label = "Start from", placeholder = "Today", helperText = "Leave empty to start today.")
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 SectionLabel("PRIORITY")
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {

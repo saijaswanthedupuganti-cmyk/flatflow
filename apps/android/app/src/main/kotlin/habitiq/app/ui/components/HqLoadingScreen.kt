@@ -4,7 +4,6 @@ import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.CubicBezierEasing
 import androidx.compose.animation.core.FastOutSlowInEasing
-import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
@@ -14,79 +13,63 @@ import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Text
+import androidx.compose.foundation.layout.width
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.statusBarsPadding
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.ui.semantics.Role
+import kotlinx.coroutines.launch
+import kotlin.math.abs
+import kotlin.math.sin
 
-private val loadingStory = listOf(
-    "Different people.\nOne home.",
-    "Shared living,\nmade easier.",
-    "Live together.\nManage together.",
-)
-
-/** Closing line, held while the progress bar completes. */
-private const val FinalLine = "Welcome home."
-
-/** Total length of the cold-start intro. Change this one value to lengthen or shorten it. */
-const val IntroDurationMs = 10_000L
+/** Minimum length of the cold-start intro. It runs longer only if startup is still resolving. */
+const val IntroDurationMs = 2_600L
 
 private val Settle = CubicBezierEasing(0.22f, 1f, 0.36f, 1f)
 
 /** Fraction of the lockup image width taken by the house mark (the rest is the wordmark). */
 private const val MarkFraction = 0.275f
 
+/** Extrusion layers drawn behind the mark while it turns, so it reads as a solid object. */
+private const val DepthLayers = 7
+
 /**
- * Cold-start intro (~[IntroDurationMs]). Concept: "Different people. One home."
+ * Cold-start intro: logo only, no copy. Concept: "Different people. One home."
  *
- *  0.0-2.0s  teal and coral glows drift together; the house mark pops in; the wordmark wipes open.
- *  2.0-8.5s  three story lines, ~2.1s each, with matching progress dots.
- *  8.5-9.5s  "Welcome home." while "PREPARING YOUR SPACE" reaches 100%.
- *  9.5-10s   the whole screen fades and lifts slightly into the app, then [onFinished].
+ *  0.0-1.4s  teal and coral glows drift together and meet behind the logo.
+ *  0.3-1.5s  the house mark swings in on its vertical axis (a real 3D turn with perspective and
+ *            extruded depth) and drops onto a soft ground shadow.
+ *  1.1-1.9s  the wordmark wipes open beside it.
+ *  after     the lockup floats with a slight tilt until startup is ready, then fades into the app.
  *
- * Progress is honest: it never shows 100% until [ready]. If startup is slower than the intro, the bar
- * holds at 95% on the closing line. "Skip" ends early (as soon as [ready]). With system animations
- * off, it shows the final frame and finishes as soon as the app is ready.
+ * With system animations off, it shows the final frame and finishes as soon as the app is ready.
  */
 @Composable
 fun HqLoadingScreen(
@@ -103,92 +86,41 @@ fun HqLoadingScreen(
     val finish = rememberUpdatedState(onFinished)
 
     val merge = remember { Animatable(if (still) 1f else 0f) }
-    val markIn = remember { Animatable(if (still) 1f else 0f) }
+    val turn = remember { Animatable(if (still) 0f else -100f) } // degrees around Y
+    val drop = remember { Animatable(if (still) 1f else 0f) }
     val wordReveal = remember { Animatable(if (still) 1f else 0f) }
-    val storyAlpha = remember { Animatable(if (still) 1f else 0f) }
-    val progressIn = remember { Animatable(if (still) 1f else 0f) }
-    val progress = remember { Animatable(if (still) 0.95f else 0f) }
     val exit = remember { Animatable(0f) }
-    val skipIn = remember { Animatable(0f) }
-    val storyIndex = remember { mutableIntStateOf(if (still) loadingStory.size else 0) }
-    val skipRequested = remember { mutableStateOf(false) }
 
-    val breath = rememberInfiniteTransition(label = "breath").animateFloat(
+    val idle = rememberInfiniteTransition(label = "idle")
+    val float by idle.animateFloat(
         initialValue = 0f,
         targetValue = if (still) 0f else 1f,
-        animationSpec = infiniteRepeatable(tween(2600, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "breathValue",
+        animationSpec = infiniteRepeatable(tween(2200, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+        label = "float",
     )
 
     LaunchedEffect(Unit) {
-        // Ends the intro: wait for the app, complete the bar, fade out, hand over.
-        suspend fun complete() {
-            snapshotFlow { readyState.value }.first { it }
-            if (!still) {
-                progress.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
-                exit.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
-            }
-            finish.value()
-        }
-        if (still) {
-            complete()
-            return@LaunchedEffect
-        }
-        coroutineScope {
-            val intro = launch {
-                launch { merge.animateTo(1f, tween(1600, easing = Settle)) }
+        if (!still) {
+            coroutineScope {
+                launch { merge.animateTo(1f, tween(1400, easing = Settle)) }
                 launch {
-                    delay(650)
-                    markIn.animateTo(1f, spring(dampingRatio = 0.6f, stiffness = Spring.StiffnessLow))
+                    delay(300)
+                    turn.animateTo(0f, spring(dampingRatio = 0.55f, stiffness = Spring.StiffnessVeryLow))
+                }
+                launch {
+                    delay(300)
+                    drop.animateTo(1f, spring(dampingRatio = 0.5f, stiffness = Spring.StiffnessLow))
                 }
                 launch {
                     delay(1100)
-                    wordReveal.animateTo(1f, tween(850, easing = Settle))
+                    wordReveal.animateTo(1f, tween(800, easing = Settle))
                 }
-                launch {
-                    delay(1600)
-                    skipIn.animateTo(1f, tween(300))
-                }
-                launch {
-                    delay(2000)
-                    // Three story lines: rise in, hold, fade.
-                    repeat(loadingStory.size) { i ->
-                        storyIndex.intValue = i
-                        storyAlpha.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
-                        delay(1300)
-                        storyAlpha.animateTo(0f, tween(380, easing = FastOutSlowInEasing))
-                    }
-                    // Closing line stays up until the intro hands over.
-                    storyIndex.intValue = loadingStory.size
-                    storyAlpha.animateTo(1f, tween(420, easing = FastOutSlowInEasing))
-                }
-                launch {
-                    delay(2100)
-                    progressIn.animateTo(1f, tween(400, easing = LinearEasing))
-                    progress.animateTo(
-                        0.95f,
-                        tween((IntroDurationMs - 2100 - 400 - 900).toInt(), easing = CubicBezierEasing(0.35f, 0.1f, 0.25f, 1f)),
-                    )
-                }
-                delay(IntroDurationMs - 900)
+                delay(IntroDurationMs - 450)
             }
-            // Skip cancels the remaining choreography; otherwise wait for the full intro.
-            val skipWatcher = launch {
-                snapshotFlow { skipRequested.value }.first { it }
-                intro.cancel()
-            }
-            intro.join()
-            skipWatcher.cancel()
-            if (skipRequested.value) {
-                storyIndex.intValue = loadingStory.size
-                storyAlpha.snapTo(1f)
-                markIn.snapTo(1f)
-                wordReveal.snapTo(1f)
-                merge.snapTo(1f)
-                progressIn.snapTo(1f)
-            }
-            complete()
         }
+        snapshotFlow { readyState.value }.first { it }
+        if (!still) exit.animateTo(1f, tween(450, easing = FastOutSlowInEasing))
+        finish.value()
     }
 
     Box(
@@ -197,20 +129,20 @@ fun HqLoadingScreen(
             .background(c.canvas)
             .graphicsLayer {
                 alpha = 1f - exit.value
-                val s = 1f + 0.03f * exit.value
+                val s = 1f + 0.04f * exit.value
                 scaleX = s
                 scaleY = s
             }
-            .semantics { contentDescription = "Application is loading" },
+            .semantics { contentDescription = "Oddroof is loading" },
     ) {
         // Different people, converging: teal drifts in from the left, coral from the right.
         Canvas(Modifier.fillMaxSize()) {
             val cx = size.width / 2f
-            val cy = size.height * 0.30f
-            val spread = size.width * 0.34f * (1f - merge.value)
-            val pulse = 1f + 0.06f * breath.value
-            val r = size.width * 0.42f * pulse
-            val glow = 0.22f + 0.05f * breath.value
+            val cy = size.height * 0.45f
+            val spread = size.width * 0.38f * (1f - merge.value)
+            val pulse = 1f + 0.05f * float
+            val r = size.width * 0.46f * pulse
+            val glow = 0.20f + 0.05f * float
             drawCircle(
                 Brush.radialGradient(
                     listOf(c.brandTeal.copy(alpha = glow), c.brandTeal.copy(alpha = 0f)),
@@ -231,102 +163,77 @@ fun HqLoadingScreen(
             )
         }
 
-        // Skip: small, top-right, appears after the logo lands.
-        if (!still) {
-            Box(
-                Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(top = 8.dp, end = 12.dp)
-                    .alpha(skipIn.value)
-                    .size(width = 72.dp, height = 48.dp)
-                    .clip(CircleShape)
-                    .clickable(enabled = skipIn.value > 0.5f, role = Role.Button) { skipRequested.value = true },
-                contentAlignment = Alignment.Center,
-            ) {
-                Text("Skip", style = HqType.labelLarge, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
-            }
-        }
-
-        BoxWithConstraints(Modifier.fillMaxSize()) {
-            Column(
-                Modifier.fillMaxWidth().padding(top = maxHeight * 0.24f),
-                horizontalAlignment = Alignment.CenterHorizontally,
-            ) {
-                Box(
-                    Modifier
-                        .graphicsLayer {
-                            val s = 0.82f + 0.18f * markIn.value
-                            scaleX = s
-                            scaleY = s
-                            alpha = markIn.value.coerceIn(0f, 1f)
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            val lift = (1f - drop.value) * -46f - float * 6f // dp: falls in, then hovers
+            val sway = float * 7f - 3.5f // degrees of gentle idle tilt once landed
+            val shadowWidth = maxWidth * 0.42f
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Box(Modifier.graphicsLayer { translationY = lift.dp.toPx() }) {
+                    // Extruded depth: darker copies of the mark behind it, offset by how far it is turned.
+                    val angle = turn.value + if (wordReveal.value >= 1f) sway else 0f
+                    val depth = sin(Math.toRadians(angle.toDouble())).toFloat()
+                    if (abs(depth) > 0.02f) {
+                        for (i in DepthLayers downTo 1) {
+                            Box(
+                                Modifier
+                                    .graphicsLayer {
+                                        rotationY = angle
+                                        cameraDistance = 14f * density
+                                        transformOrigin = TransformOrigin(MarkFraction / 2f, 0.5f)
+                                        translationX = -depth * i * 1.1f.dp.toPx()
+                                        alpha = 0.10f + 0.05f * (DepthLayers - i) / DepthLayers
+                                    }
+                                    .clipToMark(),
+                            ) { HqWordmark(height = 72.dp, tint = c.textPrimary) }
                         }
-                        .drawWithContent {
-                            // The mark is always visible; the wordmark wipes open left-to-right.
-                            val visible = MarkFraction + (1f - MarkFraction) * wordReveal.value
-                            clipRect(right = size.width * visible) { this@drawWithContent.drawContent() }
+                    }
+                    // The mark itself: a 3D turn around its own centre.
+                    Box(
+                        Modifier
+                            .graphicsLayer {
+                                rotationY = angle
+                                rotationX = (1f - drop.value) * 18f
+                                cameraDistance = 14f * density
+                                transformOrigin = TransformOrigin(MarkFraction / 2f, 0.5f)
+                            }
+                            .clipToMark(),
+                    ) { HqWordmark(height = 72.dp) }
+                    // The wordmark wipes open beside the mark.
+                    Box(
+                        Modifier.drawWithContent {
+                            val from = size.width * MarkFraction
+                            val to = from + (size.width - from) * wordReveal.value
+                            clipRect(left = from, right = to) { this@drawWithContent.drawContent() }
                         },
-                ) {
-                    HqWordmark(height = 68.dp)
+                    ) { HqWordmark(height = 72.dp) }
                 }
 
-                Box(
-                    Modifier.padding(top = 52.dp).fillMaxWidth().height(84.dp).padding(horizontal = 24.dp),
-                    contentAlignment = Alignment.TopCenter,
+                // Ground shadow: wide and faint while the mark is in the air, tight once it lands.
+                Canvas(
+                    Modifier
+                        .padding(top = 26.dp)
+                        .width(shadowWidth)
+                        .height(18.dp),
                 ) {
-                    val i = storyIndex.intValue
-                    Text(
-                        if (i < loadingStory.size) loadingStory[i] else FinalLine,
-                        style = HqType.headlineMedium,
-                        fontWeight = FontWeight.SemiBold,
-                        color = if (i < loadingStory.size) c.textPrimary else c.textBrand,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.graphicsLayer {
-                            alpha = storyAlpha.value
-                            translationY = (1f - storyAlpha.value) * 12.dp.toPx()
-                        },
+                    val air = (1f - drop.value).coerceIn(0f, 1f) + float * 0.25f
+                    val w = size.width * (0.55f + 0.35f * air)
+                    val a = (0.16f - 0.08f * air).coerceIn(0.04f, 0.18f)
+                    drawOval(
+                        Brush.radialGradient(
+                            listOf(Color.Black.copy(alpha = a), Color.Transparent),
+                            center = Offset(size.width / 2f, size.height / 2f),
+                            radius = w / 2f,
+                        ),
+                        topLeft = Offset((size.width - w) / 2f, 0f),
+                        size = Size(w, size.height),
                     )
                 }
-
-                Row(
-                    Modifier.alpha(progressIn.value),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                ) {
-                    loadingStory.indices.forEach { i ->
-                        val active = i == storyIndex.intValue
-                        val passed = i < storyIndex.intValue
-                        Box(
-                            Modifier
-                                .size(width = if (active) 18.dp else 6.dp, height = 6.dp)
-                                .clip(CircleShape)
-                                .background(if (active || passed) c.brandTeal else c.borderSubtle),
-                        )
-                    }
-                }
-            }
-        }
-
-        Column(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .navigationBarsPadding()
-                .fillMaxWidth()
-                .padding(horizontal = 34.dp, vertical = 44.dp)
-                .alpha(progressIn.value),
-            verticalArrangement = Arrangement.spacedBy(11.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(
-                    if (progress.value >= 0.999f) "READY" else "PREPARING YOUR SPACE",
-                    style = HqType.labelSmall,
-                    color = c.textSecondary,
-                    fontWeight = FontWeight.ExtraBold,
-                )
-                Text("${(progress.value * 100).toInt()}%", style = HqType.labelSmall, color = c.textSecondary)
-            }
-            Box(Modifier.fillMaxWidth().height(3.dp).clip(CircleShape).background(c.borderSubtle)) {
-                Box(Modifier.fillMaxWidth(progress.value).height(3.dp).clip(CircleShape).background(c.brandTeal))
             }
         }
     }
+}
+
+/** Clips the lockup to just its house mark. */
+private fun Modifier.clipToMark(): Modifier = drawWithContent {
+    clipRect(right = size.width * MarkFraction) { this@drawWithContent.drawContent() }
 }

@@ -48,6 +48,7 @@ import habitiq.app.discover.LookingDraft
 import habitiq.app.discover.VacancyDraft
 import habitiq.app.flats.FlatInfo
 import habitiq.app.ui.components.HqButton
+import habitiq.app.ui.components.HqDateField
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqCard
 import habitiq.app.ui.components.HqChip
@@ -401,7 +402,7 @@ private fun VacancyWizard(
             4 -> {
                 Text("Dates & timing", style = HqType.headlineSmall, color = c.textPrimary)
                 Spacer(Modifier.height(HqSpacing.sm))
-                HqTextField(availableFrom, { availableFrom = it.take(40) }, "Available from", modifier = Modifier.fillMaxWidth(), placeholder = "e.g. Immediately, 1 Nov", imeAction = ImeAction.Done, onImeAction = imeNext)
+                HqDateField(availableFrom, { availableFrom = it }, "Available from", modifier = Modifier.fillMaxWidth(), placeholder = "Pick a move-in date", immediateLabel = "Immediately")
                 Spacer(Modifier.height(HqSpacing.md))
                 ChoiceRow(
                     title = "Move-in timing",

@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.flow.first
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.compose.animation.togetherWith
@@ -138,6 +139,10 @@ fun HabitiqApp() {
     val billsRepository = remember { BillsRepository() }
     val messagingRepository = remember { MessagingRepository() }
 
+    val appContext = LocalContext.current.applicationContext
+    val appPreferences = remember { habitiq.app.settings.AppPreferences(appContext) }
+    val welcomeScope = rememberCoroutineScope()
+
     val navController = rememberNavController()
     val currentUser by authRepository.currentUser.collectAsStateWithLifecycleCompat()
 
@@ -155,11 +160,14 @@ fun HabitiqApp() {
     LaunchedEffect(currentUser, startupAttempt) {
         startupError = null
         if (currentUser == null) {
-            startDestination = Routes.WELCOME
+            val seen = runCatching { appPreferences.welcomeSeen.first() }.getOrDefault(false)
+            startDestination = if (seen) Routes.LOGIN else Routes.WELCOME
             startupResolved = true
             return@LaunchedEffect
         }
         startupResolved = false
+        // Anyone who has signed in on this install is not a first-time user.
+        runCatching { appPreferences.setWelcomeSeen() }
         usersRepository.getActiveFlatId(currentUser!!.uid).fold(
             onSuccess = { flatId ->
                 startDestination = if (flatId != null) Routes.MAIN else Routes.INTENT_CHOOSER
@@ -234,8 +242,14 @@ fun HabitiqApp() {
                 ) {
                     composable(Routes.WELCOME) {
                         WelcomeScreen(
-                            onNext = { navController.navigate(Routes.SIGNUP) },
-                            onLogin = { navController.navigate(Routes.LOGIN) }
+                            onNext = {
+                                welcomeScope.launch { appPreferences.setWelcomeSeen() }
+                                navController.navigate(Routes.SIGNUP)
+                            },
+                            onLogin = {
+                                welcomeScope.launch { appPreferences.setWelcomeSeen() }
+                                navController.navigate(Routes.LOGIN)
+                            }
                         )
                     }
                     composable(Routes.LOGIN) {

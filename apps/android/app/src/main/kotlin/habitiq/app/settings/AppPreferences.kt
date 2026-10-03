@@ -18,6 +18,16 @@ class AppPreferences(private val context: Context) {
     private val discoveryTrustConsentKey = booleanPreferencesKey("discovery_trust_consent")
     private val discoveryTrustPromptedKey = booleanPreferencesKey("discovery_trust_prompted")
 
+    private val welcomeSeenKey = booleanPreferencesKey("welcome_slides_seen")
+
+    /** The three welcome slides show once per install; after that, signed-out launches go straight to login. */
+    val welcomeSeen: Flow<Boolean> = context.dataStore.data
+        .map { prefs -> prefs[welcomeSeenKey] ?: false }
+
+    suspend fun setWelcomeSeen() {
+        context.dataStore.edit { prefs -> prefs[welcomeSeenKey] = true }
+    }
+
     val isBiometricLockEnabled: Flow<Boolean> = context.dataStore.data
         .map { prefs -> prefs[biometricKey] ?: false }
 

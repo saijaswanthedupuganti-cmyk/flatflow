@@ -31,7 +31,7 @@ class HouseholdStateTest {
             VacancyListing("f9", "Green Nest", true, "Hyderabad", "Gachibowli", 9500.0, "INR", 1, "female", ""),
             VacancyListing("f8", "Closed", false, "Hyderabad", "Kondapur", 7000.0, "INR", 1, "any", ""),
         )
-        val s = householdStateOf("u1", flat, members, tasks, mapOf("u1" to -120.5), bills, vacancies, "2026-10")
+        val s = householdStateOf("u1", flat, members, tasks, mapOf("u2" to -120.5), bills, vacancies, "2026-10")
 
         assertTrue(s.inFlat)
         assertTrue(s.isAdmin)
@@ -41,7 +41,7 @@ class HouseholdStateTest {
         assertEquals(99_900L, s.bills.single().amountPaise)
         assertEquals(listOf("f9"), s.vacancies.map { it.flatId })
         assertEquals(950_000L, s.vacancies.single().rentPaise)
-        assertEquals(-120.5, s.netBalances.getValue("u1"), 0.0)
+        assertEquals(-120.5, s.myBalances.getValue("u2"), 0.0)
     }
 
     @Test fun `no flat means an empty household`() {

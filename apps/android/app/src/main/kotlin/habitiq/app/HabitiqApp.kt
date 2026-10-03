@@ -399,7 +399,11 @@ fun HabitiqApp() {
                                         flat = flatViewModel.flatInfo.value,
                                         members = flatViewModel.members.value,
                                         tasks = flatViewModel.tasks.value,
-                                        netBalances = flatViewModel.computeNetBalances(),
+                                        // Same all-time personal view as the Expenses and Home screens, so answers never contradict them.
+                                        myBalances = habitiq.app.lib.pairwisePersonalBalances(
+                                            flatViewModel.expenses.value, flatViewModel.settlements.value,
+                                            flatViewModel.currentUser.value?.uid.orEmpty(),
+                                        ),
                                         billInstances = flatViewModel.billInstances.value,
                                         vacancies = flatViewModel.vacancies.value,
                                         month = habitiq.app.lib.currentMonthKey(),

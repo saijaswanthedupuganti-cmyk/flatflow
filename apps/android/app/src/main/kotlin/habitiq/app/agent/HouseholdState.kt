@@ -39,8 +39,11 @@ data class HouseholdState(
     val isAdmin: Boolean,
     val members: List<AgentMember>,
     val tasks: List<AgentTask>,
-    /** Rupees per uid, this month. Positive = the flat owes them; negative = they owe. */
-    val netBalances: Map<String, Double>,
+    /**
+     * The person's own balances with each flatmate, all-time, from the same calculation the Expenses
+     * and Home screens use (`pairwisePersonalBalances`): other uid -> rupees, + they owe me, - I owe them.
+     */
+    val myBalances: Map<String, Double>,
     val bills: List<AgentBill>,
     val vacancies: List<AgentVacancy>,
 ) {
@@ -59,7 +62,7 @@ fun householdStateOf(
     flat: FlatInfo?,
     members: List<Member>,
     tasks: List<FlatTask>,
-    netBalances: Map<String, Double>,
+    myBalances: Map<String, Double>,
     billInstances: List<BillInstance>,
     vacancies: List<VacancyListing>,
     month: String,
@@ -69,7 +72,7 @@ fun householdStateOf(
     isAdmin = flat != null && flat.adminUid == myUid,
     members = members.map { AgentMember(it.uid, firstNameOf(it.nickname), it.nickname.trim()) },
     tasks = tasks.map { AgentTask(it.taskId, it.name, it.currentAssignedUserId, parseTaskLocalDate(it.dueDate), it.frequency, it.status) },
-    netBalances = netBalances,
+    myBalances = myBalances,
     bills = billInstances.filter { it.month == month }
         .map { AgentBill(it.name, it.amount?.toPaise(), parseTaskLocalDate(it.dueDate), it.paidBy, it.status) },
     vacancies = vacancies.filter { it.active }

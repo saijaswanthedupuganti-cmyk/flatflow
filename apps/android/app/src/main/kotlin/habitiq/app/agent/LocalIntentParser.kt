@@ -11,6 +11,8 @@ object LocalIntentParser {
     private val QUESTION_START = setOf(
         "what", "whats", "how", "who", "whose", "when", "where", "which", "did", "do", "does", "is", "are", "can",
         "show", "list", "any", "find", "am",
+        // auxiliaries: speech recognisers rarely add "?", so these mark a question too
+        "has", "have", "had", "should", "could", "would", "will", "shall", "was", "were", "tell", "kya", "why",
     )
 
     fun parse(raw: String, state: HouseholdState, today: LocalDate): ParseResult {
@@ -22,7 +24,8 @@ object LocalIntentParser {
         findFlats(text, amounts)?.let { return answer(it) }
 
         val tokens = Regex("""\S+""").findAll(text).toList()
-        if (tokens.first().value in QUESTION_START || raw.trim().endsWith("?")) return ParseResult.NeedsModel
+        // "I will pay…", "Should I buy…": a question or intention in either of the first two words.
+        if (tokens.take(2).any { it.value in QUESTION_START } || raw.trim().endsWith("?")) return ParseResult.NeedsModel
         if (amounts.size != 1) return ParseResult.NeedsModel
         if (!state.inFlat || state.members.isEmpty()) {
             return ParseResult.Confident(AgentPlan.Unsupported("Join or create a flat first to track money."))
@@ -64,6 +67,8 @@ object LocalIntentParser {
         "today", "yesterday", "ago", "day", "days", "now", "it", "this", "that", "was", "is", "hai", "ka", "ki",
         // Hinglish/Tenglish glue words that are never what the money was for
         "aaj", "kal", "abhi", "hua", "ho", "gaya", "maine", "ne", "ko", "naa", "nenu", "ivala", "ayyindi",
+        // quantity units ("2 kg rice") are never the title
+        "kg", "kgs", "g", "gm", "grams", "litre", "litres", "ltr", "ml", "packet", "packets", "pcs", "pieces", "dozen",
     )
     private val VOCAB = QUESTION_START + EXPENSE_VERBS + PAY_VERBS + RECEIVE_VERBS + SELF + SPLIT_WORDS +
         EVERYONE + FILLER + CATEGORIES.keys

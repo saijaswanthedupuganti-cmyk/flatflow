@@ -29,6 +29,10 @@ private val MONTHS = setOf(
 private val NON_MONEY_UNITS = MONTHS + setOf(
     "am", "pm", "st", "nd", "rd", "th", "day", "days", "week", "weeks", "month", "months", "year", "years",
     "people", "persons", "members", "times", "hrs", "hours", "mins", "minutes", "bhk", "sharing", "beds", "bed",
+    // counts and quantities
+    "kg", "kgs", "g", "gm", "grams", "litre", "litres", "liter", "liters", "ltr", "l", "ml", "packet", "packets",
+    "pcs", "pieces", "piece", "dozen", "eggs", "bananas", "bottles", "bedroom", "bedrooms", "room", "rooms",
+    "girls", "boys", "guys", "floors", "floor",
 )
 
 private val UNITS = mapOf(
@@ -101,7 +105,9 @@ private fun wordAmounts(text: String): List<AmountMatch> {
         if (j < tokens.size && tokens[j].value in CURRENCY_WORDS &&
             text.substring(last.range.last + 1, tokens[j].range.first).isBlank()) end = tokens[j].range.last
         val value = total + current
-        if (value >= 10) out += AmountMatch(value * 100, tokens[i].range.first..end)
+        val unitAfter = j < tokens.size && tokens[j].value in NON_MONEY_UNITS &&
+            text.substring(last.range.last + 1, tokens[j].range.first).isBlank()
+        if (value >= 10 && !unitAfter) out += AmountMatch(value * 100, tokens[i].range.first..end)
         i = j.coerceAtLeast(i + 1)
     }
     return out

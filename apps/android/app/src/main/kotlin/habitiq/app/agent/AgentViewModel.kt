@@ -34,6 +34,7 @@ class AgentViewModel(
     private val speech: SpeechSource,
     private val today: () -> LocalDate = { LocalDate.now() },
     private val checkingMs: Long = 400,
+    private val listenTimeoutMs: Long = 10_000,
 ) : ViewModel() {
     private val _state = MutableStateFlow<AgentUiState>(AgentUiState.Idle())
     val state: StateFlow<AgentUiState> = _state.asStateFlow()
@@ -46,6 +47,7 @@ class AgentViewModel(
     val level: StateFlow<Float> = _level.asStateFlow()
 
     private var work: Job? = null
+    private var watchdog: Job? = null
 
     init {
         viewModelScope.launch { speech.events.collect(::onSpeech) }
@@ -56,12 +58,27 @@ class AgentViewModel(
         _mode.value = AgentInputMode.Voice
         _state.value = AgentUiState.Listening("")
         speech.start()
+        armWatchdog()
+    }
+
+    /** Some recognisers bind and then never call back; never leave the person stuck on "Listening…". */
+    private fun armWatchdog() {
+        watchdog?.cancel()
+        watchdog = viewModelScope.launch {
+            delay(listenTimeoutMs)
+            if (_state.value is AgentUiState.Listening) {
+                speech.cancel()
+                _level.value = 0f
+                _state.value = AgentUiState.Error("", "Voice isn't responding. Try again or type it.")
+            }
+        }
     }
 
     fun stopListening() = speech.stop()
 
     fun useTextMode(notice: String? = null) {
-        speech.stop()
+        watchdog?.cancel()
+        speech.cancel()
         _mode.value = AgentInputMode.Text
         if (notice != null || _state.value is AgentUiState.Listening) _state.value = AgentUiState.Idle(notice)
     }
@@ -70,7 +87,8 @@ class AgentViewModel(
 
     fun reset() {
         work?.cancel()
-        speech.stop()
+        watchdog?.cancel()
+        speech.cancel()
         _level.value = 0f
         _state.value = AgentUiState.Idle()
     }
@@ -107,6 +125,9 @@ class AgentViewModel(
     }
 
     private fun onSpeech(event: SpeechEvent) {
+        // Results that arrive after the person reset, switched to typing or timed out belong to a dead session.
+        if (_state.value !is AgentUiState.Listening) return
+        if (event is SpeechEvent.Partial || event is SpeechEvent.Level) armWatchdog() else watchdog?.cancel()
         if (event !is SpeechEvent.Level && event !is SpeechEvent.Partial) _level.value = 0f
         when (event) {
             is SpeechEvent.Level -> if (_state.value is AgentUiState.Listening) _level.value = event.level

@@ -39,6 +39,11 @@ class AmountParserTest {
         assertEquals(emptyList<Long>(), paise("oct 4"))
         assertEquals(emptyList<Long>(), paise("3 days"))
         assertEquals(listOf(1_000_000L), paise("2 bhk under 10k"))
+        assertEquals(emptyList<Long>(), paise("12 eggs"))
+        assertEquals(emptyList<Long>(), paise("2 kg"))
+        assertEquals(emptyList<Long>(), paise("3 bedroom"))
+        assertEquals(emptyList<Long>(), paise("fifteen days"))
+        assertEquals(emptyList<Long>(), paise("twenty litres"))
     }
 
     @Test fun `ranges point at the amount text`() {

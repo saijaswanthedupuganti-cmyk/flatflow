@@ -11,7 +11,7 @@ object Fixtures {
     val state = HouseholdState(
         myUid = "u1", inFlat = true, isAdmin = true,
         members = listOf(sai, ravi, priya, arjun),
-        tasks = emptyList(), netBalances = emptyMap(), bills = emptyList(), vacancies = emptyList(),
+        tasks = emptyList(), myBalances = emptyMap(), bills = emptyList(), vacancies = emptyList(),
     )
     val allUids = listOf("u1", "u2", "u3", "u4")
 }

@@ -62,6 +62,18 @@ class LocalIntentParserActionsTest {
             .forEach { assertEquals(it, ParseResult.NeedsModel, parse(it)) }
     }
 
+    @Test fun `questions without a question mark never become actions`() {
+        listOf("Has Priya paid 500 for rent", "Should I buy milk for 60", "will ravi pay 200", "tell me rent 8000",
+            "I will pay ravi 200 tomorrow", "kya ravi ne 200 diya")
+            .forEach { assertEquals(it, ParseResult.NeedsModel, parse(it)) }
+    }
+
+    @Test fun `counts are not money`() {
+        assertEquals(ParseResult.NeedsModel, parse("bought 12 eggs"))
+        assertEquals(expense("Eggs", 9_000, "lifestyle"), step("bought 12 eggs for 90"))
+        assertEquals(expense("Rice", 12_000, "other"), step("bought 2 kg rice 120"))
+    }
+
     @Test fun `incomplete or unclear money commands need the model`() {
         listOf(
             "paid 300",                           // paid what, or whom?

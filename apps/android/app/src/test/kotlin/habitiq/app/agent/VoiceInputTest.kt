@@ -13,6 +13,8 @@ class VoiceInputTest {
         assertEquals(SpeechErrorKind.Network, speechErrorKind(SpeechRecognizer.ERROR_NETWORK_TIMEOUT))
         assertEquals(SpeechErrorKind.Network, speechErrorKind(SpeechRecognizer.ERROR_SERVER))
         assertEquals(SpeechErrorKind.Busy, speechErrorKind(SpeechRecognizer.ERROR_RECOGNIZER_BUSY))
+        assertEquals(SpeechErrorKind.Unavailable, speechErrorKind(12)) // ERROR_LANGUAGE_NOT_SUPPORTED
+        assertEquals(SpeechErrorKind.Unavailable, speechErrorKind(13)) // ERROR_LANGUAGE_UNAVAILABLE
         assertEquals(SpeechErrorKind.Other, speechErrorKind(-42))
     }
 

@@ -4,7 +4,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
@@ -18,16 +20,18 @@ private class FakeSpeech : SpeechSource {
     override val events = MutableSharedFlow<SpeechEvent>(extraBufferCapacity = 16)
     var started = 0
     var stopped = 0
+    var cancelled = 0
     var released = false
     override fun start() { started++ }
     override fun stop() { stopped++ }
+    override fun cancel() { cancelled++ }
     override fun release() { released = true }
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class AgentViewModelTest {
     private val speech = FakeSpeech()
-    private var household = Fixtures.state.copy(netBalances = mapOf("u1" to -350.0, "u2" to 350.0))
+    private var household = Fixtures.state.copy(myBalances = mapOf("u2" to -350.0))
     private lateinit var vm: AgentViewModel
 
     @Before fun setUp() {
@@ -41,9 +45,9 @@ class AgentViewModelTest {
         vm.startListening()
         assertEquals(AgentUiState.Listening(""), vm.state.value)
         assertEquals(1, speech.started)
-        advanceUntilIdle()
+        runCurrent()
         speech.events.emit(SpeechEvent.Partial("what do"))
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(AgentUiState.Listening("what do"), vm.state.value)
         speech.events.emit(SpeechEvent.Final("What do I owe?"))
         advanceUntilIdle()
@@ -54,9 +58,9 @@ class AgentViewModelTest {
 
     @Test fun `voice level follows the mic only while listening`() = runTest {
         vm.startListening()
-        advanceUntilIdle()
+        runCurrent()
         speech.events.emit(SpeechEvent.Level(0.7f))
-        advanceUntilIdle()
+        runCurrent()
         assertEquals(0.7f, vm.level.value, 0.001f)
         speech.events.emit(SpeechEvent.Final("what do i owe"))
         advanceUntilIdle()
@@ -72,6 +76,41 @@ class AgentViewModelTest {
         val card = (vm.state.value as AgentUiState.Preview).card as AgentCard.Expense
         assertEquals("Expense", card.title)
         assertEquals(50_000L, card.amountPaise)
+    }
+
+    @Test fun `late recogniser events after reset are ignored`() = runTest {
+        vm.startListening()
+        runCurrent()
+        vm.reset()
+        speech.events.emit(SpeechEvent.Final("bought milk 60"))
+        speech.events.emit(SpeechEvent.Error(SpeechErrorKind.NoMatch))
+        advanceUntilIdle()
+        assertEquals(AgentUiState.Idle(), vm.state.value)
+    }
+
+    @Test fun `switching to typing mid-sentence cancels and keeps the sheet calm`() = runTest {
+        vm.startListening()
+        runCurrent()
+        vm.useTextMode()
+        speech.events.emit(SpeechEvent.Final("bought mi"))
+        advanceUntilIdle()
+        assertEquals(1, speech.cancelled)
+        assertEquals(AgentInputMode.Text, vm.mode.value)
+        assertEquals(AgentUiState.Idle(), vm.state.value)
+    }
+
+    @Test fun `silent recogniser times out instead of listening forever`() = runTest {
+        vm.startListening()
+        runCurrent()
+        advanceTimeBy(9_000)
+        speech.events.emit(SpeechEvent.Partial("bought"))
+        runCurrent()
+        advanceTimeBy(9_000)
+        assertEquals(AgentUiState.Listening("bought"), vm.state.value) // activity resets the timer
+        advanceTimeBy(1_100)
+        runCurrent()
+        assertEquals(AgentUiState.Error("", "Voice isn't responding. Try again or type it."), vm.state.value)
+        assertTrue(speech.cancelled >= 1)
     }
 
     @Test fun `typed expense shows a read-only preview`() = runTest {
@@ -116,7 +155,7 @@ class AgentViewModelTest {
 
     @Test fun `no match keeps voice mode with a retry message`() = runTest {
         vm.startListening()
-        advanceUntilIdle()
+        runCurrent()
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.NoMatch))
         advanceUntilIdle()
         assertEquals(AgentUiState.Error("", "Didn't catch that. Try again or type it."), vm.state.value)
@@ -125,7 +164,7 @@ class AgentViewModelTest {
 
     @Test fun `permission error switches to text mode`() = runTest {
         vm.startListening()
-        advanceUntilIdle()
+        runCurrent()
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.NoPermission))
         advanceUntilIdle()
         assertEquals(AgentInputMode.Text, vm.mode.value)
@@ -134,7 +173,7 @@ class AgentViewModelTest {
 
     @Test fun `unavailable recogniser switches to text mode`() = runTest {
         vm.startListening()
-        advanceUntilIdle()
+        runCurrent()
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.Unavailable))
         advanceUntilIdle()
         assertEquals(AgentInputMode.Text, vm.mode.value)
@@ -147,6 +186,6 @@ class AgentViewModelTest {
         vm.startListening()
         vm.reset()
         assertEquals(AgentUiState.Idle(), vm.state.value)
-        assertEquals(1, speech.stopped)
+        assertEquals(1, speech.cancelled)
     }
 }

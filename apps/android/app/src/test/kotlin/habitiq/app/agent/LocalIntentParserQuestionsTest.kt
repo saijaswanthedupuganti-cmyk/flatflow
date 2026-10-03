@@ -42,6 +42,7 @@ class LocalIntentParserQuestionsTest {
         assertEquals(answer(AgentQuery.FindFlats("madhapur", null, null, "female")), parse("rooms near Madhapur for girls"))
         assertEquals(answer(AgentQuery.FindFlats("kondapur", null, 8_000, "male")), parse("any 2 bhk flat in kondapur below 8000 for boys"))
         assertEquals(answer(AgentQuery.FindFlats(null, null, 12_000, null)), parse("find rooms under 12k"))
+        assertEquals(answer(AgentQuery.FindFlats("hsr", null, null, null)), parse("3 bedroom flats in HSR"))
     }
 
     @Test fun `not understood`() {

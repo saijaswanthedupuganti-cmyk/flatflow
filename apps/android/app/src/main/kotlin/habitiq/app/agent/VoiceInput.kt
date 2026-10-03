@@ -28,6 +28,8 @@ interface SpeechSource {
     val events: Flow<SpeechEvent>
     fun start()
     fun stop()
+    /** Abandon the current session without delivering a result. */
+    fun cancel()
     fun release()
 }
 
@@ -36,6 +38,8 @@ fun speechErrorKind(code: Int): SpeechErrorKind = when (code) {
     SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS -> SpeechErrorKind.NoPermission
     SpeechRecognizer.ERROR_NETWORK, SpeechRecognizer.ERROR_NETWORK_TIMEOUT, SpeechRecognizer.ERROR_SERVER -> SpeechErrorKind.Network
     SpeechRecognizer.ERROR_RECOGNIZER_BUSY -> SpeechErrorKind.Busy
+    // 12/13: language not supported / unavailable (e.g. no offline en-IN pack). Retrying never helps.
+    12, 13 -> SpeechErrorKind.Unavailable
     else -> SpeechErrorKind.Other
 }
 
@@ -85,6 +89,8 @@ class AndroidVoiceInput(private val context: Context) : SpeechSource {
     }
 
     override fun stop() { recognizer?.stopListening() }
+
+    override fun cancel() { recognizer?.cancel() }
 
     override fun release() {
         recognizer?.destroy()

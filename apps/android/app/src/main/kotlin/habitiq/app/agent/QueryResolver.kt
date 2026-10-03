@@ -1,7 +1,6 @@
 package habitiq.app.agent
 
 import habitiq.app.lib.formatInr
-import habitiq.app.lib.suggestSettlements
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -31,23 +30,22 @@ object QueryResolver {
     }
 
     private fun myBalance(s: HouseholdState): AgentAnswer {
-        val net = s.netBalances[s.myUid] ?: 0.0
-        val pays = suggestSettlements(s.netBalances).filter { it.fromUserId == s.myUid }
-            .map { AnswerLine("Pay ${s.nameOf(it.toUserId)}", formatInr(it.amount)) }
-        val gets = suggestSettlements(s.netBalances).filter { it.toUserId == s.myUid }
-            .map { AnswerLine("${s.nameOf(it.fromUserId)} pays you", formatInr(it.amount)) }
+        val owe = s.myBalances.filterValues { it <= -SETTLED_RUPEES }.entries.sortedBy { it.value }
+        val owed = s.myBalances.filterValues { it >= SETTLED_RUPEES }.entries.sortedByDescending { it.value }
+        val lines = owe.map { AnswerLine("Pay ${s.nameOf(it.key)}", formatInr(abs(it.value))) } +
+            owed.map { AnswerLine("${s.nameOf(it.key)} owes you", formatInr(it.value)) }
         return when {
-            net <= -SETTLED_RUPEES -> AgentAnswer("You owe ${formatInr(abs(net))}", pays, AgentLink.BALANCES)
-            net >= SETTLED_RUPEES -> AgentAnswer("You're owed ${formatInr(net)}", gets, AgentLink.BALANCES)
+            owe.isNotEmpty() -> AgentAnswer("You owe ${formatInr(owe.sumOf { abs(it.value) })}", lines, AgentLink.BALANCES)
+            owed.isNotEmpty() -> AgentAnswer("You're owed ${formatInr(owed.sumOf { it.value })}", lines, AgentLink.BALANCES)
             else -> AgentAnswer("You're all settled", emptyList(), AgentLink.BALANCES)
         }
     }
 
     private fun whoOwes(s: HouseholdState): AgentAnswer {
-        val debtors = s.netBalances.filterValues { it <= -SETTLED_RUPEES }.entries.sortedBy { it.value }
-        if (debtors.isEmpty()) return AgentAnswer("Nobody owes anything right now", emptyList(), AgentLink.BALANCES)
-        val head = if (debtors.size == 1) "1 person owes money" else "${debtors.size} people owe money"
-        return AgentAnswer(head, debtors.map { AnswerLine(s.nameOf(it.key), formatInr(abs(it.value))) }, AgentLink.BALANCES)
+        val owed = s.myBalances.filterValues { it >= SETTLED_RUPEES }.entries.sortedByDescending { it.value }
+        if (owed.isEmpty()) return AgentAnswer("Nobody owes you anything right now", emptyList(), AgentLink.BALANCES)
+        val head = if (owed.size == 1) "1 person owes you" else "${owed.size} people owe you"
+        return AgentAnswer(head, owed.map { AnswerLine(s.nameOf(it.key), formatInr(it.value)) }, AgentLink.BALANCES)
     }
 
     private fun mine(s: HouseholdState) = s.tasks.filter { it.assigneeUid == s.myUid && it.status !in CLOSED_TASK }

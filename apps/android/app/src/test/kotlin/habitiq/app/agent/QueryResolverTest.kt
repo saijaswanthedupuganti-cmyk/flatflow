@@ -6,27 +6,29 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class QueryResolverTest {
-    private val owing = state.copy(netBalances = mapOf("u1" to -350.0, "u2" to 500.0, "u3" to -150.0, "u4" to 0.0))
+    // Same personal, all-time view as the Expenses screen: other uid -> + they owe me, - I owe them.
+    private val owing = state.copy(myBalances = mapOf("u2" to -350.0, "u3" to 150.0))
     private fun task(id: String, who: String, due: java.time.LocalDate?, status: String = "pending") =
         AgentTask(id, "Task $id", who, due, "weekly", status)
 
     @Test fun `my balance when I owe`() {
         val a = QueryResolver.resolve(AgentQuery.MyBalance, owing, today)
         assertEquals("You owe ₹350", a.headline)
-        assertEquals(listOf(AnswerLine("Pay Ravi", "₹350")), a.lines)
+        assertEquals(listOf(AnswerLine("Pay Ravi", "₹350"), AnswerLine("Priya owes you", "₹150")), a.lines)
         assertEquals(AgentLink.BALANCES, a.link)
     }
 
     @Test fun `my balance when owed and when settled`() {
-        assertEquals("You're owed ₹500", QueryResolver.resolve(AgentQuery.MyBalance, owing.copy(myUid = "u2"), today).headline)
-        assertEquals("You're all settled", QueryResolver.resolve(AgentQuery.MyBalance, owing.copy(myUid = "u4"), today).headline)
+        assertEquals("You're owed ₹150", QueryResolver.resolve(AgentQuery.MyBalance, state.copy(myBalances = mapOf("u3" to 150.0)), today).headline)
+        assertEquals("You're all settled", QueryResolver.resolve(AgentQuery.MyBalance, state, today).headline)
     }
 
-    @Test fun `who owes lists debtors largest first`() {
-        val a = QueryResolver.resolve(AgentQuery.WhoOwes, owing, today)
-        assertEquals("2 people owe money", a.headline)
-        assertEquals(listOf(AnswerLine("You", "₹350"), AnswerLine("Priya", "₹150")), a.lines)
-        assertEquals("Nobody owes anything right now", QueryResolver.resolve(AgentQuery.WhoOwes, state, today).headline)
+    @Test fun `who owes lists people who owe me largest first`() {
+        val s = state.copy(myBalances = mapOf("u2" to -350.0, "u3" to 150.0, "u4" to 400.0))
+        val a = QueryResolver.resolve(AgentQuery.WhoOwes, s, today)
+        assertEquals("2 people owe you", a.headline)
+        assertEquals(listOf(AnswerLine("Arjun", "₹400"), AnswerLine("Priya", "₹150")), a.lines)
+        assertEquals("Nobody owes you anything right now", QueryResolver.resolve(AgentQuery.WhoOwes, state, today).headline)
     }
 
     @Test fun `due today shows my open and overdue tasks`() {

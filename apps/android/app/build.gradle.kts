@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.play.services.maps)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     // Headless screenshot rendering of Compose screens (test-only; nothing ships in the APK).
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.ui.test.junit4)

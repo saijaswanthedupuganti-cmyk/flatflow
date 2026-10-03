@@ -210,10 +210,10 @@ private fun VacancyWizard(
         onClearError()
     }
 
-    if (!isAdmin || flat == null) {
+    if (flat == null) {
         Column(Modifier.padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-            Text("You don’t have permission to manage this post.", style = HqType.titleMedium, color = c.textPrimary)
-            Text("Only a flat admin can publish a vacancy for their flat.", style = HqType.bodyMedium, color = c.textSecondary)
+            Text("Join a flat to post a vacancy", style = HqType.titleMedium, color = c.textPrimary)
+            Text("Vacancies are listed for the flat you live in.", style = HqType.bodyMedium, color = c.textSecondary)
             HqTextButton(text = "Choose another type", onClick = onCancel)
         }
         return
@@ -295,6 +295,14 @@ private fun VacancyWizard(
     val imeNext: (() -> Unit)? = if (stepValid && step < 8) ({ goNext() }) else null
 
     Column(Modifier.padding(HqSpacing.xl).verticalScroll(rememberScrollState())) {
+        if (!isAdmin) {
+            Text(
+                "Your flat admin will review this before it goes live on Discover.",
+                style = HqType.bodyMedium, color = c.statusInfoFg,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.statusInfoBg).padding(12.dp),
+            )
+            Spacer(Modifier.height(HqSpacing.md))
+        }
         Text("Post a vacancy", style = HqType.headlineMedium, color = c.textPrimary)
         Text("Step ${step + 1} of 9", style = HqType.labelMedium, color = c.textSecondary)
         Spacer(Modifier.height(HqSpacing.sm))
@@ -509,7 +517,11 @@ private fun VacancyWizard(
                 )
             } else {
                 HqButton(
-                    text = if (existing != null) "Update vacancy" else "Publish vacancy",
+                    text = when {
+                        !isAdmin -> "Send for approval"
+                        existing != null -> "Update vacancy"
+                        else -> "Publish vacancy"
+                    },
                     onClick = {
                         val valid = city.isNotBlank() && area.isNotBlank() && (rent.toDoubleOrNull() ?: 0.0) > 0
                         if (!valid) {

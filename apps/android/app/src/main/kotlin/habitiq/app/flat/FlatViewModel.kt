@@ -129,6 +129,14 @@ class FlatViewModel(
     private val _joinRequests = MutableStateFlow<List<JoinRequest>>(emptyList())
     val joinRequests: StateFlow<List<JoinRequest>> = _joinRequests.asStateFlow()
 
+    /** Admin: members' vacancy posts waiting for approval. */
+    private val _vacancyRequests = MutableStateFlow<List<habitiq.app.data.VacancyRequest>>(emptyList())
+    val vacancyRequests: StateFlow<List<habitiq.app.data.VacancyRequest>> = _vacancyRequests.asStateFlow()
+
+    /** The person's own vacancy request (pending / approved / declined), if they posted as a member. */
+    private val _myVacancyRequest = MutableStateFlow<habitiq.app.data.VacancyRequest?>(null)
+    val myVacancyRequest: StateFlow<habitiq.app.data.VacancyRequest?> = _myVacancyRequest.asStateFlow()
+
     private val _monthCycles = MutableStateFlow<List<MonthCycle>>(emptyList())
     val monthCycles: StateFlow<List<MonthCycle>> = _monthCycles.asStateFlow()
 
@@ -364,11 +372,17 @@ class FlatViewModel(
             watch("activity", activityRepository.observeRecentActivity(flatId, 20)) { _activity.value = it }
             watch("join requests", membersRepository.observeJoinRequests(flatId)) { _joinRequests.value = it }
             watch("month cycles", billsRepository.observeMonthCycles(flatId)) { _monthCycles.value = it }
+            watch("vacancy requests", flatsRepository.observePendingVacancyRequests(flatId)) { _vacancyRequests.value = it }
+            currentUser.value?.uid?.let { me ->
+                watch("your vacancy", flatsRepository.observeMyVacancyRequest(flatId, me)) { _myVacancyRequest.value = it }
+            }
         }
     }
 
     private fun clearFlatState() {
         _flatInfo.value = null
+        _vacancyRequests.value = emptyList()
+        _myVacancyRequest.value = null
         _members.value = emptyList()
         _tasks.value = emptyList()
         _expenses.value = emptyList()
@@ -820,6 +834,10 @@ class FlatViewModel(
         onSaved: () -> Unit = {}
     ) {
         val flat = _flatId.value ?: return
+        val me = currentUser.value?.uid ?: return
+        // Members send the vacancy to the admin for approval; the admin publishes straight away.
+        val asRequest = _flatInfo.value?.adminUid != me
+        val myName = _members.value.firstOrNull { it.uid == me }?.nickname ?: _userProfile.value?.displayName.orEmpty()
         viewModelScope.launch {
             _discoveryPostLoading.value = true
             _discoveryPostError.value = null
@@ -839,7 +857,7 @@ class FlatViewModel(
                 val uploaded = photos.mapIndexed { index, uri ->
                     val stableId = UUID.nameUUIDFromBytes("$flat:${uri}".toByteArray(StandardCharsets.UTF_8))
                     val ref = FirebaseStorage.getInstance().reference
-                        .child("flats/$flat/vacancy/$stableId")
+                        .child(if (asRequest) "flats/$flat/vacancyRequests/$me/$stableId" else "flats/$flat/vacancy/$stableId")
                     uploadedRefs.add(ref)
                     // storage.rules only accepts image/* — some pickers report no type, so set it.
                     val mime = contentResolver?.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
@@ -868,10 +886,13 @@ class FlatViewModel(
                     members = _members.value,
                     nowIso = Instant.now().toString()
                 )
-                flatsRepository.updateVacancy(flat, saved, health).getOrThrow()
+                if (asRequest) flatsRepository.submitVacancyRequest(flat, me, myName, saved).getOrThrow()
+                else flatsRepository.updateVacancy(flat, saved.copy(postedBy = saved.postedBy ?: me), health).getOrThrow()
                 saved
             }.onSuccess { saved ->
-                if (_flatId.value == flat) {
+                if (asRequest) {
+                    onSaved()
+                } else if (_flatId.value == flat) {
                     _flatInfo.value = _flatInfo.value?.copy(vacancy = saved)
                     onSaved()
                 }
@@ -883,7 +904,7 @@ class FlatViewModel(
                 _discoveryPostError.value = when (ex) {
                     is com.google.firebase.storage.StorageException -> when (ex.errorCode) {
                         com.google.firebase.storage.StorageException.ERROR_NOT_AUTHORIZED ->
-                            "Photo upload was blocked. Only the flat admin can add listing photos."
+                            "Photo upload was blocked. Try again, or post without photos."
                         com.google.firebase.storage.StorageException.ERROR_RETRY_LIMIT_EXCEEDED ->
                             "Couldn't upload one of the photos. Check your connection and try again."
                         else -> "Couldn't upload one of the photos (code ${ex.errorCode}). Try again."
@@ -893,6 +914,44 @@ class FlatViewModel(
             }
             _discoveryPostLoading.value = false
             _discoveryUploadProgress.value = null
+        }
+    }
+
+    /** Admin approves a member's vacancy: it goes live on Discover, credited to that member. */
+    fun approveVacancyRequest(request: habitiq.app.data.VacancyRequest) {
+        val flat = _flatId.value ?: return
+        val health = habitiq.app.discover.FlatHealthComputer.compute(
+            tasks = _tasks.value, settlements = _settlements.value, expensesCount = _expenses.value.size,
+            activity = _activity.value, members = _members.value, nowIso = Instant.now().toString()
+        )
+        viewModelScope.launch {
+            flatsRepository.approveVacancyRequest(flat, request, health)
+                .onSuccess {
+                    _flatInfo.value = _flatInfo.value?.copy(
+                        vacancy = request.vacancy.copy(active = true, postStatus = "PUBLISHED", postedBy = request.requesterUid)
+                    )
+                }
+                .onFailure { _error.value = it.message ?: "Couldn't approve the vacancy." }
+        }
+    }
+
+    fun declineVacancyRequest(request: habitiq.app.data.VacancyRequest) {
+        val flat = _flatId.value ?: return
+        viewModelScope.launch {
+            flatsRepository.declineVacancyRequest(flat, request.requesterUid)
+                .onFailure { _error.value = it.message ?: "Couldn't decline the vacancy." }
+        }
+    }
+
+    /** Pause / resume / close the live vacancy. Allowed for the admin and for the member who posted it. */
+    fun setVacancyActive(active: Boolean, status: String) {
+        val flat = _flatId.value ?: return
+        viewModelScope.launch {
+            flatsRepository.setVacancyActive(flat, active, status)
+                .onSuccess {
+                    _flatInfo.value = _flatInfo.value?.let { f -> f.copy(vacancy = f.vacancy?.copy(active = active, postStatus = status)) }
+                }
+                .onFailure { _discoveryPostError.value = "Couldn't update the post. Try again." }
         }
     }
 

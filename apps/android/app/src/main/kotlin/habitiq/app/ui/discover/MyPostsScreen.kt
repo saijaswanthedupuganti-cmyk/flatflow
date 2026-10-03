@@ -40,6 +40,10 @@ import habitiq.app.ui.theme.LocalHqColors
 @Composable
 fun MyPostsScreen(
     isAdmin: Boolean,
+    /** Admin, or the member who posted the vacancy. */
+    canManageVacancy: Boolean = isAdmin,
+    /** The person's own vacancy request while it waits for (or was declined by) the admin. */
+    pendingRequest: habitiq.app.data.VacancyRequest? = null,
     flat: FlatInfo?,
     vacancy: VacancyData?,
     mySeeker: SeekerProfile?,
@@ -75,7 +79,10 @@ fun MyPostsScreen(
         val showVacancy = vacancy != null && if (tab == "active") vacancyActive else !vacancyActive
         val showLooking = mySeeker != null && if (tab == "active") lookingActive else !lookingActive
 
-        if (!showVacancy && !showLooking) {
+        val showPending = pendingRequest != null &&
+            if (tab == "active") pendingRequest.status == "pending" else pendingRequest.status == "declined"
+
+        if (!showVacancy && !showLooking && !showPending) {
             DiscoveryEmpty(
                 title = if (tab == "active") "No active posts" else "No past posts",
                 body = "Create a vacancy or a looking post from +."
@@ -99,14 +106,40 @@ fun MyPostsScreen(
                     }
                 }
             }
+            if (showPending && pendingRequest != null) {
+                item {
+                    val pending = pendingRequest.status == "pending"
+                    Column(
+                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
+                            .background(if (pending) c.statusInfoBg else c.statusDangerBg).padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        Text(
+                            if (pending) "Waiting for admin approval" else "Not approved",
+                            style = HqType.titleSmall2, color = c.textPrimary,
+                        )
+                        val v = pendingRequest.vacancy
+                        Text(
+                            listOf(v.area, v.city).filter { it.isNotBlank() }.joinToString(" · ") +
+                                (v.rentPerHead?.let { " · ${formatInr(it)}/head" } ?: ""),
+                            style = HqType.bodyMedium, color = c.textSecondary,
+                        )
+                        Text(
+                            if (pending) "Your vacancy goes live on Discover as soon as your flat admin approves it."
+                            else "Your admin didn't approve this vacancy. Talk to them, then post again from +.",
+                            style = HqType.bodySmall, color = c.textSecondary,
+                        )
+                    }
+                }
+            }
             if (showVacancy && flat != null) {
                 item {
                     PostManageCard(
                         title = flat.name,
                         subtitle = "${vacancy.area} · ${vacancy.city}".trim(' ', '·') + " · Looking for a flatmate",
                         status = vacancyStatus?.name ?: "",
-                        meta = if (isAdmin) "$incomingCount connections" else "Ask an admin to manage this vacancy",
-                        canManage = isAdmin,
+                        meta = if (canManageVacancy) "$incomingCount connections" else "Ask your admin or the person who posted it to change this",
+                        canManage = canManageVacancy,
                         isPublished = vacancyActive,
                         onEdit = onEdit,
                         onPause = onPauseVacancy,

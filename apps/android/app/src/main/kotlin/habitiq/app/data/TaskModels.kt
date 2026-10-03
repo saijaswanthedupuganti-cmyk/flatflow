@@ -158,5 +158,21 @@ data class VacancyData(
     val photoUrls: List<String> = emptyList(),
     val existingMembersGender: String? = null,
     val updatedAt: String = "",
-    val postStatus: String? = null
+    val postStatus: String? = null,
+    /** Who listed the room. The poster (or the admin) can switch the post active/inactive. */
+    val postedBy: String? = null,
 )
+
+/** A member's vacancy waiting for the flat admin to approve before it goes live on Discover. */
+data class VacancyRequest(
+    val requesterUid: String,
+    val requesterName: String,
+    val vacancy: VacancyData,
+    /** "pending", "approved" or "declined". */
+    val status: String,
+    val createdAt: String = "",
+)
+
+/** Admins manage every post; a member manages the vacancy they posted. */
+fun canManageVacancy(isAdmin: Boolean, postedBy: String?, uid: String?): Boolean =
+    isAdmin || (uid != null && postedBy != null && postedBy == uid)

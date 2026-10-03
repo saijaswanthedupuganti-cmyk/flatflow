@@ -167,6 +167,8 @@ fun DiscoverBoardScreen(
     val discoveryPostError by viewModel.discoveryPostError.collectAsStateWithLifecycleCompat()
     val discoveryUploadProgress by viewModel.discoveryUploadProgress.collectAsStateWithLifecycleCompat()
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycleCompat()
+    val myVacancyRequest by viewModel.myVacancyRequest.collectAsStateWithLifecycleCompat()
+    var publishedAsRequest by remember { mutableStateOf(false) }
     val flatInfo by viewModel.flatInfo.collectAsStateWithLifecycleCompat()
 
     var mode by remember(initialMode) { mutableStateOf(initialMode) }
@@ -386,8 +388,15 @@ fun DiscoverBoardScreen(
             initialType = createInitialType,
             isAdmin = isAdmin,
             flat = flatInfo,
-            existingVacancy = flatInfo?.vacancy,
+            // Members edit only a vacancy they posted (or their own pending request); otherwise they start fresh.
+            existingVacancy = when {
+                isAdmin -> flatInfo?.vacancy
+                flatInfo?.vacancy?.postedBy == uid -> flatInfo?.vacancy
+                myVacancyRequest?.status == "pending" -> myVacancyRequest?.vacancy
+                else -> null
+            },
             onPublishVacancy = { vacancy, photos ->
+                publishedAsRequest = !isAdmin
                 viewModel.publishVacancy(vacancy, photos, context.contentResolver) { surface = "published" }
             },
             onPublishLooking = { city, looking, budget, bio, gender, tags ->
@@ -403,22 +412,15 @@ fun DiscoverBoardScreen(
         )
         "posts" -> MyPostsScreen(
             isAdmin = isAdmin,
+            canManageVacancy = habitiq.app.data.canManageVacancy(isAdmin, flatInfo?.vacancy?.postedBy, uid),
+            pendingRequest = myVacancyRequest?.takeIf { it.status != "approved" },
             flat = flatInfo,
             vacancy = flatInfo?.vacancy,
             mySeeker = mySeeker,
             incomingCount = connections.count { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT },
-            onPauseVacancy = {
-                val v = flatInfo?.vacancy ?: return@MyPostsScreen
-                viewModel.updateVacancy(v.copy(active = false, postStatus = "PAUSED"))
-            },
-            onResumeVacancy = {
-                val v = flatInfo?.vacancy ?: return@MyPostsScreen
-                viewModel.updateVacancy(v.copy(active = true, postStatus = "PUBLISHED"))
-            },
-            onCloseVacancy = {
-                val v = flatInfo?.vacancy ?: return@MyPostsScreen
-                viewModel.updateVacancy(v.copy(active = false, postStatus = "CLOSED"))
-            },
+            onPauseVacancy = { viewModel.setVacancyActive(false, "PAUSED") },
+            onResumeVacancy = { viewModel.setVacancyActive(true, "PUBLISHED") },
+            onCloseVacancy = { viewModel.setVacancyActive(false, "CLOSED") },
             onPauseLooking = { viewModel.setSeekerActive(false) },
             onResumeLooking = { viewModel.setSeekerActive(true) },
             onEdit = { surface = "create" },
@@ -604,9 +606,10 @@ fun DiscoverBoardScreen(
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = c.statusSuccessFg, modifier = Modifier.size(62.dp))
             }
             Spacer(Modifier.height(HqSpacing.xl))
-            Text("Your listing is live!", style = HqType.headlineMedium, color = c.textPrimary)
+            Text(if (publishedAsRequest) "Sent for approval" else "Your listing is live!", style = HqType.headlineMedium, color = c.textPrimary)
             Text(
-                "People looking for a flatmate can now discover your home and send a request.",
+                if (publishedAsRequest) "Your flat admin will review it. It goes live on Discover as soon as they approve."
+                else "People looking for a flatmate can now discover your home and send a request.",
                 style = HqType.bodyLarge,
                 color = c.textSecondary,
                 textAlign = TextAlign.Center,

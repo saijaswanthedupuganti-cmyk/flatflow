@@ -77,6 +77,7 @@ fun FigmaHomeScreen(
     onAddExpense: () -> Unit = {},
     onAddBill: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
+    onReviewVacancies: () -> Unit = {},
 ) {
     val flatStatus by homeViewModel.flatStatus.collectAsStateWithLifecycleCompat()
     val dashboardStatus by dashboardViewModel.status.collectAsStateWithLifecycleCompat()
@@ -108,6 +109,7 @@ fun FigmaHomeScreen(
                     onAddExpense = onAddExpense,
                     onAddBill = onAddBill,
                     onOpenProfile = onOpenProfile,
+                    onReviewVacancies = onReviewVacancies,
                 )
                 is HomeDashboardStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
             }
@@ -133,12 +135,14 @@ private fun HomeDashboard(
     onAddExpense: () -> Unit,
     onAddBill: () -> Unit,
     onOpenProfile: () -> Unit,
+    onReviewVacancies: () -> Unit,
 ) {
     val context = LocalContext.current
     val joinRequests by flatViewModel.joinRequests.collectAsStateWithLifecycleCompat()
     val swapRequests by flatViewModel.swapRequests.collectAsStateWithLifecycleCompat()
     val expenses by flatViewModel.expenses.collectAsStateWithLifecycleCompat()
     val settlements by flatViewModel.settlements.collectAsStateWithLifecycleCompat()
+    val vacancyRequests by flatViewModel.vacancyRequests.collectAsStateWithLifecycleCompat()
     val uid = data.currentUid
 
     var completingTaskId by remember { mutableStateOf<String?>(null) }
@@ -151,12 +155,13 @@ private fun HomeDashboard(
     val seen by prefs.activitySeen(uid).collectAsState(initial = habitiq.app.settings.ActivitySeen(0L, emptySet()))
     val unread = habitiq.app.lib.unreadCount(data.activity, uid, seen)
 
-    val model = remember(data, joinRequests, swapRequests, expenses, settlements, unread) {
+    val model = remember(data, joinRequests, swapRequests, expenses, settlements, unread, vacancyRequests) {
         buildHomeModel(
             data = data,
             pendingJoins = if (data.isAdmin) joinRequests.count { it.status == "pending" } else 0,
             pendingSwapsForMe = swapRequests.count { it.status == "pending" && it.toUserId == uid },
             balances = pairwisePersonalBalances(expenses, settlements, uid),
+            pendingVacancies = if (data.isAdmin) vacancyRequests.size else 0,
         ).copy(unreadCount = unread)
     }
 
@@ -177,6 +182,7 @@ private fun HomeDashboard(
             when (kind) {
                 HomePendingItem.Kind.JoinRequests -> onReviewJoinRequests()
                 HomePendingItem.Kind.SwapRequests -> onReviewSwapRequests()
+                HomePendingItem.Kind.VacancyRequests -> onReviewVacancies()
             }
         },
         onOpenExpenses = onOpenExpenses,
@@ -195,6 +201,7 @@ internal fun buildHomeModel(
     pendingJoins: Int,
     pendingSwapsForMe: Int,
     balances: Map<String, Double>,
+    pendingVacancies: Int = 0,
 ): HomeUiModel {
     val uid = data.currentUid
     val mine = data.activeTasks
@@ -214,6 +221,7 @@ internal fun buildHomeModel(
     val pending = buildList {
         if (pendingJoins > 0) add(HomePendingItem(HomePendingItem.Kind.JoinRequests, "Join requests", "${plural(pendingJoins, "person", "people")} waiting for approval"))
         if (pendingSwapsForMe > 0) add(HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap requests", "${plural(pendingSwapsForMe, "request")} waiting for your answer"))
+        if (pendingVacancies > 0) add(HomePendingItem(HomePendingItem.Kind.VacancyRequests, "Vacancy to review", "${plural(pendingVacancies, "flatmate")} posted a room for Discover"))
     }
 
     val owe = balances.filter { it.value < 0 }

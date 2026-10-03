@@ -6,10 +6,25 @@ service firebase.storage {
       return request.auth != null;
     }
 
+    function isFlatMember(flatId) {
+      return signedIn()
+        && firestore.exists(/databases/(default)/documents/flats/$(flatId)/members/$(request.auth.uid));
+    }
+
     function isFlatAdmin(flatId) {
       return signedIn()
         && firestore.exists(/databases/(default)/documents/flats/$(flatId)/members/$(request.auth.uid))
         && firestore.get(/databases/(default)/documents/flats/$(flatId)/members/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Photos for a member's vacancy request, uploaded before the admin approves it.
+    match /flats/{flatId}/vacancyRequests/{uid}/{photoId} {
+      allow read: if signedIn();
+      allow create, update: if isFlatMember(flatId)
+        && request.auth.uid == uid
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if (signedIn() && request.auth.uid == uid) || isFlatAdmin(flatId);
     }
 
     match /flats/{flatId}/vacancy/{photoId} {

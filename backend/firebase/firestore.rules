@@ -150,6 +150,13 @@ service cloud.firestore {
           isMember(flatId)
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
           && request.resource.data.memberCount == resource.data.get('memberCount', 0) - 1
+        )
+        || (
+          // The member who posted the vacancy may pause / resume / close it — nothing else.
+          isMember(flatId)
+          && resource.data.get('vacancy', {}).get('postedBy', '') == request.auth.uid
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['vacancy'])
+          && request.resource.data.vacancy.diff(resource.data.vacancy).affectedKeys().hasOnly(['active', 'status', 'updatedAt'])
         );
       allow delete: if isAdmin(flatId);
 
@@ -344,6 +351,24 @@ service cloud.firestore {
       // ── Join Requests ────────────────────────────────────────────────────────
       // Used when the flat is in 'approval' mode. Non-members submit requests;
       // the admin approves or rejects them.
+      // ── Vacancy requests ────────────────────────────────────────────────────
+      // A member's vacancy post waits here (doc id = their uid) until the admin approves it
+      // onto the flat document. The member can only ever write a pending request for themselves.
+      match /vacancyRequests/{requesterId} {
+        allow read: if isAdmin(flatId)
+          || (isMember(flatId) && request.auth.uid == requesterId);
+        allow create, update: if isMember(flatId)
+          && request.auth.uid == requesterId
+          && request.resource.data.requestedBy == requesterId
+          && request.resource.data.status == 'pending';
+        // Admin approves / declines.
+        allow update: if isAdmin(flatId)
+          && request.resource.data.status in ['approved', 'declined']
+          && request.resource.data.requestedBy == resource.data.requestedBy;
+        allow delete: if isAdmin(flatId)
+          || (isMember(flatId) && request.auth.uid == requesterId);
+      }
+
       match /joinRequests/{requestId} {
         // Admin reads all pending requests; requester can read their own status
         allow read: if isAdmin(flatId)

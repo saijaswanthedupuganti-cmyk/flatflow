@@ -44,7 +44,7 @@ class ShellScreenshotTest : ScreenshotHarness() {
 
     private fun mic(name: String, dark: Boolean) = shoot(name, dark = dark) {
         val c = LocalHqColors.current
-        Box(Modifier.fillMaxWidth().height(160.dp).padding(top = 24.dp)) {
+        Box(Modifier.fillMaxWidth().height(320.dp).padding(top = 24.dp)) {
             AppShell(
                 selectedTab = AppTab.HOME, onTabSelected = {},
                 createAction = ShellCreate.Menu(listOf(habitiq.app.ui.CreateOption("Add expense") {})), onMic = {},

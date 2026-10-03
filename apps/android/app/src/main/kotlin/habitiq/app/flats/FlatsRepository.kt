@@ -4,6 +4,7 @@ import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.firestore.FieldValue
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.SetOptions
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import java.time.Instant
 
@@ -196,7 +197,15 @@ class FlatsRepository(
         vacancy: habitiq.app.data.VacancyData,
         discoveryPublic: habitiq.app.discover.FlatHealthSnapshot? = null
     ): Result<Unit> = runCatching {
-        val map = mapOf(
+        val updates = hashMapOf<String, Any?>("vacancy" to vacancyMap(vacancy))
+        if (discoveryPublic != null) {
+            updates["discoveryPublic"] = discoveryPublic.toFirestoreMap()
+        }
+        firestore.collection("flats").document(flatId).update(updates).await()
+    }
+
+    /** Firestore shape of a vacancy, shared by live listings and approval requests. */
+    fun vacancyMap(vacancy: habitiq.app.data.VacancyData): Map<String, Any?> = mapOf(
             "active" to vacancy.active,
             "city" to vacancy.city,
             "area" to vacancy.area,
@@ -220,13 +229,80 @@ class FlatsRepository(
             "approximateLocationOnly" to vacancy.approximateLocationOnly,
             "photoUrls" to vacancy.photoUrls,
             "status" to (vacancy.postStatus ?: if (vacancy.active) "PUBLISHED" else "PAUSED"),
+            "postedBy" to vacancy.postedBy,
             "updatedAt" to Instant.now().toString()
         )
-        val updates = hashMapOf<String, Any?>("vacancy" to map)
-        if (discoveryPublic != null) {
-            updates["discoveryPublic"] = discoveryPublic.toFirestoreMap()
+
+    /** Only active/status change, so a member who posted the vacancy may do it too (see firestore.rules). */
+    suspend fun setVacancyActive(flatId: String, active: Boolean, status: String): Result<Unit> = runCatching {
+        firestore.collection("flats").document(flatId).update(
+            mapOf("vacancy.active" to active, "vacancy.status" to status, "vacancy.updatedAt" to Instant.now().toString())
+        ).await()
+    }
+
+    private fun requests(flatId: String) = firestore.collection("flats").document(flatId).collection("vacancyRequests")
+
+    /** A member's vacancy goes here first; the admin approves it onto the flat. One request per member. */
+    suspend fun submitVacancyRequest(flatId: String, uid: String, name: String, vacancy: habitiq.app.data.VacancyData): Result<Unit> = runCatching {
+        requests(flatId).document(uid).set(
+            mapOf(
+                "vacancy" to vacancyMap(vacancy.copy(active = false, postedBy = uid, postStatus = "PENDING")),
+                "requestedBy" to uid,
+                "requesterName" to name,
+                "status" to "pending",
+                "createdAt" to Instant.now().toString(),
+            )
+        ).await()
+    }
+
+    /** Admin: everything waiting for review. Members can't list requests, so they get an empty list. */
+    fun observePendingVacancyRequests(flatId: String): kotlinx.coroutines.flow.Flow<List<habitiq.app.data.VacancyRequest>> =
+        kotlinx.coroutines.flow.callbackFlow {
+            val reg = requests(flatId).whereEqualTo("status", "pending").addSnapshotListener { snap, err ->
+                if (err != null) { trySend(emptyList()); return@addSnapshotListener }
+                trySend(snap?.documents.orEmpty().mapNotNull { parseRequest(it.id, it.data) })
+            }
+            awaitClose { reg.remove() }
         }
-        firestore.collection("flats").document(flatId).update(updates).await()
+
+    /** The person's own request, if any (any status). */
+    fun observeMyVacancyRequest(flatId: String, uid: String): kotlinx.coroutines.flow.Flow<habitiq.app.data.VacancyRequest?> =
+        kotlinx.coroutines.flow.callbackFlow {
+            val reg = requests(flatId).document(uid).addSnapshotListener { snap, err ->
+                if (err != null) { trySend(null); return@addSnapshotListener }
+                trySend(snap?.takeIf { it.exists() }?.let { parseRequest(it.id, it.data) })
+            }
+            awaitClose { reg.remove() }
+        }
+
+    /** Admin approves: the request becomes the flat's live listing, credited to the member. */
+    suspend fun approveVacancyRequest(
+        flatId: String, request: habitiq.app.data.VacancyRequest,
+        discoveryPublic: habitiq.app.discover.FlatHealthSnapshot?,
+    ): Result<Unit> = runCatching {
+        val live = request.vacancy.copy(active = true, postStatus = "PUBLISHED", postedBy = request.requesterUid)
+        val updates = hashMapOf<String, Any?>("vacancy" to vacancyMap(live))
+        if (discoveryPublic != null) updates["discoveryPublic"] = discoveryPublic.toFirestoreMap()
+        val batch = firestore.batch()
+        batch.update(firestore.collection("flats").document(flatId), updates)
+        batch.update(requests(flatId).document(request.requesterUid), mapOf("status" to "approved", "reviewedAt" to Instant.now().toString()))
+        batch.commit().await()
+    }
+
+    suspend fun declineVacancyRequest(flatId: String, requesterUid: String): Result<Unit> = runCatching {
+        requests(flatId).document(requesterUid).update(mapOf("status" to "declined", "reviewedAt" to Instant.now().toString())).await()
+    }
+
+    private fun parseRequest(id: String, data: Map<String, Any?>?): habitiq.app.data.VacancyRequest? {
+        val d = data ?: return null
+        val vacancy = d["vacancy"]?.let { parseVacancy(it) } ?: return null
+        return habitiq.app.data.VacancyRequest(
+            requesterUid = d["requestedBy"]?.toString() ?: id,
+            requesterName = d["requesterName"]?.toString().orEmpty().ifBlank { "A flatmate" },
+            vacancy = vacancy,
+            status = d["status"]?.toString() ?: "pending",
+            createdAt = d["createdAt"]?.toString().orEmpty(),
+        )
     }
 
     private fun parseVacancy(raw: Any): habitiq.app.data.VacancyData? {
@@ -273,7 +349,8 @@ class FlatsRepository(
             photoUrls = stringList("photoUrls"),
             existingMembersGender = v["existingMembersGender"]?.toString(),
             updatedAt = v["updatedAt"]?.toString().orEmpty(),
-            postStatus = v["status"]?.toString()
+            postStatus = v["status"]?.toString(),
+            postedBy = v["postedBy"]?.toString()
         )
     }
 }

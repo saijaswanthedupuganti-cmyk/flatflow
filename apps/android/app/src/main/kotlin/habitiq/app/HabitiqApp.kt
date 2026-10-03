@@ -359,6 +359,7 @@ fun HabitiqApp() {
                         var tasksOverlay by rememberSaveable { mutableStateOf<String?>(null) }
                         var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
                         var showSwapReview by remember { mutableStateOf(false) }
+                        var showVacancyReview by remember { mutableStateOf(false) }
                         var discoverOpenCreate by remember { mutableStateOf(false) }
                         var discoverCreateType by remember { mutableStateOf<String?>(null) }
                         var discoverOpenPosts by remember { mutableStateOf(false) }
@@ -604,7 +605,8 @@ fun HabitiqApp() {
                                                 flatViewModel.showAddExpenseTrigger.value = true
                                             })
                                             if (inFlat && shellIsAdmin) add(CreateOption("Add monthly bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
-                                            if (inFlat && shellIsAdmin) add(CreateOption("Post a vacancy") {
+                                            // Any member can post a vacancy; a member's post waits for admin approval.
+                                            if (inFlat) add(CreateOption("Post a vacancy") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "VACANCY"; discoverOpenCreate = true
                                             })
@@ -690,6 +692,7 @@ fun HabitiqApp() {
                                                     },
                                                     onAddBill = { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true },
                                                     onOpenProfile = { selectedTab = AppTab.PROFILE },
+                                                    onReviewVacancies = { showVacancyReview = true },
                                                 )
                                                 AppTab.DISCOVER -> DiscoverBoardScreen(
                                                     flatViewModel,
@@ -756,6 +759,15 @@ fun HabitiqApp() {
                             onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) }
                         )
 
+                        if (showVacancyReview) {
+                            val pendingVacancies by flatViewModel.vacancyRequests.collectAsStateWithLifecycleCompat()
+                            habitiq.app.ui.discover.VacancyReviewSheet(
+                                requests = pendingVacancies,
+                                onApprove = { flatViewModel.approveVacancyRequest(it) },
+                                onDecline = { flatViewModel.declineVacancyRequest(it) },
+                                onDismiss = { showVacancyReview = false },
+                            )
+                        }
                         if (showSwapReview) {
                             SwapReviewSheet(
                                 swaps = flatViewModelSwaps,

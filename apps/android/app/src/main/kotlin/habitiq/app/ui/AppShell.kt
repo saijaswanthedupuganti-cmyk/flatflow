@@ -142,6 +142,19 @@ fun AppShell(
             if (createAction is ShellCreate.Menu) {
                 QuickAddOverlay(open = menuOpen, options = createAction.options) { menuOpen = false }
             }
+            // With the mic in the centre, Quick add lives in a floating + that is always in the same place.
+            if (onMic != null && createAction !is ShellCreate.None) {
+                QuickAddFab(
+                    open = menuOpen,
+                    modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 14.dp),
+                ) {
+                    when (createAction) {
+                        is ShellCreate.Menu -> menuOpen = !menuOpen
+                        is ShellCreate.Direct -> createAction.onClick()
+                        ShellCreate.None -> Unit
+                    }
+                }
+            }
         }
         val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
         if (!keyboardOpen) {
@@ -200,11 +213,7 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
                         menuOpen = menuOpen,
                         onPositioned = onMicPositioned,
                         onTap = { if (menuOpen) onOpenMenu() else onMic() },
-                        onLongPress = when (create) {
-                            ShellCreate.None -> null
-                            is ShellCreate.Direct -> create.onClick
-                            is ShellCreate.Menu -> onOpenMenu
-                        },
+                        onLongPress = null,
                     )
                     create is ShellCreate.Direct -> CreateButton(create.label, false, create.onClick)
                     create is ShellCreate.Menu -> CreateButton(if (menuOpen) "Close quick add" else "Quick add", menuOpen, onOpenMenu)
@@ -304,6 +313,36 @@ private fun MicButton(menuOpen: Boolean, onPositioned: (androidx.compose.ui.geom
     }
 }
 
+/** Always-visible Quick add: a round teal + above the nav's right side; turns into × while open. */
+@Composable
+private fun QuickAddFab(open: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    val c = LocalHqColors.current
+    val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
+    val rotation by animateFloatAsState(
+        if (open) 135f else 0f,
+        if (reduceMotion) snap() else spring(dampingRatio = 0.55f, stiffness = 420f),
+        label = "fabRotation",
+    )
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = 900f), label = "fabPress")
+    val fill by animateColorAsState(if (open) c.textPrimary else c.actionPrimaryBg, tween(220), label = "fabFill")
+    val glyph by animateColorAsState(if (open) c.canvas else c.actionPrimaryFg, tween(220), label = "fabGlyph")
+    Box(
+        modifier
+            .graphicsLayer { scaleX = press; scaleY = press }
+            .shadow(12.dp, CircleShape, ambientColor = c.brandTeal.copy(alpha = .4f), spotColor = c.brandTeal.copy(alpha = .4f))
+            .size(56.dp)
+            .clip(CircleShape)
+            .background(fill)
+            .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = if (open) "Close quick add" else "Quick add" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(HqIcons.Plus, null, tint = glyph, modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = rotation })
+    }
+}
+
 /**
  * Speed-dial Quick add. The content dims (the nav bar stays crisp), the + turns into a ×, and the
  * actions rise from the button as floating cards, nearest first, with a soft overshoot. Tap ×, the
@@ -329,7 +368,7 @@ private fun QuickAddOverlay(open: Boolean, options: List<CreateOption>, onClose:
         )
         Column(
             Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .padding(start = 20.dp, end = 20.dp, bottom = 14.dp),
+                .padding(start = 20.dp, end = 20.dp, bottom = 84.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(

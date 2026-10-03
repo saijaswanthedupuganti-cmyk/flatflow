@@ -98,7 +98,7 @@ data class HomeTaskItem(
 )
 
 data class HomePendingItem(val kind: Kind, val title: String, val body: String) {
-    enum class Kind { JoinRequests, SwapRequests }
+    enum class Kind { JoinRequests, SwapRequests, VacancyRequests }
 }
 
 data class HomeActivityItem(val text: String, val time: String)

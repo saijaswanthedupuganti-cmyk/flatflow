@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.CurrencyRupee
 import androidx.compose.material.icons.rounded.CalendarMonth
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Group
 import androidx.compose.material.icons.rounded.Keyboard
 import androidx.compose.material.icons.rounded.Mic
@@ -124,6 +125,8 @@ fun VoiceOverlay(
     onChoose: (ClarifyOption) -> Unit, onOpen: (AgentLink) -> Unit, onUseText: () -> Unit, onUseVoice: () -> Unit,
     onAllowMic: () -> Unit,
     animate: Boolean = !hqReduceMotion(),
+    onConfirm: () -> Unit = {},
+    onCancelPreview: () -> Unit = {},
 ) {
     BackHandler(onBack = onClose)
     val enter = remember { Animatable(if (animate) 0f else 1f) }
@@ -134,9 +137,10 @@ fun VoiceOverlay(
         is AgentUiState.Listening -> OrbMood.Listening
         is AgentUiState.Idle -> if (mode == AgentInputMode.Voice) OrbMood.Listening else OrbMood.Done
         is AgentUiState.Checking -> OrbMood.Thinking
+        is AgentUiState.Preview -> if (state.awaitingVoice) OrbMood.Listening else if (state.saving) OrbMood.Thinking else OrbMood.Done
         else -> OrbMood.Done
     }
-    val hasResult = state is AgentUiState.Answer || state is AgentUiState.Preview || state is AgentUiState.Clarify
+    val hasResult = state is AgentUiState.Answer || state is AgentUiState.Preview || state is AgentUiState.Clarify || state is AgentUiState.Done
     val orbSize by animateDpAsState(if (hasResult) 84.dp else if (mood == OrbMood.Thinking) 112.dp else 132.dp, tween(450, easing = FastOutSlowInEasing), label = "orbSize")
     val stageHeight by animateDpAsState(if (hasResult) 150.dp else 236.dp, tween(450, easing = FastOutSlowInEasing), label = "stage")
 
@@ -182,7 +186,7 @@ fun VoiceOverlay(
                     }
                 }
 
-                BottomControls(state, mode, onClose, onTalk, onStop, onSubmit, onUseText, onUseVoice)
+                BottomControls(state, mode, onClose, onTalk, onStop, onSubmit, onUseText, onUseVoice, onConfirm, onCancelPreview)
                 // Leaves the frosted nav bar showing underneath, as in the reference.
                 Spacer(Modifier.height(if (mode == AgentInputMode.Text) 16.dp else 108.dp))
             }
@@ -259,11 +263,28 @@ private fun StateContent(
                 when (val card = s.card) {
                     is AgentCard.Expense -> ExpenseCard(card, animate)
                     is AgentCard.Payment -> PaymentCard(card, animate)
+                    is AgentCard.Simple -> SimpleActionCard(card, animate)
                 }
-                Spacer(Modifier.height(10.dp))
-                Text("Saving from here arrives in the next update.", style = HqType.bodySmall, color = TextSoft, textAlign = TextAlign.Center)
                 Spacer(Modifier.height(14.dp))
-                GlassPill(AgentLink.EXPENSES.label, null) { onOpen(AgentLink.EXPENSES) }
+                Text(
+                    when {
+                        s.saving -> "Saving…"
+                        s.awaitingVoice -> "Say “yes” to save, or “no” to cancel."
+                        else -> "Tap Save to keep it."
+                    },
+                    style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium), color = TextSoft, textAlign = TextAlign.Center,
+                )
+            }
+            is AgentUiState.Done -> {
+                Quote(s.transcript)
+                Spacer(Modifier.height(18.dp))
+                Box(
+                    Modifier.size(64.dp).clip(CircleShape)
+                        .background(Brush.verticalGradient(listOf(Color(0xFF3CC3AA), Color(0xFF14937F)))),
+                    contentAlignment = Alignment.Center,
+                ) { Icon(Icons.Rounded.Check, null, tint = White, modifier = Modifier.size(34.dp)) }
+                Spacer(Modifier.height(14.dp))
+                Title(s.message)
             }
             is AgentUiState.Clarify -> {
                 Quote(s.transcript)
@@ -378,7 +399,15 @@ private fun BottomControls(
     state: AgentUiState, mode: AgentInputMode,
     onClose: () -> Unit, onTalk: () -> Unit, onStop: () -> Unit, onSubmit: (String) -> Unit,
     onUseText: () -> Unit, onUseVoice: () -> Unit,
+    onConfirm: () -> Unit, onCancelPreview: () -> Unit,
 ) {
+    if (state is AgentUiState.Preview) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            GlassPill("Cancel", Icons.Rounded.Close, onClick = onCancelPreview)
+            GlassPill(if (state.saving) "Saving…" else "Save", Icons.Rounded.Check, primary = true, onClick = { if (!state.saving) onConfirm() })
+        }
+        return
+    }
     if (mode == AgentInputMode.Text) {
         var text by rememberSaveable { mutableStateOf("") }
         val shape = RoundedCornerShape(28.dp)

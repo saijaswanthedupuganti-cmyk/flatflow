@@ -20,12 +20,23 @@ object LocalIntentParser {
         if (text.isBlank()) return ParseResult.NeedsModel
         val amounts = findAmounts(text)
 
+        if (amounts.isEmpty()) {
+            CommandRules.help(text)?.let { return ParseResult.Confident(it) }
+            CommandRules.flatSetup(text)?.let { return ParseResult.Confident(it) }
+        }
         if (amounts.isEmpty()) question(text, today)?.let { return answer(it) }
         findFlats(text, amounts)?.let { return answer(it) }
 
         val tokens = Regex("""\S+""").findAll(text).toList()
         // "I will pay…", "Should I buy…": a question or intention in either of the first two words.
+        if (amounts.isEmpty()) CommandRules.navigate(text)?.let { return ParseResult.Confident(it) }
         if (tokens.take(2).any { it.value in QUESTION_START } || raw.trim().endsWith("?")) return ParseResult.NeedsModel
+        if (amounts.isEmpty()) {
+            CommandRules.away(text, state)?.let { return ParseResult.Confident(it) }
+            CommandRules.createTask(text, state)?.let { return ParseResult.Confident(it) }
+            CommandRules.completeTask(text, state)?.let { return ParseResult.Confident(it) }
+            CommandRules.expensePrompt(text)?.let { return ParseResult.Confident(it) }
+        }
         if (amounts.size != 1) return ParseResult.NeedsModel
         if (!state.inFlat || state.members.isEmpty()) {
             return ParseResult.Confident(AgentPlan.Unsupported("Join or create a flat first to track money."))

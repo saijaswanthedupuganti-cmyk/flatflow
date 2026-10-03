@@ -103,4 +103,11 @@ fun cardFor(plan: AgentPlan.Actions, state: HouseholdState): AgentCard = when (v
         everyone = step.splitAmongUids.size == state.members.size,
     )
     is AgentStep.Settle -> AgentCard.Payment(state.nameOf(step.fromUid), state.nameOf(step.toUid), step.amountPaise)
+    is AgentStep.CompleteTask -> AgentCard.Simple(AgentCard.Simple.Kind.TaskDone, step.taskName, "Mark as done")
+    is AgentStep.CreateTask -> AgentCard.Simple(
+        AgentCard.Simple.Kind.NewTask, step.name,
+        "New ${step.frequency} task, rotates between everyone",
+    )
+    is AgentStep.SetAway -> if (step.away) AgentCard.Simple(AgentCard.Simple.Kind.Away, "Going away", "Flatmates will see you're away")
+        else AgentCard.Simple(AgentCard.Simple.Kind.Back, "Back in the flat", "You'll be marked as available")
 }

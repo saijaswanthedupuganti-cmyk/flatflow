@@ -8,6 +8,10 @@ sealed interface AgentPlan {
     data class Answer(val query: AgentQuery) : AgentPlan
     data class Clarify(val question: String, val options: List<ClarifyOption>) : AgentPlan
     data class Unsupported(val reason: String) : AgentPlan
+    /** Take the person somewhere in the app ("join a flat", "open expenses"); [say] is the spoken reply. */
+    data class Navigate(val link: AgentLink, val say: String) : AgentPlan
+    /** A spoken/written reply with nothing to save (help, a prompt for missing details, a model answer). */
+    data class Reply(val answer: AgentAnswer) : AgentPlan
 }
 
 /** Choosing an option re-enters the flow with [plan], with no extra parsing. */
@@ -23,6 +27,10 @@ sealed interface AgentStep {
     ) : AgentStep
 
     data class Settle(val fromUid: String, val toUid: String, val amountPaise: Long) : AgentStep
+    data class CompleteTask(val taskId: String, val taskName: String) : AgentStep
+    data class CreateTask(val name: String, val frequency: String) : AgentStep        // admin only
+    /** Out of station (true) or back (false); flatmates see the status. */
+    data class SetAway(val away: Boolean) : AgentStep
 }
 
 sealed interface AgentQuery {
@@ -46,6 +54,11 @@ enum class AgentLink(val label: String) {
     BILLS("Open bills"),
     DISCOVER("Open Discover"),
     EXPENSES("Open Expenses"),
+    JOIN_FLAT("Join a flat"),
+    CREATE_FLAT("Create a flat"),
+    MEMBERS("Open members"),
+    PROFILE("Open profile"),
+    HOME("Go home"),
 }
 
 data class AnswerLine(val label: String, val value: String)
@@ -64,4 +77,8 @@ sealed interface AgentCard {
     ) : AgentCard
 
     data class Payment(val from: String, val to: String, val amountPaise: Long) : AgentCard
+    /** Task done / new task / away status. [kind] picks the icon. */
+    data class Simple(val kind: Kind, val title: String, val subtitle: String) : AgentCard {
+        enum class Kind { TaskDone, NewTask, Away, Back }
+    }
 }

@@ -187,3 +187,25 @@ fun AnswerCard(headline: String, lines: List<AnswerLine>) {
         }
     }
 }
+
+/** Card for task and status actions: an icon tile, a title and one line of detail. */
+@Composable
+fun SimpleActionCard(card: AgentCard.Simple, animate: Boolean) {
+    val c = LocalHqColors.current
+    val (icon, tone) = when (card.kind) {
+        AgentCard.Simple.Kind.TaskDone -> HqIcons.Check to HqTileTone.Teal
+        AgentCard.Simple.Kind.NewTask -> HqIcons.Plus to HqTileTone.Teal
+        AgentCard.Simple.Kind.Away -> HqIcons.Clock to HqTileTone.Sand
+        AgentCard.Simple.Kind.Back -> HqIcons.Home to HqTileTone.Teal
+    }
+    CardFrame(rememberEntrance(animate)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            HqIconTile(icon, tone, size = 48)
+            Spacer(Modifier.width(14.dp))
+            Column {
+                Text(card.title, style = HqType.titleSmall2, color = c.textPrimary)
+                Text(card.subtitle, style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(top = 2.dp))
+            }
+        }
+    }
+}

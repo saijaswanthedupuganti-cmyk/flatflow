@@ -390,6 +390,39 @@ fun HabitiqApp() {
                             manageAreaName = ManageFlatArea.EXPENSES.name
                             flatViewModel.expenseScopeMonthly.value = true
                         }
+                        val appContext = androidx.compose.ui.platform.LocalContext.current.applicationContext
+                        val agentViewModel: habitiq.app.agent.AgentViewModel = androidx.lifecycle.viewmodel.compose.viewModel {
+                            habitiq.app.agent.AgentViewModel(
+                                household = {
+                                    habitiq.app.agent.householdStateOf(
+                                        myUid = flatViewModel.currentUser.value?.uid.orEmpty(),
+                                        flat = flatViewModel.flatInfo.value,
+                                        members = flatViewModel.members.value,
+                                        tasks = flatViewModel.tasks.value,
+                                        netBalances = flatViewModel.computeNetBalances(),
+                                        billInstances = flatViewModel.billInstances.value,
+                                        vacancies = flatViewModel.vacancies.value,
+                                        month = habitiq.app.lib.currentMonthKey(),
+                                    )
+                                },
+                                speech = habitiq.app.agent.AndroidVoiceInput(appContext),
+                            )
+                        }
+                        val agentState by agentViewModel.state.collectAsStateWithLifecycleCompat()
+                        val agentMode by agentViewModel.mode.collectAsStateWithLifecycleCompat()
+                        val agentLevel by agentViewModel.level.collectAsStateWithLifecycleCompat()
+                        var agentOpen by rememberSaveable { mutableStateOf(false) }
+                        val micPermission = androidx.activity.compose.rememberLauncherForActivityResult(
+                            androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
+                        ) { granted ->
+                            if (granted) agentViewModel.startListening()
+                            else agentViewModel.useTextMode("Mic access is off. You can type instead.")
+                        }
+                        fun talk() {
+                            val granted = androidx.core.content.ContextCompat.checkSelfPermission(appContext, android.Manifest.permission.RECORD_AUDIO) ==
+                                android.content.pm.PackageManager.PERMISSION_GRANTED
+                            if (granted) agentViewModel.startListening() else micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+                        }
                         LaunchedEffect(triggerBills) {
                             if (triggerBills) {
                                 adminHomeMode = AdminHomeMode.EXPENSES
@@ -547,6 +580,11 @@ fun HabitiqApp() {
                                         AppShell(
                                             selectedTab = selectedTab,
                                             createAction = createAction,
+                                            onMic = {
+                                                agentOpen = true
+                                                flatViewModel.ensureDiscovery() // flat-search answers need vacancies loaded
+                                                if (agentMode == habitiq.app.agent.AgentInputMode.Voice) talk()
+                                            },
                                             onTabSelected = {
                                                 if (it != selectedTab) moneyOverlay = null
                                                 selectedTab = it
@@ -635,6 +673,41 @@ fun HabitiqApp() {
                                                     onSignOut = { signOut() }
                                                 )
                                             }
+                                        }
+                                        if (agentOpen) {
+                                            habitiq.app.ui.agent.AgentSheet(
+                                                state = agentState,
+                                                mode = agentMode,
+                                                level = agentLevel,
+                                                onDismiss = { agentViewModel.reset(); agentOpen = false },
+                                                onTalk = { talk() },
+                                                onStop = { agentViewModel.stopListening() },
+                                                onSubmit = { agentViewModel.submitText(it) },
+                                                onChoose = { agentViewModel.choose(it) },
+                                                onUseText = { agentViewModel.useTextMode() },
+                                                onUseVoice = { agentViewModel.useVoiceMode(); talk() },
+                                                onAllowMic = { micPermission.launch(android.Manifest.permission.RECORD_AUDIO) },
+                                                onOpen = { link ->
+                                                    agentViewModel.reset(); agentOpen = false
+                                                    when (link) {
+                                                        habitiq.app.agent.AgentLink.BALANCES -> {
+                                                            selectedTab = AppTab.TASKS
+                                                            manageAreaName = ManageFlatArea.EXPENSES.name
+                                                            flatViewModel.showBalancesTrigger.value = true
+                                                        }
+                                                        habitiq.app.agent.AgentLink.EXPENSES -> {
+                                                            selectedTab = AppTab.TASKS
+                                                            manageAreaName = ManageFlatArea.EXPENSES.name
+                                                        }
+                                                        habitiq.app.agent.AgentLink.TASKS -> {
+                                                            selectedTab = AppTab.TASKS
+                                                            manageAreaName = ManageFlatArea.TASKS.name
+                                                        }
+                                                        habitiq.app.agent.AgentLink.BILLS -> openMonthlyBills()
+                                                        habitiq.app.agent.AgentLink.DISCOVER -> selectedTab = AppTab.DISCOVER
+                                                    }
+                                                },
+                                            )
                                         }
                                     }
                                 }

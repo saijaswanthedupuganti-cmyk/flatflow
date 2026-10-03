@@ -1,7 +1,7 @@
 # Oddroof Agent — Design Spec
 
 - **Date:** 2026-10-03
-- **Status:** Approved in conversation (sections 1–3); awaiting written-spec review
+- **Status:** Approved; M1 implemented on branch `feat/agent-m1` (2026-10-03)
 - **Scope:** Sub-projects 1 + 2 of the agent initiative (agent core + agent UI, with glass on agent surfaces only)
 - **Platform:** Android native app, `apps/android` (package `habitiq.app`), Firebase project `garbage-f79f7`
 
@@ -201,6 +201,8 @@ Android `TextToSpeech`, `en-IN`. Speaks the one-line Done/Answer summary **only 
 
 ### 3.4 Glass (agent surfaces only)
 
+> Deferred to sub-project 3 (decision 2026-10-03). M1 uses a plain mic button and the standard sheet; the agent sheet gets its life from the listening aura, live transcript and result cards instead.
+
 - Library: Haze (`dev.chrisbanes.haze`) for real backdrop blur on API 31+; fallback on < 31 is a translucent surface tint (`surfaceBase` at ~88% alpha) with a hairline border.
 - Applied to: agent sheet, bottom navigation bar, top app bar.
 - Orb: teal→coral radial glow from existing brand tokens (`brandTeal`, `brandCoral`); morphs between states via shape/scale/alpha only (transform + opacity).
@@ -263,7 +265,7 @@ Everything the agent records lands in data the whole flat can see, so misuse aff
 
 Each milestone ends with a building APK and green unit tests.
 
-1. **Agent shell:** orb in nav (tap/long-press), glass agent sheet, glass nav/top bar, `VoiceInput`, text mode, `LocalIntentParser` for money + questions, `QueryResolver`, Answer cards. Zero AI cost.
+1. **Agent shell:** plain mic button in the nav centre (tap = agent, long-press = Quick add), agent in a regular `HqBottomSheet` with a voice-reactive listening aura, live transcript, and result cards (expense receipt card, payment card, answer card), `VoiceInput`, text mode, `LocalIntentParser` for money + questions (incl. lazy "I just spent 500"), `ContentGuard`, `QueryResolver`, read-only previews for money commands. Zero AI cost. *(Changed 2026-10-03: no glass and no orb in M1 — Sai wants the app to stay a regular app; the agent sheet is where it feels alive. All glass moves to sub-project 3.)*
 2. **Plans & actions:** Plan cards with editing, Approve → `PlanExecutor`, Done/haptics/TTS, task + going-away parsing, Clarify flow.
 3. **Gemini:** `HouseholdSnapshot`, `GeminiPlanner` with schema, App Check, `AgentUsageGuard`, Remote Config model key, `FindFlats` via model.
 4. **Compliance & polish:** Privacy Policy section (web `apps/web/app/privacy`), Terms "Acceptable use" + "AI assistant" clauses (§4.1), misuse corpus + red-team pass, data-safety notes, Settings toggle, accessibility pass.

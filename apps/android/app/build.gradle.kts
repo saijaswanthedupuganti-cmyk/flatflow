@@ -28,8 +28,9 @@ android {
         applicationId = "habitiq.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 3
-        versionName = "0.4.0-native"
+        // Bump both on every APK handed over for testing: versionName goes 1.1 → 1.2 → 1.3…
+        versionCode = 4
+        versionName = "1.1"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
@@ -80,6 +81,15 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    // APK file carries the version so test builds are easy to tell apart, e.g. Oddroof-v1.1-debug.apk.
+    applicationVariants.all {
+        val variant = this
+        outputs.all {
+            (this as com.android.build.gradle.internal.api.BaseVariantOutputImpl).outputFileName =
+                "Oddroof-v${variant.versionName}-${variant.buildType.name}.apk"
+        }
     }
 
     testOptions {

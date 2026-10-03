@@ -3,9 +3,12 @@
     "rules": "backend/firebase/firestore.rules",
     "indexes": "backend/firebase/firestore.indexes.json"
   },
-  "storage": {
-    "rules": "backend/firebase/storage.rules"
-  },
+  "storage": [
+    {
+      "bucket": "garbage-f79f7.firebasestorage.app",
+      "rules": "backend/firebase/storage.rules"
+    }
+  ],
   "functions": [
     {
       "source": "backend/firebase/functions",

@@ -841,7 +841,12 @@ class FlatViewModel(
                     val ref = FirebaseStorage.getInstance().reference
                         .child("flats/$flat/vacancy/$stableId")
                     uploadedRefs.add(ref)
-                    val task = ref.putFile(uri)
+                    // storage.rules only accepts image/* — some pickers report no type, so set it.
+                    val mime = contentResolver?.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                    val metadata = com.google.firebase.storage.StorageMetadata.Builder()
+                        .setContentType(mime)
+                        .build()
+                    val task = ref.putFile(uri, metadata)
                     task.addOnProgressListener { snapshot ->
                         _discoveryUploadProgress.value = DiscoveryUploadProgress(
                             completedFiles = index,
@@ -871,11 +876,18 @@ class FlatViewModel(
                     onSaved()
                 }
             }.onFailure { ex ->
+                android.util.Log.e("FlatViewModel", "publishVacancy failed", ex)
                 uploadedRefs.forEach { ref ->
                     runCatching { ref.delete().await() }
                 }
                 _discoveryPostError.value = when (ex) {
-                    is com.google.firebase.storage.StorageException -> "Couldn't upload one of the photos. Check your connection and try again."
+                    is com.google.firebase.storage.StorageException -> when (ex.errorCode) {
+                        com.google.firebase.storage.StorageException.ERROR_NOT_AUTHORIZED ->
+                            "Photo upload was blocked. Only the flat admin can add listing photos."
+                        com.google.firebase.storage.StorageException.ERROR_RETRY_LIMIT_EXCEEDED ->
+                            "Couldn't upload one of the photos. Check your connection and try again."
+                        else -> "Couldn't upload one of the photos (code ${ex.errorCode}). Try again."
+                    }
                     else -> "Couldn't publish the vacancy. Your form is still here; try again."
                 }
             }

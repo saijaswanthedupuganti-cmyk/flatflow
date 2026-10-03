@@ -50,5 +50,15 @@ class VoiceOverlayScreenshotTest : ScreenshotHarness() {
         "voice-answer",
         AgentUiState.Answer("What do I owe?", AgentAnswer("You owe ₹350", listOf(AnswerLine("Pay Ravi", "₹350"), AnswerLine("Priya owes you", "₹150")), AgentLink.BALANCES)),
     )
+    @Test fun confirmByVoice() = shot(
+        "voice-confirm",
+        AgentUiState.Preview("I just spent 500 on groceries", "Add ₹500 for Groceries, split 4 ways",
+            AgentCard.Expense("Groceries", 50_000, "lifestyle", "You", listOf("You", "Ravi", "Priya", "Arjun"), everyone = true), awaitingVoice = true),
+    )
+    @Test fun saved() = shot("voice-saved", AgentUiState.Done("I just spent 500 on groceries", "Saved ₹500 for Groceries."))
+    @Test fun taskDone() = shot(
+        "voice-task",
+        AgentUiState.Preview("dishes done", "Mark Wash dishes as done", AgentCard.Simple(AgentCard.Simple.Kind.TaskDone, "Wash dishes", "Mark as done")),
+    )
     @Test fun typing() = shot("voice-typing", AgentUiState.Idle(), AgentInputMode.Text)
 }

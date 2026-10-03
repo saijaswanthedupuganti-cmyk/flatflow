@@ -412,6 +412,8 @@ fun HabitiqApp() {
                                 speech = habitiq.app.agent.AndroidVoiceInput(appContext),
                                 actions = habitiq.app.agent.FlatAgentActions(flatViewModel),
                                 speaker = habitiq.app.agent.AndroidSpeaker(appContext),
+                                // Anything the rules don't understand goes to Gemini via Firebase AI Logic (no key in the app).
+                                planner = habitiq.app.agent.GeminiPlanner(appContext),
                             )
                         }
                         val agentState by agentViewModel.state.collectAsStateWithLifecycleCompat()

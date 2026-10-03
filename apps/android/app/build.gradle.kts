@@ -29,8 +29,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump both on every APK handed over for testing: versionName goes 1.1 → 1.2 → 1.3…
-        versionCode = 8
-        versionName = "1.5"
+        versionCode = 9
+        versionName = "1.6"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
@@ -123,6 +123,7 @@ dependencies {
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.messaging)
     implementation(libs.firebase.storage)
+    implementation(libs.firebase.ai)
     implementation(libs.androidx.credentials)
     implementation(libs.androidx.credentials.play.services.auth)
     implementation(libs.googleid)
@@ -134,6 +135,8 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    // Real org.json for JVM tests (the Android stub returns defaults).
+    testImplementation(libs.org.json)
     // Headless screenshot rendering of Compose screens (test-only; nothing ships in the APK).
     testImplementation(libs.robolectric)
     testImplementation(libs.androidx.ui.test.junit4)

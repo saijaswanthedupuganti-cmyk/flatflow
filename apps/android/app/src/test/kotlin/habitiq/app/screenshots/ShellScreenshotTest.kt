@@ -25,19 +25,35 @@ class ShellScreenshotTest : ScreenshotHarness() {
         val c = LocalHqColors.current
         Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             listOf(
-                "Home" to (AppTab.HOME to ShellCreate.None),
-                "Discover" to (AppTab.DISCOVER to ShellCreate.Direct("Create a Discovery post") {}),
-                "Manage" to (AppTab.TASKS to ShellCreate.Direct("Add task") {}),
-                "Profile" to (AppTab.PROFILE to ShellCreate.None),
-            ).forEach { (label, pair) ->
+                Triple("Home", AppTab.HOME, ShellCreate.None),
+                Triple("Discover", AppTab.DISCOVER, ShellCreate.Direct("Create a Discovery post") {}),
+                Triple("Manage", AppTab.TASKS, ShellCreate.Direct("Add task") {}),
+                Triple("Profile", AppTab.PROFILE, ShellCreate.None),
+                Triple("Home + mic", AppTab.HOME, ShellCreate.Menu(listOf(habitiq.app.ui.CreateOption("Add expense") {}))),
+            ).forEach { (label, tab, create) ->
                 Text(label, style = HqType.labelSmall, color = c.textSecondary, modifier = Modifier.padding(horizontal = 20.dp))
                 Box(Modifier.fillMaxWidth().height(140.dp)) {
-                    AppShell(selectedTab = pair.first, onTabSelected = {}, createAction = pair.second) { Box(Modifier.background(c.canvas)) }
+                    AppShell(
+                        selectedTab = tab, onTabSelected = {}, createAction = create,
+                        onMic = if (label.endsWith("mic")) ({}) else null,
+                    ) { Box(Modifier.background(c.canvas)) }
                 }
             }
         }
     }
 
+    private fun mic(name: String, dark: Boolean) = shoot(name, dark = dark) {
+        val c = LocalHqColors.current
+        Box(Modifier.fillMaxWidth().height(160.dp).padding(top = 24.dp)) {
+            AppShell(
+                selectedTab = AppTab.HOME, onTabSelected = {},
+                createAction = ShellCreate.Menu(listOf(habitiq.app.ui.CreateOption("Add expense") {})), onMic = {},
+            ) { Box(Modifier.background(c.canvas)) }
+        }
+    }
+
+    @Test fun micLight() = mic("shell-mic-light", false)
+    @Test fun micDark() = mic("shell-mic-dark", true)
     @Test fun light() = sheet("shell-light", false)
     @Test fun dark() = sheet("shell-dark", true)
 }

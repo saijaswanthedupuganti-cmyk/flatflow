@@ -19,6 +19,8 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.material.icons.rounded.Mic
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -106,6 +108,7 @@ fun AppShell(
     onTabSelected: (AppTab) -> Unit,
     modifier: Modifier = Modifier,
     createAction: ShellCreate = ShellCreate.None,
+    onMic: (() -> Unit)? = null,
     content: @Composable (AppTab) -> Unit
 ) {
     val c = LocalHqColors.current
@@ -139,6 +142,7 @@ fun AppShell(
                 onTabSelected = { menuOpen = false; onTabSelected(it) },
                 create = createAction,
                 menuOpen = menuOpen,
+                onMic = onMic?.let { mic -> { menuOpen = false; mic() } },
             ) { menuOpen = !menuOpen }
         }
     }
@@ -150,7 +154,7 @@ fun AppShell(
  * create action raised out of the top edge. Destinations and their order are unchanged.
  */
 @Composable
-private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, create: ShellCreate, menuOpen: Boolean, onOpenMenu: () -> Unit) {
+private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, create: ShellCreate, menuOpen: Boolean, onMic: (() -> Unit)?, onOpenMenu: () -> Unit) {
     val c = LocalHqColors.current
     val pill = RoundedCornerShape(HqRadius.navPill)
     Box(Modifier.fillMaxWidth().background(c.canvas)) {
@@ -176,10 +180,19 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
             BottomNavItem(AppTab.TASKS, selectedTab == AppTab.TASKS, Modifier.weight(1f)) { onTabSelected(AppTab.TASKS) }
             // The slot is always reserved so destinations never shift when an action appears or goes.
             Box(Modifier.weight(1f), contentAlignment = Alignment.Center) {
-                when (create) {
-                    ShellCreate.None -> Unit
-                    is ShellCreate.Direct -> CreateButton(create.label, false, create.onClick)
-                    is ShellCreate.Menu -> CreateButton(if (menuOpen) "Close quick add" else "Quick add", menuOpen, onOpenMenu)
+                when {
+                    onMic != null -> MicButton(
+                        menuOpen = menuOpen,
+                        onTap = { if (menuOpen) onOpenMenu() else onMic() },
+                        onLongPress = when (create) {
+                            ShellCreate.None -> null
+                            is ShellCreate.Direct -> create.onClick
+                            is ShellCreate.Menu -> onOpenMenu
+                        },
+                    )
+                    create is ShellCreate.Direct -> CreateButton(create.label, false, create.onClick)
+                    create is ShellCreate.Menu -> CreateButton(if (menuOpen) "Close quick add" else "Quick add", menuOpen, onOpenMenu)
+                    else -> Unit
                 }
             }
             BottomNavItem(AppTab.DISCOVER, selectedTab == AppTab.DISCOVER, Modifier.weight(1f)) { onTabSelected(AppTab.DISCOVER) }
@@ -219,6 +232,53 @@ private fun CreateButton(label: String, open: Boolean, onClick: () -> Unit) {
         contentAlignment = Alignment.Center,
     ) {
         Icon(HqIcons.Plus, null, tint = glyph, modifier = Modifier.size(27.dp).graphicsLayer { rotationZ = rotation })
+    }
+}
+
+/**
+ * The agent entry: the same raised button as Quick add with a mic glyph. Tap talks to Oddroof;
+ * long-press opens Quick add. While Quick add is open the button shows × and a tap closes it.
+ */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
+@Composable
+private fun MicButton(menuOpen: Boolean, onTap: () -> Unit, onLongPress: (() -> Unit)?) {
+    val c = LocalHqColors.current
+    val interaction = remember { androidx.compose.foundation.interaction.MutableInteractionSource() }
+    val pressed by interaction.collectIsPressedAsState()
+    val press by animateFloatAsState(if (pressed) 0.88f else 1f, spring(dampingRatio = 0.5f, stiffness = 900f), label = "micPress")
+    val fill by animateColorAsState(if (menuOpen) c.textPrimary else c.actionPrimaryBg, tween(220), label = "micFill")
+    val glyph by animateColorAsState(if (menuOpen) c.canvas else c.actionPrimaryFg, tween(220), label = "micGlyph")
+    val shape = RoundedCornerShape(17.dp)
+    val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
+    Box(
+        Modifier
+            .offset(y = (-24).dp)
+            .graphicsLayer { scaleX = press; scaleY = press }
+            .shadow(10.dp, shape, ambientColor = c.brandTeal.copy(alpha = .35f), spotColor = c.brandTeal.copy(alpha = .35f))
+            .size(54.dp)
+            .clip(shape)
+            .background(fill)
+            .border(4.dp, c.surfaceBase, shape)
+            .combinedClickable(
+                interactionSource = interaction,
+                indication = null,
+                role = Role.Button,
+                onClickLabel = if (menuOpen) "Close quick add" else "Talk to Oddroof",
+                onLongClickLabel = if (onLongPress != null) "Quick add" else null,
+                onLongClick = onLongPress?.let { action ->
+                    { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); action() }
+                },
+                onClick = onTap,
+            )
+            .semantics { contentDescription = if (menuOpen) "Close quick add" else "Talk to Oddroof" },
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            if (menuOpen) HqIcons.Plus else androidx.compose.material.icons.Icons.Rounded.Mic,
+            contentDescription = null,
+            tint = glyph,
+            modifier = Modifier.size(27.dp).graphicsLayer { rotationZ = if (menuOpen) 45f else 0f },
+        )
     }
 }
 

@@ -661,7 +661,16 @@ fun HabitiqApp() {
                                                     onReviewSwapRequests = { showSwapReview = true },
                                                     onOpenDiscover = { selectedTab = AppTab.DISCOVER },
                                                     onOpenMembers = { profileOverlay = "members" },
-                                                    onOpenActivity = { profileOverlay = "activity" }
+                                                    onOpenActivity = { profileOverlay = "activity" },
+                                                    onAddTask = { tasksOverlay = "create_type" },
+                                                    onAddExpense = {
+                                                        selectedTab = AppTab.TASKS
+                                                        manageAreaName = ManageFlatArea.EXPENSES.name
+                                                        flatViewModel.expenseScopeMonthly.value = false
+                                                        flatViewModel.showAddExpenseTrigger.value = true
+                                                    },
+                                                    onAddBill = { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true },
+                                                    onOpenProfile = { selectedTab = AppTab.PROFILE },
                                                 )
                                                 AppTab.DISCOVER -> DiscoverBoardScreen(
                                                     flatViewModel,

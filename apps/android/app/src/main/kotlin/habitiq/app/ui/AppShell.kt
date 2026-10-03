@@ -412,7 +412,9 @@ private fun quickAddLook(label: String): QuickAddLook = when {
 private fun BottomNavItem(tab: AppTab, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = LocalHqColors.current
     // Selected = brand-dark colour + heavier label + selected semantics (never colour alone).
-    val color by animateColorAsState(if (selected) c.textBrand else c.textMuted, tween(200), label = "navColor")
+    // Selected tab is the voice-button blue in light mode (dashboard reference); dark keeps the brand tint.
+    val selectedInk = if (c.isDark) c.textBrand else Color(0xFF1F63F0)
+    val color by animateColorAsState(if (selected) selectedInk else c.textMuted, tween(200), label = "navColor")
     val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
     val pill by animateFloatAsState(
         if (selected) 1f else 0f,
@@ -440,7 +442,7 @@ private fun BottomNavItem(tab: AppTab, selected: Boolean, modifier: Modifier = M
                 Modifier.size(width = 52.dp, height = 30.dp)
                     .graphicsLayer { scaleX = 0.4f + 0.6f * pill; alpha = pill.coerceIn(0f, 1f) }
                     .clip(RoundedCornerShape(HqRadius.pill))
-                    .background(c.selectedBg),
+                    .background(if (c.isDark) c.selectedBg else Color(0xFFE3ECFF)),
             )
             Icon(
                 tab.icon, contentDescription = null, tint = color,

@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -53,6 +55,10 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInWindow
 import androidx.core.view.WindowCompat
 import habitiq.app.R
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.CreditCard
+import androidx.compose.material.icons.rounded.Description
+import androidx.compose.material.icons.rounded.Group
 import habitiq.app.ui.components.HqAvatar
 import habitiq.app.ui.components.HqAvatarSize
 import habitiq.app.ui.components.HqAvatarTone
@@ -115,15 +121,33 @@ data class HomeUiModel(
     val balanceText: (Double) -> String,
     val activity: List<HomeActivityItem>,
     val unreadCount: Int = 0,
+    /** Member display names, the person first, for the flat card's avatar stack. */
+    val memberNames: List<String> = emptyList(),
+    val isAdmin: Boolean = false,
 )
 
-private val HeroInk = Color(0xFF0C1D1B)
-private val HeroKicker = Color(0xFFB7F0E9)
+/** Palette taken from the Oddroof dashboard reference (light). Dark mode falls back to theme tokens. */
+private object HomeLook {
+    val ink = Color(0xFF0F1F3D)
+    val muted = Color(0xFF5E6B7E)
+    val link = Color(0xFF0E8C7E)
+    val page = Color(0xFFF2F6FA)
+    val emptyBox = Color(0xFFF2F6FC)
+    val dusk = Color(0xFF221B33)
+    val warm = Color(0xFFFF8A3D)
+}
+
+private fun sp(v: Float) = androidx.compose.ui.unit.TextUnit(v, androidx.compose.ui.unit.TextUnitType.Sp)
+
+private data class QuickAction(
+    val title: String, val support: String, val icon: androidx.compose.ui.graphics.vector.ImageVector,
+    val tile: Color, val chip: Color, val glyph: Color, val onClick: () -> Unit,
+)
 
 /**
- * Authenticated Home, following the Figma Make `Home`: a photo hero with the greeting, flat chip and two
- * status cells, then today's tasks, pending activity, recent activity and a Discover teaser. The hero
- * bleeds under the status bar; the screen applies the status-bar inset itself while it is shown.
+ * Authenticated Home, matching the Oddroof dashboard reference: an evening photo hero with the
+ * greeting, a glass "Your flat" card and a glass summary card, then a white Today's tasks panel and
+ * pastel Quick actions. Pending requests, recent activity and Discover follow below.
  */
 @Composable
 fun HomeContent(
@@ -141,10 +165,14 @@ fun HomeContent(
     onOpenMembers: () -> Unit,
     modifier: Modifier = Modifier,
     onOpenNotifications: () -> Unit = onOpenActivity,
+    onAddTask: () -> Unit = onOpenTasks,
+    onAddExpense: () -> Unit = onOpenExpenses,
+    onAddBill: () -> Unit = onOpenExpenses,
+    onOpenProfile: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
+    val page = if (c.isDark) c.canvas else HomeLook.page
     HqHeroBleedEffect()
-    // Once the hero scrolls under the status bar, pin a solid compact bar (logo + notifications).
     val density = androidx.compose.ui.platform.LocalDensity.current
     val pinAtPx = WindowInsets.statusBars.getTop(density) + with(density) { 56.dp.toPx() }
     val heroPinnedState = androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -157,198 +185,213 @@ fun HomeContent(
             }
         },
     )
-    Column(modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+    Column(modifier.fillMaxSize().background(page).verticalScroll(rememberScrollState())) {
         Box(Modifier.onGloballyPositioned { heroPinnedState.value = it.positionInWindow().y + it.size.height < pinAtPx }) {
-            HomeHero(model, onOpenFlatSwitcher, onInvite, onOpenExpenses, onOpenNotifications)
+            HomeHero(model, page, onOpenFlatSwitcher, onOpenExpenses, onOpenNotifications, onOpenMembers, onOpenProfile)
         }
 
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
-        Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(bottom = HqSpacing.screenEnd)) {
-            HqSectionTitle("Today's tasks", action = "See all", onAction = onOpenTasks)
-            if (model.tasks.isEmpty()) {
-                HomeEmptyTasks()
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                model.tasks.forEach { task ->
-                    HqTaskCard(
-                        title = task.name,
-                        canComplete = task.canComplete,
-                        completing = completingTaskId == task.id,
-                        onOpen = { onOpenTask(task.id) },
-                        onComplete = { onCompleteTask(task.id) },
-                        meta = {
-                            Text(
-                                task.dueText,
-                                style = HqType.bodyMedium,
-                                color = if (task.overdue) c.statusWarningFg else c.textSecondary,
-                                fontWeight = if (task.overdue) FontWeight.Bold else FontWeight.Normal,
-                            )
-                        },
-                        trailing = { HqPill("YOU") },
-                    )
-                }
-            }
+            Column(Modifier.padding(horizontal = 8.dp).padding(bottom = HqSpacing.screenEnd)) {
+                TodayPanel(model, completingTaskId, onOpenTasks, onOpenTask, onCompleteTask)
 
-            if (model.pending.isNotEmpty()) {
-                HqSectionTitle("Pending activity")
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    model.pending.forEach { item ->
-                        HqCalloutCard(
-                            title = item.title,
-                            support = item.body,
-                            icon = HqIcons.Users,
-                            tone = HqTileTone.Coral,
-                            onClick = { onReviewPending(item.kind) },
-                        )
+                if (model.pending.isNotEmpty()) {
+                    Column(Modifier.padding(horizontal = 10.dp)) {
+                        HqSectionTitle("Pending activity")
+                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            model.pending.forEach { item ->
+                                HqCalloutCard(
+                                    title = item.title, support = item.body, icon = HqIcons.Users,
+                                    tone = HqTileTone.Coral, onClick = { onReviewPending(item.kind) },
+                                )
+                            }
+                        }
                     }
                 }
-            }
 
-            if (model.activity.isNotEmpty()) {
-                HqSectionTitle("Recent activity", action = "View all", onAction = onOpenActivity)
-                val spine = c.borderSubtle
-                Column(
-                    Modifier.padding(start = 14.dp).drawBehind {
-                        drawLine(spine, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 1.dp.toPx())
-                    },
-                    verticalArrangement = Arrangement.spacedBy(17.dp),
-                ) {
-                    model.activity.forEach { item ->
-                        // The 28dp marker is centred on the spine.
-                        HqTimelineItem(item.text, item.time, Modifier.offset(x = (-14).dp))
+                QuickActions(model, onAddTask, onAddExpense, onAddBill, onInvite)
+
+                Column(Modifier.padding(horizontal = 10.dp)) {
+                    if (model.activity.isNotEmpty()) {
+                        HqSectionTitle("Recent activity", action = "View all", onAction = onOpenActivity)
+                        val spine = c.borderSubtle
+                        Column(
+                            Modifier.padding(start = 14.dp).drawBehind {
+                                drawLine(spine, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 1.dp.toPx())
+                            },
+                            verticalArrangement = Arrangement.spacedBy(17.dp),
+                        ) {
+                            model.activity.forEach { item -> HqTimelineItem(item.text, item.time, Modifier.offset(x = (-14).dp)) }
+                        }
                     }
+                    DiscoverTeaser(onOpenDiscover)
                 }
             }
-
-            Spacer(Modifier.size(HqSpacing.section))
-            HqGroup { HqNavRow(title = "Members", support = "${model.memberCount} ${if (model.memberCount == 1) "member" else "members"}", onClick = onOpenMembers) }
-
-            DiscoverTeaser(onOpenDiscover)
-        }
         }
     }
 }
 
 @Composable
-private fun HomeHero(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onInvite: () -> Unit, onOpenExpenses: () -> Unit, onOpenNotifications: () -> Unit) {
-    val shape = RoundedCornerShape(bottomStart = 30.dp, bottomEnd = 30.dp)
-    Box(
-        Modifier.fillMaxWidth()
-            .shadow(16.dp, shape, ambientColor = HeroInk.copy(alpha = .18f), spotColor = HeroInk.copy(alpha = .18f))
-            .clip(shape).background(HeroInk),
-    ) {
+private fun HomeHero(
+    model: HomeUiModel, page: Color,
+    onOpenFlatSwitcher: () -> Unit, onOpenExpenses: () -> Unit,
+    onOpenNotifications: () -> Unit, onOpenMembers: () -> Unit, onOpenProfile: () -> Unit,
+) {
+    Box(Modifier.fillMaxWidth().background(HomeLook.dusk)) {
         Image(
             painterResource(R.drawable.home_hero),
             contentDescription = null,
             contentScale = ContentScale.Crop,
-            alignment = BiasAlignment(0f, 0.08f),
+            alignment = BiasAlignment(0f, -0.1f),
             modifier = Modifier.matchParentSize(),
         )
+        // Evening grade: dusk at the top for the logo and greeting, warm lamp light through the middle.
+        Box(Modifier.matchParentSize().background(HomeLook.warm.copy(alpha = .22f)))
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
-                    0f to HeroInk.copy(alpha = .68f),
-                    .38f to HeroInk.copy(alpha = .18f),
-                    .75f to HeroInk.copy(alpha = .74f),
-                    1f to HeroInk.copy(alpha = .94f),
+                    0f to HomeLook.dusk.copy(alpha = .80f),
+                    .30f to HomeLook.dusk.copy(alpha = .52f),
+                    .60f to HomeLook.dusk.copy(alpha = .46f),
+                    .88f to HomeLook.dusk.copy(alpha = .30f),
+                    1f to Color.Transparent,
                 ),
             ),
         )
-        Column(Modifier.fillMaxWidth().heightIn(min = 404.dp)) {
-            Column(Modifier.statusBarsPadding().padding(horizontal = HqSpacing.screenHorizontal).padding(top = 12.dp)) {
-                HeroTopBar(model, onInvite, onOpenNotifications)
-                Spacer(Modifier.size(64.dp))
-                Text(
-                    LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.getDefault())).uppercase(),
-                    style = HqType.labelSmall.copy(letterSpacing = androidx.compose.ui.unit.TextUnit(1.5f, androidx.compose.ui.unit.TextUnitType.Sp)),
-                    color = HeroKicker,
-                    fontWeight = FontWeight.ExtraBold,
-                )
-                Text(
-                    "${greeting()}, ${model.greetingName}.",
-                    style = HqType.display.copy(fontSize = androidx.compose.ui.unit.TextUnit(30f, androidx.compose.ui.unit.TextUnitType.Sp)),
-                    color = Color.White,
-                    modifier = Modifier.padding(top = 10.dp),
-                )
-                Text(
-                    "${model.summaryHeadline} A calm look at ${model.flatName} today.",
-                    style = HqType.bodyMedium,
-                    color = Color.White.copy(alpha = .82f),
-                    modifier = Modifier.padding(top = 9.dp),
-                )
-                FlatChip(model.flatName, onOpenFlatSwitcher)
-            }
-            Spacer(Modifier.weight(1f))
-            HeroStatusBand(model, onOpenExpenses)
+        // The photo melts into the page below the summary card.
+        Box(
+            Modifier.align(Alignment.BottomCenter).fillMaxWidth().heightIn(min = 70.dp)
+                .background(Brush.verticalGradient(listOf(Color.Transparent, page.copy(alpha = .85f), page))),
+        )
+        Column(
+            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp).padding(top = 10.dp, bottom = 44.dp),
+        ) {
+            HeroTopBar(model, onOpenNotifications, onOpenMembers, onOpenProfile)
+            Spacer(Modifier.size(42.dp))
+            Text(
+                LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, d MMMM", Locale.ENGLISH)).uppercase(),
+                style = HqType.labelMedium.copy(letterSpacing = sp(3f)),
+                color = Color.White.copy(alpha = .86f),
+                fontWeight = FontWeight.SemiBold,
+                modifier = Modifier.padding(start = 6.dp),
+            )
+            Text(
+                "${greeting()},\n${model.greetingName} 👋",
+                style = HqType.display.copy(fontSize = sp(32f), lineHeight = sp(38f)),
+                color = Color.White,
+                modifier = Modifier.padding(start = 6.dp, top = 10.dp),
+            )
+            Text(
+                "${model.summaryHeadline} A calm look at ${model.flatName} today.",
+                style = HqType.bodyLarge,
+                color = Color.White.copy(alpha = .9f),
+                modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 40.dp),
+            )
+            Spacer(Modifier.size(22.dp))
+            FlatCard(model, onOpenFlatSwitcher, onOpenMembers)
+            Spacer(Modifier.size(8.dp))
+            SummaryCard(model, onOpenExpenses)
         }
     }
 }
 
+private fun Modifier.heroGlass(shape: androidx.compose.ui.graphics.Shape): Modifier = this
+    .clip(shape)
+    // Smoky glass: a warm-dark tint keeps white text readable over bright parts of the photo.
+    .background(Brush.verticalGradient(listOf(Color(0xFF3A2E3E).copy(alpha = .42f), Color(0xFF2A2232).copy(alpha = .36f))))
+    .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .06f))))
+    .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .42f), Color.White.copy(alpha = .12f))), shape)
+
 @Composable
-private fun HeroTopBar(model: HomeUiModel, onInvite: () -> Unit, onOpenNotifications: () -> Unit) {
+private fun GlassIconButton(label: String, onClick: () -> Unit, content: @Composable () -> Unit) {
+    Box(
+        Modifier.size(HqSize.target).heroGlass(CircleShape)
+            .clickable(role = Role.Button, onClickLabel = label, onClick = onClick)
+            .semantics { contentDescription = label },
+        contentAlignment = Alignment.Center,
+    ) { content() }
+}
+
+@Composable
+private fun HeroTopBar(model: HomeUiModel, onOpenNotifications: () -> Unit, onOpenMembers: () -> Unit, onOpenProfile: () -> Unit) {
     Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-            habitiq.app.ui.components.HqWordmark(height = 26.dp, tint = Color.White)
+        habitiq.app.ui.components.HqWordmark(height = 30.dp, tint = Color.White)
+        Spacer(Modifier.weight(1f))
+        GlassIconButton(if (model.unreadCount > 0) "Notifications, ${model.unreadCount} unread" else "Notifications", onOpenNotifications) {
+            Box {
+                Icon(HqIcons.Bell, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                if (model.unreadCount > 0) {
+                    Box(Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp).size(9.dp).clip(CircleShape).background(Color(0xFFFF3B30)))
+                }
+            }
         }
+        Spacer(Modifier.size(10.dp))
+        GlassIconButton("Members", onOpenMembers) { Icon(HqIcons.Users, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
+        Spacer(Modifier.size(10.dp))
         Box(
-            Modifier.size(HqSize.target).clickable(role = Role.Button, onClick = onOpenNotifications)
-                .semantics { contentDescription = if (model.unreadCount > 0) "Notifications, ${model.unreadCount} unread" else "Notifications" },
+            Modifier.size(HqSize.target).clip(CircleShape).background(Color.White.copy(alpha = .92f))
+                .clickable(role = Role.Button, onClickLabel = "Profile", onClick = onOpenProfile),
             contentAlignment = Alignment.Center,
         ) {
-            Box(
-                Modifier.size(39.dp).clip(RoundedCornerShape(12.dp)).background(HeroInk.copy(alpha = .28f))
-                    .border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(12.dp)),
-                contentAlignment = Alignment.Center,
-            ) { Icon(HqIcons.Bell, null, tint = Color.White, modifier = Modifier.size(HqIconSize.sm)) }
-            if (model.unreadCount > 0) {
-                Box(
-                    Modifier.align(Alignment.TopEnd).size(19.dp).clip(CircleShape).background(Color(0xFFFF6B5A)).border(2.dp, Color.White.copy(alpha = .95f), CircleShape),
-                    contentAlignment = Alignment.Center,
-                ) { Text(if (model.unreadCount > 9) "9+" else "${model.unreadCount}", style = HqType.labelSmall, color = Color.White, fontWeight = FontWeight.ExtraBold) }
-            }
+            Text(model.greetingName.take(1).uppercase(), style = HqType.titleSmall2, color = HomeLook.link)
         }
-        if (model.canInvite) {
-            Box(
-                Modifier.size(HqSize.target).clip(RoundedCornerShape(12.dp))
-                    .clickable(role = Role.Button, onClick = onInvite)
-                    .semantics { contentDescription = "Share invite code" },
-                contentAlignment = Alignment.Center,
-            ) {
-                Box(
-                    Modifier.size(39.dp).clip(RoundedCornerShape(12.dp)).background(HeroInk.copy(alpha = .28f))
-                        .border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(12.dp)),
-                    contentAlignment = Alignment.Center,
-                ) { Icon(HqIcons.Users, null, tint = Color.White, modifier = Modifier.size(HqIconSize.sm)) }
-            }
-            Spacer(Modifier.size(4.dp))
-        }
-        HqAvatar(model.greetingName, size = HqAvatarSize.MD, tone = HqAvatarTone.Teal, modifier = Modifier.border(2.dp, Color.White.copy(alpha = .45f), CircleShape))
     }
 }
 
 @Composable
-private fun FlatChip(flatName: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(14.dp)
-    Row(
-        Modifier.padding(top = 17.dp, bottom = 13.dp).fillMaxWidth().clip(shape)
-            .background(HeroInk.copy(alpha = .36f)).border(1.dp, Color.White.copy(alpha = .2f), shape)
-            .clickable(role = Role.Button, onClick = onClick).padding(horizontal = 11.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Box(Modifier.size(31.dp).clip(RoundedCornerShape(9.dp)).background(Color(0x3314B8A6)), contentAlignment = Alignment.Center) {
-            Icon(HqIcons.Home, null, tint = Color(0xFF82DFD5), modifier = Modifier.size(HqIconSize.sm))
+private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenMembers: () -> Unit) {
+    val shape = RoundedCornerShape(22.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = "Switch flat", onClick = onOpenFlatSwitcher)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF2E8C80).copy(alpha = .75f))
+                    .border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(13.dp)),
+                contentAlignment = Alignment.Center,
+            ) { Icon(HqIcons.Home, null, tint = Color(0xFFB8F2EA), modifier = Modifier.size(24.dp)) }
+            Spacer(Modifier.size(14.dp))
+            Column(Modifier.weight(1f)) {
+                Text("YOUR FLAT", style = HqType.labelSmall.copy(letterSpacing = sp(2f)), color = Color.White.copy(alpha = .82f), fontWeight = FontWeight.SemiBold)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(model.flatName, style = HqType.titleSmall2.copy(lineHeight = sp(22f)), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Icon(HqIcons.Chevron, null, tint = Color.White, modifier = Modifier.padding(start = 6.dp).size(18.dp))
+                }
+            }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("YOUR FLAT", style = HqType.labelSmall, color = Color(0xFFB4C7C4), fontWeight = FontWeight.ExtraBold)
-            Text(flatName, style = HqType.rowTitle, color = Color.White, maxLines = 1)
+        Box(Modifier.size(width = 1.dp, height = 44.dp).background(Color.White.copy(alpha = .22f)))
+        Column(
+            Modifier.clickable(role = Role.Button, onClickLabel = "Members", onClick = onOpenMembers).padding(horizontal = 10.dp, vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            val shown = model.memberNames.take(3)
+            val extra = model.memberCount - shown.size
+            Row {
+                shown.forEachIndexed { i, name ->
+                    HqAvatar(
+                        name, size = HqAvatarSize.SM,
+                        tone = listOf(HqAvatarTone.Teal, HqAvatarTone.Sand, HqAvatarTone.Coral)[i % 3],
+                        modifier = Modifier.offset(x = (-8 * i).dp).border(2.dp, Color.White, CircleShape),
+                    )
+                }
+                if (extra > 0) {
+                    Box(
+                        Modifier.offset(x = (-8 * shown.size).dp).size(32.dp).heroGlass(CircleShape),
+                        contentAlignment = Alignment.Center,
+                    ) { Text("+$extra", style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold) }
+                }
+            }
+            Text(
+                "${model.memberCount} ${if (model.memberCount == 1) "member" else "members"}",
+                style = HqType.bodyMedium, color = Color.White.copy(alpha = .9f), modifier = Modifier.padding(top = 4.dp),
+            )
         }
-        Icon(HqIcons.Chevron, null, tint = Color.White, modifier = Modifier.size(HqIconSize.sm))
     }
 }
 
 @Composable
-private fun HeroStatusBand(model: HomeUiModel, onOpenExpenses: () -> Unit) {
+private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
     val b = model.balance
     val moneyTitle = when {
         b.owe > 0 -> "You owe ${model.balanceText(b.owe)}"
@@ -360,50 +403,199 @@ private fun HeroStatusBand(model: HomeUiModel, onOpenExpenses: () -> Unit) {
         b.owed > 0 -> "From ${b.owedCount} ${if (b.owedCount == 1) "person" else "people"}"
         else -> "No dues"
     }
-    Row(
-        Modifier.fillMaxWidth().background(Color(0xFF091917).copy(alpha = .76f)).drawBehind {
-            drawLine(Color.White.copy(alpha = .09f), Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx())
-        },
-    ) {
-        StatusCell(Modifier.weight(1f), "${model.assignedCount}", if (model.assignedCount == 1) "Task for you" else "Tasks for you", if (model.assignedCount == 0) "All caught up" else "Due soon", null)
-        StatusCell(Modifier.weight(1f), "₹", moneyTitle, moneySupport, onOpenExpenses)
+    val shape = RoundedCornerShape(22.dp)
+    Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
+        Row(Modifier.weight(1f).padding(start = 12.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF8FE3D3).copy(alpha = .35f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF3CC3AA)), contentAlignment = Alignment.Center) {
+                    Icon(HqIcons.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+                }
+            }
+            Spacer(Modifier.size(10.dp))
+            Column {
+                Text("${model.assignedCount}", style = HqType.titleSmall2, color = Color.White)
+                Text(if (model.assignedCount == 1) "Task for you" else "Tasks for you", style = HqType.rowTitle.copy(fontSize = sp(15f)), color = Color.White, maxLines = 1, softWrap = false)
+                Text(if (model.assignedCount == 0) "All caught up" else "Due soon", style = HqType.bodySmall, color = Color.White.copy(alpha = .78f), maxLines = 1)
+            }
+        }
+        Box(Modifier.size(width = 1.dp, height = 52.dp).background(Color.White.copy(alpha = .22f)))
+        Row(
+            Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = "Open balances", onClick = onOpenExpenses)
+                .padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(Modifier.size(42.dp).heroGlass(CircleShape), contentAlignment = Alignment.Center) {
+                Text("₹", style = HqType.titleSmall2, color = Color.White)
+            }
+            Spacer(Modifier.size(12.dp))
+            Column {
+                Text(moneyTitle, style = HqType.rowTitle.copy(lineHeight = sp(20f)), color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(moneySupport, style = HqType.bodyMedium, color = Color.White.copy(alpha = .78f), maxLines = 1)
+            }
+        }
     }
 }
 
 @Composable
-private fun StatusCell(modifier: Modifier, number: String, title: String, support: String, onClick: (() -> Unit)?) {
-    Row(
-        modifier.then(if (onClick != null) Modifier.clickable(role = Role.Button, onClick = onClick) else Modifier)
-            .defaultMinSize(minHeight = HqSize.target).padding(start = HqSpacing.screenHorizontal, end = 8.dp, top = 16.dp, bottom = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
+private fun TodayPanel(
+    model: HomeUiModel, completingTaskId: String?,
+    onOpenTasks: () -> Unit, onOpenTask: (String) -> Unit, onCompleteTask: (String) -> Unit,
+) {
+    val c = LocalHqColors.current
+    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
+    val link = if (c.isDark) c.textBrand else HomeLook.link
+    val shape = RoundedCornerShape(26.dp)
+    Column(
+        Modifier.fillMaxWidth()
+            .shadow(12.dp, shape, ambientColor = Color(0xFF1B3A6B).copy(alpha = .08f), spotColor = Color(0xFF1B3A6B).copy(alpha = .08f))
+            .clip(shape).background(c.surfaceRaised).padding(horizontal = 16.dp, vertical = 18.dp),
     ) {
-        Box(Modifier.size(34.dp).clip(CircleShape).background(Color.White.copy(alpha = .14f)), contentAlignment = Alignment.Center) {
-            Text(number, style = HqType.titleSmall2, color = Color.White)
+        Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Today's tasks", style = HqType.titleMedium2.copy(fontSize = sp(22f)), color = ink, modifier = Modifier.weight(1f))
+            Row(
+                Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onOpenTasks).padding(horizontal = 6.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("See all", style = HqType.rowTitle, color = link, fontWeight = FontWeight.SemiBold)
+                Icon(HqIcons.Arrow, null, tint = link, modifier = Modifier.padding(start = 6.dp).size(18.dp))
+            }
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(title, style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(support, style = HqType.labelSmall, color = Color.White.copy(alpha = .72f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        if (model.tasks.isEmpty()) {
+            HomeEmptyTasks()
+        } else {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                model.tasks.forEach { task ->
+                    HqTaskCard(
+                        title = task.name,
+                        canComplete = task.canComplete,
+                        completing = completingTaskId == task.id,
+                        onOpen = { onOpenTask(task.id) },
+                        onComplete = { onCompleteTask(task.id) },
+                        meta = {
+                            Text(
+                                task.dueText, style = HqType.bodyMedium,
+                                color = if (task.overdue) c.statusWarningFg else c.textSecondary,
+                                fontWeight = if (task.overdue) FontWeight.Bold else FontWeight.Normal,
+                            )
+                        },
+                        trailing = { HqPill("YOU") },
+                    )
+                }
+            }
         }
     }
 }
 
-/** Calm "all caught up" state for Today's tasks, instead of a bare sentence. */
+/** "You're all caught up!" with the clipboard-and-sparkles illustration from the reference. */
 @Composable
 private fun HomeEmptyTasks() {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(20.dp)
-    Row(
-        Modifier.fillMaxWidth().clip(shape).background(c.surfaceSubtle).padding(horizontal = 16.dp, vertical = 16.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
+    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
+    val muted = if (c.isDark) c.textSecondary else HomeLook.muted
+    val shape = RoundedCornerShape(22.dp)
+    Column(
+        Modifier.fillMaxWidth().clip(shape).background(if (c.isDark) c.surfaceSubtle else HomeLook.emptyBox).padding(vertical = 24.dp, horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Box(Modifier.size(44.dp).clip(RoundedCornerShape(14.dp)).background(c.selectedBg), contentAlignment = Alignment.Center) {
-            Icon(HqIcons.Check, null, tint = c.textBrand, modifier = Modifier.size(HqIconSize.md))
+        ClipboardDone(Modifier.size(width = 120.dp, height = 84.dp))
+        Text("You're all caught up!", style = HqType.titleSmall2.copy(fontSize = sp(20f)), color = ink, modifier = Modifier.padding(top = 14.dp))
+        Text(
+            "Nothing is assigned to you right now.\nEnjoy your day! 🎉",
+            style = HqType.bodyLarge, color = muted,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+@Composable
+private fun ClipboardDone(modifier: Modifier) {
+    androidx.compose.foundation.Canvas(modifier) {
+        val cx = size.width / 2
+        val boardW = size.height * 0.62f
+        val boardH = size.height * 0.80f
+        val top = size.height * 0.14f
+        val left = cx - boardW / 2
+        val cy = top + boardH / 2
+        val ray = Color(0xFF8FB8F2)
+        listOf(-150.0, -125.0, -55.0, -30.0, 150.0, 30.0).forEach { deg ->
+            val a = Math.toRadians(deg)
+            val r1 = boardW * 0.80f
+            val r2 = boardW * 0.98f
+            drawLine(
+                ray,
+                Offset(cx + (r1 * kotlin.math.cos(a)).toFloat(), cy + (r1 * kotlin.math.sin(a)).toFloat()),
+                Offset(cx + (r2 * kotlin.math.cos(a)).toFloat(), cy + (r2 * kotlin.math.sin(a)).toFloat()),
+                strokeWidth = 2.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round,
+            )
         }
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text("You're all caught up", style = HqType.rowTitle, color = c.textPrimary)
-            Text("Nothing is assigned to you right now.", style = HqType.bodyMedium, color = c.textSecondary)
+        val radius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx())
+        drawRoundRect(Color(0xFFBCD6F7), Offset(left - 6.dp.toPx(), top + 4.dp.toPx()), androidx.compose.ui.geometry.Size(boardW, boardH), radius)
+        drawRoundRect(
+            Brush.verticalGradient(listOf(Color(0xFFF5F9FF), Color(0xFFE3EEFD)), startY = top, endY = top + boardH),
+            Offset(left, top), androidx.compose.ui.geometry.Size(boardW, boardH), radius,
+        )
+        drawRoundRect(
+            Color(0xFFA9C8F2), Offset(cx - boardW * 0.28f, top - 5.dp.toPx()),
+            androidx.compose.ui.geometry.Size(boardW * 0.56f, 10.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()),
+        )
+        val check = androidx.compose.ui.graphics.Path().apply {
+            moveTo(cx - boardW * 0.2f, top + boardH * 0.55f)
+            lineTo(cx - boardW * 0.04f, top + boardH * 0.70f)
+            lineTo(cx + boardW * 0.24f, top + boardH * 0.40f)
+        }
+        drawPath(
+            check, Color(0xFF14A08F),
+            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round,
+            ),
+        )
+    }
+}
+
+@Composable
+private fun QuickActions(model: HomeUiModel, onAddTask: () -> Unit, onAddExpense: () -> Unit, onAddBill: () -> Unit, onInvite: () -> Unit) {
+    val c = LocalHqColors.current
+    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
+    val muted = if (c.isDark) c.textSecondary else HomeLook.muted
+    val dark = c.isDark
+    fun tone(light: Long, darkAlpha: Float) = if (dark) Color(light).copy(alpha = darkAlpha) else Color(light)
+    val icons = androidx.compose.material.icons.Icons.Rounded
+    val actions = buildList {
+        if (model.isAdmin) add(QuickAction("Add Task", "Assign or\nrotate", icons.CheckCircle, tone(0xFFE6F6F1, .10f), tone(0xFFCBEDE3, .22f), Color(0xFF14A08F), onAddTask))
+        add(QuickAction("Add Expense", "Split with\nflatmates", icons.CreditCard, tone(0xFFE9F0FC, .10f), tone(0xFFD3E2FA, .22f), Color(0xFF2F6BEF), onAddExpense))
+        if (model.isAdmin) add(QuickAction("Add Bill", "Set up\nrecurring", icons.Description, tone(0xFFFFF3E6, .10f), tone(0xFFFFE0BD, .22f), Color(0xFFF08A1C), onAddBill))
+        if (model.canInvite) add(QuickAction("Invite\nRoommate", "Share code", icons.Group, tone(0xFFF1EDFC, .10f), tone(0xFFE1D9FA, .22f), Color(0xFF7457E0), onInvite))
+    }
+    Column(Modifier.padding(horizontal = 10.dp).padding(top = 26.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Quick actions", style = HqType.titleMedium2.copy(fontSize = sp(22f)), color = ink, softWrap = false)
+            Text(
+                "Add, track or manage in seconds.", style = HqType.bodySmall.copy(fontSize = sp(12.5f)), color = muted, maxLines = 1,
+                overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
+                modifier = Modifier.weight(1f).padding(start = 10.dp),
+            )
+        }
+        Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            actions.forEach { a ->
+                Column(
+                    Modifier.weight(1f).fillMaxHeight().heightIn(min = 104.dp).clip(RoundedCornerShape(20.dp)).background(a.tile)
+                        .clickable(role = Role.Button, onClick = a.onClick).padding(horizontal = 3.dp, vertical = 12.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(a.chip), contentAlignment = Alignment.Center) {
+                        Icon(a.icon, null, tint = a.glyph, modifier = Modifier.size(24.dp))
+                    }
+                    Text(
+                        a.title, style = HqType.rowTitle.copy(fontSize = sp(13.5f), lineHeight = sp(18f), letterSpacing = sp(-0.1f)), color = ink, fontWeight = FontWeight.SemiBold,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 8.dp),
+                    )
+                    Text(
+                        a.support, style = HqType.bodySmall.copy(fontSize = sp(12f), lineHeight = sp(16f)), color = muted,
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 3.dp),
+                    )
+                }
+            }
         }
     }
 }

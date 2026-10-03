@@ -72,7 +72,11 @@ fun FigmaHomeScreen(
     onReviewSwapRequests: () -> Unit = {},
     onOpenDiscover: () -> Unit = {},
     onOpenMembers: () -> Unit = {},
-    onOpenActivity: () -> Unit = {}
+    onOpenActivity: () -> Unit = {},
+    onAddTask: () -> Unit = {},
+    onAddExpense: () -> Unit = {},
+    onAddBill: () -> Unit = {},
+    onOpenProfile: () -> Unit = {},
 ) {
     val flatStatus by homeViewModel.flatStatus.collectAsStateWithLifecycleCompat()
     val dashboardStatus by dashboardViewModel.status.collectAsStateWithLifecycleCompat()
@@ -100,6 +104,10 @@ fun FigmaHomeScreen(
                     onOpenDiscover = onOpenDiscover,
                     onOpenActivity = onOpenActivity,
                     onOpenMembers = onOpenMembers,
+                    onAddTask = onAddTask,
+                    onAddExpense = onAddExpense,
+                    onAddBill = onAddBill,
+                    onOpenProfile = onOpenProfile,
                 )
                 is HomeDashboardStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
             }
@@ -121,6 +129,10 @@ private fun HomeDashboard(
     onOpenDiscover: () -> Unit,
     onOpenActivity: () -> Unit,
     onOpenMembers: () -> Unit,
+    onAddTask: () -> Unit,
+    onAddExpense: () -> Unit,
+    onAddBill: () -> Unit,
+    onOpenProfile: () -> Unit,
 ) {
     val context = LocalContext.current
     val joinRequests by flatViewModel.joinRequests.collectAsStateWithLifecycleCompat()
@@ -171,6 +183,10 @@ private fun HomeDashboard(
         onOpenActivity = onOpenActivity,
         onOpenDiscover = onOpenDiscover,
         onOpenMembers = onOpenMembers,
+        onAddTask = onAddTask,
+        onAddExpense = onAddExpense,
+        onAddBill = onAddBill,
+        onOpenProfile = onOpenProfile,
     )
 }
 
@@ -235,6 +251,8 @@ internal fun buildHomeModel(
             owedCount = owed.size,
         ),
         balanceText = { formatInr(it) },
+        memberNames = data.members.sortedByDescending { it.uid == uid }.map { it.nickname },
+        isAdmin = data.isAdmin,
         activity = data.activity.take(3).map { entry ->
             HomeActivityItem("${memberName(data.members, entry.userId, uid)} ${entry.details}", formatTimeAgo(entry.timestamp))
         },

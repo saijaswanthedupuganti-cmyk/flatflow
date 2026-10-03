@@ -34,6 +34,9 @@ abstract class ScreenshotHarness {
             }
         }
         compose.waitForIdle()
+        // Let staggered entrance animations (HqFadeUp delays) finish before capturing.
+        compose.mainClock.advanceTimeBy(1_000)
+        compose.waitForIdle()
         val bitmap = compose.activity.window.decorView.drawToBitmap()
         val dir = File("build/screenshots").apply { mkdirs() }
         FileOutputStream(File(dir, "$name.png")).use { bitmap.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, it) }

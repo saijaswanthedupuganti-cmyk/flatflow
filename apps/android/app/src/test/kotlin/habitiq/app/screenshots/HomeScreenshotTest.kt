@@ -33,6 +33,8 @@ class HomeScreenshotTest : ScreenshotHarness() {
         ),
         balance = HomeBalance(owe = 850.0, owed = 1240.5, oweCount = 1, owedCount = 2),
         balanceText = { formatInr(it) },
+        memberNames = listOf("Sai", "Anita", "Rahul", "Priya"),
+        isAdmin = true,
         activity = listOf(
             HomeActivityItem("Anita completed Kitchen cleanup", "2 hours ago"),
             HomeActivityItem("You added an expense: Groceries", "Yesterday"),
@@ -44,6 +46,8 @@ class HomeScreenshotTest : ScreenshotHarness() {
             HomeContent(model, completing, {}, {}, {}, {}, {}, {}, {}, {}, {}, {})
         }
 
+    @org.robolectric.annotation.Config(qualifiers = "w390dp-h1700dp-xxhdpi", sdk = [34])
+    @Test fun emptyTall() = render("home-empty-tall", full.copy(tasks = emptyList(), pending = emptyList(), assignedCount = 0, summaryHeadline = "You're all caught up.", balance = HomeBalance(0.0, 0.0, 0, 0)))
     @Test fun light() = render("home-light", full)
     @Test fun dark() = render("home-dark", full, dark = true)
     @Test fun empty() = render("home-empty", full.copy(tasks = emptyList(), pending = emptyList(), activity = emptyList(), assignedCount = 0, summaryHeadline = "You're all caught up.", balance = HomeBalance(0.0, 0.0, 0, 0)))

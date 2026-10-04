@@ -18,10 +18,10 @@ export default function HomePage() {
   return (
     <main>
       <Hero download={<DownloadButton showMeta />} qr={<DownloadQr />} hasPhoto={hasPhoto(HERO_PHOTO)} />
+      <Discover />
       <Problem />
       <PinnedStory />
       <Voice />
-      <Discover />
       <Trust />
       <Install />
       <FinalCta hasPhoto={hasPhoto(FINAL_PHOTO)} download={<DownloadButton variant="light" />} />

@@ -21,7 +21,7 @@ export default function HomeScreen() {
       <div className={m.glassCard} style={{ marginTop: '-14%' }}>
         <span className={m.tile} style={{ background: 'rgba(20,184,166,.85)' }}><Users size="1.2em" aria-hidden /></span>
         <div><div className={m.muted} style={{ color: 'rgba(255,255,255,.8)' }}>YOUR FLAT</div><b>Sai flat</b></div>
-        <span style={{ marginLeft: 'auto', fontSize: '.8em' }}>5 members</span>
+        <span style={{ marginLeft: 'auto', fontSize: '.8em' }}>4 members</span>
       </div>
       <div className={m.glassCard}>
         <span className={m.tile} style={{ background: 'rgba(255,255,255,.25)' }}><IndianRupee size="1.2em" aria-hidden /></span>

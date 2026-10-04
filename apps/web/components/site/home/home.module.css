@@ -30,12 +30,12 @@
 .step { padding: 28px; }
 .step h3 { font-size: clamp(22px, 2.4vw, 30px); margin: 10px 0 8px; }
 .step p { color: var(--or-text-2); margin: 0; }
-.stepPhone { width: min(280px, 100%); margin: 24px auto 0; }
+.stepPhone { width: min(220px, 62vw); margin: 24px auto 0; }
 .stepDot { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; }
 @media (min-width: 1024px) {
   .story { grid-template-columns: 1fr 1fr; gap: 64px; }
   .storyPhoneCol { display: block; }
-  .storyPhoneSticky { position: sticky; top: 14vh; width: 320px; margin: 0 auto; }
+  .storyPhoneSticky { position: sticky; top: 16vh; width: 250px; margin: 0 auto; }
   .storySteps { gap: 0; }
   .step { min-height: 72vh; display: flex; flex-direction: column; justify-content: center; background: none !important; border: 0 !important; box-shadow: none !important; }
   .stepPhone { display: none; }
@@ -82,3 +82,30 @@
 /* Hero copy entrance runs in CSS so the largest paint never waits for JavaScript. */
 .enter { animation: enterUp .7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes enterUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+
+/* Hero card deck: four phones, front card sharp, neighbours tucked behind. */
+.deck { width: min(260px, 54vw); margin: 0 auto; }
+.deckStage { position: relative; aspect-ratio: 9 / 19.5; }
+.deckCard { position: absolute; inset: 0; transform-origin: 50% 90%; }
+.deckDots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 28px auto 0; width: max-content; max-width: 92vw; }
+.deckDot { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.1); color: #fff; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer; min-height: 36px; transition: background-color .2s var(--or-ease); }
+.deckDotOn { background: #fff; color: var(--or-navy); }
+.heroCopy h1 { max-width: 13ch; }
+.journeyGrid { display: grid; gap: 20px; margin-top: 48px; }
+.journeyCard { padding: 24px; display: grid; gap: 24px; align-items: center; grid-template-columns: 1fr; }
+.journeyPhone { width: min(200px, 56vw); margin: 0 auto; }
+.journeyTitle { font-size: clamp(22px, 2.4vw, 28px); margin: 12px 0 10px; }
+.journeyList { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; color: var(--or-text-2); }
+.journeyList li { display: flex; gap: 10px; align-items: flex-start; }
+.journeyList li svg { flex-shrink: 0; margin-top: 4px; }
+.discoverFoot { margin-top: 28px; display: grid; gap: 4px; }
+@media (min-width: 640px) { .journeyCard { grid-template-columns: 200px 1fr; } .journeyPhone { width: 200px; } }
+@media (min-width: 1100px) { .journeyGrid { grid-template-columns: 1fr 1fr; } }
+
+/* Phones: the scattered bubbles become a simple chat column so none run off-screen. */
+@media (max-width: 767px) {
+  .problemStage { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-height: 0; }
+  .bubble { position: static; transform: none !important; max-width: 82%; }
+  .bubbleMine { align-self: flex-end; }
+  .resolved { margin-top: 14px; padding: 0; }
+}

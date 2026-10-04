@@ -11,7 +11,7 @@ export default function Install() {
   ]
   return (
     <Section id="install" tone="white" eyebrow="Install" title="Up and running in a minute."
-      lede="Oddroof is free and available as a direct download for Android while our Play Store listing is on its way.">
+      lede="Oddroof is free and available as a direct download for Android.">
       <ol className={h.steps}>
         {steps.map(st => (
           <li key={st.title}>

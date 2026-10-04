@@ -8,8 +8,9 @@ import h from '../home/home.module.css'
 
 const PHRASE = 'paid Ravi 300 for the cylinder'
 const TYPE_STEPS = PHRASE.length
-// Steps 0..TYPE_STEPS type the phrase, the rest hold the card; the last step (reduced-motion final state) shows both.
-const TOTAL = TYPE_STEPS + 12
+// Steps 0..TYPE_STEPS type the phrase, then the card holds ~3 s (45 × 70 ms) so it can be read; the last step
+// (reduced-motion final state) shows both.
+const TOTAL = TYPE_STEPS + 45
 
 export default function VoiceDemo() {
   const { ref, step } = useLoopStep(TOTAL, 70)
@@ -18,7 +19,7 @@ export default function VoiceDemo() {
   return (
     <div ref={ref} className={h.voiceStage}>
       <div className={h.voiceGlow} />
-      <VoiceOrb size={150} listening={!showCard} />
+      <VoiceOrb size={120} listening={!showCard} />
       <p className={h.transcript} aria-live="off">
         {typed}{!showCard && <span className={h.caret} aria-hidden />}
       </p>

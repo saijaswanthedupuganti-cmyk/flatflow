@@ -7,7 +7,7 @@ import h from './home.module.css'
 const POINTS = [
   { icon: Languages, title: 'Talk the way you talk', body: 'English mixed with Hindi or Telugu works. “Kirana 450 kharcha” is fine.' },
   { icon: ShieldCheck, title: 'Nothing saves without you', body: 'Every change shows as a card first. Say yes or tap Save.' },
-  { icon: Zap, title: 'Answers in a second', body: 'Ask what you owe, whose turn it is, or what is due today.' },
+  { icon: Zap, title: 'Quick answers', body: 'Ask what you owe, whose turn it is, or what is due today.' },
 ]
 
 export default function Voice() {

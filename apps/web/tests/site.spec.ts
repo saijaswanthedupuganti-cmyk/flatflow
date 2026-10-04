@@ -91,7 +91,7 @@ test.describe('navigation', () => {
 test('home phone mockup is labelled and never wider than the viewport @mobile', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 })
   await page.goto('/')
-  const phone = page.getByRole('img', { name: /Oddroof home screen/ })
+  const phone = page.locator('#hero [data-deck-card]').first()
   await expect(phone).toBeVisible()
   const box = await phone.boundingBox()
   expect(box!.width).toBeLessThanOrEqual(375 - 32)
@@ -100,10 +100,10 @@ test('home phone mockup is labelled and never wider than the viewport @mobile', 
 test.describe('hero', () => {
   test('headline, download with meta, and see-how link', async ({ page }) => {
     await page.goto('/')
-    await expect(page.getByRole('heading', { level: 1, name: 'Your flat, sorted.' })).toBeVisible()
+    await expect(page.getByRole('heading', { level: 1, name: 'Find your flat. Run it together.' })).toBeVisible()
     await expect(page.locator('#hero [data-download]')).toBeVisible()
     await expect(page.locator('#hero [data-download-meta]')).toBeVisible()
-    await expect(page.getByRole('link', { name: 'See how it works' })).toHaveAttribute('href', '#how-it-works')
+    await expect(page.locator('#hero').getByRole('link', { name: 'Explore Discover' })).toHaveAttribute('href', '#discover')
   })
 
   test('QR shows on desktop only', async ({ page }) => {
@@ -165,7 +165,7 @@ test('discover section shows listings, both journeys and the privacy note', asyn
   const sec = page.locator('#discover')
   await sec.scrollIntoViewIfNeeded()
   await expect(sec.getByRole('heading', { name: /next flat, or your next flatmate/ })).toBeVisible()
-  await expect(sec.locator('[data-listing]')).toHaveCount(3)
+  await expect(sec.locator('[data-listing]')).toHaveCount(2)
   await expect(sec.getByText('Approximate location only')).toBeVisible()
   await expect(sec.getByRole('link', { name: 'Explore Discover' })).toHaveAttribute('href', '/discover')
 })
@@ -227,5 +227,74 @@ test.describe('reduced motion', () => {
       })
       expect(minOpacity).toBe(1)
     }
+  })
+})
+
+
+test.describe('revision 2', () => {
+  test('hero deck cycles four feature cards, discovery first', async ({ page }) => {
+    await page.goto('/')
+    const cards = page.locator('#hero [data-deck-card]')
+    await expect(cards).toHaveCount(4)
+    const labels = await cards.evaluateAll(els => els.map(e => e.getAttribute('aria-label')))
+    expect(labels[0]).toMatch(/Discover flats/)
+    expect(labels[1]).toMatch(/Discover flatmates/)
+    const first = await page.locator('#hero [data-deck-active]').getAttribute('data-deck-active')
+    await expect(page.locator('#hero [data-deck-active]')).not.toHaveAttribute('data-deck-active', first!, { timeout: 6000 })
+  })
+
+  test('discover comes straight after the hero with both journeys', async ({ page }) => {
+    await page.goto('/')
+    const ids = await page.locator('main > section').evaluateAll(els => els.map(e => e.id))
+    expect(ids.slice(0, 3)).toEqual(['hero', 'discover', 'problem'])
+    const sec = page.locator('#discover')
+    await expect(sec.getByRole('heading', { name: 'Find a flat', exact: true })).toBeVisible()
+    await expect(sec.getByRole('heading', { name: 'Find a flatmate' })).toBeVisible()
+  })
+
+  for (const width of [375, 1440]) {
+    test(`no mockup or bubble is cut off at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 900 })
+      await page.emulateMedia({ reducedMotion: 'reduce' })
+      await page.goto('/')
+      await page.waitForTimeout(600)
+      for (const sel of ['[data-bubble]', '[data-listing]', '[data-deck-card]']) {
+        const boxes = await page.locator(sel).evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.left, r.right] }))
+        for (const [l, r] of boxes) {
+          expect(l, `${sel} left`).toBeGreaterThanOrEqual(-1)
+          expect(r, `${sel} right`).toBeLessThanOrEqual(width + 1)
+        }
+      }
+    })
+  }
+
+  test('every nav page loads for a logged-out visitor', async ({ page }) => {
+    for (const path of ['/discover', '/flat-manager', '/voice', '/privacy-and-safety', '/about']) {
+      const res = await page.goto(path)
+      expect(res!.status(), path).toBe(200)
+      await page.waitForTimeout(800)
+      expect(new URL(page.url()).pathname, `${path} redirected`).toBe(path)
+      await expect(page.getByRole('heading', { level: 1 })).toBeVisible()
+    }
+  })
+
+  test('voice confirm card stays readable for at least 2.5 seconds', async ({ page }) => {
+    await page.goto('/')
+    const sec = page.locator('#voice')
+    await sec.scrollIntoViewIfNeeded()
+    const card = sec.getByText('Record ₹300 you paid Ravi')
+    await expect(card).toBeVisible({ timeout: 8000 })
+    await page.waitForTimeout(2500)
+    await expect(card).toBeVisible()
+  })
+
+  test('mobile menu moves focus inside and returns it @mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 })
+    await page.goto('/')
+    const burger = page.getByRole('button', { name: 'Open menu' })
+    await burger.click()
+    await expect(page.getByRole('button', { name: 'Close menu' })).toBeFocused()
+    await page.keyboard.press('Escape')
+    await expect(burger).toBeFocused()
   })
 })

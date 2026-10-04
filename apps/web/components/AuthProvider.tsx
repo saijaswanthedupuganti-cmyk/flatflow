@@ -4,6 +4,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
 
 import HabitiqLoadingScreen from '@/components/HabitiqLoadingScreen'
+import { isSitePath } from '@/lib/site/routes'
 
 /* ─── Auth Provider ──────────────────────────────────────────────────────── */
 export default function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -26,7 +27,8 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
     const isAuthPage = pathname === '/'
     const isOnboarding = pathname === '/onboarding'
-    const isPublicPage = pathname === '/privacy' || pathname === '/terms'
+    // Every marketing-site page (Discover, Flat manager, Voice, About, privacy and legal pages) is public.
+    const isPublicPage = isSitePath(pathname) && !isAuthPage
 
     if (!user) {
       // Not logged in — send to login page (public pages bypass this)
@@ -43,7 +45,7 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
 
   // Show loading if: auth not resolved yet, OR user is logged in but we haven't checked their flat yet
   const stillChecking = isLoading || (!!user && !flatChecked)
-  const isPublicShell = pathname === '/' || pathname === '/privacy' || pathname === '/terms'
+  const isPublicShell = isSitePath(pathname)
 
   // Public pages must remain useful when Firebase is slow or unavailable.
   // Authenticated visitors are still redirected as soon as the listener resolves.

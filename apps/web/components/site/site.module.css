@@ -88,3 +88,17 @@
 .footer a:hover { color: #fff; }
 .footerBottom { max-width: var(--or-max); margin: 40px auto 0; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); font-size: 14px; }
 @media (min-width: 768px) { .footerGrid { grid-template-columns: 2fr 1fr 1fr 1fr; } }
+.noBlur.navScrolled { background: rgba(255,255,255,.97) !important; }
+.menu { background: rgba(255,255,255,.97) !important; }
+
+.pageHero { position: relative; overflow: hidden; color: #fff; padding: 150px var(--or-gutter) 80px; }
+.pageHeroInner { position: relative; z-index: 2; max-width: var(--or-max); margin: 0 auto; }
+.pageHero h1 { font-size: clamp(36px, 6vw, 64px); margin: 12px 0 0; max-width: 16ch; }
+.pageLede { margin-top: 18px; max-width: 56ch; font-size: clamp(17px, 1.8vw, 20px); color: rgba(255,255,255,.9); }
+.pageHeroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(14,10,28,.75), rgba(14,10,28,.35)); z-index: 1; }
+.pageHero .eyebrow { color: #FFD9A0; }
+.linkList { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 12px; max-width: 640px; }
+.linkList a { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: var(--or-radius-md); background: #fff; border: 1px solid var(--or-line); color: var(--or-text); text-decoration: none; font-weight: 700; }
+.linkList a:hover { border-color: var(--or-blue); }
+.prose { max-width: 68ch; color: var(--or-text-2); font-size: 18px; }
+.prose p { margin: 0 0 16px; }

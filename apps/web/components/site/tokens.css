@@ -53,3 +53,5 @@
     scroll-behavior: auto !important;
   }
 }
+/* Anchor jumps land below the floating navbar. */
+.or-site section[id] { scroll-margin-top: 96px; }

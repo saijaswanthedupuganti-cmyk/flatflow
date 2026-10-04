@@ -19,7 +19,7 @@ function Bubble({ b, progress, i }: { b: typeof BUBBLES[number]; progress: Motio
   const opacity = useTransform(progress, [0, 0.45 + i * 0.03, 0.7], [1, 1, reduce ? 1 : 0])
   const scale = useTransform(progress, [0.4, 0.7], [1, reduce ? 1 : 0.6])
   return (
-    <motion.div className={`${h.bubble} ${b.mine ? h.bubbleMine : ''}`}
+    <motion.div data-bubble="" className={`${h.bubble} ${b.mine ? h.bubbleMine : ''}`}
       style={{ left: '50%', top: '50%', translateX: b.x, translateY: b.y, opacity, scale }}>
       {b.text}
     </motion.div>

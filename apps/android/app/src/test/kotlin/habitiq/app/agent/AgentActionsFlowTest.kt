@@ -154,4 +154,23 @@ class AgentActionsFlowTest {
         advanceUntilIdle()
         assertTrue(vm.state.value is AgentUiState.NotUnderstood)
     }
+
+    @Test fun `planner outage says why instead of pretending not to understand`() = runTest {
+        planner = object : AgentPlanner {
+            override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate): AgentPlan? =
+                throw PlannerUnavailable("Smart mode isn't switched on for this app yet (Firebase AI Logic).")
+        }
+        vm.submitText("remind me to call mom")
+        advanceUntilIdle()
+        val s = vm.state.value as AgentUiState.NotUnderstood
+        assertTrue(s.toString(), s.toString().contains("Firebase AI Logic"))
+    }
+
+    @Test fun `model errors map to short reasons`() {
+        assertTrue(reasonFor(RuntimeException("Firebase AI Logic API has not been used in project 1030913049565")).contains("switched on"))
+        assertTrue(reasonFor(RuntimeException("This API method requires billing to be enabled")).contains("billing"))
+        assertTrue(reasonFor(RuntimeException("429 RESOURCE_EXHAUSTED quota")).contains("busy"))
+        assertTrue(isModelMissing(RuntimeException("Publisher Model `gemini-x` was not found")))
+        assertEquals("Smart mode couldn't answer right now.", reasonFor(RuntimeException("boom")))
+    }
 }

@@ -160,15 +160,29 @@ class AgentViewModel(
         pending = null
         _state.value = AgentUiState.Checking(transcript)
         work = viewModelScope.launch {
-            delay(checkingMs) // long enough for "Checking your flat" to read
             ContentGuard.reasonToBlock(transcript)?.let {
+                delay(checkingMs)
                 show(AgentUiState.NotUnderstood(transcript, it), it)
                 return@launch
             }
             val home = household()
             val plan = when (val result = LocalIntentParser.parse(transcript, home, today())) {
-                is ParseResult.Confident -> result.plan
-                ParseResult.NeedsModel -> runCatching { planner?.plan(transcript, home, today()) }.getOrNull()
+                is ParseResult.Confident -> {
+                    delay(checkingMs) // instant answers still let "Checking your flat" read
+                    result.plan
+                }
+                // The model call is its own wait, so no extra delay here.
+                ParseResult.NeedsModel -> try {
+                    planner?.plan(transcript, home, today())
+                } catch (e: PlannerUnavailable) {
+                    val message = "${e.reason} Simple requests like “Spent 500 on groceries” still work."
+                    show(AgentUiState.NotUnderstood(transcript, message), message)
+                    return@launch
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    null
+                }
             }
             if (plan == null) show(AgentUiState.NotUnderstood(transcript, NOT_YET), NOT_YET)
             else present(transcript, plan, home)

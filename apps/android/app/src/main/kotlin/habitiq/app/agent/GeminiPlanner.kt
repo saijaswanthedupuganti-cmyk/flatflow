@@ -1,12 +1,15 @@
 package habitiq.app.agent
 
 import android.content.Context
+import android.util.Log
+import com.google.firebase.crashlytics.FirebaseCrashlytics
 import com.google.firebase.Firebase
 import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
+import com.google.firebase.ai.type.thinkingConfig
 import habitiq.app.lib.formatInr
 import java.time.LocalDate
 import kotlin.math.roundToLong
@@ -205,16 +208,29 @@ Rules:
 - Refuse anything illegal, abusive, sexual or harmful with "unsupported". Never delete data, change roles or remove members.
 """.trimIndent()
 
-/** Gemini through Firebase AI Logic: the API key stays inside Firebase, never in the app. */
-class GeminiPlanner(context: Context, modelName: String = DEFAULT_MODEL) : AgentPlanner {
+/** The model call failed (AI Logic not enabled, billing, App Check, network…). [reason] is safe to show. */
+class PlannerUnavailable(val reason: String, cause: Throwable? = null) : Exception(reason, cause)
+
+/**
+ * Gemini through Firebase AI Logic on the Vertex AI backend, so calls bill to the project's Google Cloud
+ * account (and its credits). The key stays inside Firebase, never in the app. Flash-Lite with thinking
+ * off keeps replies around a second; if that model isn't available the next one in [MODELS] is tried.
+ */
+class GeminiPlanner(context: Context, private val models: List<String> = MODELS) : AgentPlanner {
     private val prefs = context.applicationContext.getSharedPreferences("oddroof_agent", Context.MODE_PRIVATE)
-    private val model: GenerativeModel by lazy {
-        Firebase.ai(backend = GenerativeBackend.googleAI()).generativeModel(
-            modelName = modelName,
+    private val ai by lazy { Firebase.ai(backend = GenerativeBackend.vertexAI(location = LOCATION)) }
+    private val built = mutableMapOf<String, GenerativeModel>()
+    /** Index into [models] of the first one that answered; sticks for the session. */
+    @Volatile private var modelIndex = 0
+
+    private fun model(name: String): GenerativeModel = built.getOrPut(name) {
+        ai.generativeModel(
+            modelName = name,
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
                 temperature = 0.1f
-                maxOutputTokens = 2048
+                maxOutputTokens = 512
+                thinkingConfig = thinkingConfig { thinkingBudget = 0 }
             },
             systemInstruction = content { text(SYSTEM_PROMPT) },
         )
@@ -226,11 +242,28 @@ class GeminiPlanner(context: Context, modelName: String = DEFAULT_MODEL) : Agent
         }
         val ctx = buildPlannerContext(state, today)
         val prompt = "Flat snapshot:\n${ctx.json}\n\nRequest: \"${text.take(300)}\""
-        val reply = withTimeoutOrNull(15_000) {
-            runCatching { model.generateContent(prompt).text }.getOrNull()
-        } ?: return null
-        countCall(today)
-        return parseModelPlan(reply, ctx, state, today)
+        var lastError: Throwable? = null
+        while (modelIndex < models.size) {
+            val name = models[modelIndex]
+            val started = System.currentTimeMillis()
+            val result = withTimeoutOrNull(TIMEOUT_MS) { runCatching { model(name).generateContent(prompt).text } }
+            if (result == null) {
+                Log.w(TAG, "$name timed out after ${TIMEOUT_MS}ms")
+                throw PlannerUnavailable("Smart mode took too long to answer. Check your connection and try again.")
+            }
+            result.onSuccess { reply ->
+                Log.d(TAG, "$name answered in ${System.currentTimeMillis() - started}ms")
+                countCall(today)
+                return reply?.let { parseModelPlan(it, ctx, state, today) }
+            }
+            val error = result.exceptionOrNull()!!
+            lastError = error
+            Log.w(TAG, "$name failed: ${error.javaClass.simpleName}: ${error.message}", error)
+            runCatching { FirebaseCrashlytics.getInstance().recordException(error) }
+            // A missing or retired model: try the next one. Anything else won't be fixed by switching.
+            if (isModelMissing(error)) modelIndex++ else break
+        }
+        throw PlannerUnavailable(reasonFor(lastError), lastError)
     }
 
     // At most DAILY_LIMIT model calls per person per day, so a stuck loop or abuse can't burn credits.
@@ -243,8 +276,32 @@ class GeminiPlanner(context: Context, modelName: String = DEFAULT_MODEL) : Agent
     }
 
     companion object {
-        /** Change here to move to a newer Gemini model. */
-        const val DEFAULT_MODEL = "gemini-2.5-flash"
+        private const val TAG = "OddroofAgent"
+        /** Fastest first. Change here to move to a newer Gemini model. */
+        val MODELS = listOf("gemini-2.5-flash-lite", "gemini-2.5-flash")
+        const val LOCATION = "global"
+        const val TIMEOUT_MS = 6_000L
         const val DAILY_LIMIT = 60
+    }
+}
+
+internal fun isModelMissing(error: Throwable?): Boolean {
+    val m = (error?.message ?: "").lowercase()
+    return "not found" in m || "404" in m || "was not found" in m || "is not supported" in m
+}
+
+/** Short, human reason for the overlay. The full error goes to Logcat and Crashlytics. */
+internal fun reasonFor(error: Throwable?): String {
+    val m = (error?.message ?: "").lowercase()
+    return when {
+        "api has not been used" in m || "is disabled" in m || "service_disabled" in m || "firebasevertexai" in m ->
+            "Smart mode isn't switched on for this app yet (Firebase AI Logic)."
+        "billing" in m -> "Smart mode needs billing turned on for the Firebase project."
+        "app check" in m || "appcheck" in m -> "Smart mode was blocked by App Check."
+        "permission" in m || "403" in m -> "Smart mode doesn't have permission to run yet."
+        "quota" in m || "429" in m || "resource exhausted" in m -> "Smart mode is busy right now. Try again in a minute."
+        "unable to resolve host" in m || "network" in m || "timeout" in m -> "No connection to smart mode. Check your internet."
+        isModelMissing(error) -> "The smart model isn't available in this project yet."
+        else -> "Smart mode couldn't answer right now."
     }
 }

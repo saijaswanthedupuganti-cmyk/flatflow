@@ -2,6 +2,8 @@ import type { Metadata } from 'next'
 import { Plus_Jakarta_Sans } from 'next/font/google'
 import '@/components/site/tokens.css'
 import SmoothScroll from '@/components/site/SmoothScroll'
+import Navbar from '@/components/site/Navbar'
+import Footer from '@/components/site/Footer'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['600', '700', '800'], variable: '--font-jakarta', display: 'swap' })
 
@@ -13,7 +15,11 @@ export const metadata: Metadata = {
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className={`or-site ${jakarta.variable}`}>
-      <SmoothScroll>{children}</SmoothScroll>
+      <SmoothScroll>
+        <Navbar />
+        {children}
+        <Footer />
+      </SmoothScroll>
     </div>
   )
 }

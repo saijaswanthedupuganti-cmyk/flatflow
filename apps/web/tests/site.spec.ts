@@ -54,3 +54,36 @@ test('glass falls back to a solid surface without backdrop-filter', async ({ pag
     return bg.startsWith('rgba') ? parseFloat(bg.split(',')[3]) : 1
   }, { timeout: 5000 }).toBeGreaterThanOrEqual(0.9)
 })
+
+test.describe('navigation', () => {
+  test('navbar shows products, privacy, about and download', async ({ page }) => {
+    await page.goto('/')
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect(nav.getByRole('button', { name: 'Products' })).toBeVisible()
+    await nav.getByRole('button', { name: 'Products' }).click()
+    await expect(nav.getByRole('link', { name: /Flat manager/ })).toBeVisible()
+    await expect(nav.getByRole('link', { name: /Discover/ })).toBeVisible()
+    await expect(nav.getByRole('link', { name: /Voice assistant/ })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'Privacy' })).toBeVisible()
+    await expect(nav.getByRole('link', { name: 'About' })).toBeVisible()
+  })
+
+  test('mobile menu opens and closes @mobile', async ({ page }) => {
+    await page.setViewportSize({ width: 375, height: 800 })
+    await page.goto('/')
+    await page.getByRole('button', { name: 'Open menu' }).click()
+    const sheet = page.getByRole('dialog', { name: 'Menu' })
+    await expect(sheet.getByRole('link', { name: /Discover/ })).toBeVisible()
+    await page.keyboard.press('Escape')
+    await expect(sheet).toHaveCount(0)
+  })
+
+  test('footer has legal links and contact', async ({ page }) => {
+    await page.goto('/')
+    const footer = page.getByRole('contentinfo')
+    for (const name of ['Privacy & safety', 'Privacy policy', 'Terms', 'Safety', 'About']) {
+      await expect(footer.getByRole('link', { name, exact: true })).toBeVisible()
+    }
+    await expect(footer.getByRole('link', { name: 'hello@habitiq.app' })).toHaveAttribute('href', 'mailto:hello@habitiq.app')
+  })
+})

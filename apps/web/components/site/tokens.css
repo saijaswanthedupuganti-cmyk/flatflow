@@ -1,0 +1,55 @@
+.or-site {
+  --or-blue: #2F6BFF;
+  --or-blue-deep: #1F4FD1;
+  --or-navy: #1C2A40;
+  --or-amber: #F5A524;
+  --or-coral: #FF6B5A;
+  --or-teal: #14B8A6;
+  --or-violet: #8B5CF6;
+  --or-canvas: #F7F9FC;
+  --or-text: #0F172A;
+  --or-text-2: #475569;
+  --or-line: #E2E8F0;
+  --or-radius-lg: 28px;
+  --or-radius-md: 20px;
+  --or-radius-sm: 14px;
+  --or-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --or-max: 1200px;
+  --or-gutter: clamp(16px, 4vw, 40px);
+  --or-font-display: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
+  --or-font-body: var(--font-inter), system-ui, sans-serif;
+
+  background: var(--or-canvas);
+  color: var(--or-text);
+  font-family: var(--or-font-body);
+  font-size: 17px;
+  line-height: 1.6;
+  overflow-x: clip;
+  min-height: 100vh;
+  width: 100%;
+}
+.or-site h1, .or-site h2, .or-site h3 {
+  font-family: var(--or-font-display);
+  letter-spacing: -0.02em;
+  line-height: 1.08;
+  color: inherit;
+}
+.or-site :focus-visible {
+  outline: 3px solid var(--or-blue);
+  outline-offset: 3px;
+  border-radius: 8px;
+}
+/* Golden-hour fallback when no photo is present yet, also used as photo tint. */
+.or-golden {
+  background:
+    radial-gradient(120% 80% at 80% 10%, rgba(245,165,36,.55), transparent 60%),
+    radial-gradient(90% 70% at 10% 90%, rgba(255,107,90,.35), transparent 60%),
+    linear-gradient(160deg, #2A2140 0%, #6B3F3A 45%, #C9773A 80%, #F2B565 100%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .or-site *, .or-site *::before, .or-site *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

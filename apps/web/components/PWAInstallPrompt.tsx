@@ -2,6 +2,8 @@
 import { useState, useEffect } from 'react'
 import { Download, X, Share } from 'lucide-react'
 import { usePWA } from '@/contexts/PWAContext'
+import { usePathname } from 'next/navigation'
+import { isSitePath } from '@/lib/site/routes'
 
 const NEXT_PROMPT_KEY = 'habitiq_pwa_next_prompt'
 
@@ -9,6 +11,7 @@ export default function PWAInstallPrompt() {
   const { canInstall, isInstalled, isIOS, triggerInstall } = usePWA()
   const [show, setShow] = useState(false)
   const [showIOSSteps, setShowIOSSteps] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     if (isInstalled) return
@@ -37,7 +40,8 @@ export default function PWAInstallPrompt() {
     if (!ok) snooze()
   }
 
-  if (!show || isInstalled) return null
+  // The marketing site promotes the Android APK; the web-app install prompt belongs to the dashboard only.
+  if (!show || isInstalled || isSitePath(pathname)) return null
 
   return (
     <div className="fixed bottom-20 md:bottom-6 left-4 right-4 md:left-auto md:right-6 md:w-80 z-[90] animate-in slide-in-from-bottom-4 duration-300">

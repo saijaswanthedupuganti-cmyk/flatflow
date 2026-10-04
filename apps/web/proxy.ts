@@ -11,6 +11,12 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // Netlify deploy previews / branch deploys (e.g. deploy-preview-12--flatsflow.netlify.app)
+  // stay on their own host so the owner can review a change before it reaches habitiq.app.
+  if (/--flatsflow\.netlify\.app$/.test(host)) {
+    return NextResponse.next()
+  }
+
   // Redirect every non-canonical domain (Vercel preview URLs, old Netlify
   // domain, any alias) to habitiq.app with a permanent 301.
   if (host !== CANONICAL_HOST) {

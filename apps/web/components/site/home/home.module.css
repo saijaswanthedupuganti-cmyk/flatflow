@@ -51,3 +51,15 @@
 .voicePoints { display: grid; gap: 16px; }
 .voicePoint { padding: 18px 20px; display: flex; gap: 14px; align-items: flex-start; }
 @media (min-width: 1024px) { .voiceGrid { grid-template-columns: 1.1fr .9fr; } }
+.discoverGrid { display: grid; gap: 48px; margin-top: 48px; align-items: center; }
+.fan { display: grid; place-items: center; min-height: 420px; }
+.listing { grid-area: 1 / 1; width: min(280px, 70vw); border-radius: 24px; overflow: hidden; background: #fff; box-shadow: 0 24px 60px rgba(15,23,42,.18); }
+.listingInner { display: block; }
+.listingPhoto { height: 150px; position: relative; }
+.listingBody { padding: 16px; display: grid; gap: 6px; }
+.listingTags { display: flex; flex-wrap: wrap; gap: 6px; }
+.listingTags span { font-size: 12px; padding: 4px 10px; border-radius: 999px; background: var(--or-canvas); color: var(--or-text-2); }
+.journeys { display: grid; gap: 14px; }
+.journey { padding: 20px; }
+.privacyNote { display: flex; gap: 10px; align-items: center; color: var(--or-text-2); font-size: 15px; margin-top: 8px; }
+@media (min-width: 1024px) { .discoverGrid { grid-template-columns: 1fr 1fr; } }

@@ -159,3 +159,13 @@ test('no hydration errors with reduced motion', async ({ page }) => {
   await page.waitForTimeout(1500)
   expect(errors.filter(e => /hydrat/i.test(e))).toEqual([])
 })
+
+test('discover section shows listings, both journeys and the privacy note', async ({ page }) => {
+  await page.goto('/')
+  const sec = page.locator('#discover')
+  await sec.scrollIntoViewIfNeeded()
+  await expect(sec.getByRole('heading', { name: /next flat, or your next flatmate/ })).toBeVisible()
+  await expect(sec.locator('[data-listing]')).toHaveCount(3)
+  await expect(sec.getByText('Approximate location only')).toBeVisible()
+  await expect(sec.getByRole('link', { name: 'Explore Discover' })).toHaveAttribute('href', '/discover')
+})

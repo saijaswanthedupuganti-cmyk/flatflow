@@ -4,6 +4,7 @@ import Hero from '@/components/site/home/Hero'
 import Problem from '@/components/site/home/Problem'
 import PinnedStory from '@/components/site/home/PinnedStory'
 import Voice from '@/components/site/home/Voice'
+import Discover from '@/components/site/home/Discover'
 import { HERO_PHOTO } from '@/lib/site/photos'
 import DownloadButton from '@/components/site/DownloadButton'
 import DownloadQr from '@/components/site/DownloadQr'
@@ -17,6 +18,7 @@ export default function HomePage() {
       <Problem />
       <PinnedStory />
       <Voice />
+      <Discover />
       {/* Sections from Tasks 6–10 are inserted here in order: Problem, PinnedStory, Voice, Discover, Trust, Install, FinalCta */}
     </main>
   )

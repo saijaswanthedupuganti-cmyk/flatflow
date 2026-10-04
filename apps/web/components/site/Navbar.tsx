@@ -54,7 +54,7 @@ export default function Navbar() {
 
   return (
     <div className={s.navWrap}>
-      <Glass tier="photo" as="nav" aria-label="Main" className={`${s.nav} ${scrolled ? s.navScrolled : ''}`}>
+      <Glass tier="canvas" as="nav" aria-label="Main" className={`${s.nav} ${s.navLight} ${scrolled ? s.navScrolled : ''}`}>
         <Link href="/" className={s.logo} aria-label="Oddroof home"><Home size={22} aria-hidden />Oddroof</Link>
         <div className={s.navLinks}>
           <div ref={productsRef} style={{ position: 'relative' }}>
@@ -79,7 +79,7 @@ export default function Navbar() {
           {NAV_LINKS.map(l => <Link key={l.href} href={l.href} className={s.navLink}>{l.label}</Link>)}
         </div>
         <a href={release.url} download className={`${s.btn} ${s.primary} ${s.navCta}`} data-download="">
-          <Download size={18} aria-hidden />Download
+          <Download size={18} aria-hidden />Download App
         </a>
         <button ref={burgerRef} className={s.burger} aria-label="Open menu" aria-expanded={sheetOpen} aria-controls="site-menu" onClick={() => setSheetOpen(true)}><Menu size={22} aria-hidden /></button>
       </Glass>

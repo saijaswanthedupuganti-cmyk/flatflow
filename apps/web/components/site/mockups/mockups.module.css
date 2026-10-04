@@ -1,11 +1,29 @@
 .phone {
-  position: relative; width: 100%; aspect-ratio: 9 / 19.5; border-radius: 13% / 6%;
-  background: #0B0F1A; padding: 3.2%; box-shadow: 0 40px 90px rgba(10,14,30,.45), inset 0 0 0 2px rgba(255,255,255,.08);
+  position: relative; width: 100%; aspect-ratio: 9 / 19.5; border-radius: 13% / 6%; padding: 3.2%;
+  /* Brushed titanium edge: light catches the top-left rim, falls off to graphite. */
+  background: linear-gradient(140deg, #6B7280 0%, #2A2F38 14%, #12151C 45%, #1E232C 78%, #59606C 100%);
+  box-shadow:
+    inset 0 0 0 1px rgba(255,255,255,.22),
+    inset 0 0 0 3px #0A0C11,
+    0 1px 1px rgba(255,255,255,.4),
+    0 30px 60px -12px rgba(15,30,80,.35),
+    0 18px 36px -18px rgba(10,14,30,.45);
 }
+.btnPower, .btnVolume { position: absolute; width: 3px; border-radius: 2px; background: linear-gradient(90deg, #3A404B, #12151C); }
+.btnPower { right: -2px; top: 24%; height: 9%; }
+.btnVolume { left: -2px; top: 18%; height: 13%; }
+/* Screen glass: a soft diagonal highlight that drifts with the hero's slow float. */
+.glare { position: absolute; inset: 0; pointer-events: none; z-index: 4;
+  background: linear-gradient(115deg, rgba(255,255,255,0) 30%, rgba(255,255,255,.16) 44%, rgba(255,255,255,0) 58%);
+  background-size: 220% 100%; background-position: 60% 0; animation: glareDrift 10s cubic-bezier(0.22, 1, 0.36, 1) infinite alternate; }
+@keyframes glareDrift { to { background-position: 40% 0; } }
+.mGrid { display: grid; grid-template-columns: 1fr 1fr; gap: 3%; }
+.mTile { background: #fff; border-radius: 14px; padding: 9% 8%; display: grid; gap: .35em; box-shadow: 0 4px 14px rgba(15,23,42,.06); color: #0F172A; font-size: .9em; }
+.mIcon { width: 2.2em; height: 2.2em; border-radius: 10px; display: grid; place-items: center; }
 .screen { position: relative; width: 100%; height: 100%; border-radius: 10.5% / 4.9%; overflow: hidden; background: #F4F7FB; font-size: clamp(9px, 2.6cqw, 13px); container-type: inline-size; }
 .notch { position: absolute; top: 1.6%; left: 50%; transform: translateX(-50%); width: 30%; height: 2.6%; border-radius: 999px; background: #0B0F1A; z-index: 3; }
 
-.homeHero { height: 40%; padding: 14% 7% 0; color: #fff; position: relative; }
+.homeHero { height: 35%; padding: 14% 7% 0; color: #fff; position: relative; }
 .homeHero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,8,20,.25), rgba(10,8,20,.05) 40%, rgba(244,247,251,0) 75%, #F4F7FB); z-index: 0; }
 .homeHero > * { position: relative; z-index: 1; }
 .brandRow { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 1.25em; }

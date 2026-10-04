@@ -1,22 +1,54 @@
-.hero { position: relative; min-height: 100svh; color: #fff; overflow: hidden; display: flex; align-items: center; padding: 120px var(--or-gutter) 72px; }
+.hero { position: relative; min-height: 100svh; color: #0B1736; overflow: hidden; display: flex; align-items: center; padding: 132px var(--or-gutter) 64px; background: #F7FAFF; }
 .heroBg { position: absolute; inset: 0; z-index: 0; }
-.heroBg img { object-fit: cover; }
-.heroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(14,10,28,.72) 0%, rgba(14,10,28,.45) 45%, rgba(14,10,28,.1) 75%); z-index: 1; }
-.heroInner { position: relative; z-index: 2; width: 100%; max-width: var(--or-max); margin: 0 auto; display: grid; gap: 48px; grid-template-columns: 1fr; align-items: center; }
-.heroCopy h1 { font-size: clamp(40px, 7vw, 76px); margin: 0; max-width: 11ch; }
-.heroCopy p.sub { margin-top: 20px; font-size: clamp(17px, 1.8vw, 21px); max-width: 34ch; color: rgba(255,255,255,.9); }
-.ctaRow { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 32px; align-items: flex-start; }
-.qr { display: none; margin-top: 28px; }
-.heroPhone { position: relative; width: min(320px, calc(100vw - 64px)); margin: 0 auto; }
-.heroOrb { position: absolute; left: -16%; bottom: 8%; z-index: 3; }
-.floatCard { padding: 12px 16px; font-size: 14px; display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-.floatA { position: absolute; z-index: 3; left: -58%; top: 34%; }
-.floatB { position: absolute; z-index: 3; right: -50%; top: 18%; }
-@media (max-width: 767px) { .heroOrb { display: none; } }
-/* Float cards sit beside the phone, which needs the room of a wide screen. */
-@media (max-width: 1199px) { .floatA, .floatB { display: none; } }
+.heroBg img { object-fit: cover; object-position: 72% center; }
+/* Keep the copy side bright: white bloom on the left, richer blue depth only on the right. */
+.heroScrim { position: absolute; inset: 0; z-index: 1; background:
+  radial-gradient(60% 70% at 12% 30%, rgba(255,255,255,.96), rgba(255,255,255,.75) 45%, rgba(255,255,255,0) 75%),
+  linear-gradient(90deg, rgba(255,255,255,.9) 0%, rgba(247,250,255,.78) 38%, rgba(238,245,255,.28) 58%, rgba(220,234,255,0) 72%),
+  radial-gradient(45% 55% at 82% 45%, rgba(37,99,235,.20), rgba(37,99,235,0) 70%); }
+.heroInner { position: relative; z-index: 2; width: 100%; max-width: var(--or-max); margin: 0 auto; display: grid; gap: 40px; grid-template-columns: 1fr; align-items: center; }
+.heroCopy { max-width: 560px; }
+.heroCopy h1 { font-size: clamp(42px, 6.4vw, 78px); margin: 0; color: #0B1736; letter-spacing: -0.035em; line-height: 1.02; }
+.accent { color: #2563EB; }
+.heroCopy p.sub { margin-top: 22px; font-size: clamp(17px, 1.6vw, 20px); max-width: 38ch; color: #3B4A66; line-height: 1.6; }
+.ctaRow { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; align-items: flex-start; }
+.ctaRow p { color: #475569; }
+.qr { display: none; margin-top: 26px; color: #3B4A66; }
+
+/* Three-phone product stage */
+.stage { position: relative; height: clamp(500px, 62vw, 640px); width: 100%; }
+.stageGlow { position: absolute; left: 50%; top: 46%; width: 70%; height: 70%; transform: translate(-50%, -50%); border-radius: 45%;
+  background: radial-gradient(closest-side, rgba(37,99,235,.32), rgba(96,165,250,.14) 55%, rgba(37,99,235,0)); filter: blur(30px); }
+.slot { position: absolute; left: 50%; top: 4%; }
+.slotHome { width: 270px; margin-left: -135px; }
+.slotSide { width: 236px; margin-left: -118px; top: 10%; filter: saturate(.92) brightness(.97); }
+.contact { position: absolute; left: 12%; right: 12%; bottom: -14px; height: 22px; border-radius: 50%; background: radial-gradient(closest-side, rgba(15,30,80,.55), rgba(15,30,80,0)); opacity: .3; z-index: -1; }
+.contactHome { left: 8%; right: 8%; bottom: -18px; height: 28px; opacity: .42; }
+.glassFloor { position: absolute; left: -6%; right: -6%; bottom: 0; height: 56px; z-index: 5; pointer-events: none; border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: linear-gradient(180deg, rgba(255,255,255,.42), rgba(238,245,255,.12) 70%, rgba(220,234,255,0));
+  border-top: 1px solid rgba(255,255,255,.85); }
+.chip { position: absolute; z-index: 6; width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; opacity: .82;
+  background: rgba(255,255,255,.72); border: 1px solid rgba(255,255,255,.9); box-shadow: 0 10px 24px rgba(15,30,80,.12);
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); color: #2563EB; }
+.chipA { left: 6%; top: 12%; }
+.chipB { right: 4%; top: 22%; color: #0D9488; }
+.chipC { left: 2%; top: 58%; color: #0D9488; }
+.chipD { right: 8%; top: 64%; }
+@media (max-width: 1023px) {
+  .stage { height: 560px; max-width: 560px; margin: 0 auto; }
+  .slotHome { width: 240px; margin-left: -120px; }
+  .slotSide { width: 210px; margin-left: -105px; }
+}
+@media (max-width: 639px) {
+  .stage { height: 470px; }
+  .slotHome { width: 210px; margin-left: -105px; }
+  .slotSide { width: 180px; margin-left: -90px; }
+  .chipB, .chipC { display: none; }
+  .chipA { left: 0; top: 4%; }
+  .chipD { right: 0; top: 70%; }
+}
 @media (min-width: 1024px) {
-  .heroInner { grid-template-columns: 1.1fr .9fr; }
+  .heroInner { grid-template-columns: .95fr 1.05fr; gap: 24px; }
   .qr { display: block; }
 }
 .problemStage { position: relative; margin-top: 48px; min-height: 420px; display: grid; place-items: center; }
@@ -83,14 +115,6 @@
 .enter { animation: enterUp .7s cubic-bezier(0.22, 1, 0.36, 1) both; }
 @keyframes enterUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
-/* Hero card deck: four phones, front card sharp, neighbours tucked behind. */
-.deck { width: min(260px, 54vw); margin: 0 auto; }
-.deckStage { position: relative; aspect-ratio: 9 / 19.5; }
-.deckCard { position: absolute; inset: 0; transform-origin: 50% 90%; }
-.deckDots { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 28px auto 0; width: max-content; max-width: 92vw; }
-.deckDot { border: 1px solid rgba(255,255,255,.35); background: rgba(255,255,255,.1); color: #fff; font-size: 13px; font-weight: 600; padding: 8px 14px; border-radius: 999px; cursor: pointer; min-height: 36px; transition: background-color .2s var(--or-ease); }
-.deckDotOn { background: #fff; color: var(--or-navy); }
-.heroCopy h1 { max-width: 13ch; }
 .journeyGrid { display: grid; gap: 20px; margin-top: 48px; }
 .journeyCard { padding: 24px; display: grid; gap: 24px; align-items: center; grid-template-columns: 1fr; }
 .journeyPhone { width: min(200px, 56vw); margin: 0 auto; }

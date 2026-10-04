@@ -10,14 +10,14 @@ import Install from '@/components/site/home/Install'
 import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 import DownloadQr from '@/components/site/DownloadQr'
-import { FINAL_PHOTO, HERO_PHOTO } from '@/lib/site/photos'
+import { FINAL_PHOTO } from '@/lib/site/photos'
 
 const hasPhoto = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p))
 
 export default function HomePage() {
   return (
     <main>
-      <Hero download={<DownloadButton showMeta />} qr={<DownloadQr />} hasPhoto={hasPhoto(HERO_PHOTO)} />
+      <Hero download={<DownloadButton showMeta />} qr={<DownloadQr />} />
       <Discover />
       <Problem />
       <PinnedStory />

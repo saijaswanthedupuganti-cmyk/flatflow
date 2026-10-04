@@ -91,7 +91,7 @@ test.describe('navigation', () => {
 test('home phone mockup is labelled and never wider than the viewport @mobile', async ({ page }) => {
   await page.setViewportSize({ width: 375, height: 800 })
   await page.goto('/')
-  const phone = page.locator('#hero [data-deck-card]').first()
+  const phone = page.locator('#hero [data-hero-phone="home"]')
   await expect(phone).toBeVisible()
   const box = await phone.boundingBox()
   expect(box!.width).toBeLessThanOrEqual(375 - 32)
@@ -232,15 +232,32 @@ test.describe('reduced motion', () => {
 
 
 test.describe('revision 2', () => {
-  test('hero deck cycles four feature cards, discovery first', async ({ page }) => {
+  test('hero shows Home in front with Discover and Manage emerging behind', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
     await page.goto('/')
-    const cards = page.locator('#hero [data-deck-card]')
-    await expect(cards).toHaveCount(4)
-    const labels = await cards.evaluateAll(els => els.map(e => e.getAttribute('aria-label')))
-    expect(labels[0]).toMatch(/Discover flats/)
-    expect(labels[1]).toMatch(/Discover flatmates/)
-    const first = await page.locator('#hero [data-deck-active]').getAttribute('data-deck-active')
-    await expect(page.locator('#hero [data-deck-active]')).not.toHaveAttribute('data-deck-active', first!, { timeout: 6000 })
+    const phones = page.locator('#hero [data-hero-phone]')
+    await expect(phones).toHaveCount(3)
+    const z = async (n: string) => Number(await page.locator(`#hero [data-hero-phone="${n}"]`).evaluate(e => getComputedStyle(e).zIndex))
+    expect(await z('home')).toBeGreaterThan(await z('discover'))
+    expect(await z('home')).toBeGreaterThan(await z('manage'))
+    // Side phones start hidden behind Home, then emerge.
+    await expect.poll(async () => Number(await page.locator('#hero [data-hero-phone="discover"]').evaluate(e => getComputedStyle(e).opacity)), { timeout: 6000 }).toBeGreaterThan(0.9)
+    await expect.poll(async () => Number(await page.locator('#hero [data-hero-phone="manage"]').evaluate(e => getComputedStyle(e).opacity)), { timeout: 6000 }).toBeGreaterThan(0.9)
+  })
+
+  test('hero headline highlights the second line and phones never cover the copy', async ({ page }) => {
+    for (const width of [375, 768, 1440]) {
+      await page.setViewportSize({ width, height: 900 })
+      await page.goto('/')
+      await expect(page.locator('#hero h1 [data-accent]')).toHaveText('Run it together.')
+      await page.waitForTimeout(3500)
+      const copy = await page.locator('#hero [data-hero-copy]').boundingBox()
+      for (const n of ['home', 'discover', 'manage']) {
+        const b = await page.locator(`#hero [data-hero-phone="${n}"]`).boundingBox()
+        const overlaps = b!.x < copy!.x + copy!.width && b!.x + b!.width > copy!.x && b!.y < copy!.y + copy!.height && b!.y + b!.height > copy!.y
+        expect(overlaps, `${n} overlaps copy at ${width}px`).toBe(false)
+      }
+    }
   })
 
   test('discover comes straight after the hero with both journeys', async ({ page }) => {
@@ -258,7 +275,7 @@ test.describe('revision 2', () => {
       await page.emulateMedia({ reducedMotion: 'reduce' })
       await page.goto('/')
       await page.waitForTimeout(600)
-      for (const sel of ['[data-bubble]', '[data-listing]', '[data-deck-card]']) {
+      for (const sel of ['[data-bubble]', '[data-listing]', '[data-hero-phone]']) {
         const boxes = await page.locator(sel).evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.left, r.right] }))
         for (const [l, r] of boxes) {
           expect(l, `${sel} left`).toBeGreaterThanOrEqual(-1)

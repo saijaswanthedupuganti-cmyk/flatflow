@@ -138,3 +138,24 @@ test.describe('pinned story', () => {
     await expect(page.locator('#how-it-works [data-active-screen]')).toHaveAttribute('data-active-screen', '1', { timeout: 4000 })
   })
 })
+
+test('voice section shows the demo request and confirm card', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' }) // final state, deterministic
+  await page.goto('/')
+  const sec = page.locator('#voice')
+  await sec.scrollIntoViewIfNeeded()
+  await expect(sec.getByRole('heading', { name: 'Just say it.' })).toBeVisible()
+  await expect(sec.getByText('paid Ravi 300 for the cylinder')).toBeVisible()
+  await expect(sec.getByText('Record ₹300 you paid Ravi')).toBeVisible()
+  await expect(sec.getByText(/Hindi or Telugu/)).toBeVisible()
+})
+
+test('no hydration errors with reduced motion', async ({ page }) => {
+  const errors: string[] = []
+  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()) })
+  page.on('pageerror', e => errors.push(e.message))
+  await page.emulateMedia({ reducedMotion: 'reduce' })
+  await page.goto('/')
+  await page.waitForTimeout(1500)
+  expect(errors.filter(e => /hydrat/i.test(e))).toEqual([])
+})

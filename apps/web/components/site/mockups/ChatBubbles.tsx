@@ -1,6 +1,7 @@
 'use client'
 import { useRef } from 'react'
-import { motion, useScroll, useTransform, useReducedMotion, type MotionValue } from 'framer-motion'
+import { motion, useScroll, useTransform, type MotionValue } from 'framer-motion'
+import { useCalm } from '../useCalm'
 import { CheckCircle2, IndianRupee, Receipt } from 'lucide-react'
 import Glass from '../Glass'
 import h from '../home/home.module.css'
@@ -14,7 +15,7 @@ const BUBBLES = [
 ]
 
 function Bubble({ b, progress, i }: { b: typeof BUBBLES[number]; progress: MotionValue<number>; i: number }) {
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   const opacity = useTransform(progress, [0, 0.45 + i * 0.03, 0.7], [1, 1, reduce ? 1 : 0])
   const scale = useTransform(progress, [0.4, 0.7], [1, reduce ? 1 : 0.6])
   return (
@@ -27,7 +28,7 @@ function Bubble({ b, progress, i }: { b: typeof BUBBLES[number]; progress: Motio
 
 export default function ChatBubbles() {
   const ref = useRef<HTMLDivElement>(null)
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start end', 'end start'] })
   const cardOpacity = useTransform(scrollYProgress, [0.45, 0.65], [reduce ? 1 : 0, 1])
   const cardY = useTransform(scrollYProgress, [0.45, 0.65], [reduce ? 0 : 30, 0])

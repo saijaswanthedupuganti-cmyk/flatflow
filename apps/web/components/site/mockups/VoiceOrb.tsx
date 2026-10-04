@@ -1,11 +1,12 @@
 'use client'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useCalm } from '../useCalm'
 import m from './mockups.module.css'
 
 const HEIGHTS = [0.45, 0.8, 1, 0.7, 0.5]
 
 export default function VoiceOrb({ size = 120, listening = true }: { size?: number; listening?: boolean }) {
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   const live = listening && !reduce
   return (
     <motion.div className={m.orb} style={{ width: size, height: size }}

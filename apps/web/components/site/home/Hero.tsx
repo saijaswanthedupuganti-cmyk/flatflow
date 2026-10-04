@@ -1,7 +1,8 @@
 'use client'
 import Image from 'next/image'
 import { useRef } from 'react'
-import { motion, useScroll, useTransform, useReducedMotion } from 'framer-motion'
+import { motion, useScroll, useTransform } from 'framer-motion'
+import { useCalm } from '../useCalm'
 import { CheckCircle2, IndianRupee } from 'lucide-react'
 import Glass from '../Glass'
 import SiteButton from '../SiteButton'
@@ -14,7 +15,7 @@ import h from './home.module.css'
 
 export default function Hero({ download, qr, hasPhoto }: { download: React.ReactNode; qr: React.ReactNode; hasPhoto: boolean }) {
   const ref = useRef<HTMLElement>(null)
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   const { scrollYProgress } = useScroll({ target: ref, offset: ['start start', 'end start'] })
   const tilt = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : -8])
   const lift = useTransform(scrollYProgress, [0, 1], [0, reduce ? 0 : -60])

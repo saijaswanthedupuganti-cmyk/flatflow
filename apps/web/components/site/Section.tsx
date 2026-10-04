@@ -1,12 +1,13 @@
 'use client'
-import { motion, useReducedMotion } from 'framer-motion'
+import { motion } from 'framer-motion'
+import { useCalm } from './useCalm'
 import { fadeUp } from './motion'
 import s from './site.module.css'
 
 const tones = { canvas: s.toneCanvas, white: s.toneWhite, dark: s.toneDark }
 
 export function Reveal({ children, delay = 0, className }: { children: React.ReactNode; delay?: number; className?: string }) {
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   // framer-motion's reducedMotion only skips transforms; opacity would still start at 0. Render the final state instead.
   if (reduce) return <div className={className}>{children}</div>
   return (

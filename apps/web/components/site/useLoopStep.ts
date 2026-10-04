@@ -1,12 +1,13 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import { useInView, useReducedMotion } from 'framer-motion'
+import { useInView } from 'framer-motion'
+import { useCalm } from './useCalm'
 
 /** Cycles 0..steps-1 every intervalMs while the element is on screen; final step when motion is reduced. */
 export function useLoopStep(steps: number, intervalMs: number) {
   const ref = useRef<HTMLDivElement | null>(null)
   const inView = useInView(ref, { amount: 0.3 })
-  const reduce = useReducedMotion()
+  const reduce = useCalm()
   const [step, setStep] = useState(0)
 
   useEffect(() => {

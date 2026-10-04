@@ -114,3 +114,12 @@ test.describe('hero', () => {
     await expect(page.locator('#hero [data-download-qr]')).toBeHidden()
   })
 })
+
+test('problem section names the WhatsApp chaos and resolves it', async ({ page }) => {
+  await page.goto('/')
+  const sec = page.locator('#problem')
+  await sec.scrollIntoViewIfNeeded()
+  await expect(sec.getByRole('heading', { name: /WhatsApp group is doing too much/ })).toBeVisible()
+  await expect(sec.getByText('Who bought milk?')).toBeAttached()
+  await expect(sec.getByText('One place for the whole flat')).toBeVisible()
+})

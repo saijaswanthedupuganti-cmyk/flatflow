@@ -17,3 +17,8 @@
   .heroInner { grid-template-columns: 1.1fr .9fr; }
   .qr { display: block; }
 }
+.problemStage { position: relative; margin-top: 48px; min-height: 420px; display: grid; place-items: center; }
+.bubble { position: absolute; padding: 12px 16px; border-radius: 18px 18px 18px 6px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.08); font-size: 15px; max-width: 220px; border: 1px solid var(--or-line); }
+.bubbleMine { background: #DCF8C6; border-radius: 18px 18px 6px 18px; }
+.resolved { position: relative; z-index: 2; width: min(420px, 100%); padding: 24px; }
+.resolvedRow { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--or-line); }

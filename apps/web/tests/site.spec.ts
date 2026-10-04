@@ -169,3 +169,26 @@ test('discover section shows listings, both journeys and the privacy note', asyn
   await expect(sec.getByText('Approximate location only')).toBeVisible()
   await expect(sec.getByRole('link', { name: 'Explore Discover' })).toHaveAttribute('href', '/discover')
 })
+
+test.describe('closing sections', () => {
+  test('trust tiles carry only the approved claims', async ({ page }) => {
+    await page.goto('/')
+    const tiles = page.locator('#trust [data-trust-tile] b')
+    await expect(tiles).toHaveText([
+      'Contact stays private', 'Approximate location only', 'Your data, your call', 'Built for India\'s DPDP Act',
+    ])
+    await expect(page.locator('#trust').getByRole('link', { name: 'Read how we protect you' })).toHaveAttribute('href', '/privacy-and-safety')
+  })
+
+  test('install steps show version and date from version.json', async ({ page }) => {
+    await page.goto('/')
+    const sec = page.locator('#install')
+    await expect(sec.locator('ol > li')).toHaveCount(3)
+    await expect(sec.getByText(`Version ${version.version}`)).toBeVisible()
+  })
+
+  test('final CTA repeats the download', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.locator('#get-oddroof [data-download]')).toHaveAttribute('href', version.url)
+  })
+})

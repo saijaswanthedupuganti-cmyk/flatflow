@@ -63,3 +63,16 @@
 .journey { padding: 20px; }
 .privacyNote { display: flex; gap: 10px; align-items: center; color: var(--or-text-2); font-size: 15px; margin-top: 8px; }
 @media (min-width: 1024px) { .discoverGrid { grid-template-columns: 1fr 1fr; } }
+.trustGrid { display: grid; gap: 16px; margin-top: 48px; grid-template-columns: 1fr; }
+.trustTile { padding: 24px; display: grid; gap: 10px; }
+.trustIcon { width: 44px; height: 44px; border-radius: 14px; display: grid; place-items: center; color: #fff; }
+.steps { list-style: none; padding: 0; margin: 40px 0 0; display: grid; gap: 16px; counter-reset: s; }
+.steps li { padding: 22px 22px 22px 76px; position: relative; }
+.steps li::before { counter-increment: s; content: counter(s); position: absolute; left: 22px; top: 20px; width: 38px; height: 38px; border-radius: 12px; background: var(--or-blue); color: #fff; display: grid; place-items: center; font-weight: 800; }
+.steps li { background: rgba(255,255,255,.76); border: 1px solid var(--or-line); border-radius: var(--or-radius-md); box-shadow: 0 12px 40px rgba(15,23,42,.08); }
+.installNote { margin-top: 20px; color: var(--or-text-2); font-size: 15px; }
+.final { position: relative; overflow: hidden; color: #fff; text-align: center; padding: clamp(96px, 14vw, 180px) var(--or-gutter); }
+.final h2 { font-size: clamp(34px, 5.5vw, 64px); margin: 0 auto; max-width: 16ch; position: relative; z-index: 2; }
+.finalInner { position: relative; z-index: 2; display: grid; justify-items: center; gap: 24px; }
+@media (min-width: 768px) { .trustGrid { grid-template-columns: 1fr 1fr; } .steps { grid-template-columns: repeat(3, 1fr); } }
+@media (min-width: 1200px) { .trustGrid { grid-template-columns: repeat(4, 1fr); } }

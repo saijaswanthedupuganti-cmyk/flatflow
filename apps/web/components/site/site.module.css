@@ -39,8 +39,8 @@
   transition: transform .2s var(--or-ease), background-color .2s var(--or-ease), box-shadow .2s var(--or-ease);
 }
 .btn:hover { transform: translateY(-1px); }
-.primary { background: var(--or-blue); color: #fff; box-shadow: 0 10px 30px rgba(47,107,255,.35); }
-.primary:hover { background: var(--or-blue-deep); }
+.primary { background: var(--or-blue-deep); color: #fff; box-shadow: 0 10px 30px rgba(47,107,255,.35); }
+.primary:hover { background: #1A43B3; }
 .ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.4); }
 .light { background: #fff; color: var(--or-navy); }
 .meta { margin-top: 10px; font-size: 13px; opacity: .85; }

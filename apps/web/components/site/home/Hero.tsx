@@ -9,7 +9,7 @@ import SiteButton from '../SiteButton'
 import PhoneFrame from '../mockups/PhoneFrame'
 import HomeScreen from '../mockups/HomeScreen'
 import VoiceOrb from '../mockups/VoiceOrb'
-import { EASE, fadeUp, staggerKids } from '../motion'
+import { EASE } from '../motion'
 import { HERO_PHOTO } from '@/lib/site/photos'
 import h from './home.module.css'
 
@@ -27,23 +27,24 @@ export default function Hero({ download, qr, hasPhoto }: { download: React.React
       </div>
       <div className={h.heroScrim} />
       <div className={h.heroInner}>
-        <motion.div className={h.heroCopy} variants={staggerKids(0.08)} initial="hidden" animate="show">
-          <motion.h1 variants={fadeUp}>Your flat, sorted.</motion.h1>
-          <motion.p variants={fadeUp} className={h.sub}>
+        {/* CSS entrance, not JS: the headline is the page's largest paint and must not wait for hydration. */}
+        <div className={h.heroCopy}>
+          <h1 className={h.enter} style={{ animationDelay: '0ms' }}>Your flat, sorted.</h1>
+          <p className={`${h.sub} ${h.enter}`} style={{ animationDelay: '80ms' }}>
             Fair turns for chores, clear money between flatmates, and a voice assistant that just gets it done.
-          </motion.p>
-          <motion.div variants={fadeUp} className={h.ctaRow}>
+          </p>
+          <div className={`${h.ctaRow} ${h.enter}`} style={{ animationDelay: '160ms' }}>
             {download}
             <SiteButton href="#how-it-works" variant="ghost">See how it works</SiteButton>
-          </motion.div>
-          <motion.div variants={fadeUp} className={h.qr}>{qr}</motion.div>
-        </motion.div>
+          </div>
+          <div className={`${h.qr} ${h.enter}`} style={{ animationDelay: '240ms' }}>{qr}</div>
+        </div>
 
         {/* Outer layer follows scroll (tilt/lift); inner layer plays the one-time entrance, so the two y values never fight. */}
         <motion.div className={h.heroPhone} style={{ rotate: tilt, y: lift }}>
-          <motion.div initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.9, ease: EASE, delay: 0.2 }}>
+          <div className={h.enter} style={{ animationDelay: '200ms' }}>
             <PhoneFrame label="Oddroof home screen showing today's tasks being completed"><HomeScreen /></PhoneFrame>
-          </motion.div>
+          </div>
           <motion.div className={h.floatA}
             initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.7, ease: EASE, delay: 0.7 }}>
             <Glass tier="photo" className={h.floatCard}><CheckCircle2 size={18} aria-hidden />Trash: Ravi&apos;s turn next</Glass>

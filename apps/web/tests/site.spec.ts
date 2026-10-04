@@ -192,3 +192,40 @@ test.describe('closing sections', () => {
     await expect(page.locator('#get-oddroof [data-download]')).toHaveAttribute('href', version.url)
   })
 })
+
+const WIDTHS = [375, 768, 1024, 1440]
+
+for (const width of WIDTHS) {
+  test(`no horizontal scroll at ${width}px`, async ({ page }) => {
+    await page.setViewportSize({ width, height: 900 })
+    await page.goto('/')
+    // Walk the page so scroll-linked layouts settle at every section.
+    for (const id of ['hero', 'problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-oddroof']) {
+      await page.locator(`#${id}`).scrollIntoViewIfNeeded()
+      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
+      expect(overflow, `overflow in #${id}`).toBeLessThanOrEqual(0)
+    }
+  })
+}
+
+test.describe('reduced motion', () => {
+  test('every section heading and lede is visible without animation', async ({ page }) => {
+    // test.use({ reducedMotion }) does not reach the page in this setup; emulateMedia does.
+    await page.emulateMedia({ reducedMotion: 'reduce' })
+    await page.goto('/')
+    await page.waitForTimeout(500) // let hydration switch Reveal to its final state
+    for (const id of ['problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-oddroof']) {
+      const sec = page.locator(`#${id}`)
+      await sec.scrollIntoViewIfNeeded()
+      const heading = sec.getByRole('heading').first()
+      await expect(heading).toBeVisible()
+      // toBeVisible() treats opacity:0 as visible, so check the effective opacity up the tree.
+      const minOpacity = await heading.evaluate(el => {
+        let o = 1
+        for (let n: Element | null = el; n; n = n.parentElement) o = Math.min(o, parseFloat(getComputedStyle(n).opacity))
+        return o
+      })
+      expect(minOpacity).toBe(1)
+    }
+  })
+})

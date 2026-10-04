@@ -8,11 +8,13 @@
 .ctaRow { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 32px; align-items: flex-start; }
 .qr { display: none; margin-top: 28px; }
 .heroPhone { position: relative; width: min(320px, calc(100vw - 64px)); margin: 0 auto; }
-.heroOrb { position: absolute; right: -14%; bottom: 16%; z-index: 3; }
+.heroOrb { position: absolute; left: -16%; bottom: 8%; z-index: 3; }
 .floatCard { padding: 12px 16px; font-size: 14px; display: flex; gap: 10px; align-items: center; white-space: nowrap; }
-.floatA { position: absolute; z-index: 3; left: -18%; top: 18%; }
-.floatB { position: absolute; z-index: 3; right: -10%; top: 46%; }
-@media (max-width: 767px) { .floatA, .floatB, .heroOrb { display: none; } }
+.floatA { position: absolute; z-index: 3; left: -58%; top: 34%; }
+.floatB { position: absolute; z-index: 3; right: -50%; top: 18%; }
+@media (max-width: 767px) { .heroOrb { display: none; } }
+/* Float cards sit beside the phone, which needs the room of a wide screen. */
+@media (max-width: 1199px) { .floatA, .floatB { display: none; } }
 @media (min-width: 1024px) {
   .heroInner { grid-template-columns: 1.1fr .9fr; }
   .qr { display: block; }
@@ -76,3 +78,7 @@
 .finalInner { position: relative; z-index: 2; display: grid; justify-items: center; gap: 24px; }
 @media (min-width: 768px) { .trustGrid { grid-template-columns: 1fr 1fr; } .steps { grid-template-columns: repeat(3, 1fr); } }
 @media (min-width: 1200px) { .trustGrid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Hero copy entrance runs in CSS so the largest paint never waits for JavaScript. */
+.enter { animation: enterUp .7s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes enterUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }

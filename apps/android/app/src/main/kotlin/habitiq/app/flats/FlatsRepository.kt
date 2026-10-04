@@ -293,6 +293,11 @@ class FlatsRepository(
         requests(flatId).document(requesterUid).update(mapOf("status" to "declined", "reviewedAt" to Instant.now().toString())).await()
     }
 
+    /** The member withdraws a pending request, or clears a declined one. */
+    suspend fun deleteVacancyRequest(flatId: String, requesterUid: String): Result<Unit> = runCatching {
+        requests(flatId).document(requesterUid).delete().await()
+    }
+
     private fun parseRequest(id: String, data: Map<String, Any?>?): habitiq.app.data.VacancyRequest? {
         val d = data ?: return null
         val vacancy = d["vacancy"]?.let { parseVacancy(it) } ?: return null

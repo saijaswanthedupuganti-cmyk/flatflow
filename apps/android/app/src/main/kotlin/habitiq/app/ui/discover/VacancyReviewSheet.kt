@@ -15,6 +15,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.painter.ColorPainter
@@ -38,11 +42,16 @@ import habitiq.app.ui.theme.LocalHqColors
 @Composable
 fun VacancyReviewSheet(
     requests: List<VacancyRequest>,
-    onApprove: (VacancyRequest) -> Unit,
-    onDecline: (VacancyRequest) -> Unit,
+    /** Approve / decline; call the second argument when the write finishes so the card unlocks. */
+    onApprove: (VacancyRequest, () -> Unit) -> Unit,
+    onDecline: (VacancyRequest, () -> Unit) -> Unit,
     onDismiss: () -> Unit,
+    /** The flat already has a live room on Discover; approving replaces it. */
+    hasLiveVacancy: Boolean = false,
 ) {
     val c = LocalHqColors.current
+    // The request being written, so a second tap can't approve or decline it twice.
+    var busyUid by remember { mutableStateOf<String?>(null) }
     HqBottomSheet(onDismiss = onDismiss, title = "Vacancy to review") {
         if (requests.isEmpty()) {
             Text("Nothing waiting right now.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(vertical = 16.dp))
@@ -81,9 +90,23 @@ fun VacancyReviewSheet(
                             }
                         }
                     }
+                    if (hasLiveVacancy) {
+                        Text(
+                            "Approving replaces the room your flat has live on Discover now.",
+                            style = HqType.bodySmall, color = c.statusWarningFg,
+                        )
+                    }
+                    val busy = busyUid == r.requesterUid
                     Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        HqButton("Decline", { onDecline(r) }, variant = HqButtonVariant.Secondary, modifier = Modifier.weight(1f))
-                        HqButton("Approve", { onApprove(r) }, modifier = Modifier.weight(1f))
+                        HqButton(
+                            "Decline", { busyUid = r.requesterUid; onDecline(r) { busyUid = null } },
+                            variant = HqButtonVariant.Secondary, enabled = busyUid == null, modifier = Modifier.weight(1f),
+                        )
+                        HqButton(
+                            if (hasLiveVacancy) "Approve and replace" else "Approve",
+                            { busyUid = r.requesterUid; onApprove(r) { busyUid = null } },
+                            enabled = busyUid == null, loading = busy, modifier = Modifier.weight(1f),
+                        )
                     }
                 }
             }

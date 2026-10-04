@@ -46,6 +46,23 @@ class DiscoverScreenshotTest : ScreenshotHarness() {
         }
     }
 
+    private fun request(status: String) = habitiq.app.data.VacancyRequest(
+        requesterUid = "m1", requesterName = "Meera",
+        vacancy = habitiq.app.data.VacancyData(active = false, city = "Hyderabad", area = "Gachibowli", rentPerHead = 8500.0),
+        status = status,
+    )
+
+    @Test fun myPostsPendingRequest() = shoot("discover-my-posts-pending") { myPosts(request("pending")) }
+
+    @Test fun myPostsDeclinedRequest() = shoot("discover-my-posts-declined") { myPosts(request("declined")) }
+
+    @androidx.compose.runtime.Composable
+    private fun myPosts(r: habitiq.app.data.VacancyRequest) = habitiq.app.ui.discover.MyPostsScreen(
+        isAdmin = false, pendingRequest = r, flat = null, vacancy = null, mySeeker = null, incomingCount = 0,
+        onPauseVacancy = {}, onResumeVacancy = {}, onCloseVacancy = {}, onPauseLooking = {}, onResumeLooking = {},
+        onEdit = {}, onViewConnections = {}, onBack = {},
+    )
+
     @Test fun people() = shoot("discover-people") {
         Column {
             Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a person"), 1, {}) }

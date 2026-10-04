@@ -388,11 +388,12 @@ fun DiscoverBoardScreen(
             initialType = createInitialType,
             isAdmin = isAdmin,
             flat = flatInfo,
-            // Members edit only a vacancy they posted (or their own pending request); otherwise they start fresh.
+            // Members edit their own open request first (pending, or declined to fix and resend),
+            // then a live vacancy they posted; otherwise they start fresh.
             existingVacancy = when {
                 isAdmin -> flatInfo?.vacancy
+                myVacancyRequest?.status == "pending" || myVacancyRequest?.status == "declined" -> myVacancyRequest?.vacancy
                 flatInfo?.vacancy?.postedBy == uid -> flatInfo?.vacancy
-                myVacancyRequest?.status == "pending" -> myVacancyRequest?.vacancy
                 else -> null
             },
             onPublishVacancy = { vacancy, photos ->
@@ -425,7 +426,9 @@ fun DiscoverBoardScreen(
             onResumeLooking = { viewModel.setSeekerActive(true) },
             onEdit = { surface = "create" },
             onViewConnections = { surface = "inbox" },
-            onBack = { if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse" }
+            onBack = { if (initialSurface != "browse" && onRootBack != null) onRootBack() else surface = "browse" },
+            onEditRequest = { createInitialType = "VACANCY"; surface = "create" },
+            onWithdrawRequest = viewModel::withdrawVacancyRequest,
         )
         "inbox" -> ConnectionInboxScreen(
             uid = uid,

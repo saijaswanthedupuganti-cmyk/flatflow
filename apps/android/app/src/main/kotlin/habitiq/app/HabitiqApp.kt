@@ -761,11 +761,13 @@ fun HabitiqApp() {
 
                         if (showVacancyReview) {
                             val pendingVacancies by flatViewModel.vacancyRequests.collectAsStateWithLifecycleCompat()
+                            val reviewFlat by flatViewModel.flatInfo.collectAsStateWithLifecycleCompat()
                             habitiq.app.ui.discover.VacancyReviewSheet(
                                 requests = pendingVacancies,
-                                onApprove = { flatViewModel.approveVacancyRequest(it) },
-                                onDecline = { flatViewModel.declineVacancyRequest(it) },
+                                onApprove = { r, done -> flatViewModel.approveVacancyRequest(r, done) },
+                                onDecline = { r, done -> flatViewModel.declineVacancyRequest(r, done) },
                                 onDismiss = { showVacancyReview = false },
+                                hasLiveVacancy = reviewFlat?.vacancy?.active == true,
                             )
                         }
                         if (showSwapReview) {

@@ -55,7 +55,11 @@ fun MyPostsScreen(
     onResumeLooking: () -> Unit,
     onEdit: () -> Unit,
     onViewConnections: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Opens the vacancy form prefilled with the request (edit while pending, or fix and resend). */
+    onEditRequest: () -> Unit = onEdit,
+    /** Withdraws a pending request, or clears a declined one. */
+    onWithdrawRequest: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
     var tab by remember { mutableStateOf("active") }
@@ -79,8 +83,8 @@ fun MyPostsScreen(
         val showVacancy = vacancy != null && if (tab == "active") vacancyActive else !vacancyActive
         val showLooking = mySeeker != null && if (tab == "active") lookingActive else !lookingActive
 
-        val showPending = pendingRequest != null &&
-            if (tab == "active") pendingRequest.status == "pending" else pendingRequest.status == "declined"
+        // Pending and declined both still need the member's attention, so they sit under Active.
+        val showPending = pendingRequest != null && tab == "active"
 
         if (!showVacancy && !showLooking && !showPending) {
             DiscoveryEmpty(
@@ -126,9 +130,18 @@ fun MyPostsScreen(
                         )
                         Text(
                             if (pending) "Your vacancy goes live on Discover as soon as your flat admin approves it."
-                            else "Your admin didn't approve this vacancy. Talk to them, then post again from +.",
+                            else "Your admin didn't approve this vacancy. Talk to them, then edit it and send it again.",
                             style = HqType.bodySmall, color = c.textSecondary,
                         )
+                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                            HqButton(
+                                text = if (pending) "Edit request" else "Edit and resend",
+                                onClick = onEditRequest,
+                                variant = if (pending) HqButtonVariant.Secondary else HqButtonVariant.Primary,
+                                fullWidth = false,
+                            )
+                            HqTextButton(text = if (pending) "Withdraw" else "Remove", onClick = onWithdrawRequest)
+                        }
                     }
                 }
             }

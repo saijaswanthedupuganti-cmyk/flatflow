@@ -918,8 +918,8 @@ class FlatViewModel(
     }
 
     /** Admin approves a member's vacancy: it goes live on Discover, credited to that member. */
-    fun approveVacancyRequest(request: habitiq.app.data.VacancyRequest) {
-        val flat = _flatId.value ?: return
+    fun approveVacancyRequest(request: habitiq.app.data.VacancyRequest, onDone: () -> Unit = {}) {
+        val flat = _flatId.value ?: return onDone()
         val health = habitiq.app.discover.FlatHealthComputer.compute(
             tasks = _tasks.value, settlements = _settlements.value, expensesCount = _expenses.value.size,
             activity = _activity.value, members = _members.value, nowIso = Instant.now().toString()
@@ -932,14 +932,27 @@ class FlatViewModel(
                     )
                 }
                 .onFailure { _error.value = it.message ?: "Couldn't approve the vacancy." }
+            onDone()
         }
     }
 
-    fun declineVacancyRequest(request: habitiq.app.data.VacancyRequest) {
-        val flat = _flatId.value ?: return
+    fun declineVacancyRequest(request: habitiq.app.data.VacancyRequest, onDone: () -> Unit = {}) {
+        val flat = _flatId.value ?: return onDone()
         viewModelScope.launch {
             flatsRepository.declineVacancyRequest(flat, request.requesterUid)
                 .onFailure { _error.value = it.message ?: "Couldn't decline the vacancy." }
+            onDone()
+        }
+    }
+
+    /** Member: withdraw a pending request or clear a declined one. */
+    fun withdrawVacancyRequest() {
+        val flat = _flatId.value ?: return
+        val me = currentUser.value?.uid ?: return
+        viewModelScope.launch {
+            flatsRepository.deleteVacancyRequest(flat, me)
+                .onSuccess { if (_flatId.value == flat) _myVacancyRequest.value = null }
+                .onFailure { _discoveryPostError.value = "Couldn't remove the request. Try again." }
         }
     }
 

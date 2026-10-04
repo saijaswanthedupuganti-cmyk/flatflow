@@ -28,3 +28,16 @@
 .orbRing { position: absolute; inset: -14%; border-radius: 999px; border: 1px solid rgba(140,175,255,.45); }
 .bars { display: flex; gap: 6%; align-items: center; height: 34%; }
 .bar { width: 7%; min-width: 3px; height: 100%; border-radius: 999px; background: #fff; transform-origin: center; }
+
+.appBar { padding: 16% 6% 4%; font-weight: 800; font-size: 1.35em; font-family: var(--or-font-display); color: #0F172A; }
+.list { padding: 0 4%; display: grid; gap: 3%; }
+.card { background: #fff; border-radius: 16px; padding: 5%; box-shadow: 0 4px 14px rgba(15,23,42,.06); display: flex; align-items: center; gap: 4%; color: #0F172A; }
+.chip { margin-left: auto; padding: .3em .7em; border-radius: 999px; font-size: .75em; font-weight: 700; }
+.avatar { width: 2.2em; height: 2.2em; border-radius: 999px; display: grid; place-items: center; font-weight: 800; color: #fff; flex-shrink: 0; font-size: .85em; }
+.big { font-size: 2.2em; font-weight: 800; font-family: var(--or-font-display); }
+.split { display: grid; gap: 2%; margin-top: 4%; }
+.splitRow { display: flex; justify-content: space-between; padding: 3% 0; border-bottom: 1px solid #EEF2F7; }
+.toggle { margin-left: auto; width: 2.8em; height: 1.6em; border-radius: 999px; background: #CBD5E1; position: relative; transition: background-color .3s var(--or-ease); }
+.toggle::after { content: ''; position: absolute; top: .2em; left: .2em; width: 1.2em; height: 1.2em; border-radius: 999px; background: #fff; transition: transform .3s var(--or-ease); }
+.toggleOn { background: var(--or-violet); }
+.toggleOn::after { transform: translateX(1.2em); }

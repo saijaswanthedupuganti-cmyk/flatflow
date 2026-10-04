@@ -123,3 +123,18 @@ test('problem section names the WhatsApp chaos and resolves it', async ({ page }
   await expect(sec.getByText('Who bought milk?')).toBeAttached()
   await expect(sec.getByText('One place for the whole flat')).toBeVisible()
 })
+
+test.describe('pinned story', () => {
+  test('four steps in order', async ({ page }) => {
+    await page.goto('/')
+    const steps = page.locator('#how-it-works [data-story-step] h3')
+    await expect(steps).toHaveText(['Tasks rotate fairly', 'Expenses split themselves', 'Bills and month close', 'Away mode'])
+  })
+
+  test('phone screen follows the step on desktop', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    await page.locator('#how-it-works [data-story-step]').nth(1).scrollIntoViewIfNeeded()
+    await expect(page.locator('#how-it-works [data-active-screen]')).toHaveAttribute('data-active-screen', '1', { timeout: 4000 })
+  })
+})

@@ -22,3 +22,19 @@
 .bubbleMine { background: #DCF8C6; border-radius: 18px 18px 6px 18px; }
 .resolved { position: relative; z-index: 2; width: min(420px, 100%); padding: 24px; }
 .resolvedRow { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--or-line); }
+.story { display: grid; gap: 40px; margin-top: 56px; }
+.storyPhoneCol { display: none; }
+.storySteps { display: grid; gap: 24px; }
+.step { padding: 28px; }
+.step h3 { font-size: clamp(22px, 2.4vw, 30px); margin: 10px 0 8px; }
+.step p { color: var(--or-text-2); margin: 0; }
+.stepPhone { width: min(280px, 100%); margin: 24px auto 0; }
+.stepDot { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; }
+@media (min-width: 1024px) {
+  .story { grid-template-columns: 1fr 1fr; gap: 64px; }
+  .storyPhoneCol { display: block; }
+  .storyPhoneSticky { position: sticky; top: 14vh; width: 320px; margin: 0 auto; }
+  .storySteps { gap: 0; }
+  .step { min-height: 72vh; display: flex; flex-direction: column; justify-content: center; background: none !important; border: 0 !important; box-shadow: none !important; }
+  .stepPhone { display: none; }
+}

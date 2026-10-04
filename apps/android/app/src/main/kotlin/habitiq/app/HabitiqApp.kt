@@ -363,6 +363,14 @@ fun HabitiqApp() {
                         var discoverOpenCreate by remember { mutableStateOf(false) }
                         var discoverCreateType by remember { mutableStateOf<String?>(null) }
                         var discoverOpenPosts by remember { mutableStateOf(false) }
+                        val notificationTarget by habitiq.app.services.NotificationNav.pending.collectAsStateWithLifecycleCompat()
+                        LaunchedEffect(notificationTarget) {
+                            if (habitiq.app.services.NotificationNav.opensMyPosts(notificationTarget)) {
+                                selectedTab = AppTab.DISCOVER
+                                discoverOpenPosts = true
+                            }
+                            if (notificationTarget != null) habitiq.app.services.NotificationNav.pending.value = null
+                        }
                         var manageAreaName by rememberSaveable { mutableStateOf(ManageFlatArea.HUB.name) }
 
                         val homeViewModel = viewModel { HomeViewModel(authRepository, usersRepository) }

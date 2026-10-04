@@ -2,6 +2,7 @@ import * as functions from "firebase-functions/v1";
 import { logger } from "firebase-functions";
 import { initializeApp } from "firebase-admin/app";
 import { FieldValue, getFirestore, type Firestore, type Query } from "firebase-admin/firestore";
+import { getMessaging } from "firebase-admin/messaging";
 
 initializeApp();
 
@@ -40,6 +41,52 @@ export const linkMemberToUser = functions
       if (!user.get("activeFlatId")) update.activeFlatId = flatId;
       tx.set(userRef, update, { merge: true });
     });
+  });
+
+/**
+ * Tells a member when the admin approves or declines the vacancy they posted. Runs on the server
+ * because only the requester's own client can read their users/{uid} doc (where the FCM token is).
+ */
+export const notifyVacancyDecision = functions
+  .region("asia-south1")
+  .firestore.document("flats/{flatId}/vacancyRequests/{uid}")
+  .onUpdate(async (change, context) => {
+    const before = change.before.get("status");
+    const after = change.after.get("status");
+    if (before !== "pending" || (after !== "approved" && after !== "declined")) return;
+
+    const { flatId, uid } = context.params;
+    const db = getFirestore();
+    const [user, flat] = await Promise.all([
+      db.collection("users").doc(uid).get(),
+      db.collection("flats").doc(flatId).get(),
+    ]);
+    const token = user.get("fcmToken");
+    if (typeof token !== "string" || token.length === 0) {
+      logger.info("notifyVacancyDecision: no FCM token", { uid });
+      return;
+    }
+    const flatName = (flat.get("name") as string | undefined) || "your flat";
+    const approved = after === "approved";
+    const title = approved ? "Your room is live on Discover" : "Vacancy not approved";
+    const body = approved
+      ? `Your admin approved the vacancy for ${flatName}. People can now find it and connect.`
+      : `Your admin didn't approve the vacancy for ${flatName}. Open My posts to edit and resend it.`;
+    try {
+      await getMessaging().send({
+        token,
+        // Data-only so HabitiqFcmService builds the notification the same way in every app state.
+        data: { title, body, type: approved ? "vacancy_approved" : "vacancy_declined", flatId },
+        android: { priority: "high" },
+      });
+    } catch (error) {
+      const code = (error as { code?: string }).code;
+      // A stale token: drop it so the next login saves a fresh one.
+      if (code === "messaging/registration-token-not-registered" || code === "messaging/invalid-registration-token") {
+        await db.collection("users").doc(uid).update({ fcmToken: FieldValue.delete() });
+      }
+      logger.warn("notifyVacancyDecision: send failed", { uid, code });
+    }
   });
 
 export async function purgeUserData(db: Firestore, uid: string): Promise<void> {

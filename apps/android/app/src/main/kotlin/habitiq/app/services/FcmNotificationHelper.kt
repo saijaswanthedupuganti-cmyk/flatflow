@@ -70,10 +70,19 @@ object FcmNotificationHelper {
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(title)
             .setContentText(body)
+            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setAutoCancel(true)
             .setContentIntent(pending)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
         val nm = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         nm.notify(System.currentTimeMillis().toInt(), builder.build())
     }
+}
+
+/** Where a tapped notification should land. MainActivity fills it, the app shell consumes it. */
+object NotificationNav {
+    val pending = kotlinx.coroutines.flow.MutableStateFlow<String?>(null)
+
+    /** Vacancy decisions open My posts on Discover. */
+    fun opensMyPosts(type: String?): Boolean = type == "vacancy_approved" || type == "vacancy_declined"
 }

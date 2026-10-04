@@ -28,6 +28,7 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         appPreferences = AppPreferences(this)
         FcmNotificationHelper.createNotificationChannel(this)
+        habitiq.app.services.NotificationNav.pending.value = intent?.getStringExtra("notification_type")
         FcmNotificationHelper.requestNotificationPermissionIfNeeded(this)
 
         setContent {
@@ -57,6 +58,12 @@ class MainActivity : FragmentActivity() {
         }
 
         registerFcmToken()
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        intent.getStringExtra("notification_type")?.let { habitiq.app.services.NotificationNav.pending.value = it }
     }
 
     // Dark mode / font size / locale changes are handled in place so unsaved input survives them

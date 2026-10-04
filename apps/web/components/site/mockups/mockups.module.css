@@ -1,0 +1,30 @@
+.phone {
+  position: relative; width: 100%; aspect-ratio: 9 / 19.5; border-radius: 13% / 6%;
+  background: #0B0F1A; padding: 3.2%; box-shadow: 0 40px 90px rgba(10,14,30,.45), inset 0 0 0 2px rgba(255,255,255,.08);
+}
+.screen { position: relative; width: 100%; height: 100%; border-radius: 10.5% / 4.9%; overflow: hidden; background: #F4F7FB; font-size: clamp(9px, 2.6cqw, 13px); container-type: inline-size; }
+.notch { position: absolute; top: 1.6%; left: 50%; transform: translateX(-50%); width: 30%; height: 2.6%; border-radius: 999px; background: #0B0F1A; z-index: 3; }
+
+.homeHero { height: 46%; padding: 14% 7% 0; color: #fff; position: relative; }
+.homeHero::after { content: ''; position: absolute; inset: 0; background: linear-gradient(180deg, rgba(10,8,20,.25), rgba(10,8,20,.05) 40%, rgba(244,247,251,0) 75%, #F4F7FB); z-index: 0; }
+.homeHero > * { position: relative; z-index: 1; }
+.brandRow { display: flex; align-items: center; gap: 6px; font-weight: 800; font-size: 1.25em; }
+.date { margin-top: 12%; font-size: .7em; letter-spacing: .18em; opacity: .9; }
+.greet { font-size: 1.9em; font-weight: 800; line-height: 1.05; margin-top: 3%; font-family: var(--or-font-display); }
+.glassCard { margin: 4% 5% 0; padding: 4.5% 5%; border-radius: 16px; background: rgba(255,255,255,.2); border: 1px solid rgba(255,255,255,.35); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); color: #fff; display: flex; align-items: center; gap: 4%; position: relative; z-index: 1; }
+.tile { width: 2.6em; height: 2.6em; border-radius: 12px; display: grid; place-items: center; flex-shrink: 0; }
+.panel { margin: 5% 4% 0; background: #fff; border-radius: 18px; padding: 5%; box-shadow: 0 6px 20px rgba(15,23,42,.06); color: #0F172A; }
+.panelTitle { font-weight: 800; font-size: 1.15em; display: flex; justify-content: space-between; }
+.taskRow { display: flex; align-items: center; gap: 4%; padding: 3.5% 0; border-bottom: 1px solid #EEF2F7; }
+.check { width: 1.6em; height: 1.6em; border-radius: 999px; border: 2px solid #CBD5E1; display: grid; place-items: center; transition: background-color .3s var(--or-ease), border-color .3s var(--or-ease); }
+.checkOn { background: var(--or-teal); border-color: var(--or-teal); color: #fff; }
+.muted { color: #64748B; font-size: .8em; }
+.navBar { position: absolute; left: 4%; right: 4%; bottom: 3%; height: 9%; border-radius: 20px; background: rgba(255,255,255,.9); box-shadow: 0 8px 24px rgba(15,23,42,.12); display: flex; align-items: center; justify-content: space-around; color: #94A3B8; font-size: .7em; }
+.navMic { width: 3.4em; height: 3.4em; margin-top: -12%; border-radius: 999px; background: radial-gradient(circle at 35% 30%, #6F9BFF, var(--or-blue) 55%, #1C46C4); box-shadow: 0 8px 24px rgba(47,107,255,.5); display: grid; place-items: center; color: #fff; }
+
+.orb { position: relative; border-radius: 999px; display: grid; place-items: center; color: #fff;
+  background: radial-gradient(circle at 35% 28%, #A8C4FF 0%, #5B8CFF 28%, var(--or-blue) 55%, #1739A8 100%);
+  box-shadow: 0 0 60px rgba(47,107,255,.55), inset 0 -10px 30px rgba(10,30,120,.45), inset 0 8px 20px rgba(255,255,255,.35); }
+.orbRing { position: absolute; inset: -14%; border-radius: 999px; border: 1px solid rgba(140,175,255,.45); }
+.bars { display: flex; gap: 6%; align-items: center; height: 34%; }
+.bar { width: 7%; min-width: 3px; height: 100%; border-radius: 999px; background: #fff; transform-origin: center; }

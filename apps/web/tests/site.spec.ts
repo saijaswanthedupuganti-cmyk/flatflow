@@ -87,3 +87,12 @@ test.describe('navigation', () => {
     await expect(footer.getByRole('link', { name: 'hello@habitiq.app' })).toHaveAttribute('href', 'mailto:hello@habitiq.app')
   })
 })
+
+test('home phone mockup is labelled and never wider than the viewport @mobile', async ({ page }) => {
+  await page.setViewportSize({ width: 375, height: 800 })
+  await page.goto('/')
+  const phone = page.getByRole('img', { name: /Oddroof home screen/ })
+  await expect(phone).toBeVisible()
+  const box = await phone.boundingBox()
+  expect(box!.width).toBeLessThanOrEqual(375 - 32)
+})

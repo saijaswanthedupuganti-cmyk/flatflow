@@ -1,0 +1,57 @@
+.glass { border-radius: var(--or-radius-lg); position: relative; isolation: isolate; }
+.glass[data-glass="photo"] {
+  background: rgba(255,255,255,.16);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+  backdrop-filter: blur(18px) saturate(140%);
+  border: 1px solid rgba(255,255,255,.30);
+  box-shadow: 0 20px 60px rgba(16,12,30,.28), inset 0 1px 0 rgba(255,255,255,.35);
+  color: #fff;
+}
+.glass[data-glass="canvas"] {
+  background: rgba(255,255,255,.76);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--or-line);
+  box-shadow: 0 12px 40px rgba(15,23,42,.08);
+}
+.glass[data-glass="dark"] {
+  background: rgba(28,42,64,.55);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255,255,255,.12);
+  box-shadow: inset 0 0 40px rgba(47,107,255,.18);
+  color: #fff;
+}
+/* No blur support (set by Glass.tsx via CSS.supports) or reduced transparency → solid. */
+.noBlur[data-glass="photo"] { background: rgba(40,30,50,.92); }
+.noBlur[data-glass="canvas"] { background: rgba(255,255,255,.98); }
+.noBlur[data-glass="dark"] { background: rgba(28,42,64,.96); }
+@media (prefers-reduced-transparency: reduce) {
+  .glass[data-glass="photo"] { background: rgba(40,30,50,.92); }
+  .glass[data-glass="canvas"] { background: rgba(255,255,255,.98); }
+  .glass[data-glass="dark"] { background: rgba(28,42,64,.96); }
+}
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  min-height: 52px; padding: 0 24px; border-radius: 999px;
+  font-weight: 700; font-size: 16px; text-decoration: none; cursor: pointer;
+  transition: transform .2s var(--or-ease), background-color .2s var(--or-ease), box-shadow .2s var(--or-ease);
+}
+.btn:hover { transform: translateY(-1px); }
+.primary { background: var(--or-blue); color: #fff; box-shadow: 0 10px 30px rgba(47,107,255,.35); }
+.primary:hover { background: var(--or-blue-deep); }
+.ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.4); }
+.light { background: #fff; color: var(--or-navy); }
+.meta { margin-top: 10px; font-size: 13px; opacity: .85; }
+
+.section { padding: clamp(72px, 10vw, 140px) var(--or-gutter); }
+.toneCanvas { background: var(--or-canvas); }
+.toneWhite { background: #fff; }
+.toneDark { background: var(--or-navy); color: #fff; }
+.inner { max-width: var(--or-max); margin: 0 auto; }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--or-blue); }
+.toneDark .eyebrow { color: #9DB8FF; }
+.title { font-size: clamp(32px, 5vw, 56px); margin: 12px 0 0; max-width: 18ch; }
+.lede { margin-top: 18px; max-width: 60ch; color: var(--or-text-2); font-size: clamp(17px, 1.6vw, 19px); }
+.toneDark .lede { color: #C9D4E8; }

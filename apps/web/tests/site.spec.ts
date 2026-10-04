@@ -50,7 +50,7 @@ test('glass falls back to a solid surface without backdrop-filter', async ({ pag
   await page.goto('/')
   // The fallback class is applied after hydration, so poll rather than read once.
   await expect.poll(async () => {
-    const bg = await page.locator('[data-glass="canvas"]').first().evaluate(el => getComputedStyle(el).backgroundColor)
+    const bg = await page.locator('[data-glass]').first().evaluate(el => getComputedStyle(el).backgroundColor)
     return bg.startsWith('rgba') ? parseFloat(bg.split(',')[3]) : 1
   }, { timeout: 5000 }).toBeGreaterThanOrEqual(0.9)
 })
@@ -95,4 +95,22 @@ test('home phone mockup is labelled and never wider than the viewport @mobile', 
   await expect(phone).toBeVisible()
   const box = await phone.boundingBox()
   expect(box!.width).toBeLessThanOrEqual(375 - 32)
+})
+
+test.describe('hero', () => {
+  test('headline, download with meta, and see-how link', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: 'Your flat, sorted.' })).toBeVisible()
+    await expect(page.locator('#hero [data-download]')).toBeVisible()
+    await expect(page.locator('#hero [data-download-meta]')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'See how it works' })).toHaveAttribute('href', '#how-it-works')
+  })
+
+  test('QR shows on desktop only', async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 })
+    await page.goto('/')
+    await expect(page.locator('#hero [data-download-qr]')).toBeVisible()
+    await page.setViewportSize({ width: 375, height: 800 })
+    await expect(page.locator('#hero [data-download-qr]')).toBeHidden()
+  })
 })

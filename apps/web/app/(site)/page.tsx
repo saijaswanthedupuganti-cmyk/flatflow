@@ -1,16 +1,17 @@
-import Glass from '@/components/site/Glass'
+import fs from 'node:fs'
+import path from 'node:path'
+import Hero from '@/components/site/home/Hero'
+import { HERO_PHOTO } from '@/lib/site/photos'
 import DownloadButton from '@/components/site/DownloadButton'
-import PhoneFrame from '@/components/site/mockups/PhoneFrame'
-import HomeScreen from '@/components/site/mockups/HomeScreen'
+import DownloadQr from '@/components/site/DownloadQr'
+
+const hasPhoto = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p))
 
 export default function HomePage() {
   return (
     <main>
-      <h1>Your flat, sorted.</h1>
-      <Glass tier="canvas"><DownloadButton showMeta /></Glass>
-      <div style={{ width: 'min(320px, calc(100vw - 48px))', margin: '120px auto' }}>
-        <PhoneFrame label="Oddroof home screen showing today's tasks being completed"><HomeScreen /></PhoneFrame>
-      </div>
+      <Hero download={<DownloadButton showMeta />} qr={<DownloadQr />} hasPhoto={hasPhoto(HERO_PHOTO)} />
+      {/* Sections from Tasks 6–10 are inserted here in order: Problem, PinnedStory, Voice, Discover, Trust, Install, FinalCta */}
     </main>
   )
 }

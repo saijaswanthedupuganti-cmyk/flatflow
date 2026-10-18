@@ -36,13 +36,19 @@
   display: inline-flex; align-items: center; justify-content: center; gap: 10px;
   min-height: 52px; padding: 0 24px; border-radius: 999px;
   font-weight: 700; font-size: 16px; text-decoration: none; cursor: pointer;
-  transition: transform .2s var(--or-ease), background-color .2s var(--or-ease), box-shadow .2s var(--or-ease);
+  transition: transform 160ms var(--or-ease), background-color 160ms var(--or-ease), box-shadow 160ms var(--or-ease);
 }
-.btn:hover { transform: translateY(-1px); }
+.btn:active { transform: scale(.97); }
 .primary { background: var(--or-blue); color: #fff; box-shadow: 0 10px 30px rgba(47,107,255,.35); }
-.primary:hover { background: var(--or-blue-deep); }
 .soft { background: rgba(255,255,255,.72); color: #0B1736; border: 1px solid rgba(11,23,54,.12); box-shadow: 0 6px 18px rgba(15,30,80,.08); }
-.soft:hover { background: #fff; }
+/* Hover lift and colour only where a real pointer can hover; touch taps get the press scale alone. */
+@media (hover: hover) and (pointer: fine) {
+  .btn:hover { transform: translateY(-1px); }
+  .btn:hover:active { transform: scale(.97); }
+  .primary:hover { background: var(--or-blue-deep); }
+  .soft:hover { background: #fff; }
+  .ghost:hover { background: rgba(255,255,255,.22); }
+}
 .ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.4); }
 .light { background: #fff; color: var(--or-navy); }
 .meta { margin-top: 10px; font-size: 13px; opacity: .85; }
@@ -65,13 +71,16 @@
   transition: background-color .25s var(--or-ease), box-shadow .25s var(--or-ease);
 }
 .navScrolled { background: rgba(255,255,255,.82) !important; color: var(--or-text) !important; box-shadow: 0 10px 40px rgba(15,23,42,.12) !important; }
-.logo { display: inline-flex; align-items: center; gap: 8px; font-family: var(--or-font-display); font-weight: 800; font-size: 20px; color: inherit; text-decoration: none; }
+.wordmark { display: inline-block; flex-shrink: 0; background-color: currentColor;
+  -webkit-mask: url(/site/brand/oddroof-logo.png) center / contain no-repeat; mask: url(/site/brand/oddroof-logo.png) center / contain no-repeat; }
+.logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-family: var(--or-font-display); font-weight: 800; font-size: 20px; color: inherit; text-decoration: none; }
 .navLinks { display: none; align-items: center; gap: 4px; margin-left: auto; }
 .navLink, .navTrigger { padding: 10px 14px; border-radius: 999px; color: inherit; text-decoration: none; font-weight: 600; font-size: 15px; background: none; border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }
-.navLink:hover, .navTrigger:hover { background: rgba(127,127,127,.14); }
-.menu { position: absolute; top: calc(100% + 10px); min-width: 300px; padding: 8px; border-radius: 20px; }
+@media (hover: hover) and (pointer: fine) { .navLink:hover, .navTrigger:hover { background: rgba(127,127,127,.14); } }
+.menuWrap { position: absolute; top: calc(100% + 10px); left: 0; transform-origin: top left; }
+.menu { min-width: 300px; padding: 8px; border-radius: 20px; }
 .menuItem { display: block; padding: 12px 14px; border-radius: 14px; color: var(--or-text); text-decoration: none; }
-.menuItem:hover { background: var(--or-canvas); }
+@media (hover: hover) and (pointer: fine) { .menuItem:hover { background: var(--or-canvas); } }
 .menuItem small { display: block; color: var(--or-text-2); font-size: 13px; }
 .navCta { display: none; }
 .burger { margin-left: auto; width: 44px; height: 44px; border-radius: 999px; border: 0; background: rgba(127,127,127,.18); color: inherit; display: grid; place-items: center; cursor: pointer; }
@@ -94,14 +103,19 @@
 .menu { background: rgba(255,255,255,.97) !important; }
 
 .pageHero { position: relative; overflow: hidden; color: #fff; padding: 150px var(--or-gutter) 80px; }
-.pageHeroInner { position: relative; z-index: 2; max-width: var(--or-max); margin: 0 auto; }
-.pageHero h1 { font-size: clamp(36px, 6vw, 64px); margin: 12px 0 0; max-width: 16ch; }
+.pageHeroInner { position: relative; z-index: 2; max-width: var(--or-max); margin: 0 auto; display: grid; gap: 48px; grid-template-columns: minmax(0, 1fr); align-items: center; }
+.pageHero h1 { font-size: clamp(36px, 6vw, 64px); margin: 12px 0 0; max-width: 16ch; text-wrap: balance; }
+.pageHeroPhone { width: min(250px, 66vw); margin: 0 auto; }
+@media (min-width: 900px) {
+  .pageHeroInner:has(> .pageHeroPhone) { grid-template-columns: minmax(0, 1.25fr) minmax(0, .75fr); gap: 40px; }
+  .pageHeroPhone { width: 270px; }
+}
 .pageLede { margin-top: 18px; max-width: 56ch; font-size: clamp(17px, 1.8vw, 20px); color: rgba(255,255,255,.9); }
-.pageHeroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(14,10,28,.75), rgba(14,10,28,.35)); z-index: 1; }
-.pageHero .eyebrow { color: #FFD9A0; }
+.pageHeroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(10,18,34,.55), rgba(10,18,34,.1)); z-index: 1; }
+.pageHero .eyebrow { color: #9DB8FF; }
 .linkList { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 12px; max-width: 640px; }
 .linkList a { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: var(--or-radius-md); background: #fff; border: 1px solid var(--or-line); color: var(--or-text); text-decoration: none; font-weight: 700; }
-.linkList a:hover { border-color: var(--or-blue); }
+@media (hover: hover) and (pointer: fine) { .linkList a:hover { border-color: var(--or-blue); } }
 .prose { max-width: 68ch; color: var(--or-text-2); font-size: 18px; }
 .prose p { margin: 0 0 16px; }
 
@@ -110,3 +124,16 @@
   box-shadow: 0 8px 30px rgba(15,30,80,.08); padding-top: 8px; padding-bottom: 8px; }
 .navLight .btn { min-height: 44px; }
 .noBlur.navLight[data-glass] { background: rgba(255,255,255,.97); }
+
+/* Download row: APK button plus an honest, non-interactive Play Store placeholder. */
+.storeRow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
+.playSoon { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px 0 14px; border-radius: 14px;
+  background: rgba(15,23,42,.06); color: #334155; border: 1px dashed rgba(15,23,42,.28); cursor: default; user-select: none; line-height: 1.15; }
+.playSoon small { display: block; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; opacity: .8; }
+.playSoon b { font-size: 15px; }
+.playSoonOnDark { background: rgba(255,255,255,.08); color: rgba(255,255,255,.88); border-color: rgba(255,255,255,.35); }
+
+/* Inner-page hero entrance: CSS so the headline never waits for hydration; tokens.css switches it off under reduced motion. */
+.phEnter { animation: phEnter .7s cubic-bezier(0.23, 1, 0.32, 1) both; }
+.pageHeroPhone.phEnter { animation-delay: 160ms; }
+@keyframes phEnter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }

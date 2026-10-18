@@ -145,8 +145,8 @@ test('voice section shows the demo request and confirm card', async ({ page }) =
   const sec = page.locator('#voice')
   await sec.scrollIntoViewIfNeeded()
   await expect(sec.getByRole('heading', { name: 'Just say it.' })).toBeVisible()
-  await expect(sec.getByText('paid Ravi 300 for the cylinder')).toBeVisible()
-  await expect(sec.getByText('Record ₹300 you paid Ravi')).toBeVisible()
+  await expect(sec.getByText('I just spent 500 on groceries')).toBeVisible()
+  await expect(sec.getByText('Split with everyone (4)')).toBeVisible()
   await expect(sec.getByText(/Hindi or Telugu/)).toBeVisible()
 })
 
@@ -167,7 +167,7 @@ test('discover section shows listings, both journeys and the privacy note', asyn
   await expect(sec.getByRole('heading', { name: /next flat, or your next flatmate/ })).toBeVisible()
   await expect(sec.locator('[data-listing]')).toHaveCount(2)
   await expect(sec.getByText('Approximate location only')).toBeVisible()
-  await expect(sec.getByRole('link', { name: 'Explore Discover' })).toHaveAttribute('href', '/discover')
+  await expect(sec.getByRole('link', { name: 'See everything in Discover' })).toHaveAttribute('href', '/discover')
 })
 
 test.describe('closing sections', () => {
@@ -299,7 +299,7 @@ test.describe('revision 2', () => {
     await page.goto('/')
     const sec = page.locator('#voice')
     await sec.scrollIntoViewIfNeeded()
-    const card = sec.getByText('Record ₹300 you paid Ravi')
+    const card = sec.getByText('Split with everyone (4)')
     await expect(card).toBeVisible({ timeout: 8000 })
     await page.waitForTimeout(2500)
     await expect(card).toBeVisible()

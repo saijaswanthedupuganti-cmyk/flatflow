@@ -22,9 +22,9 @@ function useSideOffset() {
   return side
 }
 
-// One continuous composition: reveal once, then the whole group breathes on a slow loop.
-const REVEAL = { duration: 1.6, ease: EASE }
-const FLOAT = { duration: 6, ease: 'easeInOut' as const, repeat: Infinity, delay: 4 }
+// One continuous composition: reveal once, then the whole group breathes on a slow loop. No rotation anywhere.
+const REVEAL = { duration: 0.7, ease: EASE }
+const FLOAT = { duration: 6, ease: 'easeInOut' as const, repeat: Infinity, delay: 1.5 }
 
 const CHIPS = [
   { icon: Home, cls: h.chipA, drift: { x: [0, 6, 0], y: [0, -8, 0] }, dur: 9 },
@@ -36,8 +36,8 @@ const CHIPS = [
 export default function HeroStage() {
   const calm = useCalm()
   const side = useSideOffset()
-  const out = (dir: -1 | 1) => ({ x: dir * side, y: dir === -1 ? -15 : 10, rotate: dir * 5, opacity: 1, scale: 1 })
-  const tucked = { x: 0, y: 0, rotate: 0, opacity: 0, scale: 0.94 }
+  const out = (dir: -1 | 1) => ({ x: dir * side, y: dir === -1 ? -15 : 10, opacity: 1, scale: 1 })
+  const tucked = { x: 0, y: 0, opacity: 0, scale: 0.94 }
 
   return (
     <div className={h.stage} aria-label="Oddroof app: Home in front, Discover and Manage behind" role="group">
@@ -45,18 +45,18 @@ export default function HeroStage() {
 
       {/* Discover, behind Home on the left */}
       <motion.div className={`${h.slot} ${h.slotSide}`} data-hero-phone="discover" style={{ zIndex: 2 }}
-        initial={calm ? false : tucked} animate={out(-1)} transition={{ ...REVEAL, delay: calm ? 0 : 1.0 }}>
-        <motion.div animate={calm ? undefined : { y: [0, -10, 0], rotate: [0, -0.5, 0] }} transition={FLOAT}>
-          <PhoneFrame label="Discover: a room listing with rent, beds and a connect button"><DiscoverFlatScreen /></PhoneFrame>
+        initial={calm ? false : tucked} animate={out(-1)} transition={{ ...REVEAL, delay: calm ? 0 : 0.25 }}>
+        <motion.div animate={calm ? undefined : { y: [0, -10, 0] }} transition={FLOAT}>
+          <PhoneFrame label="Discover: flat listings with rent per head and a safety reminder"><DiscoverFlatScreen /></PhoneFrame>
         </motion.div>
         <motion.span className={h.contact} aria-hidden animate={calm ? undefined : { scaleX: [1, 0.92, 1], opacity: [0.3, 0.22, 0.3] }} transition={FLOAT} />
       </motion.div>
 
       {/* Manage, behind Home on the right */}
       <motion.div className={`${h.slot} ${h.slotSide}`} data-hero-phone="manage" style={{ zIndex: 1 }}
-        initial={calm ? false : tucked} animate={out(1)} transition={{ ...REVEAL, delay: calm ? 0 : 1.5 }}>
-        <motion.div animate={calm ? undefined : { y: [0, -5, 0], rotate: [0, 0.5, 0] }} transition={FLOAT}>
-          <PhoneFrame label="Manage: tasks, expenses, bills and members for the flat"><ManageScreen /></PhoneFrame>
+        initial={calm ? false : tucked} animate={out(1)} transition={{ ...REVEAL, delay: calm ? 0 : 0.35 }}>
+        <motion.div animate={calm ? undefined : { y: [0, -5, 0] }} transition={FLOAT}>
+          <PhoneFrame label="Manage flat: tasks, expenses and what needs your attention"><ManageScreen /></PhoneFrame>
         </motion.div>
         <motion.span className={h.contact} aria-hidden animate={calm ? undefined : { scaleX: [1, 0.95, 1], opacity: [0.3, 0.25, 0.3] }} transition={FLOAT} />
       </motion.div>
@@ -64,7 +64,7 @@ export default function HeroStage() {
       {/* Home, the hero phone */}
       <div className={`${h.slot} ${h.slotHome}`} data-hero-phone="home" style={{ zIndex: 3 }}>
         <motion.div animate={calm ? undefined : { y: [0, -6, 0] }} transition={FLOAT}>
-          <PhoneFrame label="Oddroof home screen with today's tasks being completed"><HomeScreen /></PhoneFrame>
+          <PhoneFrame label="Oddroof home: your flat, tasks for you, what you owe and today's tasks"><HomeScreen /></PhoneFrame>
         </motion.div>
         <motion.span className={`${h.contact} ${h.contactHome}`} aria-hidden animate={calm ? undefined : { scaleX: [1, 0.94, 1], opacity: [0.42, 0.32, 0.42] }} transition={FLOAT} />
       </div>
@@ -75,7 +75,7 @@ export default function HeroStage() {
       {CHIPS.map(({ icon: Icon, cls, drift, dur }, i) => (
         <motion.span key={i} className={`${h.chip} ${cls}`} aria-hidden
           initial={calm ? false : { opacity: 0 }} animate={calm ? { opacity: 1 } : { opacity: 1, ...drift }}
-          transition={calm ? undefined : { opacity: { duration: 1, delay: 2.6 + i * 0.15 }, x: { duration: dur, repeat: Infinity, ease: 'easeInOut' }, y: { duration: dur, repeat: Infinity, ease: 'easeInOut' } }}>
+          transition={calm ? undefined : { opacity: { duration: 0.5, ease: EASE, delay: 0.6 + i * 0.06 }, x: { duration: dur, repeat: Infinity, ease: 'easeInOut' }, y: { duration: dur, repeat: Infinity, ease: 'easeInOut' } }}>
           <Icon size={18} aria-hidden />
         </motion.span>
       ))}

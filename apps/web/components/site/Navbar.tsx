@@ -1,13 +1,14 @@
 'use client'
 import Link from 'next/link'
 import { useEffect, useRef, useState } from 'react'
-import { ChevronDown, Menu, X, Download, Home } from 'lucide-react'
+import { ChevronDown, Menu, X, Download } from 'lucide-react'
 import { AnimatePresence, motion, useMotionValueEvent, useScroll } from 'framer-motion'
 import Glass from './Glass'
+import Logo from './Logo'
 import { NAV_LINKS, PRODUCT_LINKS } from '@/lib/site/routes'
 import { release } from '@/lib/site/release'
 import s from './site.module.css'
-import { EASE } from './motion'
+import { EASE, DRAWER } from './motion'
 
 export default function Navbar() {
   const { scrollY } = useScroll()
@@ -55,16 +56,18 @@ export default function Navbar() {
   return (
     <div className={s.navWrap}>
       <Glass tier="canvas" as="nav" aria-label="Main" className={`${s.nav} ${s.navLight} ${scrolled ? s.navScrolled : ''}`}>
-        <Link href="/" className={s.logo} aria-label="Oddroof home"><Home size={22} aria-hidden />Oddroof</Link>
+        <Link href="/" className={s.logo} aria-label="Oddroof home"><Logo height={24} decorative /></Link>
         <div className={s.navLinks}>
           <div ref={productsRef} style={{ position: 'relative' }}>
-            <button className={s.navTrigger} aria-expanded={productsOpen} aria-haspopup="true" onClick={() => setProductsOpen(o => !o)}>
+            <button className={s.navTrigger} aria-expanded={productsOpen} aria-controls="products-menu" onClick={() => setProductsOpen(o => !o)}>
               Products <ChevronDown size={16} aria-hidden />
             </button>
             <AnimatePresence>
               {productsOpen && (
-                <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2, ease: EASE }}>
+                <motion.div id="products-menu" className={s.menuWrap}
+                  initial={{ opacity: 0, scale: 0.97 }}
+                  animate={{ opacity: 1, scale: 1, transition: { duration: 0.18, ease: EASE } }}
+                  exit={{ opacity: 0, scale: 0.97, transition: { duration: 0.12, ease: EASE } }}>
                   <Glass tier="canvas" className={s.menu}>
                     {PRODUCT_LINKS.map(p => (
                       <Link key={p.href} href={p.href} className={s.menuItem} onClick={() => setProductsOpen(false)}>
@@ -87,9 +90,9 @@ export default function Navbar() {
       <AnimatePresence>
         {sheetOpen && (
           <motion.div className={s.sheet} style={{ pointerEvents: 'auto' }} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            onClick={closeSheet}>
+            transition={{ duration: 0.3, ease: DRAWER }} onClick={closeSheet}>
             <motion.div ref={panelRef} id="site-menu" role="dialog" aria-modal="true" aria-label="Menu" className={s.sheetPanel} onKeyDown={trapTab}
-              initial={{ x: 40 }} animate={{ x: 0 }} exit={{ x: 40 }} transition={{ duration: 0.25, ease: EASE }}
+              initial={{ x: '100%' }} animate={{ x: 0 }} exit={{ x: '100%' }} transition={{ duration: 0.3, ease: DRAWER }}
               onClick={e => e.stopPropagation()}>
               <button ref={closeRef} className={s.burger} style={{ marginLeft: 'auto' }} aria-label="Close menu" onClick={closeSheet}><X size={22} aria-hidden /></button>
               {PRODUCT_LINKS.map(p => <Link key={p.href} href={p.href} onClick={() => setSheetOpen(false)}>{p.label}</Link>)}

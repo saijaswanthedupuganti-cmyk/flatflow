@@ -10,12 +10,12 @@ import h from './home.module.css'
 const JOURNEYS = [
   {
     title: 'Find a flat', icon: Search, color: 'var(--or-blue)', Screen: DiscoverFlatScreen,
-    label: 'A flat listing with rent per head, beds available, lifestyle tags and a connect button',
+    label: 'Find a flat: the Hyderabad filter switches on, listings with rent per head appear and a connect request is sent',
     points: ['Rooms posted by people who live there', 'Filter by area, budget and lifestyle', 'See how the flat runs before you connect'],
   },
   {
     title: 'Find a flatmate', icon: UserPlus, color: 'var(--or-teal)', Screen: DiscoverPeopleScreen,
-    label: 'People looking for a room, with area, budget and habits',
+    label: 'Find a person: flatmate seekers with area, budget and a short intro, and a connect request is sent',
     points: ['Seekers share area, budget and habits', 'Any flatmate can post your vacancy', 'It goes live once your admin approves'],
   },
 ] as const
@@ -47,7 +47,7 @@ export default function Discover() {
       <div className={h.discoverFoot}>
         <p className={h.privacyNote}><Lock size={16} aria-hidden />Approximate location only. Contact details stay hidden until you both accept.</p>
         <p className={h.privacyNote}><MessageCircle size={16} aria-hidden />Talk inside the app first, share numbers only when you are ready.</p>
-        <div><SiteButton href="/discover" variant="primary">Explore Discover</SiteButton></div>
+        <div><SiteButton href="/discover" variant="primary">See everything in Discover</SiteButton></div>
       </div>
     </Section>
   )

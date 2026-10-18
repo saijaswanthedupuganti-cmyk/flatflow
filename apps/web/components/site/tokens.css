@@ -13,7 +13,8 @@
   --or-radius-lg: 28px;
   --or-radius-md: 20px;
   --or-radius-sm: 14px;
-  --or-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --or-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  --or-drawer: cubic-bezier(0.32, 0.72, 0, 1);
   --or-max: 1200px;
   --or-gutter: clamp(16px, 4vw, 40px);
   --or-font-display: var(--font-jakarta), var(--font-inter), system-ui, sans-serif;
@@ -39,12 +40,12 @@
   outline-offset: 3px;
   border-radius: 8px;
 }
-/* Golden-hour fallback when no photo is present yet, also used as photo tint. */
+/* Brand band (navy to blue) behind inner-page heroes and the final call to action; also used as a photo tint. */
 .or-golden {
   background:
-    radial-gradient(120% 80% at 80% 10%, rgba(245,165,36,.55), transparent 60%),
-    radial-gradient(90% 70% at 10% 90%, rgba(255,107,90,.35), transparent 60%),
-    linear-gradient(160deg, #2A2140 0%, #6B3F3A 45%, #C9773A 80%, #F2B565 100%);
+    radial-gradient(110% 80% at 85% 0%, rgba(37,99,235,.55), transparent 60%),
+    radial-gradient(80% 70% at 5% 100%, rgba(20,184,166,.20), transparent 60%),
+    linear-gradient(160deg, #0F1A2E 0%, #1C2A40 42%, #1D4ED8 100%);
 }
 @media (prefers-reduced-motion: reduce) {
   .or-site *, .or-site *::before, .or-site *::after {

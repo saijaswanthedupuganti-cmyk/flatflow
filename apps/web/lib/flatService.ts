@@ -168,6 +168,9 @@ export async function getFlatJoinMode(flatId: string): Promise<'auto' | 'approva
   if (!hasKeys || !db) return 'auto'
   const snap = await getDoc(doc(db, `flats/${flatId}`))
   if (!snap.exists()) return 'auto'
+  // A flat listed in Discover exposes its id (the invite code) to every user, so while the listing is
+  // live joining always goes through the admin's approval. firestore.rules enforces the same.
+  if (snap.data().vacancy?.active === true) return 'approval'
   return (snap.data().joinMode as 'auto' | 'approval') ?? 'auto'
 }
 

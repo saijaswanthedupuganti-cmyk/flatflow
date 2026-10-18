@@ -159,7 +159,7 @@ class FlatsRepository(
     suspend fun getJoinMode(flatId: String): Result<String> = runCatching {
         val snap = firestore.collection("flats").document(flatId).get().await()
         if (!snap.exists()) throw FlatNotFoundException()
-        snap.getString("joinMode") ?: "auto"
+        effectiveJoinMode(snap.getString("joinMode"), vacancyActive = snap.getBoolean("vacancy.active") == true)
     }
 
     suspend fun requestToJoin(

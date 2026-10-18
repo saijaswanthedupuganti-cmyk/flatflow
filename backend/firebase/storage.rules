@@ -23,7 +23,7 @@ service firebase.storage {
       allow create, update: if isFlatMember(flatId)
         && request.auth.uid == uid
         && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
       allow delete: if (signedIn() && request.auth.uid == uid) || isFlatAdmin(flatId);
     }
 
@@ -31,7 +31,7 @@ service firebase.storage {
       allow read: if signedIn();
       allow create, update: if isFlatAdmin(flatId)
         && request.resource.size < 10 * 1024 * 1024
-        && request.resource.contentType.matches('image/.*');
+        && request.resource.contentType.matches('image/(jpeg|png|webp|heic|heif)');
       allow delete: if isFlatAdmin(flatId);
     }
   }

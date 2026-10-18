@@ -112,11 +112,13 @@ service cloud.firestore {
     // Coupon docs live at /coupons/{CODE} and are created via Firebase Console.
     // Client can read (to validate) and append its flatId to usedBy (to redeem).
     match /coupons/{code} {
-      allow read: if request.auth != null;
-      // Only permitted mutation: append one flatId to the usedBy array
+      // get only: validating one typed code. list would hand every code to every user.
+      allow get: if request.auth != null;
+      // Only permitted mutation: append one flatId to the usedBy array — a flat the caller administers.
       allow update: if request.auth != null
         && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['usedBy'])
-        && request.resource.data.usedBy.size() == resource.data.usedBy.size() + 1;
+        && request.resource.data.usedBy.size() == resource.data.usedBy.size() + 1
+        && isAdmin(request.resource.data.usedBy[request.resource.data.usedBy.size() - 1]);
       allow create, delete: if false;
     }
 
@@ -142,6 +144,10 @@ service cloud.firestore {
           // Self-join: only alongside creating their own member doc, and not in approval mode.
           request.auth != null
           && resource.data.get('joinMode', 'auto') != 'approval'
+          // A listed flat's id (= invite code) is visible to everyone in Discover: approval only while listed.
+          && resource.data.get('vacancy', {}).get('active', false) != true
+          // Only a real join (member doc created in this same write) — an existing member can't pump the count.
+          && !exists(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid))
           && existsAfter(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid))
           && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['memberCount'])
           && request.resource.data.memberCount == resource.data.get('memberCount', 0) + 1
@@ -185,6 +191,7 @@ service cloud.firestore {
               request.auth.uid == memberId
               && request.resource.data.role == 'member'
               && get(/databases/$(database)/documents/flats/$(flatId)).data.get('joinMode', 'auto') != 'approval'
+              && get(/databases/$(database)/documents/flats/$(flatId)).data.get('vacancy', {}).get('active', false) != true
             )
             || (
               isAdmin(flatId)
@@ -200,8 +207,9 @@ service cloud.firestore {
           && (
             isAdmin(flatId)
             || (
+              // Own profile fields only: role, reliabilityScore, email and joinedAt are not self-service.
               request.auth.uid == memberId
-              && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['role'])
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'nickname', 'photoUrl'])
             )
             || (
               isMember(flatId)

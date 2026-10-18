@@ -23,7 +23,8 @@ sealed interface AgentUiState {
     data class Listening(val partial: String) : AgentUiState
     data class Checking(val transcript: String) : AgentUiState
     /** [say] is Gemini's own human reply, shown above the card; null in basic mode. */
-    data class Answer(val transcript: String, val answer: AgentAnswer, val say: String? = null) : AgentUiState
+    /** [say] is Gemini's line above the card; [aiText] is whatever Gemini wrote here (reportable), null if the app wrote it all. */
+    data class Answer(val transcript: String, val answer: AgentAnswer, val say: String? = null, val aiText: String? = say) : AgentUiState
     /** Something to save. [awaitingVoice]: listening for a spoken yes/no; [saving]: the write is in flight. */
     data class Preview(
         val transcript: String, val summary: String, val card: AgentCard,
@@ -93,6 +94,8 @@ class AgentViewModel(
      * lazily, so a quick typed "rooms in Kondapur" could otherwise see an empty list.
      */
     private val prepareFlatSearch: suspend () -> Unit = {},
+    /** Sends a "this AI reply was offensive / wrong" report (request, reply) for review. */
+    private val reportAi: suspend (transcript: String, reply: String) -> Unit = { _, _ -> },
 ) : ViewModel() {
     private val _state = MutableStateFlow<AgentUiState>(AgentUiState.Idle())
     val state: StateFlow<AgentUiState> = _state.asStateFlow()
@@ -266,7 +269,10 @@ class AgentViewModel(
                 val say = safeSay(plan.say, transcript, answer.headline, *answer.lines.flatMap { listOf(it.label, it.value) }.toTypedArray())
                 show(AgentUiState.Answer(transcript, answer, say), say ?: spokenFor(answer))
             }
-            is AgentPlan.Reply -> show(AgentUiState.Answer(transcript, plan.answer), spokenFor(plan.answer))
+            is AgentPlan.Reply -> show(
+                AgentUiState.Answer(transcript, plan.answer, aiText = plan.answer.headline.takeIf { plan.byAi }),
+                spokenFor(plan.answer),
+            )
             is AgentPlan.Actions -> {
                 pending = plan
                 val say = safeSay(plan.say, transcript, plan.summary)
@@ -331,6 +337,22 @@ class AgentViewModel(
                     _state.value = AgentUiState.Error("", CAUGHT_NOTHING)
             }
         }
+    }
+
+    /**
+     * Report what Gemini said on screen right now (Play's AI-generated content policy: people must be able
+     * to flag offensive AI output from inside the app). Best effort; returns false if there's nothing to report.
+     */
+    fun reportReply(): Boolean {
+        val (transcript, reply) = when (val s = _state.value) {
+            is AgentUiState.Answer -> s.transcript to (s.aiText ?: return false)
+            is AgentUiState.Preview -> s.transcript to (s.say ?: return false)
+            else -> return false
+        }
+        viewModelScope.launch {
+            try { reportAi(transcript.take(300), reply.take(500)) } catch (e: kotlinx.coroutines.CancellationException) { throw e } catch (_: Exception) { }
+        }
+        return true
     }
 
     /** The app went to the background: never keep the mic open or keep talking behind the person's back. */

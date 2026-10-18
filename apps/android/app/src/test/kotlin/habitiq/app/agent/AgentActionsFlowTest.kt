@@ -12,6 +12,7 @@ import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
@@ -144,6 +145,28 @@ class AgentActionsFlowTest {
         vm.submitText("when is rent due")
         advanceUntilIdle()
         assertEquals("Rent is due on the 5th.", (vm.state.value as AgentUiState.Answer).answer.headline)
+    }
+
+    @Test fun `only words gemini wrote can be reported, and they reach the reporter`() = runTest {
+        val reports = mutableListOf<Pair<String, String>>()
+        val reporting = AgentViewModel(
+            { household }, speech, { Fixtures.today }, actions = actions, speaker = speaker,
+            planner = object : AgentPlanner {
+                override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate) =
+                    AgentPlan.Reply(AgentAnswer("Rent is due on the 5th.", emptyList(), null), byAi = true)
+            },
+            reportAi = { t, r -> reports += t to r },
+        )
+        reporting.submitText("when is rent due")
+        advanceUntilIdle()
+        assertTrue(reporting.reportReply())
+        advanceUntilIdle()
+        assertEquals(listOf("when is rent due" to "Rent is due on the 5th."), reports)
+
+        // The app's own help line isn't AI output: nothing to report.
+        vm.submitText("help")
+        advanceUntilIdle()
+        assertFalse(vm.reportReply())
     }
 
     @Test fun `planner failure falls back to a helpful message`() = runTest {

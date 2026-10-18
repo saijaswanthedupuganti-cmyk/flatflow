@@ -28,6 +28,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -135,6 +136,8 @@ fun VoiceOverlay(
     onCancelPreview: () -> Unit = {},
     /** "Basic mode: …" while Gemini can't be reached, so it's clear who's answering. */
     smartNote: String? = null,
+    /** Flags the AI-written words on screen for review; returns false if there was nothing to report. */
+    onReport: () -> Boolean = { false },
 ) {
     BackHandler(onBack = onClose)
     val enter = remember { Animatable(if (animate) 0f else 1f) }
@@ -192,7 +195,7 @@ fun VoiceOverlay(
                             contentKey = { it::class },
                             transitionSpec = { fadeIn(tween(260, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
                             label = "voiceState",
-                        ) { s -> StateContent(s, mode, hint, animate, onSubmit, onChoose, onOpen, onAllowMic) { h -> hint = h; onTalk() } }
+                        ) { s -> StateContent(s, mode, hint, animate, onSubmit, onChoose, onOpen, onAllowMic, { h -> hint = h; onTalk() }, onReport) }
                         if (smartNote != null && state !is AgentUiState.Listening && state !is AgentUiState.Checking) {
                             Spacer(Modifier.height(14.dp))
                             Text(smartNote, style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp), color = TextSoft, textAlign = TextAlign.Center)
@@ -235,6 +238,7 @@ private fun StateContent(
     s: AgentUiState, mode: AgentInputMode, hint: String?, animate: Boolean,
     onSubmit: (String) -> Unit, onChoose: (ClarifyOption) -> Unit, onOpen: (AgentLink) -> Unit, onAllowMic: (MicAction) -> Unit,
     onSuggestTalk: (String) -> Unit,
+    onReport: () -> Boolean = { false },
 ) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
         when (s) {
@@ -276,6 +280,7 @@ private fun StateContent(
                 Spacer(Modifier.height(16.dp))
                 Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) { AnswerCard(s.answer.headline, s.answer.lines) }
                 s.answer.link?.let { Spacer(Modifier.height(14.dp)); GlassPill(it.label, null) { onOpen(it) } }
+                if (s.aiText != null) ReportAiLink(key = s, onReport = onReport)
             }
             is AgentUiState.Preview -> {
                 Quote(s.transcript)
@@ -295,6 +300,7 @@ private fun StateContent(
                     },
                     style = TextStyle(fontSize = 15.sp, fontWeight = FontWeight.Medium), color = TextSoft, textAlign = TextAlign.Center,
                 )
+                if (s.say != null && !s.saving) ReportAiLink(key = s.transcript, onReport = onReport)
             }
             is AgentUiState.Done -> {
                 val haptic = LocalHapticFeedback.current
@@ -332,6 +338,30 @@ private fun StateContent(
             }
         }
     }
+}
+
+/**
+ * A quiet "Report this reply" under anything Gemini wrote. One tap sends it for review and turns into a
+ * thank-you, so it never nags; [key] resets it for the next answer.
+ */
+@Composable
+private fun ReportAiLink(key: Any, onReport: () -> Boolean) {
+    var sent by remember(key) { mutableStateOf(false) }
+    Spacer(Modifier.height(10.dp))
+    Text(
+        if (sent) "Thanks. We’ll review this reply." else "Report this reply",
+        style = TextStyle(fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Medium),
+        color = TextSoft,
+        textAlign = TextAlign.Center,
+        modifier = Modifier
+            .heightIn(min = 48.dp)
+            .wrapContentHeight(Alignment.CenterVertically)
+            .then(
+                if (sent) Modifier.semantics { liveRegion = LiveRegionMode.Polite }
+                else Modifier.clickable(role = Role.Button, onClickLabel = "Report this AI reply") { sent = onReport() }
+            )
+            .padding(horizontal = 12.dp),
+    )
 }
 
 /** The assistant talking in its own words, between the person's quote and the card. */

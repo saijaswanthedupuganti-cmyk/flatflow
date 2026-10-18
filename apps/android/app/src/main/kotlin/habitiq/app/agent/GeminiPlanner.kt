@@ -252,7 +252,7 @@ private fun planFrom(o: JSONObject, ctx: PlannerContext, state: HouseholdState, 
             guarded(text)?.let { return it }
             // A phone number or link in a reply can only have come from someone's listing text: drop it.
             if (!isSafeModelText(text)) return null
-            AgentPlan.Reply(AgentAnswer(text, emptyList(), null))
+            AgentPlan.Reply(AgentAnswer(text, emptyList(), null), byAi = true)
         }
         "unsupported" -> AgentPlan.Unsupported(
             o.optString("reason").trim().take(200).takeIf { it.isNotBlank() && isSafeModelText(it) } ?: "I can't help with that one.",

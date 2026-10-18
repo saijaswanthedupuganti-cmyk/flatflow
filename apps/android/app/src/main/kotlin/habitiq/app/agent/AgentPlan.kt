@@ -13,7 +13,8 @@ sealed interface AgentPlan {
     /** Take the person somewhere in the app ("join a flat", "open expenses"); [say] is the spoken reply. */
     data class Navigate(val link: AgentLink, val say: String) : AgentPlan
     /** A spoken/written reply with nothing to save (help, a prompt for missing details, a model answer). */
-    data class Reply(val answer: AgentAnswer) : AgentPlan
+    /** [byAi]: Gemini wrote the words (so the person can report them), not one of the app's own lines. */
+    data class Reply(val answer: AgentAnswer, val byAi: Boolean = false) : AgentPlan
 }
 
 /** Choosing an option re-enters the flow with [plan], with no extra parsing. */

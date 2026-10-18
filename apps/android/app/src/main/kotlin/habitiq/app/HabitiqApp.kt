@@ -424,6 +424,21 @@ fun HabitiqApp() {
                                 speaker = habitiq.app.agent.AndroidSpeaker(appContext),
                                 // Anything the rules don't understand goes to Gemini via Firebase AI Logic (no key in the app).
                                 planner = habitiq.app.agent.GeminiPlanner(appContext),
+                                // Play AI-content policy: in-app reporting of Gemini replies, reviewed from Firestore.
+                                reportAi = { transcript, reply ->
+                                    val uid = com.google.firebase.auth.FirebaseAuth.getInstance().currentUser?.uid
+                                    if (uid != null) {
+                                        com.google.firebase.firestore.FirebaseFirestore.getInstance().collection("aiReports").add(
+                                            mapOf(
+                                                "reporterUid" to uid, "request" to transcript, "reply" to reply,
+                                                "appVersion" to runCatching {
+                                                    appContext.packageManager.getPackageInfo(appContext.packageName, 0).versionName
+                                                }.getOrNull().orEmpty(),
+                                                "createdAt" to com.google.firebase.firestore.FieldValue.serverTimestamp(),
+                                            )
+                                        ) // queued offline too; nothing to wait for
+                                    }
+                                },
                                 prepareFlatSearch = {
                                     flatViewModel.ensureDiscovery()
                                     // Wait for the first batch of listings, but never hold the answer more than 4s.
@@ -688,6 +703,7 @@ fun HabitiqApp() {
                                                     onConfirm = { agentViewModel.confirm() },
                                                     onCancelPreview = { agentViewModel.cancelPreview() },
                                                     smartNote = agentSmartNote,
+                                                    onReport = { agentViewModel.reportReply() },
                                                 )
                                             },
                                             onTabSelected = {

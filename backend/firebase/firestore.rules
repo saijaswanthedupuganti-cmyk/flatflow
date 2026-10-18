@@ -80,6 +80,17 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── AI reply reports (Play AI-generated content policy) ──────────────────
+    // Write-only from the app; reviewed in the console. Nobody can read others' reports.
+    match /aiReports/{reportId} {
+      allow create: if request.auth != null
+        && request.resource.data.reporterUid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['reporterUid', 'request', 'reply', 'appVersion', 'createdAt'])
+        && request.resource.data.request is string && request.resource.data.request.size() <= 300
+        && request.resource.data.reply is string && request.resource.data.reply.size() <= 500;
+      allow read, update, delete: if false;
+    }
+
     // ── Seeker profiles (Discover) ────────────────────────────────────────────
     match /seekerProfiles/{profileId} {
       allow read: if request.auth != null;

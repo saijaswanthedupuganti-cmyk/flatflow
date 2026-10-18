@@ -38,6 +38,8 @@ import androidx.credentials.exceptions.GetCredentialException
 import habitiq.app.R
 import habitiq.app.auth.AuthUiState
 import habitiq.app.auth.LoginViewModel
+import habitiq.app.auth.PasswordResetState
+import habitiq.app.ui.components.HqBottomSheet
 import habitiq.app.auth.launchGoogleSignIn
 import habitiq.app.auth.mapAuthError
 import habitiq.app.ui.components.HqButton
@@ -61,6 +63,10 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     val state by viewModel.state.collectAsStateWithLifecycleCompat()
+    var showReset by remember { mutableStateOf(false) }
+    if (showReset) {
+        ForgotPasswordSheet(viewModel, initialEmail = email, onDismiss = { showReset = false; viewModel.clearPasswordReset() })
+    }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
     val webClientId = stringResource(R.string.google_web_client_id)
@@ -144,7 +150,7 @@ fun LoginScreen(
             Spacer(Modifier.height(HqSpacing.md))
             HqTextButton(
                 text = "Forgot password?",
-                onClick = { viewModel.sendPasswordReset(email) },
+                onClick = { viewModel.clearPasswordReset(); showReset = true },
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Spacer(Modifier.height(HqSpacing.xs))
@@ -162,3 +168,73 @@ fun LoginScreen(
             }
     }
 }
+
+/**
+ * Forgot password as its own sheet: its own email field (prefilled from the login form), and every
+ * outcome shown right under the button instead of at the bottom of the login screen.
+ */
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@Composable
+private fun ForgotPasswordSheet(viewModel: LoginViewModel, initialEmail: String, onDismiss: () -> Unit) {
+    val c = LocalHqColors.current
+    val reset by viewModel.reset.collectAsStateWithLifecycleCompat()
+    var address by remember { mutableStateOf(initialEmail.trim()) }
+    // Firebase limits reset emails; a short cooldown stops repeat taps that would only trigger "too many requests".
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    val sent = reset as? PasswordResetState.Sent
+    LaunchedEffect(sent) {
+        while (sent != null && System.currentTimeMillis() - sent.atMillis < RESEND_COOLDOWN_MS) {
+            now = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000)
+        }
+        now = System.currentTimeMillis()
+    }
+    val waitSeconds = sent?.let { ((RESEND_COOLDOWN_MS - (now - it.atMillis)) / 1000).coerceAtLeast(0) } ?: 0
+    val sending = reset is PasswordResetState.Sending
+
+    HqBottomSheet(onDismiss = onDismiss, title = "Reset your password") {
+        Text(
+            "Enter the email you signed up with. We'll send a link to set a new password.",
+            style = HqType.bodyMedium, color = c.textSecondary,
+        )
+        Spacer(Modifier.height(HqSpacing.lg))
+        HqTextField(
+            value = address,
+            onValueChange = { address = it; if (reset is PasswordResetState.Error) viewModel.clearPasswordReset() },
+            label = "Email address",
+            leadingIcon = Icons.Filled.Email,
+            keyboardType = KeyboardType.Email,
+            contentType = ContentType.EmailAddress,
+            imeAction = ImeAction.Send,
+            onImeAction = { if (!sending && waitSeconds == 0L) viewModel.sendPasswordReset(address) },
+            errorText = (reset as? PasswordResetState.Error)?.message,
+        )
+        Spacer(Modifier.height(HqSpacing.lg))
+        HqButton(
+            text = when {
+                sending -> "Sending…"
+                sent != null && waitSeconds > 0 -> "Resend in ${waitSeconds}s"
+                sent != null -> "Resend link"
+                else -> "Send reset link"
+            },
+            onClick = { viewModel.sendPasswordReset(address) },
+            enabled = !sending && waitSeconds == 0L,
+            loading = sending,
+        )
+        if (sent != null) {
+            Spacer(Modifier.height(HqSpacing.md))
+            HqInlineInfo(
+                "If an account exists for ${sent.email}, a reset link is on its way. It can take a minute. " +
+                    "If you can't see it, check Spam or Promotions."
+            )
+        }
+        Spacer(Modifier.height(HqSpacing.md))
+        Text(
+            "Signed up with Google? You don't have a password. Close this and tap Continue with Google.",
+            style = HqType.bodySmall, color = c.textSecondary,
+        )
+        Spacer(Modifier.height(HqSpacing.lg))
+    }
+}
+
+private const val RESEND_COOLDOWN_MS = 30_000L

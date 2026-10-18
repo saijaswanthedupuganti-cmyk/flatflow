@@ -48,4 +48,28 @@ class AuthErrorMapperTest {
         val exception = RuntimeException("something else")
         assertEquals("Something went wrong. Please try again.", mapAuthError(exception))
     }
+
+    @Test
+    fun `offline firebase calls say no internet, not something went wrong`() {
+        assertEquals("No internet connection. Please try again.", mapAuthError(com.google.firebase.FirebaseNetworkException("offline")))
+    }
+
+    @Test
+    fun `reset errors use reset wording`() {
+        assertEquals(
+            "That email address doesn't look right. Check it and try again.",
+            mapResetError(FirebaseAuthInvalidCredentialsException("ERROR_INVALID_EMAIL", "bad"))
+        )
+        assertEquals("No internet connection. Connect and try again.", mapResetError(com.google.firebase.FirebaseNetworkException("offline")))
+        assertEquals(
+            "Too many reset requests. Wait a few minutes, then try again.",
+            mapResetError(com.google.firebase.FirebaseTooManyRequestsException("slow down"))
+        )
+    }
+
+    @Test
+    fun `email typos are caught before sending`() {
+        listOf("sai@gmail.com", " sai.j+1@habitiq.app ").forEach { assertEquals(it, true, isPlausibleEmail(it)) }
+        listOf("", "sai", "sai@gmail", "sai gmail.com", "sai@@gmail.com", "sai@gmail.c").forEach { assertEquals(it, false, isPlausibleEmail(it)) }
+    }
 }

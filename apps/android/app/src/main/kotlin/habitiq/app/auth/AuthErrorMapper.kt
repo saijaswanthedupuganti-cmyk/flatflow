@@ -5,6 +5,8 @@ import androidx.credentials.exceptions.GetCredentialProviderConfigurationExcepti
 import androidx.credentials.exceptions.GetCredentialUnsupportedException
 import androidx.credentials.exceptions.NoCredentialException
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
+import com.google.firebase.FirebaseNetworkException
+import com.google.firebase.FirebaseTooManyRequestsException
 import com.google.firebase.auth.FirebaseAuthInvalidCredentialsException
 import com.google.firebase.auth.FirebaseAuthInvalidUserException
 import com.google.firebase.auth.FirebaseAuthRecentLoginRequiredException
@@ -26,8 +28,19 @@ fun mapAuthError(exception: Exception): String = when (exception) {
     is GetCredentialInterruptedException -> "Sign-in was interrupted. Please try again."
     is GetCredentialUnsupportedException -> "Google Sign-In isn't supported on this device."
     is GoogleIdTokenParsingException -> "Google Sign-In returned an unexpected response. Please try again."
-    is IOException -> "No internet connection. Please try again."
+    // Firebase reports "offline" as its own type, not an IOException.
+    is FirebaseNetworkException, is IOException -> "No internet connection. Please try again."
+    is FirebaseTooManyRequestsException -> "Too many tries from this phone. Wait a few minutes and try again."
     else -> "Something went wrong. Please try again."
+}
+
+/** Forgot-password failures. Sign-in wording ("Incorrect email or password") makes no sense here. */
+fun mapResetError(exception: Exception): String = when (exception) {
+    is FirebaseAuthInvalidUserException -> "No account uses that email. Check the spelling, or sign up instead."
+    is FirebaseAuthInvalidCredentialsException -> "That email address doesn't look right. Check it and try again."
+    is FirebaseNetworkException, is IOException -> "No internet connection. Connect and try again."
+    is FirebaseTooManyRequestsException -> "Too many reset requests. Wait a few minutes, then try again."
+    else -> "Couldn't send the reset email right now. Please try again."
 }
 
 // Outcomes the user caused and can fix. Reporting them as Crashlytics non-fatals would bury the
@@ -38,6 +51,8 @@ fun isExpectedAuthError(exception: Exception): Boolean = when (exception) {
     is FirebaseAuthInvalidCredentialsException,
     is FirebaseAuthInvalidUserException,
     is FirebaseAuthUserCollisionException,
+    is FirebaseNetworkException,
+    is FirebaseTooManyRequestsException,
     is NoCredentialException,
     is GetCredentialProviderConfigurationException,
     is GetCredentialInterruptedException,

@@ -29,8 +29,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump both on every APK handed over for testing: versionName goes 1.1 → 1.2 → 1.3…
-        versionCode = 18
-        versionName = "1.15"
+        versionCode = 19
+        versionName = "1.16"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 
@@ -62,11 +62,9 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
-            signingConfig = if (keystorePropertiesFile.exists()) {
-                signingConfigs.getByName("release")
-            } else {
-                signingConfigs.getByName("debug")
-            }
+            // Never ship a release signed with the shared debug key: without keystore.properties the
+            // release build comes out unsigned (not installable) instead of silently debug-signed.
+            signingConfig = if (keystorePropertiesFile.exists()) signingConfigs.getByName("release") else null
         }
     }
 

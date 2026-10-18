@@ -86,6 +86,7 @@ import habitiq.app.agent.AgentInputMode
 import habitiq.app.agent.AgentLink
 import habitiq.app.agent.AgentUiState
 import habitiq.app.agent.ClarifyOption
+import habitiq.app.agent.MicAction
 import habitiq.app.ui.components.HqWordmark
 import habitiq.app.ui.theme.HqDarkColors
 import habitiq.app.ui.theme.HqType
@@ -123,10 +124,12 @@ fun VoiceOverlay(
     state: AgentUiState, mode: AgentInputMode, level: Float, micCenter: Offset?,
     onClose: () -> Unit, onTalk: () -> Unit, onStop: () -> Unit, onSubmit: (String) -> Unit,
     onChoose: (ClarifyOption) -> Unit, onOpen: (AgentLink) -> Unit, onUseText: () -> Unit, onUseVoice: () -> Unit,
-    onAllowMic: () -> Unit,
+    onAllowMic: (MicAction) -> Unit,
     animate: Boolean = !hqReduceMotion(),
     onConfirm: () -> Unit = {},
     onCancelPreview: () -> Unit = {},
+    /** "Basic mode: …" while Gemini can't be reached, so it's clear who's answering. */
+    smartNote: String? = null,
 ) {
     BackHandler(onBack = onClose)
     val enter = remember { Animatable(if (animate) 0f else 1f) }
@@ -183,6 +186,10 @@ fun VoiceOverlay(
                             transitionSpec = { fadeIn(tween(260, delayMillis = 60)) togetherWith fadeOut(tween(140)) },
                             label = "voiceState",
                         ) { s -> StateContent(s, mode, hint, animate, onSubmit, onChoose, onOpen, onAllowMic) { h -> hint = h; onTalk() } }
+                        if (smartNote != null && state !is AgentUiState.Listening && state !is AgentUiState.Checking) {
+                            Spacer(Modifier.height(14.dp))
+                            Text(smartNote, style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp), color = TextSoft.copy(alpha = .7f), textAlign = TextAlign.Center)
+                        }
                     }
                 }
 
@@ -219,7 +226,7 @@ private fun RisingOrb(level: Float, orbSize: androidx.compose.ui.unit.Dp, stageH
 @Composable
 private fun StateContent(
     s: AgentUiState, mode: AgentInputMode, hint: String?, animate: Boolean,
-    onSubmit: (String) -> Unit, onChoose: (ClarifyOption) -> Unit, onOpen: (AgentLink) -> Unit, onAllowMic: () -> Unit,
+    onSubmit: (String) -> Unit, onChoose: (ClarifyOption) -> Unit, onOpen: (AgentLink) -> Unit, onAllowMic: (MicAction) -> Unit,
     onSuggestTalk: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -236,8 +243,12 @@ private fun StateContent(
                     )
                     notice != null -> {
                         Subtitle(notice)
-                        Spacer(Modifier.height(12.dp))
-                        GlassPill("Allow mic", Icons.Rounded.Mic, onClick = onAllowMic)
+                        // Only a permission notice gets a button; "voice isn't available" has nothing to tap.
+                        when ((s as? AgentUiState.Idle)?.micAction) {
+                            MicAction.Ask -> { Spacer(Modifier.height(12.dp)); GlassPill("Allow mic", Icons.Rounded.Mic) { onAllowMic(MicAction.Ask) } }
+                            MicAction.Settings -> { Spacer(Modifier.height(12.dp)); GlassPill("Open settings", Icons.Rounded.Mic) { onAllowMic(MicAction.Settings) } }
+                            null -> Unit
+                        }
                     }
                     else -> Subtitle(hint ?: if (mode == AgentInputMode.Text) "Type it the way you’d say it." else "Tell me what you need.")
                 }
@@ -253,12 +264,14 @@ private fun StateContent(
             }
             is AgentUiState.Answer -> {
                 Quote(s.transcript)
+                s.say?.let { Spacer(Modifier.height(14.dp)); FriendLine(it) }
                 Spacer(Modifier.height(16.dp))
                 AnswerCard(s.answer.headline, s.answer.lines)
                 s.answer.link?.let { Spacer(Modifier.height(14.dp)); GlassPill(it.label, null) { onOpen(it) } }
             }
             is AgentUiState.Preview -> {
                 Quote(s.transcript)
+                s.say?.let { Spacer(Modifier.height(14.dp)); FriendLine(it) }
                 Spacer(Modifier.height(16.dp))
                 when (val card = s.card) {
                     is AgentCard.Expense -> ExpenseCard(card, animate)
@@ -310,6 +323,12 @@ private fun StateContent(
         }
     }
 }
+
+/** The assistant talking in its own words, between the person's quote and the card. */
+@Composable
+private fun FriendLine(text: String) = Text(
+    text, style = TextStyle(fontSize = 20.sp, lineHeight = 27.sp, fontWeight = FontWeight.Medium), color = White, textAlign = TextAlign.Center,
+)
 
 @Composable
 private fun Title(text: String) = Text(

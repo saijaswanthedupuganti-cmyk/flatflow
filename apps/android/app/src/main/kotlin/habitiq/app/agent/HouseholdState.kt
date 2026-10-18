@@ -30,6 +30,14 @@ data class AgentVacancy(
     val city: String,
     val rentPaise: Long?,
     val preferredGender: String,
+    val roomType: String = "",
+    val furnishing: String = "",
+    val flatType: String = "",
+    /** Lifestyle and custom tags plus amenities, as posted ("Vegetarian", "WiFi", "Non-smoker"). */
+    val tags: List<String> = emptyList(),
+    /** The listing's own description, trimmed; searched for wishes but never sent to Gemini in full. */
+    val about: String = "",
+    val beds: Int = 0,
 )
 
 /** The agent's read-only view of the person's flat, rebuilt from live state for every request. */
@@ -76,5 +84,12 @@ fun householdStateOf(
     bills = billInstances.filter { it.month == month }
         .map { AgentBill(it.name, it.amount?.toPaise(), parseTaskLocalDate(it.dueDate), it.paidBy, it.status) },
     vacancies = vacancies.filter { it.active }
-        .map { AgentVacancy(it.flatId, it.flatName, it.area, it.city, it.rentPerHead?.toPaise(), it.preferredGender) },
+        .map {
+            AgentVacancy(
+                it.flatId, it.flatName, it.area, it.city, it.rentPerHead?.toPaise(), it.preferredGender,
+                roomType = it.roomType.orEmpty(), furnishing = it.furnishing, flatType = it.flatType,
+                tags = (it.displayTags() + it.amenities).map(String::trim).filter(String::isNotEmpty).distinct(),
+                about = it.about.take(300), beds = it.bedsAvailable,
+            )
+        },
 )

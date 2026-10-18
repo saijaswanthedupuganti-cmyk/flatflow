@@ -7,6 +7,7 @@ import com.google.firebase.Firebase
 import com.google.firebase.ai.GenerativeModel
 import com.google.firebase.ai.ai
 import com.google.firebase.ai.type.GenerativeBackend
+import com.google.firebase.ai.type.ThinkingLevel
 import com.google.firebase.ai.type.content
 import com.google.firebase.ai.type.generationConfig
 import com.google.firebase.ai.type.thinkingConfig
@@ -22,9 +23,17 @@ import org.json.JSONObject
  * person talking), and only first names are included: no emails, phones, photos or real ids. The
  * alias maps turn the model's answer back into real ids on the phone.
  */
-data class PlannerContext(val json: String, val members: Map<String, String>, val tasks: Map<String, String>)
+data class PlannerContext(
+    val json: String,
+    val members: Map<String, String>,
+    val tasks: Map<String, String>,
+    /** Listing alias (v1, v2…) -> flat id, for the model's picks. */
+    val listings: Map<String, String> = emptyMap(),
+)
 
-private const val CONTEXT_LIMIT = 8_000
+private const val CONTEXT_LIMIT = 12_000
+private const val MAX_LISTINGS = 30
+private const val MAX_AREAS = 40
 
 fun buildPlannerContext(state: HouseholdState, today: LocalDate): PlannerContext {
     val ordered = state.members.sortedByDescending { it.uid == state.myUid }
@@ -33,8 +42,18 @@ fun buildPlannerContext(state: HouseholdState, today: LocalDate): PlannerContext
     val open = state.tasks.filter { it.status != "completed" && it.status != "paused" }
         .sortedBy { it.due ?: LocalDate.MAX }
     val taskAlias = open.mapIndexed { i, t -> "t${i + 1}" to t.id }.toMap()
+    // Public listings only (what Discover shows anyone): area, rent, who it's for, room and tags. Cheapest first.
+    val listed = state.vacancies.sortedBy { it.rentPaise ?: Long.MAX_VALUE }
+    val listingAlias = listed.mapIndexed { i, v -> "v${i + 1}" to v.flatId }.toMap()
+    val areas = listed.groupBy { it.area.trim().lowercase() to it.city.trim().lowercase() }.values
+        .sortedByDescending { it.size }.take(MAX_AREAS)
+        .map { group ->
+            val rents = group.mapNotNull { it.rentPaise?.div(100) }
+            JSONObject().put("area", group.first().area.trim()).put("city", group.first().city.trim()).put("listings", group.size)
+                .apply { if (rents.isNotEmpty()) put("rentFrom", rents.min()).put("rentTo", rents.max()) }
+        }
 
-    fun render(taskCount: Int): String {
+    fun render(taskCount: Int, listingCount: Int = listed.size.coerceAtMost(MAX_LISTINGS)): String {
         val root = JSONObject()
         root.put("today", "$today (${today.dayOfWeek.name.lowercase().replaceFirstChar(Char::uppercase)})")
         root.put("inFlat", state.inFlat)
@@ -53,14 +72,34 @@ fun buildPlannerContext(state: HouseholdState, today: LocalDate): PlannerContext
             JSONObject().put("name", b.name).put("due", b.due?.toString() ?: "").put("status", b.status)
                 .put("amountRupees", b.amountPaise?.let { it / 100 } ?: JSONObject.NULL)
         }))
+        if (areas.isNotEmpty()) root.put("listingAreas", JSONArray(areas))
+        root.put("listings", JSONArray(listed.take(listingCount).mapIndexed { i, v ->
+            JSONObject().put("id", "v${i + 1}").put("area", v.area.trim())
+                .put("rentRupees", v.rentPaise?.let { it / 100 } ?: JSONObject.NULL)
+                .put("for", v.preferredGender.ifBlank { "any" })
+                .apply {
+                    if (v.roomType.isNotBlank()) put("room", v.roomType)
+                    if (v.furnishing.isNotBlank()) put("furnishing", v.furnishing)
+                    if (v.tags.isNotEmpty()) put("tags", JSONArray(v.tags.take(6)))
+                }
+        }))
         return root.toString()
     }
-    // Drop the furthest-out tasks first if the flat is huge.
+    // Over budget: drop the priciest listings first, then the furthest-out tasks.
+    var listings = listed.size.coerceAtMost(MAX_LISTINGS)
     var count = open.size
-    var json = render(count)
-    while (json.length > CONTEXT_LIMIT && count > 0) { count -= 5; json = render(count.coerceAtLeast(0)) }
-    return PlannerContext(json, memberAlias, taskAlias)
+    var json = render(count, listings)
+    while (json.length > CONTEXT_LIMIT && listings > 0) { listings -= 5; json = render(count, listings.coerceAtLeast(0)) }
+    while (json.length > CONTEXT_LIMIT && count > 0) { count -= 5; json = render(count.coerceAtLeast(0), 0) }
+    return PlannerContext(json, memberAlias, taskAlias, listingAlias)
 }
+
+/** A place name from the model: trimmed, lowercased, sane length, never "null". */
+private fun place(raw: String?): String? =
+    raw?.trim()?.lowercase()?.takeIf { it.isNotBlank() && it != "null" && it.length <= 40 }
+
+private fun strings(a: JSONArray?, max: Int): List<String> =
+    if (a == null) emptyList() else (0 until a.length()).mapNotNull { a.optString(it).trim().take(30).ifBlank { null } }.take(max)
 
 private val CATEGORIES = setOf("lifestyle", "bills", "chores", "other")
 private val FREQUENCIES = setOf("daily", "weekly", "fortnightly", "monthly")
@@ -81,6 +120,17 @@ private val NAV_SAY = mapOf(
 fun parseModelPlan(raw: String, ctx: PlannerContext, state: HouseholdState, today: LocalDate): AgentPlan? {
     val body = raw.trim().removePrefix("```json").removePrefix("```").removeSuffix("```").trim()
     val o = runCatching { JSONObject(body) }.getOrNull() ?: return null
+    // Gemini's own words for the moment. The view model still checks any numbers in it against the app's.
+    val say = o.optString("say").trim().take(220).takeIf { it.isNotEmpty() && it != "null" }
+    return when (val plan = planFrom(o, ctx, state, today)) {
+        is AgentPlan.Actions -> plan.copy(say = say)
+        is AgentPlan.Answer -> plan.copy(say = say)
+        is AgentPlan.Navigate -> if (say != null && ContentGuard.reasonToBlock(say) == null) plan.copy(say = say) else plan
+        else -> plan
+    }
+}
+
+private fun planFrom(o: JSONObject, ctx: PlannerContext, state: HouseholdState, today: LocalDate): AgentPlan? {
     val me = state.myUid
     fun uid(alias: String?): String? = alias?.let { ctx.members[it] }
     fun name(uid: String) = if (uid == me) "you" else state.members.firstOrNull { it.uid == uid }?.firstName ?: "them"
@@ -161,12 +211,19 @@ fun parseModelPlan(raw: String, ctx: PlannerContext, state: HouseholdState, toda
         }
         "find_flats" -> AgentPlan.Answer(
             AgentQuery.FindFlats(
-                area = o.optString("area").trim().lowercase().ifBlank { null },
-                city = null,
-                maxRent = o.optLong("maxRent", 0L).takeIf { it > 0 },
+                area = place(o.optString("area")),
+                city = place(o.optString("city")),
+                maxRent = o.optLong("maxRent", 0L).takeIf { it in 1..1_000_000 },
                 gender = o.optString("gender").takeIf { it == "male" || it == "female" },
+                nearby = strings(o.optJSONArray("nearby"), 6).mapNotNull(::place),
+                wants = strings(o.optJSONArray("wants"), 6).map { it.lowercase() },
+                picks = strings(o.optJSONArray("picks"), 5).mapNotNull { ctx.listings[it] },
             ),
         )
+        "area_rent" -> {
+            val area = place(o.optString("area")) ?: return null
+            AgentPlan.Answer(AgentQuery.AreaRent(area, strings(o.optJSONArray("nearby"), 6).mapNotNull(::place)))
+        }
         "navigate" -> {
             val link = LINKS[o.optString("to")] ?: return null
             AgentPlan.Navigate(link, NAV_SAY[link] ?: "Opening ${link.label.removePrefix("Open ").removePrefix("Go ").lowercase()}.")
@@ -183,29 +240,54 @@ fun parseModelPlan(raw: String, ctx: PlannerContext, state: HouseholdState, toda
 }
 
 private val SYSTEM_PROMPT = """
-You are Oddroof, the voice assistant inside a shared-flat app used in India. Flatmates use you to track
-shared expenses, payments between flatmates, household tasks, bills, going away, and to find flats.
-People talk casually in English, often with Hindi or Telugu words (kharcha, kirana, ho gaya, ayipoyindi).
+You are Oddroof, the assistant inside a shared-flat app used in India. You talk like a helpful friend who
+lives in the flat: warm, relaxed, quick, never formal or robotic, never preachy. Flatmates use you to track
+shared expenses, payments between flatmates, household tasks, bills, going away, and to find flats and rooms.
+People talk casually in English, often with Hindi or Telugu words (kharcha, kirana, ho gaya, ayipoyindi,
+kitna, kahan, ekkada). Their words often arrive through speech-to-text, so names and places may be misheard:
+work out what they meant, don't take the transcript literally.
 
 You get the person's request and a JSON snapshot of their flat. Members and tasks have short ids
-(m1 is always the person talking). Reply with ONE JSON object only, no other text, using one of:
+(m1 is always the person talking). Reply with ONE JSON object only, no other text, using one of the shapes
+below. Every shape except "reply" also takes "say": one short natural sentence, the way a friend would answer
+out loud ("Done deal, 500 on groceries for all four of you. Save it?", "Kondapur's got a couple of options for you!").
+In "say", only use numbers that appear in the request or the snapshot, never invent one, and use first names.
+For anything that saves data, "say" ends by asking if you should save it.
 {"type":"expense","title":"<2-4 words>","amount":<rupees>,"category":"lifestyle|bills|chores|other","paidBy":"<member id>","splitWith":"all" or ["<member id>",...]}
 {"type":"settle","from":"<member id>","to":"<member id>","amount":<rupees>}   (one side must be m1)
 {"type":"task_done","task":"<task id>"}   (only tasks assigned to m1)
 {"type":"add_task","name":"<task name>","frequency":"daily|weekly|fortnightly|monthly"}
 {"type":"away","away":true|false}
 {"type":"question","query":"my_balance|who_owes|due_today|my_duties|bills"}
-{"type":"find_flats","area":"<area or null>","maxRent":<rupees or 0>,"gender":"male|female|null"}
+{"type":"find_flats","area":"<area or null>","city":"<city or null>","nearby":["<area>",...],"maxRent":<rupees or 0>,"gender":"male|female|null","wants":["<wish>",...],"picks":["<listing id>",...]}
+{"type":"area_rent","area":"<area>","nearby":["<area>",...]}
 {"type":"navigate","to":"join_flat|create_flat|expenses|balances|tasks|bills|discover|members|profile|home"}
 {"type":"reply","text":"<one or two short friendly sentences>"}
-{"type":"unsupported","reason":"<short reason>"}
+{"type":"unsupported","reason":"<short friendly reason>"}
+
+Finding flats (the snapshot has "listingAreas" and "listings", the live posts in Discover):
+- Match the place by meaning and sound, not spelling. If the person's place sounds like or is a part of an area
+  in listingAreas ("punjabpur", "punja gutta" -> "Punjagutta"; "hitech" -> "HITEC City"), use that exact area name.
+- "nearby": up to 6 real localities close to the asked place, closest first, from your knowledge of the city
+  (near Punjagutta: Somajiguda, Ameerpet, Banjara Hills, Khairatabad). Prefer ones in listingAreas. Use it for
+  "near", "nearest", "around", "close to", and whenever the place itself may have few listings.
+- A landmark, office, college or metro station is fine as "area": put the localities around it in "nearby".
+- "wants": short wishes in plain words, e.g. veg, non veg, wifi, ac, furnished, semi furnished, parking, pets,
+  food, maid, gym, washing machine, private room, sharing, non smoker, working professionals, students, quiet, metro.
+- "picks": up to 5 listing ids that best fit everything they said, best first. Only ids from "listings".
+- "maxRent" is per head per month in rupees: "under 10k" = 10000, "budget 8 to 10k" = 10000.
+- "What's the rent / budget / going rate in X", "how much for a room in X": use area_rent.
+- "Nearest flats" or "near me" with no place: reply and ask which area or landmark, in a friendly way.
 
 Rules:
-- Never invent amounts, people or tasks. Use only ids from the snapshot. If something needed is missing, use "reply" to ask for it.
+- Money said with no reason ("I just spent 500", "kharcha 300") is still an expense: title "Expense", split with all. Never refuse it or ask what it was for.
+- "Add 500 on groceries", "groceries 500", "500 for milk" are expenses paid by m1 split with all unless they say otherwise.
+- Never invent amounts, people, tasks, listings or rents. Use only ids from the snapshot. If something needed is missing, use "reply" to ask for it.
 - "who owes" means who owes m1 money. Use "question" for balances, tasks due and bills so the app shows exact numbers.
 - To join someone's flat the person needs an invite code from that flat's admin: use navigate join_flat.
-- Use "reply" for general questions about how the app works, kept short and practical.
-- Refuse anything illegal, abusive, sexual or harmful with "unsupported". Never delete data, change roles or remove members.
+- Use "reply" for small talk, thanks and how-the-app-works questions. Sound like a friend: short, kind, natural,
+  mirror their language (a little Hinglish back is fine if they used it), no lists, no "As an AI", no numbers you weren't given.
+- Refuse anything illegal, abusive, sexual or harmful with "unsupported", gently. Never delete data, change roles or remove members.
 """.trimIndent()
 
 /** The model call failed (AI Logic not enabled, billing, App Check, network…). [reason] is safe to show. */
@@ -213,8 +295,8 @@ class PlannerUnavailable(val reason: String, cause: Throwable? = null) : Excepti
 
 /**
  * Gemini through Firebase AI Logic on the Vertex AI backend, so calls bill to the project's Google Cloud
- * account (and its credits). The key stays inside Firebase, never in the app. Flash-Lite with thinking
- * off keeps replies around a second; if that model isn't available the next one in [MODELS] is tried.
+ * account (and its credits). The key stays inside Firebase, never in the app. Flash-Lite with minimal
+ * thinking keeps replies around a second; if that model isn't available the next one in [MODELS] is tried.
  */
 class GeminiPlanner(context: Context, private val models: List<String> = MODELS) : AgentPlanner {
     private val prefs = context.applicationContext.getSharedPreferences("oddroof_agent", Context.MODE_PRIVATE)
@@ -228,9 +310,10 @@ class GeminiPlanner(context: Context, private val models: List<String> = MODELS)
             modelName = name,
             generationConfig = generationConfig {
                 responseMimeType = "application/json"
-                temperature = 0.1f
+                temperature = 0.2f // a little warmth in replies; the JSON shape is enforced by the parser anyway
                 maxOutputTokens = 512
-                thinkingConfig = thinkingConfig { thinkingBudget = 0 }
+                // Gemini 3+ can't switch thinking off (thinkingBudget = 0 is rejected); MINIMAL is the fastest level.
+                thinkingConfig = thinkingConfig { thinkingLevel = ThinkingLevel.MINIMAL }
             },
             systemInstruction = content { text(SYSTEM_PROMPT) },
         )
@@ -238,7 +321,8 @@ class GeminiPlanner(context: Context, private val models: List<String> = MODELS)
 
     override suspend fun plan(text: String, state: HouseholdState, today: LocalDate): AgentPlan? {
         if (!allowedToday(today)) {
-            return AgentPlan.Reply(AgentAnswer("Smart requests are paused until tomorrow. Simple ones like “Spent 500 on groceries” still work.", emptyList(), null))
+            // Past the cap the rules take over (the view model falls back to them on this error).
+            throw PlannerUnavailable("Smart replies are paused until tomorrow.")
         }
         val ctx = buildPlannerContext(state, today)
         val prompt = "Flat snapshot:\n${ctx.json}\n\nRequest: \"${text.take(300)}\""
@@ -277,17 +361,23 @@ class GeminiPlanner(context: Context, private val models: List<String> = MODELS)
 
     companion object {
         private const val TAG = "OddroofAgent"
-        /** Fastest first. Change here to move to a newer Gemini model. */
-        val MODELS = listOf("gemini-2.5-flash-lite", "gemini-2.5-flash")
+        /**
+         * Fastest first. Change here to move to a newer Gemini model. The 2.5 family isn't listed: on Vertex AI
+         * it shuts down 2026-10-20 and was only ever open to projects that had already used it.
+         * Every model here must accept ThinkingLevel.MINIMAL (3.7/3.8 Flash and Gemini 4 don't).
+         */
+        val MODELS = listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.5-flash")
         const val LOCATION = "global"
         const val TIMEOUT_MS = 6_000L
-        const val DAILY_LIMIT = 60
+        /** Every request now goes to Gemini first, so the cap is per person per day; rules take over past it. */
+        const val DAILY_LIMIT = 200
     }
 }
 
 internal fun isModelMissing(error: Throwable?): Boolean {
     val m = (error?.message ?: "").lowercase()
-    return "not found" in m || "404" in m || "was not found" in m || "is not supported" in m
+    return "not found" in m || "404" in m || "is not supported" in m || "not available" in m ||
+        "limited to" in m || "retired" in m
 }
 
 /** Short, human reason for the overlay. The full error goes to Logcat and Crashlytics. */

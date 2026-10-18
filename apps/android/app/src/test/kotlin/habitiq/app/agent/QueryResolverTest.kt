@@ -72,10 +72,58 @@ class QueryResolverTest {
             AgentVacancy("e", "Boys only", "Gachibowli", "Hyderabad", 700_000, "male"),
         ))
         val a = QueryResolver.resolve(AgentQuery.FindFlats("gachibowli", null, 10_000, "female"), s, today)
-        assertEquals("2 places match", a.headline)
+        assertEquals("Found 2 places in Gachibowli under ₹10,000", a.headline)
         assertEquals(listOf(AnswerLine("Blue Door", "Gachibowli · ₹8,000/head"), AnswerLine("Green Nest", "Gachibowli · ₹9,500/head")), a.lines)
         assertEquals(AgentLink.DISCOVER, a.link)
-        assertEquals("No places match yet", QueryResolver.resolve(AgentQuery.FindFlats("ameerpet", null, null, null), s, today).headline)
+        assertEquals("Nothing in Ameerpet right now", QueryResolver.resolve(AgentQuery.FindFlats("ameerpet", null, null, null), s, today).headline)
+    }
+
+    private val hyd = state.copy(vacancies = listOf(
+        AgentVacancy("p1", "Lotus Residency", "Punjagutta", "Hyderabad", 1_100_000, "any", roomType = "private",
+            tags = listOf("Vegetarian", "WiFi")),
+        AgentVacancy("p2", "Sky Nest", "Punjagutta", "Hyderabad", 900_000, "any", roomType = "shared", tags = listOf("Non-veg ok")),
+        AgentVacancy("s1", "Somaji Stay", "Somajiguda", "Hyderabad", 800_000, "any", furnishing = "Unfurnished"),
+        AgentVacancy("a1", "Ameer Homes", "Ameerpet", "Hyderabad", 700_000, "any", furnishing = "Fully furnished"),
+        AgentVacancy("k1", "Far Away", "Kompally", "Hyderabad", 500_000, "any"),
+    ))
+
+    @Test fun `misheard area names still find the place`() {
+        val a = QueryResolver.resolve(AgentQuery.FindFlats("punja gutta", null, null, null), hyd, today)
+        assertEquals("Found 2 places in Punjagutta", a.headline)
+        assertEquals(listOf("Sky Nest", "Lotus Residency"), a.lines.map { it.label }) // cheapest first
+        assertEquals("Punjagutta · ₹9,000/head · Shared room", a.lines.first().value)
+    }
+
+    @Test fun `wishes rank listings that meet them first`() {
+        val a = QueryResolver.resolve(AgentQuery.FindFlats("punjagutta", null, null, null, wants = listOf("veg", "wifi")), hyd, today)
+        assertEquals("Lotus Residency", a.lines.first().label)
+        // "unfurnished" is not "furnished"
+        val f = QueryResolver.resolve(AgentQuery.FindFlats(null, "hyderabad", null, null, wants = listOf("furnished")), hyd, today)
+        assertEquals("Ameer Homes", f.lines.first().label)
+    }
+
+    @Test fun `nearby areas fill in closest first when the area has nothing`() {
+        val q = AgentQuery.FindFlats("khairatabad", null, null, null, nearby = listOf("somajiguda", "punjagutta"))
+        val a = QueryResolver.resolve(q, hyd, today)
+        assertEquals("Nothing in Khairatabad yet, but 3 places close by", a.headline)
+        assertEquals(listOf("Somaji Stay", "Sky Nest", "Lotus Residency"), a.lines.map { it.label })
+    }
+
+    @Test fun `gemini picks break ties`() {
+        val q = AgentQuery.FindFlats("punjagutta", null, null, null, picks = listOf("p1"))
+        assertEquals("Lotus Residency", QueryResolver.resolve(q, hyd, today).lines.first().label)
+    }
+
+    @Test fun `area rent comes from live listings`() {
+        val a = QueryResolver.resolve(AgentQuery.AreaRent("punjagutta"), hyd, today)
+        assertEquals("In Punjagutta, rooms go for about ₹11,000 a head", a.headline)
+        assertEquals(listOf(AnswerLine("Cheapest", "₹9,000"), AnswerLine("Top end", "₹11,000"), AnswerLine("Based on", "2 live listings")), a.lines)
+        val around = QueryResolver.resolve(AgentQuery.AreaRent("khairatabad", listOf("somajiguda")), hyd, today)
+        assertEquals("Around Khairatabad, rooms go for about ₹8,000 a head", around.headline)
+        val none = QueryResolver.resolve(AgentQuery.AreaRent("gachibowli"), hyd, today)
+        assertEquals("No listings in Gachibowli yet, so I can't say", none.headline)
+        // listings are public: answering doesn't need a flat
+        assertEquals(a, QueryResolver.resolve(AgentQuery.AreaRent("punjagutta"), hyd.copy(inFlat = false), today))
     }
 
     @Test fun `answers without a flat`() {

@@ -15,15 +15,19 @@ import kotlinx.coroutines.launch
 
 enum class AgentInputMode { Voice, Text }
 
+/** What the mic button under a notice does: ask for the permission again, or open app settings (permanently denied). */
+enum class MicAction { Ask, Settings }
+
 sealed interface AgentUiState {
-    data class Idle(val notice: String? = null) : AgentUiState
+    data class Idle(val notice: String? = null, val micAction: MicAction? = null) : AgentUiState
     data class Listening(val partial: String) : AgentUiState
     data class Checking(val transcript: String) : AgentUiState
-    data class Answer(val transcript: String, val answer: AgentAnswer) : AgentUiState
+    /** [say] is Gemini's own human reply, shown above the card; null in basic mode. */
+    data class Answer(val transcript: String, val answer: AgentAnswer, val say: String? = null) : AgentUiState
     /** Something to save. [awaitingVoice]: listening for a spoken yes/no; [saving]: the write is in flight. */
     data class Preview(
         val transcript: String, val summary: String, val card: AgentCard,
-        val awaitingVoice: Boolean = false, val saving: Boolean = false,
+        val awaitingVoice: Boolean = false, val saving: Boolean = false, val say: String? = null,
     ) : AgentUiState
     data class Clarify(val transcript: String, val question: String, val options: List<ClarifyOption>) : AgentUiState
     data class Done(val transcript: String, val message: String) : AgentUiState
@@ -58,8 +62,14 @@ interface AgentPlanner {
     suspend fun plan(text: String, state: HouseholdState, today: LocalDate): AgentPlan?
 }
 
-private const val NOT_YET = "I didn't get that. Try “Spent 500 on groceries”, “What do I owe?” or “Join a flat”. Say “help” for more."
-private const val SAVE_FAILED = "Couldn't save that. Check your connection and try again."
+private const val NOT_YET = "Hmm, I didn't quite get that. Try “I spent 500 on groceries”, “What do I owe?” or “Rooms in Kondapur under 10k”."
+const val CAUGHT_NOTHING = "Sorry, I didn't catch that. Say it again, or type it."
+const val MIC_OFF = "Mic access is off. Allow it, or just type to me."
+const val MIC_BLOCKED = "Mic is blocked for Oddroof. Turn it on in Settings, or just type to me."
+private const val SAVE_FAILED = "That didn't save. Check your internet and try once more."
+
+/** Requests that may be about finding a place, so listings must be loaded first. */
+private val FLAT_TALK = Regex("""\b(?:flats?|rooms?|pgs?|rent|budget|vacanc(?:y|ies)|flatmates?|roommates?|stay|accommodation|hostel|bhk|near|nearby|nearest|area|locality)\b""")
 
 private val YES = Regex("""\b(?:yes|yeah|yep|yup|sure|ok|okay|save|confirm|do it|go ahead|correct|haan|han|ha|avunu|sari|right)\b""")
 private val NO = Regex("""\b(?:no|nope|cancel|dont|don't|stop|wait|nahi|nahin|vaddu|leave it)\b""")
@@ -78,6 +88,11 @@ class AgentViewModel(
     private val actions: AgentActions = AgentActions.None,
     private val speaker: AgentSpeaker = AgentSpeaker.Silent,
     private val planner: AgentPlanner? = null,
+    /**
+     * Makes sure flat listings are loaded before a flat-search request is answered. Discover loads
+     * lazily, so a quick typed "rooms in Kondapur" could otherwise see an empty list.
+     */
+    private val prepareFlatSearch: suspend () -> Unit = {},
 ) : ViewModel() {
     private val _state = MutableStateFlow<AgentUiState>(AgentUiState.Idle())
     val state: StateFlow<AgentUiState> = _state.asStateFlow()
@@ -88,6 +103,10 @@ class AgentViewModel(
     /** Kept apart from [state] so the listening animation can follow the voice without recomposing the whole sheet. */
     private val _level = MutableStateFlow(0f)
     val level: StateFlow<Float> = _level.asStateFlow()
+
+    /** Set while Gemini can't be reached, with the reason, so the person knows answers come from basic rules. */
+    private val _smartNote = MutableStateFlow<String?>(null)
+    val smartNote: StateFlow<String?> = _smartNote.asStateFlow()
 
     /** One-shot "take the person to this screen" events. */
     private val _navigation = MutableSharedFlow<AgentLink>(extraBufferCapacity = 4)
@@ -121,20 +140,20 @@ class AgentViewModel(
             if (_state.value is AgentUiState.Listening) {
                 speech.cancel()
                 _level.value = 0f
-                _state.value = AgentUiState.Error("", "Voice isn't responding. Try again or type it.")
+                _state.value = AgentUiState.Error("", "Your mic went quiet on me. Tap to try again, or just type it.")
             }
         }
     }
 
     fun stopListening() = speech.stop()
 
-    fun useTextMode(notice: String? = null) {
+    fun useTextMode(notice: String? = null, micAction: MicAction? = null) {
         watchdog?.cancel()
         speech.cancel()
         _mode.value = AgentInputMode.Text
         val s = _state.value
         if (s is AgentUiState.Preview && s.awaitingVoice) _state.value = s.copy(awaitingVoice = false)
-        if (notice != null || s is AgentUiState.Listening) _state.value = AgentUiState.Idle(notice)
+        if (notice != null || s is AgentUiState.Listening) _state.value = AgentUiState.Idle(notice, micAction)
     }
 
     fun useVoiceMode() { _mode.value = AgentInputMode.Voice }
@@ -165,24 +184,43 @@ class AgentViewModel(
                 show(AgentUiState.NotUnderstood(transcript, it), it)
                 return@launch
             }
-            val home = household()
-            val plan = when (val result = LocalIntentParser.parse(transcript, home, today())) {
-                is ParseResult.Confident -> {
-                    delay(checkingMs) // instant answers still let "Checking your flat" read
-                    result.plan
-                }
-                // The model call is its own wait, so no extra delay here.
-                ParseResult.NeedsModel -> try {
-                    planner?.plan(transcript, home, today())
-                } catch (e: PlannerUnavailable) {
+            var home = household()
+            var parsed = LocalIntentParser.parse(transcript, home, today())
+            // Only a flat search (or something the rules can't place) waits for listings; "paid rent 9000" never does.
+            val needsListings = parsed == ParseResult.NeedsModel || (parsed as? ParseResult.Confident)?.plan.let {
+                it is AgentPlan.Answer && (it.query is AgentQuery.FindFlats || it.query is AgentQuery.AreaRent)
+            }
+            if (needsListings && FLAT_TALK.containsMatchIn(normalizeUtterance(transcript))) {
+                prepareFlatSearch()
+                home = household()
+                parsed = LocalIntentParser.parse(transcript, home, today())
+            }
+            val rules = (parsed as? ParseResult.Confident)?.plan
+            // Gemini first: it understands the request the way a person would and answers in its own words.
+            // The rules are the safety net for when it's off, offline or out of quota, so nothing simple ever breaks.
+            val smart: AgentPlan? = if (planner == null) null else try {
+                planner.plan(transcript, home, today()).also { _smartNote.value = null }
+            } catch (e: PlannerUnavailable) {
+                _smartNote.value = "Basic mode: ${e.reason}"
+                if (rules == null) {
                     val message = "${e.reason} Simple requests like “Spent 500 on groceries” still work."
                     show(AgentUiState.NotUnderstood(transcript, message), message)
                     return@launch
-                } catch (e: kotlinx.coroutines.CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    null
                 }
+                null
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                null
+            }
+            // A garbled or over-cautious model answer never beats a confident rule ("Spent 500" must just work).
+            val plan = when {
+                smart != null && !(smart is AgentPlan.Unsupported && rules != null) -> smart
+                rules != null -> {
+                    if (planner == null) delay(checkingMs) // instant answers still let "Checking your flat" read
+                    rules
+                }
+                else -> null
             }
             if (plan == null) show(AgentUiState.NotUnderstood(transcript, NOT_YET), NOT_YET)
             else present(transcript, plan, home)
@@ -218,22 +256,25 @@ class AgentViewModel(
         speech.cancel()
         pending = null
         _state.value = AgentUiState.Idle()
-        if (viaVoice) speaker.speak("Okay, I won't save it.")
+        if (viaVoice) speaker.speak("No problem, I won't save it.")
     }
 
     private fun present(transcript: String, plan: AgentPlan, home: HouseholdState) {
         when (plan) {
             is AgentPlan.Answer -> {
                 val answer = QueryResolver.resolve(plan.query, home, today())
-                show(AgentUiState.Answer(transcript, answer), spokenFor(answer))
+                val say = safeSay(plan.say, transcript, answer.headline, *answer.lines.flatMap { listOf(it.label, it.value) }.toTypedArray())
+                show(AgentUiState.Answer(transcript, answer, say), say ?: spokenFor(answer))
             }
             is AgentPlan.Reply -> show(AgentUiState.Answer(transcript, plan.answer), spokenFor(plan.answer))
             is AgentPlan.Actions -> {
                 pending = plan
-                _state.value = AgentUiState.Preview(transcript, plan.summary, cardFor(plan, home))
+                val say = safeSay(plan.say, transcript, plan.summary)
+                _state.value = AgentUiState.Preview(transcript, plan.summary, cardFor(plan, home), say = say)
                 if (viaVoice) {
                     // Ask out loud, then listen for "yes" / "no" while the card stays on screen.
-                    speaker.speak("${plan.summary}. Shall I save it?") {
+                    val ask = say?.let { if (it.trimEnd().endsWith("?")) it else "$it Shall I save it?" } ?: "${plan.summary}. Shall I save it?"
+                    speaker.speak(ask) {
                         val s = _state.value
                         if (s is AgentUiState.Preview && !s.saving && pending === plan) {
                             _state.value = s.copy(awaitingVoice = true)
@@ -283,12 +324,25 @@ class AgentViewModel(
             is SpeechEvent.Partial -> _state.value = AgentUiState.Listening(event.text)
             is SpeechEvent.Final -> submit(event.text, voice = true)
             is SpeechEvent.Error -> when (event.kind) {
-                SpeechErrorKind.NoPermission -> useTextMode("Mic access is off. You can type instead.")
+                SpeechErrorKind.NoPermission -> useTextMode(MIC_OFF, MicAction.Ask)
                 SpeechErrorKind.Unavailable -> useTextMode("Voice isn't available on this phone. You can type instead.")
-                SpeechErrorKind.Network -> _state.value = AgentUiState.Error("", "Voice needs internet on this phone right now. Try typing it.")
+                SpeechErrorKind.Network -> _state.value = AgentUiState.Error("", "Voice needs internet on this phone right now. Typing works offline.")
                 SpeechErrorKind.NoMatch, SpeechErrorKind.Busy, SpeechErrorKind.Other ->
-                    _state.value = AgentUiState.Error("", "Didn't catch that. Try again or type it.")
+                    _state.value = AgentUiState.Error("", CAUGHT_NOTHING)
             }
+        }
+    }
+
+    /** The app went to the background: never keep the mic open or keep talking behind the person's back. */
+    fun onBackground() {
+        watchdog?.cancel()
+        speech.cancel()
+        speaker.stop()
+        _level.value = 0f
+        when (val s = _state.value) {
+            is AgentUiState.Listening -> _state.value = AgentUiState.Idle()
+            is AgentUiState.Preview -> if (s.awaitingVoice) _state.value = s.copy(awaitingVoice = false)
+            else -> Unit
         }
     }
 
@@ -312,9 +366,24 @@ internal fun doneMessage(step: AgentStep, home: HouseholdState): String {
     }
 }
 
+/**
+ * Gemini's reply line, kept only if every number in it also appears in what the app itself computed
+ * (or what the person said). The model may phrase things, but it never gets to state a figure.
+ */
+internal fun safeSay(say: String?, vararg truth: String): String? {
+    val text = say?.trim()?.takeIf { it.isNotEmpty() } ?: return null
+    if (ContentGuard.reasonToBlock(text) != null) return null
+    fun numbers(s: String) = Regex("""\d[\d,]*(?:\.\d+)?""").findAll(s).map { it.value.replace(",", "").removeSuffix(".0").removeSuffix(".00") }.toSet()
+    val allowed = truth.flatMap { numbers(it) }.toSet() +
+        truth.flatMap { t -> findAmounts(normalizeUtterance(t)).map { (it.paise / 100).toString() } }
+    return text.takeIf { numbers(it).all { n -> n in allowed } }
+}
+
 /** A short spoken version of an answer: the headline and up to two lines. */
 internal fun spokenFor(answer: AgentAnswer): String {
     val head = answer.headline.trimEnd('.', '!') + "."
-    val lines = answer.lines.take(2).joinToString(" ") { "${it.label}, ${it.value}." }
+    // Card text reads well but sounds odd: "·" and "/head" are for eyes, not ears.
+    fun ear(t: String) = t.replace(" · ", ", ").replace("/head", " a head")
+    val lines = answer.lines.take(2).joinToString(" ") { "${ear(it.label)}, ${ear(it.value)}." }
     return listOf(head, lines).filter { it.isNotBlank() }.joinToString(" ")
 }

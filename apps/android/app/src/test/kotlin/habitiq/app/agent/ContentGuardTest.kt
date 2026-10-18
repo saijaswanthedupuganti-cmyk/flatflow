@@ -21,4 +21,16 @@ class ContentGuardTest {
             "gas cylinder 1100", "pest control 900", "killed the cockroaches, bought spray 250", "what do i owe")
             .forEach { assertNull(it, ContentGuard.reasonToBlock(it)) }
     }
+
+    @Test fun `household phrases that contain a blocked word are allowed`() {
+        listOf("hash browns 180", "bought weed killer 350", "glue gun 400", "water gun for the kids 150",
+            "medicines from the pharmacy 600", "drugs from the medical store 450", "I will kill the cockroaches tonight",
+            "will kill the mosquitoes with a racket 300")
+            .forEach { assertNull(it, ContentGuard.reasonToBlock(it)) }
+    }
+
+    @Test fun `allow-listed phrases do not launder a real refusal`() {
+        listOf("glue gun and a pistol 5000", "hash browns and ganja 800", "I will kill the cockroaches and then kill her")
+            .forEach { assertEquals(it, ContentGuard.REFUSAL, ContentGuard.reasonToBlock(it)) }
+    }
 }

@@ -20,6 +20,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -423,11 +424,28 @@ fun HabitiqApp() {
                                 speaker = habitiq.app.agent.AndroidSpeaker(appContext),
                                 // Anything the rules don't understand goes to Gemini via Firebase AI Logic (no key in the app).
                                 planner = habitiq.app.agent.GeminiPlanner(appContext),
+                                prepareFlatSearch = {
+                                    flatViewModel.ensureDiscovery()
+                                    // Wait for the first batch of listings, but never hold the answer more than 4s.
+                                    kotlinx.coroutines.withTimeoutOrNull(4_000) {
+                                        flatViewModel.discoverVacanciesLoading.first { !it }
+                                    }
+                                },
                             )
+                        }
+                        // Leaving the app closes the mic and stops speech; nothing listens in the background.
+                        val agentLifecycle = androidx.lifecycle.compose.LocalLifecycleOwner.current
+                        DisposableEffect(agentLifecycle, agentViewModel) {
+                            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                                if (event == androidx.lifecycle.Lifecycle.Event.ON_STOP) agentViewModel.onBackground()
+                            }
+                            agentLifecycle.lifecycle.addObserver(observer)
+                            onDispose { agentLifecycle.lifecycle.removeObserver(observer) }
                         }
                         val agentState by agentViewModel.state.collectAsStateWithLifecycleCompat()
                         val agentMode by agentViewModel.mode.collectAsStateWithLifecycleCompat()
                         val agentLevel by agentViewModel.level.collectAsStateWithLifecycleCompat()
+                        val agentSmartNote by agentViewModel.smartNote.collectAsStateWithLifecycleCompat()
                         var agentOpen by rememberSaveable { mutableStateOf(false) }
                         fun openAgentLink(link: habitiq.app.agent.AgentLink) {
                             agentOpen = false
@@ -462,7 +480,15 @@ fun HabitiqApp() {
                             androidx.activity.result.contract.ActivityResultContracts.RequestPermission()
                         ) { granted ->
                             if (granted) agentViewModel.startListening()
-                            else agentViewModel.useTextMode("Mic access is off. You can type instead.")
+                            else {
+                                // Denied with no rationale to show = "Don't ask again": only Settings can turn it back on.
+                                val activity = generateSequence(shareContext) { (it as? android.content.ContextWrapper)?.baseContext }
+                                    .filterIsInstance<android.app.Activity>().firstOrNull()
+                                val permanent = activity != null && !androidx.core.app.ActivityCompat
+                                    .shouldShowRequestPermissionRationale(activity, android.Manifest.permission.RECORD_AUDIO)
+                                if (permanent) agentViewModel.useTextMode(habitiq.app.agent.MIC_BLOCKED, habitiq.app.agent.MicAction.Settings)
+                                else agentViewModel.useTextMode(habitiq.app.agent.MIC_OFF, habitiq.app.agent.MicAction.Ask)
+                            }
                         }
                         fun talk() {
                             val granted = androidx.core.content.ContextCompat.checkSelfPermission(appContext, android.Manifest.permission.RECORD_AUDIO) ==
@@ -649,10 +675,19 @@ fun HabitiqApp() {
                                                     onChoose = { agentViewModel.choose(it) },
                                                     onUseText = { agentViewModel.useTextMode() },
                                                     onUseVoice = { agentViewModel.useVoiceMode(); talk() },
-                                                    onAllowMic = { micPermission.launch(android.Manifest.permission.RECORD_AUDIO) },
+                                                    onAllowMic = { action ->
+                                                        if (action == habitiq.app.agent.MicAction.Settings) {
+                                                            shareContext.startActivity(
+                                                                android.content.Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS)
+                                                                    .setData(android.net.Uri.fromParts("package", shareContext.packageName, null))
+                                                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                                                            )
+                                                        } else micPermission.launch(android.Manifest.permission.RECORD_AUDIO)
+                                                    },
                                                     onOpen = { link -> agentViewModel.reset(); openAgentLink(link) },
                                                     onConfirm = { agentViewModel.confirm() },
                                                     onCancelPreview = { agentViewModel.cancelPreview() },
+                                                    smartNote = agentSmartNote,
                                                 )
                                             },
                                             onTabSelected = {

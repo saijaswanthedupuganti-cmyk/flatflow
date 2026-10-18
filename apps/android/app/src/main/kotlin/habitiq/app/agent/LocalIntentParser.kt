@@ -25,7 +25,7 @@ object LocalIntentParser {
             CommandRules.flatSetup(text)?.let { return ParseResult.Confident(it) }
         }
         if (amounts.isEmpty()) question(text, today)?.let { return answer(it) }
-        findFlats(text, amounts)?.let { return answer(it) }
+        flatSearch(text, amounts, state)?.let { return it }
 
         val tokens = Regex("""\S+""").findAll(text).toList()
         // "I will pay…", "Should I buy…": a question or intention in either of the first two words.
@@ -38,9 +38,9 @@ object LocalIntentParser {
             CommandRules.expensePrompt(text)?.let { return ParseResult.Confident(it) }
         }
         if (amounts.size != 1) return ParseResult.NeedsModel
-        if (!state.inFlat || state.members.isEmpty()) {
-            return ParseResult.Confident(AgentPlan.Unsupported("Join or create a flat first to track money."))
-        }
+        if (!state.inFlat) return ParseResult.Confident(AgentPlan.Unsupported("Join or create a flat first to track money."))
+        // In a flat but the member list hasn't arrived yet (cold start, slow network).
+        if (state.members.isEmpty()) return ParseResult.Confident(AgentPlan.Unsupported(STILL_LOADING))
         val amount = amounts.single()
         if (amount.paise < MIN_PAISE || amount.paise > MAX_PAISE) return ParseResult.NeedsModel
 
@@ -48,6 +48,8 @@ object LocalIntentParser {
         settle(ctx)?.let { return it }
         return expense(ctx) ?: ParseResult.NeedsModel
     }
+
+    const val STILL_LOADING = "Still loading your flat. Give me a second and try again."
 
     private const val MIN_PAISE = 100L
     private const val MAX_PAISE = 10_000_000L
@@ -233,11 +235,31 @@ object LocalIntentParser {
 
     private val FLAT_NOUN = rx("flats?|rooms?|pgs?|vacanc(?:y|ies)|flatmates?|accommodation")
     private val PLACE = Regex("""\b(?:in|near|around|at)\s+([a-z][a-z ]*?)(?=\s+(?:under|below|within|less|upto|up|for|with|max)\b|$)""")
+    private val NEAR_ME = rx("nearest|closest|near me|nearby|close to (?:me|my)|near my|walking distance")
     private val FEMALE = rx("girls?|women|woman|female|ladies")
     private val MALE = rx("boys?|men|man|male|gents")
 
-    private fun findFlats(text: String, amounts: List<AmountMatch>): AgentQuery? {
+    private val AREA_RENT = Regex("""\b(?:rent|rents|budget|price|prices|cost|costs|rate|rates|going rate)\b.*?\b(?:in|at|around|near)\s+([a-z][a-z ]*?)(?:\s+area)?$""")
+
+    /**
+     * Flat searches and area-rent questions. When listings are loaded and the area matches none of
+     * them (a misheard name, a landmark, "near my office"), Gemini gets it instead of a flat "nothing".
+     */
+    private fun flatSearch(text: String, amounts: List<AmountMatch>, state: HouseholdState): ParseResult? {
+        fun known(place: String) = state.vacancies.isEmpty() || FlatSearch.knows(state, place)
+        if (amounts.isEmpty()) AREA_RENT.find(text)?.let { m ->
+            val place = m.groupValues[1].trim()
+            return if (known(place)) answer(AgentQuery.AreaRent(place)) else ParseResult.NeedsModel
+        }
+        val q = findFlats(text, amounts) ?: return null
+        if (q.area != null && !known(q.area)) return ParseResult.NeedsModel
+        return answer(q)
+    }
+
+    private fun findFlats(text: String, amounts: List<AmountMatch>): AgentQuery.FindFlats? {
         if (!FLAT_NOUN.inText(text) || amounts.size > 1) return null
+        // "nearest", "near me", "close to my office": needs a sense of place the rules don't have.
+        if (NEAR_ME.inText(text)) return null
         val area = PLACE.find(text)?.groupValues?.get(1)?.removeSuffix(" area")?.trim()?.ifBlank { null }
         val maxRent = amounts.singleOrNull()?.paise?.div(100)
         if (area == null && maxRent == null) return null

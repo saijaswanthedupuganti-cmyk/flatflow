@@ -45,6 +45,29 @@ class LocalIntentParserQuestionsTest {
         assertEquals(answer(AgentQuery.FindFlats("hsr", null, null, null)), parse("3 bedroom flats in HSR"))
     }
 
+    private val listed = state.copy(vacancies = listOf(
+        AgentVacancy("p1", "Lotus", "Punjagutta", "Hyderabad", 1_000_000, "any"),
+        AgentVacancy("k1", "Nest", "Kondapur", "Hyderabad", 800_000, "any"),
+    ))
+    private fun parseListed(text: String) = LocalIntentParser.parse(text, listed, today)
+
+    @Test fun `known areas answer locally even when misheard`() {
+        assertEquals(answer(AgentQuery.FindFlats("punja gutta", null, 12_000, null)), parseListed("rooms in punja gutta under 12k"))
+        assertEquals(answer(AgentQuery.AreaRent("kondapur")), parseListed("what's the rent in Kondapur"))
+        assertEquals(answer(AgentQuery.AreaRent("punjagutta")), parseListed("whats the budget around punjagutta area"))
+    }
+
+    @Test fun `unknown places and nearest go to the model`() {
+        listOf("flats in punjabpur under 10k", "rooms near hitech city metro", "nearest flats under 9000",
+            "whats the budget in punjabpur", "any rooms near my office")
+            .forEach { assertEquals(it, ParseResult.NeedsModel, parseListed(it)) }
+    }
+
+    @Test fun `paying rent is never a flat search`() {
+        val r = parseListed("paid rent 9000") as ParseResult.Confident
+        assertEquals(true, r.plan is AgentPlan.Actions)
+    }
+
     @Test fun `not understood`() {
         listOf("hello", "remind me to call mom", "", "   ", "flats")
             .forEach { assertEquals(it, ParseResult.NeedsModel, parse(it)) }

@@ -77,4 +77,32 @@ class GeminiContractTest {
         val fenced = "```json\n{\"type\":\"question\",\"query\":\"bills\"}\n```"
         assertEquals(AgentPlan.Answer(AgentQuery.Bills), parse(fenced))
     }
+
+    private val withListings = state.copy(vacancies = listOf(
+        AgentVacancy("flatP", "Lotus Residency", "Punjagutta", "Hyderabad", 1_100_000, "any", roomType = "private", tags = listOf("Vegetarian")),
+        AgentVacancy("flatS", "Somaji Stay", "Somajiguda", "Hyderabad", 800_000, "female"),
+    ))
+    private val lctx = buildPlannerContext(withListings, today)
+
+    @Test fun `listings reach the model as aliases with public fields only`() {
+        assertTrue(lctx.json.contains("\"listingAreas\""))
+        assertTrue(lctx.json.contains("Punjagutta"))
+        assertFalse(lctx.json.contains("flatP"))          // real flat ids stay on the phone
+        assertFalse(lctx.json.contains("Lotus Residency")) // names aren't needed to judge fit
+        assertEquals("flatS", lctx.listings["v1"])         // cheapest first
+    }
+
+    @Test fun `semantic flat search from the model`() {
+        val plan = parseModelPlan(
+            """{"type":"find_flats","area":"Punjagutta","nearby":["Somajiguda","Ameerpet"],"maxRent":12000,"gender":null,"wants":["Veg","wifi"],"picks":["v2","v9"]}""",
+            lctx, withListings, today,
+        ) as AgentPlan.Answer
+        assertEquals(
+            AgentQuery.FindFlats("punjagutta", null, 12_000, null, listOf("somajiguda", "ameerpet"), listOf("veg", "wifi"), listOf("flatP")),
+            plan.query,
+        )
+        val rent = parseModelPlan("""{"type":"area_rent","area":"Punjagutta","nearby":["Somajiguda"]}""", lctx, withListings, today)
+        assertEquals(AgentPlan.Answer(AgentQuery.AreaRent("punjagutta", listOf("somajiguda"))), rent)
+        assertNull(parseModelPlan("""{"type":"area_rent","area":""}""", lctx, withListings, today))
+    }
 }

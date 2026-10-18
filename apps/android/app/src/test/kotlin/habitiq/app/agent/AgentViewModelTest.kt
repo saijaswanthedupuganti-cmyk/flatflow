@@ -109,7 +109,7 @@ class AgentViewModelTest {
         assertEquals(AgentUiState.Listening("bought"), vm.state.value) // activity resets the timer
         advanceTimeBy(1_100)
         runCurrent()
-        assertEquals(AgentUiState.Error("", "Voice isn't responding. Try again or type it."), vm.state.value)
+        assertEquals(AgentUiState.Error("", "Your mic went quiet on me. Tap to try again, or just type it."), vm.state.value)
         assertTrue(speech.cancelled >= 1)
     }
 
@@ -158,7 +158,7 @@ class AgentViewModelTest {
         runCurrent()
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.NoMatch))
         advanceUntilIdle()
-        assertEquals(AgentUiState.Error("", "Didn't catch that. Try again or type it."), vm.state.value)
+        assertEquals(AgentUiState.Error("", CAUGHT_NOTHING), vm.state.value)
         assertEquals(AgentInputMode.Voice, vm.mode.value)
     }
 
@@ -168,7 +168,7 @@ class AgentViewModelTest {
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.NoPermission))
         advanceUntilIdle()
         assertEquals(AgentInputMode.Text, vm.mode.value)
-        assertEquals(AgentUiState.Idle("Mic access is off. You can type instead."), vm.state.value)
+        assertEquals(AgentUiState.Idle(MIC_OFF, MicAction.Ask), vm.state.value)
     }
 
     @Test fun `unavailable recogniser switches to text mode`() = runTest {
@@ -177,7 +177,7 @@ class AgentViewModelTest {
         speech.events.emit(SpeechEvent.Error(SpeechErrorKind.Unavailable))
         advanceUntilIdle()
         assertEquals(AgentInputMode.Text, vm.mode.value)
-        assertEquals(AgentUiState.Idle("Voice isn't available on this phone. You can type instead."), vm.state.value)
+        assertEquals(AgentUiState.Idle("Voice isn't available on this phone. You can type instead."), vm.state.value) // no mic button: nothing to allow
     }
 
     @Test fun `blank text does nothing and reset stops listening`() = runTest {
@@ -187,5 +187,42 @@ class AgentViewModelTest {
         vm.reset()
         assertEquals(AgentUiState.Idle(), vm.state.value)
         assertEquals(1, speech.cancelled)
+    }
+
+    @Test fun `going to the background closes the mic`() = runTest {
+        vm.startListening()
+        runCurrent()
+        speech.events.emit(SpeechEvent.Partial("bought"))
+        runCurrent()
+        vm.onBackground()
+        assertEquals(AgentUiState.Idle(), vm.state.value)
+        assertEquals(1, speech.cancelled)
+        speech.events.emit(SpeechEvent.Final("bought milk 60")) // a late result must not revive it
+        advanceUntilIdle()
+        assertEquals(AgentUiState.Idle(), vm.state.value)
+    }
+
+    @Test fun `flat searches wait for listings to load`() = runTest {
+        var loaded = false
+        household = Fixtures.state
+        vm = AgentViewModel({ household }, speech, { Fixtures.today }, prepareFlatSearch = {
+            kotlinx.coroutines.delay(1_000)
+            household = Fixtures.state.copy(vacancies = listOf(AgentVacancy("f1", "Sunrise", "Kondapur", "Hyderabad", 900_000, "any")))
+            loaded = true
+        })
+        vm.submitText("rooms in kondapur")
+        advanceUntilIdle()
+        assertTrue(loaded)
+        val s = vm.state.value as AgentUiState.Answer
+        assertEquals("Sunrise", s.answer.lines.single().label)
+    }
+
+    @Test fun `money requests never wait for listings`() = runTest {
+        var asked = false
+        vm = AgentViewModel({ household }, speech, { Fixtures.today }, prepareFlatSearch = { asked = true })
+        vm.submitText("paid rent 9000")
+        advanceUntilIdle()
+        assertTrue(!asked)
+        assertTrue(vm.state.value is AgentUiState.Preview)
     }
 }

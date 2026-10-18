@@ -90,6 +90,11 @@ class LocalIntentParserActionsTest {
         assertEquals(ParseResult.Confident(AgentPlan.Unsupported("Join or create a flat first to track money.")), r)
     }
 
+    @Test fun `in a flat whose members have not loaded yet`() {
+        val r = parse("bought milk 60", Fixtures.state.copy(members = emptyList()))
+        assertEquals(ParseResult.Confident(AgentPlan.Unsupported(LocalIntentParser.STILL_LOADING)), r)
+    }
+
     @Test fun `summaries read plainly`() {
         val r = parse("Bought groceries for ₹560") as ParseResult.Confident
         assertEquals("Add ₹560 for Groceries, split 4 ways", (r.plan as AgentPlan.Actions).summary)

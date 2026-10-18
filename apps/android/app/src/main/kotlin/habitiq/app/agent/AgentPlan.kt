@@ -4,8 +4,10 @@ import java.time.LocalDate
 
 /** What the agent intends to do. Shared by the parser, the resolver, the view model and the sheet. */
 sealed interface AgentPlan {
-    data class Actions(val steps: List<AgentStep>, val summary: String) : AgentPlan
-    data class Answer(val query: AgentQuery) : AgentPlan
+    /** [say] is Gemini's own way of putting it ("Got it, 500 on groceries for the four of you. Save it?"). */
+    data class Actions(val steps: List<AgentStep>, val summary: String, val say: String? = null) : AgentPlan
+    /** [say]: Gemini's friendly line to go with the answer card; the card's numbers always come from the app. */
+    data class Answer(val query: AgentQuery, val say: String? = null) : AgentPlan
     data class Clarify(val question: String, val options: List<ClarifyOption>) : AgentPlan
     data class Unsupported(val reason: String) : AgentPlan
     /** Take the person somewhere in the app ("join a flat", "open expenses"); [say] is the spoken reply. */
@@ -39,7 +41,19 @@ sealed interface AgentQuery {
     data object DueToday : AgentQuery
     data class MyDuties(val from: LocalDate, val until: LocalDate) : AgentQuery
     data object Bills : AgentQuery
-    data class FindFlats(val area: String?, val city: String?, val maxRent: Long?, val gender: String?) : AgentQuery
+    /**
+     * [area] is where the person asked about; [nearby] are other areas close to it, closest first (from
+     * Gemini's sense of the city), used when [area] itself has nothing. [wants] are wishes like "veg" or
+     * "wifi" that rank listings; [picks] are listing flat ids Gemini judged the best fit, in order.
+     */
+    data class FindFlats(
+        val area: String?, val city: String?, val maxRent: Long?, val gender: String?,
+        val nearby: List<String> = emptyList(),
+        val wants: List<String> = emptyList(),
+        val picks: List<String> = emptyList(),
+    ) : AgentQuery
+    /** "What's the budget in Punjagutta?": typical rent per head from live listings. */
+    data class AreaRent(val area: String, val nearby: List<String> = emptyList()) : AgentQuery
 }
 
 sealed interface ParseResult {

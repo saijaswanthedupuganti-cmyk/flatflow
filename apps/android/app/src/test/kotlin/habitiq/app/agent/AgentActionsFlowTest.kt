@@ -74,7 +74,7 @@ class AgentActionsFlowTest {
         advanceUntilIdle()
         vm.confirm()
         advanceUntilIdle()
-        assertEquals(AgentUiState.Error("bought milk 60", "Couldn't save that. Check your connection and try again."), vm.state.value)
+        assertEquals(AgentUiState.Error("bought milk 60", "That didn't save. Check your internet and try once more."), vm.state.value)
     }
 
     @Test fun `spoken request asks to confirm and a spoken yes saves`() = runTest {
@@ -166,11 +166,71 @@ class AgentActionsFlowTest {
         assertTrue(s.toString(), s.toString().contains("Firebase AI Logic"))
     }
 
+    @Test fun `gemini answers first, in its own words, even when the rules could`() = runTest {
+        val seen = mutableListOf<String>()
+        planner = object : AgentPlanner {
+            override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate): AgentPlan {
+                seen += text
+                return AgentPlan.Actions(
+                    listOf(AgentStep.AddExpense("Groceries", 50_000, "lifestyle", "u1", Fixtures.allUids)),
+                    "Add ₹500 for Groceries, split 4 ways",
+                    say = "Got it, 500 on groceries for all 4 of you. Save it?",
+                )
+            }
+        }
+        vm.submitText("please add ₹500 on my groceries")
+        advanceUntilIdle()
+        assertEquals(listOf("please add ₹500 on my groceries"), seen)
+        val s = vm.state.value as AgentUiState.Preview
+        assertEquals("Got it, 500 on groceries for all 4 of you. Save it?", s.say)
+        assertEquals(null, vm.smartNote.value)
+    }
+
+    @Test fun `a number gemini made up is dropped, the card stays`() = runTest {
+        planner = object : AgentPlanner {
+            override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate) =
+                AgentPlan.Answer(AgentQuery.MyBalance, say = "You owe Ravi 900, pay up!")
+        }
+        vm.submitText("what do i owe")
+        advanceUntilIdle()
+        val s = vm.state.value as AgentUiState.Answer
+        assertEquals(null, s.say)
+        assertEquals("You're all settled", s.answer.headline)
+    }
+
+    @Test fun `when gemini is down the rules still save simple things and say why`() = runTest {
+        planner = object : AgentPlanner {
+            override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate): AgentPlan? =
+                throw PlannerUnavailable("No connection to smart mode. Check your internet.")
+        }
+        vm.submitText("spent 500 on groceries")
+        advanceUntilIdle()
+        assertTrue(vm.state.value is AgentUiState.Preview)
+        assertEquals("Basic mode: No connection to smart mode. Check your internet.", vm.smartNote.value)
+    }
+
+    @Test fun `an over-cautious gemini refusal never blocks a plain expense`() = runTest {
+        planner = object : AgentPlanner {
+            override suspend fun plan(text: String, state: HouseholdState, today: java.time.LocalDate) =
+                AgentPlan.Unsupported("What was it for?")
+        }
+        vm.submitText("I just spent 500")
+        advanceUntilIdle()
+        assertTrue(vm.state.value is AgentUiState.Preview)
+    }
+
     @Test fun `model errors map to short reasons`() {
         assertTrue(reasonFor(RuntimeException("Firebase AI Logic API has not been used in project 1030913049565")).contains("switched on"))
         assertTrue(reasonFor(RuntimeException("This API method requires billing to be enabled")).contains("billing"))
         assertTrue(reasonFor(RuntimeException("429 RESOURCE_EXHAUSTED quota")).contains("busy"))
         assertTrue(isModelMissing(RuntimeException("Publisher Model `gemini-x` was not found")))
         assertEquals("Smart mode couldn't answer right now.", reasonFor(RuntimeException("boom")))
+    }
+
+    @Test fun `retired gemini models are never asked`() {
+        // Gemini 2.5 on Vertex AI is shut down and was closed to new projects: asking it only ever fails.
+        assertTrue(GeminiPlanner.MODELS.isNotEmpty())
+        assertTrue(GeminiPlanner.MODELS.none { it.startsWith("gemini-2") })
+        assertTrue(isModelMissing(RuntimeException("Gemini 2.5 models are limited to projects that used them before")))
     }
 }

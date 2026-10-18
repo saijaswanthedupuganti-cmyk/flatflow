@@ -18,7 +18,7 @@ export default function PrivacyPage() {
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Privacy Policy</h1>
           <p className="text-muted-foreground text-sm">
-            Effective date: 13 June 2026 · Last updated: 3 October 2026
+            Effective date: 13 June 2026 · Last updated: 18 October 2026
           </p>
         </div>
 
@@ -279,6 +279,16 @@ export default function PrivacyPage() {
                   <td className="py-2">Device token</td>
                 </tr>
                 <tr>
+                  <td className="py-2 pr-4">Gemini via Firebase AI Logic (Google Cloud Vertex AI)</td>
+                  <td className="py-2 pr-4">Understanding requests to the Oddroof assistant (Android)</td>
+                  <td className="py-2">Your request, flatmates&apos; first names, open tasks, your balances, this month&apos;s bills, and public Discover listings</td>
+                </tr>
+                <tr>
+                  <td className="py-2 pr-4">Your phone&apos;s speech service</td>
+                  <td className="py-2 pr-4">Turning what you say to the assistant into text (Android)</td>
+                  <td className="py-2">Audio while the mic is on, handled by the phone&apos;s speech provider</td>
+                </tr>
+                <tr>
                   <td className="py-2 pr-4">Google Maps Platform</td>
                   <td className="py-2 pr-4">Map display and place search</td>
                   <td className="py-2">Map locations you view or pick</td>
@@ -295,6 +305,13 @@ export default function PrivacyPage() {
                 </tr>
               </tbody>
             </table>
+            <p className="text-muted-foreground text-sm mt-3">
+              <strong className="text-foreground">The Oddroof assistant.</strong> The mic is on only while the assistant
+              screen is open and you tap to talk, and it turns off when you leave the app. Before a request is sent to
+              Gemini, flatmates and tasks are replaced with short codes: no emails, phone numbers, photos or account IDs
+              are included. Nothing the assistant suggests is saved until you confirm it. If you prefer, you can type
+              instead of talking, and the app works without the assistant.
+            </p>
             <p className="text-muted-foreground text-sm mt-3">
               Some Google servers are located outside India. Your data may be processed there under Google&apos;s
               security and privacy commitments, as permitted by the DPDP Act.

@@ -57,7 +57,20 @@ class MainActivity : FragmentActivity() {
             }
         }
 
-        registerFcmToken()
+        // Sign-out deletes this phone's token, so register again on every sign-in, not just at launch.
+        com.google.firebase.auth.FirebaseAuth.getInstance().addAuthStateListener(fcmOnSignIn)
+    }
+
+    private var fcmUid: String? = null
+    private val fcmOnSignIn = com.google.firebase.auth.FirebaseAuth.AuthStateListener { auth ->
+        val uid = auth.currentUser?.uid
+        if (uid != null && uid != fcmUid) registerFcmToken()
+        fcmUid = uid
+    }
+
+    override fun onDestroy() {
+        com.google.firebase.auth.FirebaseAuth.getInstance().removeAuthStateListener(fcmOnSignIn)
+        super.onDestroy()
     }
 
     override fun onNewIntent(intent: android.content.Intent) {

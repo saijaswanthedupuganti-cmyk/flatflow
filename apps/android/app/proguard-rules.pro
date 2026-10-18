@@ -25,3 +25,10 @@
 # document reads go through snapshot.data and typed getters (getString, etc.), and all
 # writes pass explicit Map<String, Any?>. So there is no reflected POJO surface here and
 # no additional Firebase keep rules are required.
+
+# Release builds drop verbose/debug/info logging; warnings and errors stay for field diagnosis.
+-assumenosideeffects class android.util.Log {
+    public static int v(...);
+    public static int d(...);
+    public static int i(...);
+}

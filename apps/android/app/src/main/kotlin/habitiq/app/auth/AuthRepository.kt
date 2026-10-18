@@ -4,6 +4,9 @@ import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
 import com.google.firebase.crashlytics.FirebaseCrashlytics
+import com.google.firebase.firestore.FieldValue
+import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.messaging.FirebaseMessaging
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.tasks.await
@@ -41,7 +44,20 @@ class AuthRepository(
         Unit
     }.recoverCatching { throw IllegalStateException(mapResetError(reported(it)), it) }
 
+    /**
+     * Unlinks this phone from the account before signing out, so the next person to sign in here
+     * never gets the previous account's notifications. Deleting the FCM token also drops every
+     * flat-topic subscription tied to it; a fresh token is issued on the next sign-in.
+     */
     fun signOut() {
+        firebaseAuth.currentUser?.uid?.let { uid ->
+            // Best effort: the token itself is deleted below, so a stale field can't deliver anything.
+            runCatching {
+                FirebaseFirestore.getInstance().collection("users").document(uid)
+                    .update(mapOf("fcmToken" to FieldValue.delete()))
+            }
+        }
+        runCatching { FirebaseMessaging.getInstance().deleteToken() }
         firebaseAuth.signOut()
     }
 

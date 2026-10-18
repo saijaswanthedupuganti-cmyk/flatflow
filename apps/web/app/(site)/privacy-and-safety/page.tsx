@@ -6,7 +6,7 @@ import Trust from '@/components/site/home/Trust'
 import Section from '@/components/site/Section'
 import s from '@/components/site/site.module.css'
 
-export const metadata: Metadata = { title: 'Privacy & safety', description: 'How Oddroof protects your contact details, location and data.' }
+export const metadata: Metadata = { title: 'Privacy & safety', description: 'How Oddroof protects your contact details, location and data.', alternates: { canonical: '/privacy-and-safety' } }
 
 export default function PrivacyHubPage() {
   return (
@@ -19,6 +19,7 @@ export default function PrivacyHubPage() {
           <li><Link href="/privacy">Privacy policy <ArrowRight size={18} aria-hidden /></Link></li>
           <li><Link href="/terms">Terms of use <ArrowRight size={18} aria-hidden /></Link></li>
           <li><Link href="/safety">Safety guidelines <ArrowRight size={18} aria-hidden /></Link></li>
+          <li><Link href="/delete-account">Delete your account <ArrowRight size={18} aria-hidden /></Link></li>
           <li><a href="mailto:hello@habitiq.app">Grievance contact: hello@habitiq.app <ArrowRight size={18} aria-hidden /></a></li>
         </ul>
       </Section>

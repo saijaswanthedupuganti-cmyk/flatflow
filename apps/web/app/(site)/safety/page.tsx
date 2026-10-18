@@ -2,23 +2,24 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Safety Tips — Habitiq',
-  description: 'How to find a room or flatmate safely on Habitiq Discover — scams to avoid, safe viewings, and how to report.',
+  title: 'Safety tips',
+  description: 'How to find a room or flatmate safely on Oddroof Discover — scams to avoid, safe viewings, and how to report.',
+  alternates: { canonical: '/safety' },
 }
 
 export default function SafetyPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen pt-24">
       <div className="max-w-2xl mx-auto px-6 py-16">
 
         {/* Header */}
         <div className="mb-10">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
-            ← Back to Habitiq
+            ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Safety Tips</h1>
           <p className="text-muted-foreground text-sm">
-            For Discover — finding a room, a flat, or a flatmate · Last updated: 3 October 2026
+            For Discover — finding a room, a flat, or a flatmate · Last updated: 18 October 2026
           </p>
         </div>
 
@@ -33,10 +34,10 @@ export default function SafetyPage() {
             </p>
             <div className="mt-4 rounded-lg border border-border p-4">
               <p className="text-foreground font-medium">
-                Habitiq never collects rent, deposits, or booking fees.
+                Oddroof never collects rent, deposits, or booking fees.
               </p>
               <p className="text-muted-foreground mt-1">
-                Anyone asking you to pay &quot;through Habitiq&quot; or to &quot;block the room&quot; before you have
+                Anyone asking you to pay &quot;through Oddroof&quot; or to &quot;block the room&quot; before you have
                 seen it is not acting for us.
               </p>
             </div>
@@ -109,19 +110,19 @@ export default function SafetyPage() {
               In the app, open the profile, listing, or chat and choose <strong className="text-foreground">Report</strong> or{' '}
               <strong className="text-foreground">Block</strong>. Blocking hides that person from you and stops
               new messages. Reports are reviewed by a person on our team. You can also email{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
               with the subject &quot;Safety report&quot; and screenshots.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               We may remove listings and suspend accounts that break our{' '}
-              <Link href="/terms" className="text-violet-500 hover:underline">Terms of Service</Link>.
+              <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>.
             </p>
           </section>
 
           {/* Emergency */}
           <section>
             <h2 className="text-lg font-semibold mb-3">7. If you are in danger or have lost money</h2>
-            <p className="text-muted-foreground mb-3">Habitiq is not an emergency service. In India, contact:</p>
+            <p className="text-muted-foreground mb-3">Oddroof is not an emergency service. In India, contact:</p>
             <table className="w-full text-sm text-muted-foreground border-collapse">
               <tbody className="divide-y divide-border">
                 <tr>
@@ -147,9 +148,9 @@ export default function SafetyPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Habitiq · habitiq.app · India ·{' '}
-            <Link href="/privacy" className="text-violet-500 hover:underline">Privacy Policy</Link> ·{' '}
-            <Link href="/terms" className="text-violet-500 hover:underline">Terms of Service</Link>
+            Oddroof · habitiq.app · India ·{' '}
+            <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link> ·{' '}
+            <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
           </p>
         </div>
       </div>

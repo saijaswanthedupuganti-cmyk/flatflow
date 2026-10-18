@@ -2,23 +2,24 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Terms of Service — Habitiq',
-  description: 'The rules for using Habitiq — what you can expect from us and what we expect from you.',
+  title: 'Terms of service',
+  description: 'The rules for using Oddroof — what you can expect from us and what we expect from you.',
+  alternates: { canonical: '/terms' },
 }
 
 export default function TermsPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen pt-24">
       <div className="max-w-2xl mx-auto px-6 py-16">
 
         {/* Header */}
         <div className="mb-10">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
-            ← Back to Habitiq
+            ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Terms of Service</h1>
           <p className="text-muted-foreground text-sm">
-            Effective date: 13 June 2026 · Last updated: 3 October 2026
+            Effective date: 13 June 2026 · Last updated: 18 October 2026
           </p>
         </div>
 
@@ -27,15 +28,15 @@ export default function TermsPage() {
           {/* Intro */}
           <section>
             <p className="text-muted-foreground leading-relaxed">
-              These Terms of Service (&quot;Terms&quot;) govern your use of Habitiq — a shared living management platform
+              These Terms of Service (&quot;Terms&quot;) govern your use of Oddroof — a shared living management platform
               for flats, PGs, and co-living spaces, including Discover and our Android app, Oddroof. By creating an
               account, you agree to these Terms.
               If you don&apos;t agree, don&apos;t use the service.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
-              Habitiq is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India
-              (&quot;we&quot;, &quot;us&quot;, &quot;Habitiq&quot;). Our{' '}
-              <Link href="/privacy" className="text-violet-500 hover:underline">Privacy Policy</Link>{' '}
+              Oddroof is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India
+              (&quot;we&quot;, &quot;us&quot;, &quot;Oddroof&quot;). Our{' '}
+              <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>{' '}
               is part of these Terms by reference.
             </p>
           </section>
@@ -44,7 +45,7 @@ export default function TermsPage() {
 
           {/* Eligibility */}
           <section>
-            <h2 className="text-lg font-semibold mb-3">1. Who Can Use Habitiq</h2>
+            <h2 className="text-lg font-semibold mb-3">1. Who Can Use Oddroof</h2>
             <ul className="text-muted-foreground space-y-2 list-disc list-inside">
               <li>You must be 18 years of age or older.</li>
               <li>You must provide accurate information when creating your account.</li>
@@ -53,11 +54,11 @@ export default function TermsPage() {
             </ul>
           </section>
 
-          {/* What Habitiq is */}
+          {/* What Oddroof is */}
           <section>
-            <h2 className="text-lg font-semibold mb-3">2. What Habitiq Does</h2>
+            <h2 className="text-lg font-semibold mb-3">2. What Oddroof Does</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq helps flatmates manage shared household duties, track expenses, and split bills.
+              Oddroof helps flatmates manage shared household duties, track expenses, and split bills.
               Specifically, we provide:
             </p>
             <ul className="text-muted-foreground space-y-1 list-disc list-inside mt-2">
@@ -69,7 +70,7 @@ export default function TermsPage() {
               <li>Real-time sync so all members see the same state</li>
             </ul>
             <p className="text-muted-foreground mt-3">
-              <strong className="text-foreground">Habitiq does not process payments.</strong> When a balance is
+              <strong className="text-foreground">Oddroof does not process payments.</strong> When a balance is
               recorded as &quot;settled&quot;, we log the record — but no money moves through our platform. All actual
               transfers happen between members directly (UPI, cash, bank transfer, etc.).
             </p>
@@ -82,7 +83,7 @@ export default function TermsPage() {
               Discover lets flat admins list available rooms and lets people publish a seeker profile, connect, and
               message each other.{' '}
               <strong className="text-foreground">Discover is a listing and introduction tool only.</strong>{' '}
-              Habitiq is not a broker, agent, landlord, or guarantor, and is not a party to any rental or
+              Oddroof is not a broker, agent, landlord, or guarantor, and is not a party to any rental or
               flat-sharing arrangement you make.
             </p>
             <ul className="text-muted-foreground space-y-2 list-disc list-inside mt-3">
@@ -96,7 +97,7 @@ export default function TermsPage() {
               </li>
               <li>
                 Viewings and meetings happen at your own risk. Please follow our{' '}
-                <Link href="/safety" className="text-violet-500 hover:underline">Safety Tips</Link>.
+                <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>.
               </li>
               <li>
                 Anything you publish on Discover is visible to other signed-in users. Don&apos;t include your phone
@@ -113,10 +114,10 @@ export default function TermsPage() {
                 or on grounds of religion, caste, or community.
               </li>
               <li>
-                Any trust, activity, or verification label reflects activity on Habitiq only. It is our opinion based on
+                Any trust, activity, or verification label reflects activity on Oddroof only. It is our opinion based on
                 platform data — not a background check, a statement about anyone&apos;s character, or a guarantee of
                 safety. You can ask us to review a label at{' '}
-                <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>.
+                <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>.
               </li>
             </ul>
           </section>
@@ -125,7 +126,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">4. Free Service</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq is currently free to use. We may introduce paid plans in the future. If we do, we will
+              Oddroof is currently free to use. We may introduce paid plans in the future. If we do, we will
               notify existing users at least 30 days in advance, and free features will remain free or be
               grandfathered at our discretion. We will not start charging without explicit notice and your
               opt-in for paid features.
@@ -136,7 +137,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">5. Your Responsibilities</h2>
 
-            <h3 className="font-medium mb-2">You agree to use Habitiq only to:</h3>
+            <h3 className="font-medium mb-2">You agree to use Oddroof only to:</h3>
             <ul className="text-muted-foreground space-y-1 list-disc list-inside">
               <li>Manage genuine shared-living arrangements</li>
               <li>Record real expenses and settlements between real flatmates</li>
@@ -145,7 +146,7 @@ export default function TermsPage() {
 
             <h3 className="font-medium mb-2 mt-4">You agree not to:</h3>
             <ul className="text-muted-foreground space-y-1 list-disc list-inside">
-              <li>Use Habitiq to harass, threaten, stalk, or defraud other users</li>
+              <li>Use Oddroof to harass, threaten, stalk, or defraud other users</li>
               <li>Post fake, copied, or misleading listings or profiles, or impersonate anyone</li>
               <li>Ask for or take money before a viewing, or run advance-payment, overpayment, or refund scams</li>
               <li>Send sexual, abusive, or unwanted romantic messages, or use housing posts to seek dates</li>
@@ -170,7 +171,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">6. Content You Create</h2>
             <p className="text-muted-foreground leading-relaxed">
-              You own the data you enter into Habitiq (task names, expense descriptions, notes). You grant us
+              You own the data you enter into Oddroof (task names, expense descriptions, notes). You grant us
               a limited licence to store, display, and sync that data to members of your flat, and to show what
               you publish on Discover (profiles, listings, photos) to other users — which is necessary to provide
               the service. Only upload photos you own or have permission to use.
@@ -212,9 +213,9 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">8. Disputes Between Members</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq records what members log. We cannot verify whether a task was actually completed, whether
+              Oddroof records what members log. We cannot verify whether a task was actually completed, whether
               money was actually paid, or whether a settlement is accurate. Disputes about chores or money between
-              flatmates are between those flatmates — Habitiq is not a party to those disputes and cannot
+              flatmates are between those flatmates — Oddroof is not a party to those disputes and cannot
               mediate, arbitrate, or enforce outcomes.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
@@ -227,12 +228,12 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">9. Service Availability</h2>
             <p className="text-muted-foreground leading-relaxed">
-              We aim to keep Habitiq available and working. However, we do not guarantee 100% uptime.
+              We aim to keep Oddroof available and working. However, we do not guarantee 100% uptime.
               The service may be interrupted for maintenance, infrastructure issues, or events outside our
               control. We are not liable for losses caused by downtime.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
-              We may discontinue Habitiq by giving users at least 60 days&apos; notice. During that period, you
+              We may discontinue Oddroof by giving users at least 60 days&apos; notice. During that period, you
               will be able to export your flat&apos;s expense and task data.
             </p>
           </section>
@@ -241,7 +242,7 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">10. Limitation of Liability</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq is provided &quot;as is&quot;. To the fullest extent permitted by law, we are not liable for:
+              Oddroof is provided &quot;as is&quot;. To the fullest extent permitted by law, we are not liable for:
             </p>
             <ul className="text-muted-foreground space-y-1 list-disc list-inside mt-2">
               <li>Financial disputes or losses between flat members</li>
@@ -252,7 +253,7 @@ export default function TermsPage() {
               <li>Indirect, incidental, or consequential damages of any kind</li>
             </ul>
             <p className="text-muted-foreground mt-3">
-              Our total liability to you for any claim arising out of your use of Habitiq is limited to ₹0,
+              Our total liability to you for any claim arising out of your use of Oddroof is limited to ₹0,
               since the service is currently free.
             </p>
           </section>
@@ -261,8 +262,8 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">11. Intellectual Property</h2>
             <p className="text-muted-foreground leading-relaxed">
-              The Habitiq name, logo, rotation engine, and all platform code are owned by the founders.
-              You may not copy, reproduce, or distribute any part of the Habitiq platform without written
+              The Oddroof name, logo, rotation engine, and all platform code are owned by the founders.
+              You may not copy, reproduce, or distribute any part of the Oddroof platform without written
               permission.
             </p>
           </section>
@@ -271,12 +272,12 @@ export default function TermsPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">12. Governing Law and Disputes</h2>
             <p className="text-muted-foreground leading-relaxed">
-              These Terms are governed by the laws of India. Any dispute arising from your use of Habitiq
+              These Terms are governed by the laws of India. Any dispute arising from your use of Oddroof
               will be subject to the exclusive jurisdiction of the courts in Hyderabad, Telangana, India.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Before taking any formal action, please contact us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
               — we will try to resolve any concern directly.
             </p>
           </section>
@@ -296,7 +297,7 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibold mb-3">14. Contact</h2>
             <p className="text-muted-foreground">
               Questions about these Terms? Email us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>.
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>.
               We read everything.
             </p>
           </section>
@@ -304,9 +305,9 @@ export default function TermsPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Habitiq · habitiq.app · India · Document version 0.5.0 ·{' '}
-            <Link href="/privacy" className="text-violet-500 hover:underline">Privacy Policy</Link> ·{' '}
-            <Link href="/safety" className="text-violet-500 hover:underline">Safety Tips</Link>
+            Oddroof · habitiq.app · India · Document version 0.5.0 ·{' '}
+            <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link> ·{' '}
+            <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>
           </p>
         </div>
       </div>

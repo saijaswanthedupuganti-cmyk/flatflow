@@ -1,6 +1,10 @@
 'use client'
-import { useEffect, useState } from 'react'
+import { useSyncExternalStore } from 'react'
 import { useReducedMotion } from 'framer-motion'
+
+const subscribe = () => () => {}
+const getHydrated = () => true
+const getServerHydrated = () => false
 
 /**
  * Reduced-motion preference that is safe to branch rendering on: false during the server render and the
@@ -8,7 +12,6 @@ import { useReducedMotion } from 'framer-motion'
  */
 export function useCalm(): boolean {
   const reduce = useReducedMotion()
-  const [hydrated, setHydrated] = useState(false)
-  useEffect(() => setHydrated(true), [])
+  const hydrated = useSyncExternalStore(subscribe, getHydrated, getServerHydrated)
   return Boolean(reduce) && hydrated
 }

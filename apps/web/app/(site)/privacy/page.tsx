@@ -2,19 +2,20 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — Habitiq',
-  description: 'How Habitiq collects, uses, and protects your personal data.',
+  title: 'Privacy policy',
+  description: 'How Oddroof collects, uses, and protects your personal data, how long it is kept, and how to delete your account.',
+  alternates: { canonical: '/privacy' },
 }
 
 export default function PrivacyPage() {
   return (
-    <main className="min-h-screen bg-background text-foreground">
+    <main className="min-h-screen pt-24">
       <div className="max-w-2xl mx-auto px-6 py-16">
 
         {/* Header */}
         <div className="mb-10">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
-            ← Back to Habitiq
+            ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Privacy Policy</h1>
           <p className="text-muted-foreground text-sm">
@@ -27,11 +28,10 @@ export default function PrivacyPage() {
           {/* Intro */}
           <section>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq is a shared living platform built for flats, PGs, and co-living spaces in India. It covers
+              Oddroof is a shared living platform built for flats, PGs, and co-living spaces in India. It covers
               flat management (tasks, expenses, bills) and <strong className="text-foreground">Discover</strong>,
-              where people list rooms and find flatmates. Our Android app is called{' '}
-              <strong className="text-foreground">Oddroof</strong>; it is the same service, and this policy covers
-              it, the website, and the web app.
+              where people list rooms and find flatmates. This policy covers the Oddroof Android app, the website
+              (habitiq.app), and the web app.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               This policy explains what personal data we collect, why, who can see it, and what rights you have
@@ -48,12 +48,12 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">1. Who We Are</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Habitiq is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India.
+              Oddroof is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India.
               We are the Data Fiduciary under the DPDP Act — the people responsible for how your data is handled.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Contact us at:{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">
                 hello@habitiq.app
               </a>
             </p>
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
               <li>Recurring bill configurations and payment status</li>
             </ul>
             <p className="text-muted-foreground text-sm mt-2">
-              We do not process any actual payments. Habitiq records that a settlement happened (e.g., &quot;Rahul paid
+              We do not process any actual payments. Oddroof records that a settlement happened (e.g., &quot;Rahul paid
               ₹2,000 via UPI&quot;) but no money moves through our platform.
             </p>
 
@@ -121,9 +121,8 @@ export default function PrivacyPage() {
             <h3 className="font-medium mb-2 mt-5">Location data</h3>
             <p className="text-muted-foreground">
               When you choose a place on the map (for example a listing area or your workplace), we store that
-              place&apos;s name and its map coordinates. If you allow location permission in the Android app, your
-              device location is used only to centre the map while you pick a place — we do not track your location
-              in the background or keep a location history.
+              place&apos;s name and its map coordinates. The Android app does not ask for, read or track your
+              device&apos;s location; places come only from what you type or pick on the map.
             </p>
 
             <h3 className="font-medium mb-2 mt-5">Device, usage, and diagnostic data</h3>
@@ -238,7 +237,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong className="text-foreground">Trust labels:</strong> any trust or verification label is based only
-                on activity on Habitiq. It is not a background check. Before we use your task or payment history for a
+                on activity on Oddroof. It is not a background check. Before we use your task or payment history for a
                 personal trust label, we will ask for your separate consent, and you can turn it off.
               </li>
               <li>
@@ -341,6 +340,9 @@ export default function PrivacyPage() {
                 <strong className="text-foreground">After account deletion:</strong> Your personal data — including your seeker profile, photos, connections, and messages you sent — is removed within 30 days. Anonymised references in flat logs (e.g., &quot;a member completed Kitchen&quot;) may be retained for data integrity, and we may keep records we are required to keep by law.
               </li>
             </ul>
+            <p className="text-muted-foreground mt-3">
+              <Link href="/delete-account" className="text-blue-600 hover:underline">How to delete your Oddroof account</Link>
+            </p>
           </section>
 
           {/* Your rights */}
@@ -350,14 +352,14 @@ export default function PrivacyPage() {
             <ul className="text-muted-foreground space-y-2 list-disc list-inside">
               <li><strong className="text-foreground">Right to access:</strong> Know what personal data we hold about you.</li>
               <li><strong className="text-foreground">Right to correction:</strong> Request that inaccurate or incomplete data be corrected — including any trust label you think is wrong.</li>
-              <li><strong className="text-foreground">Right to erasure:</strong> Request deletion of your personal data, subject to legal obligations.</li>
+              <li><strong className="text-foreground">Right to erasure:</strong> Request deletion of your personal data, subject to legal obligations. See{' '}<Link href="/delete-account" className="text-blue-600 hover:underline">Deleting your account</Link>.</li>
               <li><strong className="text-foreground">Right to withdraw consent:</strong> As easily as you gave it — for example by unpublishing your Discover profile, turning off notifications, or deleting your account.</li>
               <li><strong className="text-foreground">Right to grievance redressal:</strong> Raise a complaint and receive a response within a reasonable time.</li>
               <li><strong className="text-foreground">Right to nominate:</strong> Nominate someone to exercise your rights in the event of your incapacity or death.</li>
             </ul>
             <p className="text-muted-foreground mt-3">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
               with the subject &quot;Data Request&quot;. We will respond within 30 days. If you are not satisfied with
               our response, you may complain to the Data Protection Board of India.
             </p>
@@ -378,7 +380,7 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               No security system is perfect. If you discover a vulnerability, please report it to{' '}
-              <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
               before disclosing it publicly.
             </p>
           </section>
@@ -387,7 +389,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">9. Children</h2>
             <p className="text-muted-foreground">
-              Habitiq is not intended for use by anyone under 18. We do not knowingly collect data from minors.
+              Oddroof is not intended for use by anyone under 18. We do not knowingly collect data from minors.
               If you believe a minor has created an account, contact us and we will delete it.
             </p>
           </section>
@@ -411,22 +413,22 @@ export default function PrivacyPage() {
             <div className="mt-2 text-muted-foreground">
               <p><strong className="text-foreground">Name:</strong> Venkata Sai Jaswanth E</p>
               <p><strong className="text-foreground">Email:</strong>{' '}
-                <a href="mailto:hello@habitiq.app" className="text-violet-500 hover:underline">hello@habitiq.app</a>
+                <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>
               </p>
               <p><strong className="text-foreground">Response time:</strong> Within 30 days of receiving a complaint</p>
             </div>
             <p className="text-muted-foreground text-sm mt-3">
               Safety concerns on Discover can go to the same address — see our{' '}
-              <Link href="/safety" className="text-violet-500 hover:underline">Safety Tips</Link>.
+              <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>.
             </p>
           </section>
 
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Habitiq · habitiq.app · India · Document version 0.5.0 ·{' '}
-            <Link href="/terms" className="text-violet-500 hover:underline">Terms of Service</Link> ·{' '}
-            <Link href="/safety" className="text-violet-500 hover:underline">Safety Tips</Link>
+            Oddroof · habitiq.app · India · Document version 0.5.0 ·{' '}
+            <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link> ·{' '}
+            <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>
           </p>
         </div>
       </div>

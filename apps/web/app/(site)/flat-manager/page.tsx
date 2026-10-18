@@ -5,7 +5,7 @@ import PinnedStory from '@/components/site/home/PinnedStory'
 import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 
-export const metadata: Metadata = { title: 'Flat manager', description: 'Fair task rotation, shared expenses, monthly bills and away mode for shared flats.' }
+export const metadata: Metadata = { title: 'Flat manager', description: 'Fair task rotation, shared expenses, monthly bills and away mode for shared flats.', alternates: { canonical: '/flat-manager' } }
 
 export default function FlatManagerPage() {
   return (

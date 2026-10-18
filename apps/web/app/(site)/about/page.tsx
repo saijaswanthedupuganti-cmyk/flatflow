@@ -5,7 +5,7 @@ import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 import s from '@/components/site/site.module.css'
 
-export const metadata: Metadata = { title: 'About', description: 'Oddroof is built in India to make shared living calmer: finding the right flat and flatmates, then running the flat fairly.' }
+export const metadata: Metadata = { title: 'About', description: 'Oddroof is built in India to make shared living calmer: finding the right flat and flatmates, then running the flat fairly.', alternates: { canonical: '/about' } }
 
 export default function AboutPage() {
   return (

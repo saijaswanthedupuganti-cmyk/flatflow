@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
@@ -34,12 +34,49 @@ export const metadata: Metadata = {
     description: "Fair task rotation, shared expenses, bills, a voice assistant and safe flatmate discovery for shared flats in India.",
     siteName: "Oddroof",
     type: "website",
-    url: "https://habitiq.app",
-    images: [{ url: "https://habitiq.app/api/pwa-icon/512", width: 512, height: 512, alt: "Oddroof" }],
+    locale: "en_IN",
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Oddroof — Your flat, sorted" }],
   },
-  twitter: { card: "summary_large_image", title: "Oddroof — Your flat, sorted", images: ["https://habitiq.app/api/pwa-icon/512"] },
-  alternates: { canonical: "https://habitiq.app" },
+  twitter: {
+    card: "summary_large_image",
+    title: "Oddroof — Your flat, sorted",
+    description: "Fair task rotation, shared expenses, bills, a voice assistant and safe flatmate discovery for shared flats in India.",
+    images: ["/opengraph-image"],
+  },
+  // No site-wide canonical: each public page sets its own alternates.canonical.
 };
+
+export const viewport: Viewport = {
+  themeColor: "#1C2A40",
+};
+
+const SITE_URL = "https://habitiq.app";
+
+const jsonLd = [
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    "@id": `${SITE_URL}/#organization`,
+    name: "Oddroof",
+    url: SITE_URL,
+    logo: `${SITE_URL}/api/pwa-icon/512`,
+    email: "hello@habitiq.app",
+    contactPoint: { "@type": "ContactPoint", contactType: "customer support", email: "hello@habitiq.app" },
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "MobileApplication",
+    name: "Oddroof",
+    url: SITE_URL,
+    image: `${SITE_URL}/opengraph-image`,
+    operatingSystem: "Android",
+    applicationCategory: "LifestyleApplication",
+    description: "Shared flat app: fair task rotation, shared expenses and bills, away mode, a voice assistant, and flat and flatmate discovery.",
+    offers: { "@type": "Offer", price: "0", priceCurrency: "INR" },
+    countryOfOrigin: "IN",
+    publisher: { "@id": `${SITE_URL}/#organization` },
+  },
+];
 
 import AuthProvider from "@/components/AuthProvider";
 import ServiceWorkerRegistration from "@/components/ServiceWorkerRegistration";
@@ -72,21 +109,8 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify({
-              "@context": "https://schema.org",
-              "@type": "MobileApplication",
-              "name": "Oddroof",
-              "url": "https://habitiq.app",
-              "operatingSystem": "Android 8.0+",
-              "applicationCategory": "LifestyleApplication",
-              "description": "Shared flat app: fair task rotation, shared expenses and bills, away mode, a voice assistant, and flat and flatmate discovery.",
-              "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" },
-              "countryOfOrigin": "IN",
-            }),
-          }}
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
         />
-        <meta name="theme-color" content="#0f766e" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

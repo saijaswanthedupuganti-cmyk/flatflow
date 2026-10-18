@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import fs from 'node:fs'
 import path from 'node:path'
 import Hero from '@/components/site/home/Hero'
@@ -11,6 +12,12 @@ import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 import DownloadQr from '@/components/site/DownloadQr'
 import { FINAL_PHOTO } from '@/lib/site/photos'
+
+export const metadata: Metadata = {
+  title: { absolute: 'Oddroof — Your flat, sorted' },
+  description: 'Oddroof keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Free Android app.',
+  alternates: { canonical: '/' },
+}
 
 const hasPhoto = (p: string) => fs.existsSync(path.join(process.cwd(), 'public', p))
 

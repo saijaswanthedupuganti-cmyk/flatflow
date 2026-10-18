@@ -34,8 +34,9 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
       // Not logged in — send to login page (public pages bypass this)
       if (!isAuthPage && !isPublicPage) router.push('/')
     } else if (!flatId) {
-      // Logged in but not in a flat yet — send to onboarding
-      if (!isOnboarding) router.push('/onboarding')
+      // Logged in but not in a flat yet — send to onboarding.
+      // Marketing, legal and delete-account pages stay readable (Play reviewers and signed-in users open them).
+      if (!isOnboarding && !isPublicPage) router.push('/onboarding')
     } else {
       // Logged in and in a flat — redirect away from login page only.
       // Do NOT redirect from /onboarding — the user may be adding a second flat.

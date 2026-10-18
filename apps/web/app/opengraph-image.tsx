@@ -1,10 +1,19 @@
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Habitiq — Smart Living Management'
+export const alt = 'Oddroof — Your flat, sorted'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-export default function OgImage() {
+const NAVY = '#1C2A40'
+const BLUE = '#2563EB'
+const TEAL = '#14B8A6'
+
+export default async function OgImage() {
+  const mark = await readFile(join(process.cwd(), 'public', 'brand', 'oddroof-mark.png'))
+  const markSrc = `data:image/png;base64,${mark.toString('base64')}`
+
   return new ImageResponse(
     (
       <div
@@ -13,104 +22,48 @@ export default function OgImage() {
           height: '100%',
           display: 'flex',
           flexDirection: 'column',
-          alignItems: 'center',
           justifyContent: 'center',
-          background: '#0a0a0a',
+          padding: '0 96px',
+          background: NAVY,
+          backgroundImage: `radial-gradient(circle at 85% 15%, rgba(37,99,235,0.45) 0%, transparent 55%), radial-gradient(circle at 10% 95%, rgba(20,184,166,0.22) 0%, transparent 50%)`,
           fontFamily: 'sans-serif',
           position: 'relative',
         }}
       >
-        {/* Subtle grid overlay */}
-        <div
-          style={{
-            position: 'absolute',
-            inset: 0,
-            backgroundImage:
-              'radial-gradient(circle at 20% 50%, rgba(124,58,237,0.12) 0%, transparent 60%), radial-gradient(circle at 80% 20%, rgba(99,102,241,0.10) 0%, transparent 50%)',
-          }}
-        />
-
-        {/* Logo icon */}
-        <div
-          style={{
-            width: 100,
-            height: 100,
-            borderRadius: 24,
-            background: 'linear-gradient(135deg, #7c3aed, #4338ca)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            boxShadow: '0 20px 60px rgba(124,58,237,0.50)',
-            marginBottom: 36,
-          }}
-        >
-          <span style={{ fontSize: 52, fontWeight: 900, color: 'white' }}>H</span>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 32 }}>
+          <div
+            style={{
+              width: 128,
+              height: 128,
+              borderRadius: 32,
+              background: '#FFFFFF',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.35)',
+            }}
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={markSrc} width={96} height={73} alt="" />
+          </div>
+          <div style={{ fontSize: 112, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-4px', lineHeight: 1 }}>
+            Oddroof
+          </div>
         </div>
 
-        {/* Brand name */}
-        <div
-          style={{
-            fontSize: 80,
-            fontWeight: 900,
-            color: 'white',
-            letterSpacing: '-3px',
-            lineHeight: 1,
-            marginBottom: 20,
-          }}
-        >
-          Habitiq
+        <div style={{ fontSize: 52, fontWeight: 700, color: '#FFFFFF', marginTop: 48, letterSpacing: '-1px' }}>
+          Your flat, sorted.
+        </div>
+        <div style={{ fontSize: 28, color: '#C9D4E8', marginTop: 16, maxWidth: 900, lineHeight: 1.35 }}>
+          Fair tasks, shared expenses and bills, and safe flat and flatmate discovery.
         </div>
 
-        {/* Tagline */}
-        <div
-          style={{
-            fontSize: 28,
-            color: 'rgba(255,255,255,0.55)',
-            fontWeight: 500,
-            letterSpacing: '-0.5px',
-          }}
-        >
-          Smart living, managed.
-        </div>
-
-        {/* Bottom pill badges */}
-        <div
-          style={{
-            display: 'flex',
-            gap: 16,
-            marginTop: 48,
-          }}
-        >
-          {['Duty Rotation', 'Real-time Sync', 'Fair & Transparent'].map((label) => (
-            <div
-              key={label}
-              style={{
-                background: 'rgba(124,58,237,0.18)',
-                border: '1px solid rgba(124,58,237,0.35)',
-                borderRadius: 100,
-                padding: '10px 22px',
-                fontSize: 18,
-                color: 'rgba(196,181,253,0.90)',
-                fontWeight: 600,
-              }}
-            >
-              {label}
-            </div>
-          ))}
-        </div>
-
-        {/* URL watermark */}
-        <div
-          style={{
-            position: 'absolute',
-            bottom: 36,
-            fontSize: 18,
-            color: 'rgba(255,255,255,0.25)',
-            fontWeight: 500,
-            letterSpacing: '0.5px',
-          }}
-        >
-          habitiq.app
+        <div style={{ position: 'absolute', left: 96, right: 96, bottom: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', gap: 12 }}>
+            <div style={{ width: 48, height: 8, borderRadius: 8, background: BLUE }} />
+            <div style={{ width: 24, height: 8, borderRadius: 8, background: TEAL }} />
+          </div>
+          <div style={{ fontSize: 26, color: '#C9D4E8', fontWeight: 600 }}>habitiq.app · Free on Android</div>
         </div>
       </div>
     ),

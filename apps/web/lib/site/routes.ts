@@ -11,7 +11,7 @@ export const NAV_LINKS = [
 
 export const SITE_PATHS = [
   '/', '/flat-manager', '/discover', '/voice', '/privacy-and-safety', '/about',
-  '/privacy', '/terms', '/safety',
+  '/privacy', '/terms', '/safety', '/delete-account',
 ] as const
 
 export function isSitePath(pathname: string | null): boolean {

@@ -842,13 +842,29 @@ class FlatViewModel(
             _discoveryPostLoading.value = true
             _discoveryPostError.value = null
 
-            for (uri in photos) {
-                val validation = habitiq.app.discover.DiscoveryMediaValidator.validate(contentResolver, uri)
-                if (validation is habitiq.app.discover.DiscoveryMediaValidator.ValidationResult.Invalid) {
-                    _discoveryPostError.value = validation.reason
+            // Shrink every photo on the phone first: camera shots of 5–15 MB were slow, timed out on mobile
+            // data and could break the 10 MB storage rule. Compressed ones are a few hundred KB.
+            val prepared = mutableListOf<ByteArray>()
+            for ((i, uri) in photos.withIndex()) {
+                val mime = runCatching { contentResolver?.getType(uri) }.getOrNull()
+                if (mime != null && !mime.startsWith("image/")) {
+                    _discoveryPostError.value = "Photo ${i + 1} isn't an image. Pick a photo from your gallery."
                     _discoveryPostLoading.value = false
                     return@launch
                 }
+                val bytes = contentResolver?.let { resolver ->
+                    runCatching {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                            habitiq.app.discover.PhotoCompressor.compress(resolver, uri)
+                        }
+                    }.onFailure { android.util.Log.w("FlatViewModel", "compress failed for photo ${i + 1}", it) }.getOrNull()
+                }
+                if (bytes == null) {
+                    _discoveryPostError.value = "Couldn't open photo ${i + 1}. Remove it and pick it again from your gallery."
+                    _discoveryPostLoading.value = false
+                    return@launch
+                }
+                prepared += bytes
             }
 
             _discoveryUploadProgress.value = if (photos.isEmpty()) null else DiscoveryUploadProgress(0, photos.size, 0, 0)
@@ -859,12 +875,11 @@ class FlatViewModel(
                     val ref = FirebaseStorage.getInstance().reference
                         .child(if (asRequest) "flats/$flat/vacancyRequests/$me/$stableId" else "flats/$flat/vacancy/$stableId")
                     uploadedRefs.add(ref)
-                    // storage.rules only accepts image/* — some pickers report no type, so set it.
-                    val mime = contentResolver?.getType(uri)?.takeIf { it.startsWith("image/") } ?: "image/jpeg"
+                    // Always JPEG after compression; storage.rules only accepts image/*.
                     val metadata = com.google.firebase.storage.StorageMetadata.Builder()
-                        .setContentType(mime)
+                        .setContentType("image/jpeg")
                         .build()
-                    val task = ref.putFile(uri, metadata)
+                    val task = ref.putBytes(prepared[index], metadata)
                     task.addOnProgressListener { snapshot ->
                         _discoveryUploadProgress.value = DiscoveryUploadProgress(
                             completedFiles = index,
@@ -898,17 +913,27 @@ class FlatViewModel(
                 }
             }.onFailure { ex ->
                 android.util.Log.e("FlatViewModel", "publishVacancy failed", ex)
+                runCatching { com.google.firebase.crashlytics.FirebaseCrashlytics.getInstance().recordException(ex) }
                 uploadedRefs.forEach { ref ->
                     runCatching { ref.delete().await() }
                 }
                 _discoveryPostError.value = when (ex) {
                     is com.google.firebase.storage.StorageException -> when (ex.errorCode) {
+                        // Storage rules said no: either not a flat member/admin, or the rules can't read Firestore
+                        // (the Storage service agent is missing its cross-service role in Google Cloud IAM).
                         com.google.firebase.storage.StorageException.ERROR_NOT_AUTHORIZED ->
-                            "Photo upload was blocked. Try again, or post without photos."
+                            "Photo upload was blocked by the server (permission). Your form is saved; you can post without photos for now."
+                        com.google.firebase.storage.StorageException.ERROR_NOT_AUTHENTICATED ->
+                            "You've been signed out. Sign in again, then publish."
                         com.google.firebase.storage.StorageException.ERROR_RETRY_LIMIT_EXCEEDED ->
-                            "Couldn't upload one of the photos. Check your connection and try again."
-                        else -> "Couldn't upload one of the photos (code ${ex.errorCode}). Try again."
+                            "The connection dropped while uploading. Check your internet and tap Publish again."
+                        com.google.firebase.storage.StorageException.ERROR_QUOTA_EXCEEDED ->
+                            "Photo storage is full for now. Try again later or post without photos."
+                        else -> "Couldn't upload photo ${(_discoveryUploadProgress.value?.completedFiles ?: 0) + 1} (code ${ex.errorCode}). Try again."
                     }
+                    is com.google.firebase.firestore.FirebaseFirestoreException ->
+                        (if (photos.isEmpty()) "Saving the listing was blocked" else "Photos uploaded, but saving the listing was blocked") +
+                            " (${ex.code.name.lowercase()}). Try again."
                     else -> "Couldn't publish the vacancy. Your form is still here; try again."
                 }
             }

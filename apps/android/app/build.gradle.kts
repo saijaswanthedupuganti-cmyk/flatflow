@@ -29,8 +29,8 @@ android {
         minSdk = 26
         targetSdk = 36
         // Bump both on every APK handed over for testing: versionName goes 1.1 → 1.2 → 1.3…
-        versionCode = 19
-        versionName = "1.16"
+        versionCode = 21
+        versionName = "1.18"
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
     }
 

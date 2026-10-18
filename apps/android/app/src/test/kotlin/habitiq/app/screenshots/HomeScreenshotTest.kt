@@ -50,5 +50,6 @@ class HomeScreenshotTest : ScreenshotHarness() {
     @Test fun emptyTall() = render("home-empty-tall", full.copy(tasks = emptyList(), pending = emptyList(), assignedCount = 0, summaryHeadline = "You're all caught up.", balance = HomeBalance(0.0, 0.0, 0, 0)))
     @Test fun light() = render("home-light", full)
     @Test fun dark() = render("home-dark", full, dark = true)
+    @Test fun largeText() = render("home-font2", full, font = 2f)
     @Test fun empty() = render("home-empty", full.copy(tasks = emptyList(), pending = emptyList(), activity = emptyList(), assignedCount = 0, summaryHeadline = "You're all caught up.", balance = HomeBalance(0.0, 0.0, 0, 0)))
 }

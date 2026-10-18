@@ -17,6 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
@@ -90,14 +93,14 @@ fun HqErrorState(
 @Composable
 fun HqInlineError(message: String, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    Text(message, style = HqType.bodyMedium, color = c.statusDangerFg, modifier = modifier)
+    Text(message, style = HqType.bodyMedium, color = c.statusDangerFg, modifier = modifier.semantics { liveRegion = LiveRegionMode.Assertive })
 }
 
 /** A short inline confirmation/informational message that isn't an error (e.g. "Password reset email sent"). */
 @Composable
 fun HqInlineInfo(message: String, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    Text(message, style = HqType.bodyMedium, color = c.textBrand, modifier = modifier)
+    Text(message, style = HqType.bodyMedium, color = c.textBrand, modifier = modifier.semantics { liveRegion = LiveRegionMode.Polite })
 }
 
 /** Small inline spinner + label for a section still loading (design doc section 33 "InlineLoading"). Avoid a full-screen blocker for small refreshes. */

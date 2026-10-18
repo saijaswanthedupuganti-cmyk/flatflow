@@ -1,5 +1,6 @@
 package habitiq.app.ui
 
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import habitiq.app.ui.components.HqHeroBleedEffect
 import android.app.Activity
 import android.content.Context
@@ -329,10 +330,11 @@ private fun HeroTopBar(model: HomeUiModel, onOpenNotifications: () -> Unit, onOp
         Spacer(Modifier.size(10.dp))
         Box(
             Modifier.size(HqSize.target).clip(CircleShape).background(Color.White.copy(alpha = .92f))
-                .clickable(role = Role.Button, onClickLabel = "Profile", onClick = onOpenProfile),
+                .clickable(role = Role.Button, onClickLabel = "Profile", onClick = onOpenProfile)
+                .semantics { contentDescription = "Profile" },
             contentAlignment = Alignment.Center,
         ) {
-            Text(model.greetingName.take(1).uppercase(), style = HqType.titleSmall2, color = HomeLook.link)
+            Text(model.greetingName.take(1).uppercase(), style = HqType.titleSmall2, color = HomeLook.link, modifier = Modifier.clearAndSetSemantics {})
         }
     }
 }
@@ -414,7 +416,7 @@ private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
             Spacer(Modifier.size(10.dp))
             Column {
                 Text("${model.assignedCount}", style = HqType.titleSmall2, color = Color.White)
-                Text(if (model.assignedCount == 1) "Task for you" else "Tasks for you", style = HqType.rowTitle.copy(fontSize = sp(15f)), color = Color.White, maxLines = 1, softWrap = false)
+                Text(if (model.assignedCount == 1) "Task for you" else "Tasks for you", style = HqType.rowTitle.copy(fontSize = sp(15f)), color = Color.White, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
                 Text(if (model.assignedCount == 0) "All caught up" else "Due soon", style = HqType.bodySmall, color = Color.White.copy(alpha = .78f), maxLines = 1)
             }
         }
@@ -429,7 +431,7 @@ private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
             }
             Spacer(Modifier.size(12.dp))
             Column {
-                Text(moneyTitle, style = HqType.rowTitle.copy(lineHeight = sp(20f)), color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(moneyTitle, style = HqType.rowTitle.copy(lineHeight = sp(20f), fontFeatureSettings = "tnum"), color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 Text(moneySupport, style = HqType.bodyMedium, color = Color.White.copy(alpha = .78f), maxLines = 1)
             }
         }
@@ -453,10 +455,12 @@ private fun TodayPanel(
         Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Today's tasks", style = HqType.titleMedium2.copy(fontSize = sp(22f)), color = ink, modifier = Modifier.weight(1f))
             Row(
-                Modifier.clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onOpenTasks).padding(horizontal = 6.dp, vertical = 8.dp),
+                Modifier.defaultMinSize(minHeight = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onOpenTasks)
+                    .semantics { contentDescription = "See all tasks" }
+                    .padding(horizontal = 6.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("See all", style = HqType.rowTitle, color = link, fontWeight = FontWeight.SemiBold)
+                Text("See all", style = HqType.rowTitle, color = link, fontWeight = FontWeight.SemiBold, modifier = Modifier.clearAndSetSemantics {})
                 Icon(HqIcons.Arrow, null, tint = link, modifier = Modifier.padding(start = 6.dp).size(18.dp))
             }
         }
@@ -562,10 +566,10 @@ private fun QuickActions(model: HomeUiModel, onAddTask: () -> Unit, onAddExpense
     fun tone(light: Long, darkAlpha: Float) = if (dark) Color(light).copy(alpha = darkAlpha) else Color(light)
     val icons = androidx.compose.material.icons.Icons.Rounded
     val actions = buildList {
-        if (model.isAdmin) add(QuickAction("Add Task", "Assign or\nrotate", icons.CheckCircle, tone(0xFFE6F6F1, .10f), tone(0xFFCBEDE3, .22f), Color(0xFF14A08F), onAddTask))
-        add(QuickAction("Add Expense", "Split with\nflatmates", icons.CreditCard, tone(0xFFE9F0FC, .10f), tone(0xFFD3E2FA, .22f), Color(0xFF2F6BEF), onAddExpense))
-        if (model.isAdmin) add(QuickAction("Add Bill", "Set up\nrecurring", icons.Description, tone(0xFFFFF3E6, .10f), tone(0xFFFFE0BD, .22f), Color(0xFFF08A1C), onAddBill))
-        if (model.canInvite) add(QuickAction("Invite\nRoommate", "Share code", icons.Group, tone(0xFFF1EDFC, .10f), tone(0xFFE1D9FA, .22f), Color(0xFF7457E0), onInvite))
+        if (model.isAdmin) add(QuickAction("Add task", "Assign or\nrotate", icons.CheckCircle, tone(0xFFE6F6F1, .10f), tone(0xFFCBEDE3, .22f), Color(0xFF14A08F), onAddTask))
+        add(QuickAction("Add expense", "Split with\nflatmates", icons.CreditCard, tone(0xFFE9F0FC, .10f), tone(0xFFD3E2FA, .22f), Color(0xFF2F6BEF), onAddExpense))
+        if (model.isAdmin) add(QuickAction("Add bill", "Set up\nrecurring", icons.Description, tone(0xFFFFF3E6, .10f), tone(0xFFFFE0BD, .22f), Color(0xFFF08A1C), onAddBill))
+        if (model.canInvite) add(QuickAction("Invite flatmate", "Share code", icons.Group, tone(0xFFF1EDFC, .10f), tone(0xFFE1D9FA, .22f), Color(0xFF7457E0), onInvite))
     }
     Column(Modifier.padding(horizontal = 10.dp).padding(top = 26.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -588,7 +592,7 @@ private fun QuickActions(model: HomeUiModel, onAddTask: () -> Unit, onAddExpense
                     }
                     Text(
                         a.title, style = HqType.rowTitle.copy(fontSize = sp(13.5f), lineHeight = sp(18f), letterSpacing = sp(-0.1f)), color = ink, fontWeight = FontWeight.SemiBold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2, modifier = Modifier.padding(top = 8.dp),
+                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp),
                     )
                     Text(
                         a.support, style = HqType.bodySmall.copy(fontSize = sp(12f), lineHeight = sp(16f)), color = muted,

@@ -1,5 +1,6 @@
 package habitiq.app.ui.components
 
+import habitiq.app.ui.theme.hqReduceMotion
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -100,10 +101,12 @@ fun HqTopBarHost(content: @Composable () -> Unit) {
             androidx.core.view.WindowCompat.getInsetsController(window, view).isAppearanceLightStatusBars = visible
         }
 
+        // Reduced motion: fade only, no slide.
+        val reduceMotion = hqReduceMotion()
         AnimatedVisibility(
             visible = visible,
-            enter = fadeIn(tween(180)) + slideInVertically(tween(220)) { -it / 2 },
-            exit = fadeOut(tween(140)) + slideOutVertically(tween(160)) { -it / 2 },
+            enter = if (reduceMotion) fadeIn(tween(180)) else fadeIn(tween(180)) + slideInVertically(tween(220)) { -it / 2 },
+            exit = if (reduceMotion) fadeOut(tween(140)) else fadeOut(tween(140)) + slideOutVertically(tween(160)) { -it / 2 },
             modifier = Modifier.align(Alignment.TopCenter),
         ) {
             val shown = entry ?: return@AnimatedVisibility

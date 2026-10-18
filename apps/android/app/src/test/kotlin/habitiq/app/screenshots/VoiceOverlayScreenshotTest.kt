@@ -30,7 +30,7 @@ class VoiceOverlayScreenshotTest : ScreenshotHarness() {
         )
     )
 
-    private fun shot(name: String, state: AgentUiState, mode: AgentInputMode = AgentInputMode.Voice) = shoot(name, dark = true) {
+    private fun shot(name: String, state: AgentUiState, mode: AgentInputMode = AgentInputMode.Voice, font: Float = 1f) = shoot(name, dark = true, fontScale = font) {
         FakeApp()
         VoiceOverlay(
             state, mode, level = 0.55f, micCenter = null,
@@ -61,4 +61,19 @@ class VoiceOverlayScreenshotTest : ScreenshotHarness() {
         AgentUiState.Preview("dishes done", "Mark Wash dishes as done", AgentCard.Simple(AgentCard.Simple.Kind.TaskDone, "Wash dishes", "Mark as done")),
     )
     @Test fun typing() = shot("voice-typing", AgentUiState.Idle(), AgentInputMode.Text)
+
+    // Large text (200%): suggestion labels, long transcript tail, and the Save pill while saving.
+    @Test fun listeningLargeText() = shot("voice-listening-font2", AgentUiState.Listening(""), font = 2f)
+    @Test fun transcriptLargeText() = shot(
+        "voice-transcript-font2",
+        AgentUiState.Listening("I just spent five hundred on groceries and then another two hundred on milk and bread for the whole flat this week, split it with everyone please"),
+        font = 2f,
+    )
+    @Test fun savingLargeText() = shot(
+        "voice-saving-font2",
+        AgentUiState.Preview("I just spent 500 on groceries", "Add ₹500 for Groceries, split 4 ways",
+            AgentCard.Expense("Groceries", 50_000, "lifestyle", "You", listOf("You", "Ravi", "Priya", "Arjun", "Meera", "Kiran", "Anil"), everyone = true), saving = true),
+        font = 2f,
+    )
+    @Test fun errorLargeText() = shot("voice-error-font2", AgentUiState.Error("I just spent 500", "Couldn't reach the server. Try again."), font = 2f)
 }

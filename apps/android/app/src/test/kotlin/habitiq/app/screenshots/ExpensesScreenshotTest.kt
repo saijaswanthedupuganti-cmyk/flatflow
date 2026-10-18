@@ -32,6 +32,7 @@ class ExpensesScreenshotTest : ScreenshotHarness() {
     }
 
     @Test fun both() = render("expenses-both", both)
+    @Test fun bothDark() = render("expenses-both-dark", both, dark = true)
     @Test fun settled() = render("expenses-settled", both.copy(oweText = null, owedText = null, oweSupport = null, owedSupport = null, people = emptyList()))
     @Test fun empty() = render("expenses-empty", both.copy(oweText = null, owedText = null, oweSupport = null, owedSupport = null, people = emptyList(), expenses = emptyList()), dark = true)
 }

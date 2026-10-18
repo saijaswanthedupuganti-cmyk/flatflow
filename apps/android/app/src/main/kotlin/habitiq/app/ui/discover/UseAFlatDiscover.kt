@@ -221,7 +221,7 @@ fun VacancyListingCard(listing: VacancyListing, onOpen: (VacancyListing) -> Unit
             if (cover != null) {
                 AsyncImage(
                     model = cover,
-                    contentDescription = "Photo of ${listing.flatName}",
+                    contentDescription = null, // The card text already names the flat.
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop,
                     placeholder = ColorPainter(c.surfaceSubtle),

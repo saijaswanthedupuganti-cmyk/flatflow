@@ -112,11 +112,11 @@ fun ExpensesContent(
                 Text("Nobody owes anything right now.", style = HqType.bodyMedium, color = Color(0xFFACBCBA))
             } else {
                 model.oweText?.let {
-                    Text("You owe $it", style = HqType.titleMedium2, color = Color.White, modifier = Modifier.padding(top = 4.dp))
+                    Text("You owe $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = Color.White, modifier = Modifier.padding(top = 4.dp))
                     model.oweSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = Color(0xFFACBCBA)) }
                 }
                 model.owedText?.let {
-                    Text("You are owed $it", style = HqType.titleMedium2, color = Color.White, modifier = Modifier.padding(top = 4.dp))
+                    Text("You're owed $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = Color.White, modifier = Modifier.padding(top = 4.dp))
                     model.owedSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = Color(0xFFACBCBA)) }
                 }
             }

@@ -108,7 +108,7 @@ fun HqTaskCard(
                     Box(
                         Modifier.size(25.dp).clip(RoundedCornerShape(8.dp))
                             .background(if (done) c.brandTeal else c.surfaceBase)
-                            .border(1.5.dp, if (done) c.brandTeal else Color(0xFFAAB7B5), RoundedCornerShape(8.dp)),
+                            .border(1.5.dp, if (done) c.brandTeal else c.borderControl, RoundedCornerShape(8.dp)),
                         contentAlignment = Alignment.Center,
                     ) { if (done) Icon(HqIcons.Check, null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.xs)) }
                 }

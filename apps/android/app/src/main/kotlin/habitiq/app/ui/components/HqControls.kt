@@ -59,7 +59,7 @@ fun HqSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int
     val track = RoundedCornerShape(15.dp)
     val cell = RoundedCornerShape(11.dp)
     Row(
-        modifier.fillMaxWidth().clip(track).background(Color(0xFFEFF3F2)).padding(5.dp).selectableGroup(),
+        modifier.fillMaxWidth().clip(track).background(c.surfaceSubtle).padding(5.dp).selectableGroup(),
         horizontalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         options.forEachIndexed { index, label ->
@@ -152,7 +152,7 @@ fun HqSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Mod
     ) {
         Box(
             Modifier.size(width = 46.dp, height = 27.dp).clip(RoundedCornerShape(HqRadius.pill))
-                .background(if (checked) c.actionPrimaryBg else Color(0xFFCBD5D2)).padding(3.dp),
+                .background(if (checked) c.actionPrimaryBg else c.borderControl).padding(3.dp),
         ) {
             Box(Modifier.offset(x = thumbX).size(21.dp).clip(CircleShape).background(Color.White))
         }

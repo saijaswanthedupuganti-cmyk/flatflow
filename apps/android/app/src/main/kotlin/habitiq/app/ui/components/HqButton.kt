@@ -28,6 +28,8 @@ import habitiq.app.ui.theme.hqPressScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqRadius
@@ -117,6 +119,7 @@ fun HqButton(
                 role = Role.Button,
                 onClick = onClick,
             )
+            .then(if (loading) Modifier.semantics { stateDescription = "Loading" } else Modifier)
             .padding(PaddingValues(vertical = HqSpacing.md, horizontal = HqSpacing.xl)),
         contentAlignment = Alignment.Center,
     ) {

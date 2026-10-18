@@ -4,11 +4,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import habitiq.app.ui.theme.HqRadius
-import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
 /**
@@ -24,13 +22,14 @@ import habitiq.app.ui.theme.LocalHqColors
 fun HqSnackbarHost(hostState: SnackbarHostState, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
     SnackbarHost(hostState, modifier = modifier) { data ->
+        // The data overload renders the action label too (e.g. "Undo"), not just the message.
         Snackbar(
+            snackbarData = data,
             shape = RoundedCornerShape(HqRadius.control),
             // Inverse message surface, paired only with text.inverse (design doc section 5.2).
             containerColor = c.surfaceInverse,
             contentColor = c.textInverse,
-        ) {
-            Text(data.visuals.message, style = HqType.bodyMedium)
-        }
+            actionColor = c.textBrand,
+        )
     }
 }

@@ -4,7 +4,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentType
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.error
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
@@ -80,7 +83,8 @@ fun HqTextField(
             label,
             style = HqType.labelMedium,
             color = if (isError) c.statusDangerFg else if (enabled) c.textPrimary else c.disabledFg,
-            modifier = Modifier.padding(bottom = 7.dp),
+            // The field itself carries the label for TalkBack; reading this Text too would say it twice.
+            modifier = Modifier.padding(bottom = 7.dp).clearAndSetSemantics {},
         )
         OutlinedTextField(
             value = value,
@@ -139,6 +143,11 @@ fun HqTextField(
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 51.dp)
+                // Names the field for TalkBack (the visible label is a separate Text) and announces the error.
+                .semantics {
+                    contentDescription = label
+                    if (errorText != null) error(errorText)
+                }
                 .then(if (contentType != null) Modifier.semantics { this.contentType = contentType } else Modifier),
         )
         val caption = errorText ?: helperText

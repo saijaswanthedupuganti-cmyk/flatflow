@@ -1,5 +1,7 @@
 package habitiq.app.ui.agent
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -77,7 +79,8 @@ private fun CountUpAmount(paise: Long, animate: Boolean) {
     LaunchedEffect(paise) { if (animate) p.animateTo(1f, tween(650, easing = FastOutSlowInEasing)) }
     Text(
         formatInr((paise * p.value).roundToLong() / 100.0),
-        style = HqType.titleLarge2, color = c.textPrimary,
+        // Tabular figures so the digits don't jitter while counting up.
+        style = HqType.titleLarge2.copy(fontFeatureSettings = "tnum"), color = c.textPrimary,
         modifier = Modifier.semantics { contentDescription = formatInr(paise / 100.0) },
     )
 }
@@ -106,7 +109,15 @@ private fun Initial(name: String, ring: Color, size: Int = 30) {
         Modifier.size(size.dp).clip(CircleShape).background(c.selectedBg).border(2.dp, ring, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
-        Text(name.take(1).uppercase(), style = HqType.labelSmall, color = c.selectedFg, fontWeight = FontWeight.Bold)
+        // An overflow count ("+3") shows in full; a name shows its initial.
+        // Decorative (hidden from TalkBack; the names are spelled out beside it), so the letter stays sized to
+        // its circle instead of growing with the system font size and spilling out.
+        val letterSize = with(androidx.compose.ui.platform.LocalDensity.current) { (size * 0.38f).dp.toSp() }
+        Text(
+            if (name.startsWith("+")) name else name.take(1).uppercase(),
+            style = HqType.labelSmall.copy(fontSize = letterSize, lineHeight = letterSize),
+            color = c.selectedFg, fontWeight = FontWeight.Bold, maxLines = 1, softWrap = false,
+        )
     }
 }
 
@@ -137,11 +148,12 @@ fun ExpenseCard(card: AgentCard.Expense, animate: Boolean) {
             CountUpAmount(card.amountPaise, animate)
             Box(Modifier.fillMaxWidth().height(1.dp).background(c.borderSubtle))
             Row(verticalAlignment = Alignment.CenterVertically) {
-                AvatarStack(card.splitNames)
+                // Decorative: the "Split with" text beside it names the people.
+                Box(Modifier.clearAndSetSemantics {}) { AvatarStack(card.splitNames) }
                 Spacer(Modifier.width(10.dp))
                 Text(
                     if (card.everyone) "Split with everyone (${card.splitNames.size})" else "Split with ${card.splitNames.joinToString(", ")}",
-                    style = HqType.bodySmall, color = c.textSecondary, maxLines = 2,
+                    style = HqType.bodySmall, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis,
                 )
             }
         }
@@ -181,7 +193,7 @@ fun AnswerCard(headline: String, lines: List<AnswerLine>) {
             lines.forEach { line ->
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Text(line.label, style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.weight(1f))
-                    Text(line.value, style = HqType.rowTitle, color = c.textPrimary, fontWeight = FontWeight.SemiBold)
+                    Text(line.value, style = HqType.rowTitle.copy(fontFeatureSettings = "tnum"), color = c.textPrimary, fontWeight = FontWeight.SemiBold)
                 }
             }
         }

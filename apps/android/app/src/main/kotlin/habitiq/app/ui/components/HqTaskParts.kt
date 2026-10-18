@@ -1,6 +1,15 @@
 package habitiq.app.ui.components
 
 import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.snap
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.VisibilityThreshold
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.unit.Dp
+import habitiq.app.ui.theme.hqReduceMotion
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -159,8 +168,8 @@ fun HqLargeTaskCard(
         modifier.fillMaxWidth()
             .shadow(2.dp, shape, ambientColor = c.textPrimary.copy(alpha = .06f), spotColor = c.textPrimary.copy(alpha = .06f))
             .clip(shape)
-            .background(if (overdue) Brush.horizontalGradient(0f to Color(0xFFFFFAF6), .68f to c.surfaceBase) else SolidColor(c.surfaceBase))
-            .border(BorderStroke(1.dp, Color(0xFFE1E8E6)), shape)
+            .background(if (overdue) Brush.horizontalGradient(0f to (if (c.isDark) c.surfaceRaised else Color(0xFFFFFAF6)), .68f to c.surfaceBase) else SolidColor(c.surfaceBase))
+            .border(BorderStroke(1.dp, c.borderSubtle), shape)
             .then(if (overdue) Modifier.drawBehind { drawLine(edge, Offset(1.5.dp.toPx(), 12.dp.toPx()), Offset(1.5.dp.toPx(), size.height - 12.dp.toPx()), strokeWidth = 3.dp.toPx()) } else Modifier)
             .clickable(role = Role.Button, onClick = onOpen)
             .defaultMinSize(minHeight = 94.dp),
@@ -173,14 +182,20 @@ fun HqLargeTaskCard(
         }
         Row(Modifier.padding(horizontal = 6.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Box(
-                Modifier.size(HqSize.target).clickable(enabled = canComplete && !completing && !done, role = Role.Button, onClick = onComplete)
-                    .semantics { contentDescription = if (canComplete) "Complete $title" else "" },
+                Modifier.size(HqSize.target).then(
+                    if (canComplete) {
+                        Modifier.clickable(enabled = !completing && !done, role = Role.Button, onClick = onComplete)
+                            .semantics { contentDescription = "Complete $title" }
+                    } else {
+                        Modifier.clearAndSetSemantics {}
+                    },
+                ),
                 contentAlignment = Alignment.Center,
             ) {
                 if (completing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = c.textBrand)
                 else Box(
                     Modifier.size(25.dp).clip(RoundedCornerShape(8.dp)).background(if (done) c.brandTeal else c.surfaceBase)
-                        .border(1.5.dp, if (done) c.brandTeal else Color(0xFFAAB7B5), RoundedCornerShape(8.dp)),
+                        .border(1.5.dp, if (done) c.brandTeal else c.borderControl, RoundedCornerShape(8.dp)),
                     contentAlignment = Alignment.Center,
                 ) { if (done) Icon(HqIcons.Check, null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.xs)) }
             }
@@ -211,15 +226,21 @@ fun HqLargeTaskCard(
 fun HqManageSwitch(options: List<Pair<String, ImageVector>>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
     val track = RoundedCornerShape(18.dp)
-    BoxWithConstraints(modifier.fillMaxWidth().height(58.dp).clip(track).background(Color(0xFFEDF3F1)).padding(4.dp).selectableGroup()) {
+    BoxWithConstraints(modifier.fillMaxWidth().heightIn(min = 58.dp).clip(track).background(c.surfaceSubtle).padding(4.dp).selectableGroup()) {
         val cell = maxWidth / options.size
-        val x by animateDpAsState(cell * selectedIndex, label = "manageSwitch")
+        val reduceMotion = hqReduceMotion()
+        val x by animateDpAsState(
+            cell * selectedIndex,
+            animationSpec = if (reduceMotion) snap() else spring(visibilityThreshold = Dp.VisibilityThreshold),
+            label = "manageSwitch",
+        )
+        // matchParentSize: the track can grow with font scale (heightIn), so the indicator follows its height.
         Box(
-            Modifier.offset(x = x).width(cell).fillMaxHeight()
+            Modifier.matchParentSize().wrapContentWidth(Alignment.Start).offset(x = x).width(cell)
                 .shadow(6.dp, RoundedCornerShape(14.dp), ambientColor = c.textPrimary.copy(alpha = .1f), spotColor = c.textPrimary.copy(alpha = .1f))
                 .clip(RoundedCornerShape(14.dp)).background(c.surfaceBase),
         )
-        Row(Modifier.fillMaxWidth().fillMaxHeight()) {
+        Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).height(IntrinsicSize.Min)) {
             options.forEachIndexed { i, (label, icon) ->
                 val selected = i == selectedIndex
                 Row(

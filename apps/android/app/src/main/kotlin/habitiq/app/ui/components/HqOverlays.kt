@@ -1,5 +1,7 @@
 package habitiq.app.ui.components
 
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -57,7 +59,7 @@ fun HqBottomSheet(
                 .padding(horizontal = 22.dp, vertical = HqSpacing.md),
         ) {
             if (title != null) {
-                Text(title, style = HqType.titleMedium2, color = c.textPrimary)
+                Text(title, style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.semantics { heading() })
                 Spacer(Modifier.height(HqSpacing.md))
             }
             content()

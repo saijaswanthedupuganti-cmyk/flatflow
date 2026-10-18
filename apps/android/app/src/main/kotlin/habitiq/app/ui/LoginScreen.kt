@@ -145,6 +145,7 @@ fun LoginScreen(
             HqButton(
                 text = "Log in",
                 onClick = { viewModel.signInWithEmail(email, password) },
+                // Disabled, not spinning: the shared "Signing in…" line below covers email and Google alike.
                 enabled = state !is AuthUiState.Loading,
             )
             Spacer(Modifier.height(HqSpacing.md))

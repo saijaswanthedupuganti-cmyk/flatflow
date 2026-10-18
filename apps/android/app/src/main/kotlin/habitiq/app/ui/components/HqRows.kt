@@ -1,5 +1,6 @@
 package habitiq.app.ui.components
 
+import androidx.compose.ui.semantics.heading
 import habitiq.app.ui.theme.hqPressable
 
 import androidx.compose.foundation.background
@@ -73,7 +74,7 @@ fun HqSectionHeader(title: String, modifier: Modifier = Modifier, action: String
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
     ) {
-        Text(title, style = HqType.titleSmall2, color = c.textPrimary, modifier = Modifier.weight(1f))
+        Text(title, style = HqType.titleSmall2, color = c.textPrimary, modifier = Modifier.weight(1f).semantics { heading() })
         if (action != null && onAction != null) HqTextButton(text = action, onClick = onAction)
     }
 }

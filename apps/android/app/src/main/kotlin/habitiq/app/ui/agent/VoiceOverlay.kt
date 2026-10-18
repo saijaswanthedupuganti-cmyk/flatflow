@@ -1,5 +1,10 @@
 package habitiq.app.ui.agent
 
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.animation.core.snap
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.Animatable
@@ -108,9 +113,9 @@ private data class Suggestion(val label: String, val icon: ImageVector, val tint
 
 /** Starters shown while listening. A null [Suggestion.text] means "start talking with a hint". */
 private val SUGGESTIONS = listOf(
-    Suggestion("What do I need\nto do today?", Icons.Rounded.CalendarMonth, Color(0xFF4D9C8E), "What do I need to do today?"),
-    Suggestion("Add an\nexpense", Icons.Rounded.Add, Color(0xFF3B6FF0), null),
-    Suggestion("Who owes\nme money?", Icons.Rounded.Group, Color(0xFF7B5BE0), "Who owes me?"),
+    Suggestion("What do I need to do today?", Icons.Rounded.CalendarMonth, Color(0xFF4D9C8E), "What do I need to do today?"),
+    Suggestion("Add an expense", Icons.Rounded.Add, Color(0xFF3B6FF0), null),
+    Suggestion("Who owes me money?", Icons.Rounded.Group, Color(0xFF7B5BE0), "Who owes me?"),
     Suggestion("What do I owe?", Icons.Rounded.CurrencyRupee, Color(0xFFC98A3E), "What do I owe?"),
 )
 
@@ -144,8 +149,8 @@ fun VoiceOverlay(
         else -> OrbMood.Done
     }
     val hasResult = state is AgentUiState.Answer || state is AgentUiState.Preview || state is AgentUiState.Clarify || state is AgentUiState.Done
-    val orbSize by animateDpAsState(if (hasResult) 84.dp else if (mood == OrbMood.Thinking) 112.dp else 132.dp, tween(450, easing = FastOutSlowInEasing), label = "orbSize")
-    val stageHeight by animateDpAsState(if (hasResult) 150.dp else 236.dp, tween(450, easing = FastOutSlowInEasing), label = "stage")
+    val orbSize by animateDpAsState(if (hasResult) 84.dp else if (mood == OrbMood.Thinking) 112.dp else 132.dp, if (animate) tween(450, easing = FastOutSlowInEasing) else snap(), label = "orbSize")
+    val stageHeight by animateDpAsState(if (hasResult) 150.dp else 236.dp, if (animate) tween(450, easing = FastOutSlowInEasing) else snap(), label = "stage")
 
     CompositionLocalProvider(LocalHqColors provides HqDarkColors, LocalAgentGlass provides true) {
         Box(Modifier.fillMaxSize()) {
@@ -164,7 +169,7 @@ fun VoiceOverlay(
                     HqWordmark(height = 30.dp, tint = White, modifier = Modifier.graphicsLayer { alpha = enter.value.coerceIn(0f, 1f) })
                     Spacer(Modifier.weight(1f))
                     if (mode == AgentInputMode.Voice) {
-                        GlassCircle(Icons.Rounded.Keyboard, "Type instead", onUseText, size = 44)
+                        GlassCircle(Icons.Rounded.Keyboard, "Type instead", onUseText)
                         Spacer(Modifier.width(10.dp))
                     }
                     GlassCircle(Icons.Rounded.Close, "Close", onClose)
@@ -176,8 +181,10 @@ fun VoiceOverlay(
                     verticalArrangement = if (hasResult) Arrangement.Top else Arrangement.Center,
                 ) {
                     RisingOrb(level, orbSize, stageHeight, mood, animate, micCenter, enter.value)
+                    // Live regions sit on Title/Subtitle/FriendLine/answer only, so the live partial
+                    // transcript isn't re-announced on every word.
                     Column(
-                        Modifier.fillMaxWidth().semantics { liveRegion = LiveRegionMode.Polite },
+                        Modifier.fillMaxWidth(),
                         horizontalAlignment = Alignment.CenterHorizontally,
                     ) {
                         AnimatedContent(
@@ -188,7 +195,7 @@ fun VoiceOverlay(
                         ) { s -> StateContent(s, mode, hint, animate, onSubmit, onChoose, onOpen, onAllowMic) { h -> hint = h; onTalk() } }
                         if (smartNote != null && state !is AgentUiState.Listening && state !is AgentUiState.Checking) {
                             Spacer(Modifier.height(14.dp))
-                            Text(smartNote, style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp), color = TextSoft.copy(alpha = .7f), textAlign = TextAlign.Center)
+                            Text(smartNote, style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp), color = TextSoft, textAlign = TextAlign.Center)
                         }
                     }
                 }
@@ -237,9 +244,10 @@ private fun StateContent(
                 Title(if (mode == AgentInputMode.Text) "What do you need?" else "I’m listening…")
                 Spacer(Modifier.height(8.dp))
                 when {
+                    // Newest words stay visible: show the tail of a long transcript.
                     partial.isNotEmpty() -> Text(
-                        partial, style = TextStyle(fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium),
-                        color = White, textAlign = TextAlign.Center, maxLines = 4,
+                        partial.takeLast(140), style = TextStyle(fontSize = 21.sp, lineHeight = 28.sp, fontWeight = FontWeight.Medium),
+                        color = White, textAlign = TextAlign.Center, maxLines = 4, overflow = TextOverflow.Ellipsis,
                     )
                     notice != null -> {
                         Subtitle(notice)
@@ -266,7 +274,7 @@ private fun StateContent(
                 Quote(s.transcript)
                 s.say?.let { Spacer(Modifier.height(14.dp)); FriendLine(it) }
                 Spacer(Modifier.height(16.dp))
-                AnswerCard(s.answer.headline, s.answer.lines)
+                Box(Modifier.semantics { liveRegion = LiveRegionMode.Polite }) { AnswerCard(s.answer.headline, s.answer.lines) }
                 s.answer.link?.let { Spacer(Modifier.height(14.dp)); GlassPill(it.label, null) { onOpen(it) } }
             }
             is AgentUiState.Preview -> {
@@ -289,6 +297,8 @@ private fun StateContent(
                 )
             }
             is AgentUiState.Done -> {
+                val haptic = LocalHapticFeedback.current
+                LaunchedEffect(s) { haptic.performHapticFeedback(HapticFeedbackType.Confirm) }
                 Quote(s.transcript)
                 Spacer(Modifier.height(18.dp))
                 Box(
@@ -316,7 +326,7 @@ private fun StateContent(
             }
             is AgentUiState.Error -> {
                 if (s.transcript.isNotEmpty()) { Quote(s.transcript); Spacer(Modifier.height(14.dp)) }
-                Title("Hmm.")
+                Title("Something went wrong")
                 Spacer(Modifier.height(8.dp))
                 Subtitle(s.message)
             }
@@ -328,17 +338,20 @@ private fun StateContent(
 @Composable
 private fun FriendLine(text: String) = Text(
     text, style = TextStyle(fontSize = 20.sp, lineHeight = 27.sp, fontWeight = FontWeight.Medium), color = White, textAlign = TextAlign.Center,
+    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
 )
 
 @Composable
 private fun Title(text: String) = Text(
     text, style = TextStyle(fontSize = 31.sp, lineHeight = 38.sp, fontWeight = FontWeight.Bold, letterSpacing = (-0.3).sp, fontFamily = habitiq.app.ui.theme.HqDisplayFontFamily),
     color = White, textAlign = TextAlign.Center,
+    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
 )
 
 @Composable
 private fun Subtitle(text: String) = Text(
     text, style = TextStyle(fontSize = 17.sp, lineHeight = 24.sp, fontWeight = FontWeight.Normal), color = TextSoft, textAlign = TextAlign.Center,
+    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
 )
 
 @Composable
@@ -381,7 +394,7 @@ private fun SuggestionChip(s: Suggestion, modifier: Modifier, onClick: () -> Uni
             Icon(s.icon, null, tint = White, modifier = Modifier.size(18.dp))
         }
         Spacer(Modifier.width(10.dp))
-        Text(s.label, style = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium), color = White, maxLines = 2)
+        Text(s.label, style = TextStyle(fontSize = 14.sp, lineHeight = 19.sp, fontWeight = FontWeight.Medium), color = White, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
@@ -396,20 +409,36 @@ private fun GlassCircle(icon: ImageVector, label: String, onClick: () -> Unit, s
 }
 
 @Composable
-private fun GlassPill(text: String, icon: ImageVector?, modifier: Modifier = Modifier, primary: Boolean = false, onClick: () -> Unit) {
+private fun GlassPill(
+    text: String, icon: ImageVector?, modifier: Modifier = Modifier, primary: Boolean = false,
+    enabled: Boolean = true, busy: Boolean = false, onClick: () -> Unit,
+) {
     val shape = RoundedCornerShape(50)
     val base = if (primary) Modifier.clip(shape).background(Brush.verticalGradient(listOf(VoiceColors.buttonTop, VoiceColors.buttonBottom)))
         .border(1.dp, White.copy(alpha = .25f), shape)
     else Modifier.glass(shape)
     Row(
-        modifier.heightIn(min = 52.dp).then(base)
-            .clickable(role = Role.Button, onClick = onClick)
+        modifier.heightIn(min = 52.dp)
+            .graphicsLayer { alpha = if (enabled) 1f else .5f }
+            .then(base)
+            .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
             .padding(horizontal = 26.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center,
     ) {
-        icon?.let { Icon(it, null, tint = White, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(10.dp)) }
-        Text(text, style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium), color = White)
+        if (busy) {
+            // Spinner only: "Saving…" already reads above the buttons, and a label here wraps at large font sizes.
+            CircularProgressIndicator(
+                Modifier.size(24.dp).semantics { contentDescription = text },
+                color = White, strokeWidth = 2.5.dp,
+            )
+        } else {
+            icon?.let { Icon(it, null, tint = White, modifier = Modifier.size(22.dp)); Spacer(Modifier.width(10.dp)) }
+            Text(
+                text, style = TextStyle(fontSize = 17.sp, fontWeight = FontWeight.Medium), color = White,
+                maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis,
+            )
+        }
     }
 }
 
@@ -423,7 +452,10 @@ private fun BottomControls(
     if (state is AgentUiState.Preview) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             GlassPill("Cancel", Icons.Rounded.Close, onClick = onCancelPreview)
-            GlassPill(if (state.saving) "Saving…" else "Save", Icons.Rounded.Check, primary = true, onClick = { if (!state.saving) onConfirm() })
+            GlassPill(
+                if (state.saving) "Saving…" else "Save", Icons.Rounded.Check, primary = true,
+                enabled = !state.saving, busy = state.saving, onClick = onConfirm,
+            )
         }
         return
     }
@@ -433,7 +465,7 @@ private fun BottomControls(
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             GlassCircle(Icons.Rounded.Mic, "Talk instead", onUseVoice)
             Box(Modifier.weight(1f).heightIn(min = 52.dp).glass(shape).padding(horizontal = 18.dp), contentAlignment = Alignment.CenterStart) {
-                if (text.isEmpty()) Text("e.g. Spent 500 on milk", color = White.copy(alpha = .5f), style = TextStyle(fontSize = 16.sp), maxLines = 1)
+                if (text.isEmpty()) Text("e.g. Spent 500 on milk", color = White.copy(alpha = .66f), style = TextStyle(fontSize = 16.sp), maxLines = 1)
                 BasicTextField(
                     value = text, onValueChange = { text = it }, singleLine = true,
                     textStyle = TextStyle(fontSize = 16.sp, color = White), cursorBrush = SolidColor(White),
@@ -443,11 +475,14 @@ private fun BottomControls(
                 )
             }
             Box(
-                Modifier.size(52.dp).clip(CircleShape)
+                Modifier.size(52.dp)
+                    .graphicsLayer { alpha = if (text.isNotBlank()) 1f else .4f }
+                    .clip(CircleShape)
                     .background(Brush.verticalGradient(listOf(VoiceColors.buttonTop, VoiceColors.buttonBottom)))
-                    .clickable(enabled = text.isNotBlank(), role = Role.Button, onClickLabel = "Send") { onSubmit(text); text = "" },
+                    .clickable(enabled = text.isNotBlank(), role = Role.Button, onClickLabel = "Send") { onSubmit(text); text = "" }
+                    .semantics { contentDescription = "Send" },
                 contentAlignment = Alignment.Center,
-            ) { Icon(Icons.AutoMirrored.Rounded.Send, "Send", tint = White, modifier = Modifier.size(22.dp)) }
+            ) { Icon(Icons.AutoMirrored.Rounded.Send, null, tint = White, modifier = Modifier.size(22.dp)) }
         }
         return
     }

@@ -39,11 +39,14 @@ class DiscoverScreenshotTest : ScreenshotHarness() {
     )
     private val trust = habitiq.app.discover.TrustCopy.forSeeker(true)
 
-    @Test fun flats() = shoot("discover-flats") {
-        Column {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a person"), 0, {}) }
-            UseAFlatDiscoverContent(flats, flats, VacancyFilters(cityArea = "Hyderabad", roomType = "private"), {}, false, null, {}, {}, {})
-        }
+    @Test fun flats() = shoot("discover-flats") { flatsContent() }
+
+    @Test fun flatsDark() = shoot("discover-flats-dark", dark = true) { flatsContent() }
+
+    @androidx.compose.runtime.Composable
+    private fun flatsContent() = Column {
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a person"), 0, {}) }
+        UseAFlatDiscoverContent(flats, flats, VacancyFilters(cityArea = "Hyderabad", roomType = "private"), {}, false, null, {}, {}, {})
     }
 
     private fun request(status: String) = habitiq.app.data.VacancyRequest(

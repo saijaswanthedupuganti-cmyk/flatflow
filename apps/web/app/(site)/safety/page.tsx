@@ -14,7 +14,7 @@ export default function SafetyPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-flex items-center min-h-11 -ml-2 px-2 rounded-lg">
             ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Safety Tips</h1>
@@ -110,12 +110,12 @@ export default function SafetyPage() {
               In the app, open the profile, listing, or chat and choose <strong className="text-foreground">Report</strong> or{' '}
               <strong className="text-foreground">Block</strong>. Blocking hides that person from you and stops
               new messages. Reports are reviewed by a person on our team. You can also email{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>{' '}
               with the subject &quot;Safety report&quot; and screenshots.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               We may remove listings and suspend accounts that break our{' '}
-              <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>.
+              <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Terms of Service</Link>.
             </p>
           </section>
 
@@ -149,8 +149,8 @@ export default function SafetyPage() {
 
           <p className="text-xs text-muted-foreground">
             Oddroof · habitiq.app · India ·{' '}
-            <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link> ·{' '}
-            <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link>
+            <Link href="/privacy" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Privacy Policy</Link> ·{' '}
+            <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Terms of Service</Link>
           </p>
         </div>
       </div>

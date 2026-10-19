@@ -14,7 +14,7 @@ export default function TermsPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-flex items-center min-h-11 -ml-2 px-2 rounded-lg">
             ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Terms of Service</h1>
@@ -36,7 +36,7 @@ export default function TermsPage() {
             <p className="text-muted-foreground leading-relaxed mt-3">
               Oddroof is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India
               (&quot;we&quot;, &quot;us&quot;, &quot;Oddroof&quot;). Our{' '}
-              <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link>{' '}
+              <Link href="/privacy" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Privacy Policy</Link>{' '}
               is part of these Terms by reference.
             </p>
           </section>
@@ -97,7 +97,7 @@ export default function TermsPage() {
               </li>
               <li>
                 Viewings and meetings happen at your own risk. Please follow our{' '}
-                <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>.
+                <Link href="/safety" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Safety Tips</Link>.
               </li>
               <li>
                 Anything you publish on Discover is visible to other signed-in users. Don&apos;t include your phone
@@ -117,7 +117,7 @@ export default function TermsPage() {
                 Any trust, activity, or verification label reflects activity on Oddroof only. It is our opinion based on
                 platform data — not a background check, a statement about anyone&apos;s character, or a guarantee of
                 safety. You can ask us to review a label at{' '}
-                <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>.
+                <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>.
               </li>
             </ul>
           </section>
@@ -277,7 +277,7 @@ export default function TermsPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Before taking any formal action, please contact us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>{' '}
               — we will try to resolve any concern directly.
             </p>
           </section>
@@ -297,7 +297,7 @@ export default function TermsPage() {
             <h2 className="text-lg font-semibold mb-3">14. Contact</h2>
             <p className="text-muted-foreground">
               Questions about these Terms? Email us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>.
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>.
               We read everything.
             </p>
           </section>
@@ -306,8 +306,8 @@ export default function TermsPage() {
 
           <p className="text-xs text-muted-foreground">
             Oddroof · habitiq.app · India · Document version 0.5.0 ·{' '}
-            <Link href="/privacy" className="text-blue-600 hover:underline">Privacy Policy</Link> ·{' '}
-            <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>
+            <Link href="/privacy" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Privacy Policy</Link> ·{' '}
+            <Link href="/safety" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Safety Tips</Link>
           </p>
         </div>
       </div>

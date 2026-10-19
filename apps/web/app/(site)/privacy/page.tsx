@@ -14,7 +14,7 @@ export default function PrivacyPage() {
 
         {/* Header */}
         <div className="mb-10">
-          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-6 inline-block">
+          <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-flex items-center min-h-11 -ml-2 px-2 rounded-lg">
             ← Back to Oddroof
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Privacy Policy</h1>
@@ -53,7 +53,7 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               Contact us at:{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">
                 hello@habitiq.app
               </a>
             </p>
@@ -341,7 +341,7 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="text-muted-foreground mt-3">
-              <Link href="/delete-account" className="text-blue-600 hover:underline">How to delete your Oddroof account</Link>
+              <Link href="/delete-account" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">How to delete your Oddroof account</Link>
             </p>
           </section>
 
@@ -352,14 +352,14 @@ export default function PrivacyPage() {
             <ul className="text-muted-foreground space-y-2 list-disc list-inside">
               <li><strong className="text-foreground">Right to access:</strong> Know what personal data we hold about you.</li>
               <li><strong className="text-foreground">Right to correction:</strong> Request that inaccurate or incomplete data be corrected — including any trust label you think is wrong.</li>
-              <li><strong className="text-foreground">Right to erasure:</strong> Request deletion of your personal data, subject to legal obligations. See{' '}<Link href="/delete-account" className="text-blue-600 hover:underline">Deleting your account</Link>.</li>
+              <li><strong className="text-foreground">Right to erasure:</strong> Request deletion of your personal data, subject to legal obligations. See{' '}<Link href="/delete-account" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Deleting your account</Link>.</li>
               <li><strong className="text-foreground">Right to withdraw consent:</strong> As easily as you gave it — for example by unpublishing your Discover profile, turning off notifications, or deleting your account.</li>
               <li><strong className="text-foreground">Right to grievance redressal:</strong> Raise a complaint and receive a response within a reasonable time.</li>
               <li><strong className="text-foreground">Right to nominate:</strong> Nominate someone to exercise your rights in the event of your incapacity or death.</li>
             </ul>
             <p className="text-muted-foreground mt-3">
               To exercise any of these rights, email us at{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>{' '}
               with the subject &quot;Data Request&quot;. We will respond within 30 days. If you are not satisfied with
               our response, you may complain to the Data Protection Board of India.
             </p>
@@ -380,7 +380,7 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
               No security system is perfect. If you discover a vulnerability, please report it to{' '}
-              <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>{' '}
+              <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>{' '}
               before disclosing it publicly.
             </p>
           </section>
@@ -413,13 +413,13 @@ export default function PrivacyPage() {
             <div className="mt-2 text-muted-foreground">
               <p><strong className="text-foreground">Name:</strong> Venkata Sai Jaswanth E</p>
               <p><strong className="text-foreground">Email:</strong>{' '}
-                <a href="mailto:hello@habitiq.app" className="text-blue-600 hover:underline">hello@habitiq.app</a>
+                <a href="mailto:hello@habitiq.app" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">hello@habitiq.app</a>
               </p>
               <p><strong className="text-foreground">Response time:</strong> Within 30 days of receiving a complaint</p>
             </div>
             <p className="text-muted-foreground text-sm mt-3">
               Safety concerns on Discover can go to the same address — see our{' '}
-              <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>.
+              <Link href="/safety" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Safety Tips</Link>.
             </p>
           </section>
 
@@ -427,8 +427,8 @@ export default function PrivacyPage() {
 
           <p className="text-xs text-muted-foreground">
             Oddroof · habitiq.app · India · Document version 0.5.0 ·{' '}
-            <Link href="/terms" className="text-blue-600 hover:underline">Terms of Service</Link> ·{' '}
-            <Link href="/safety" className="text-blue-600 hover:underline">Safety Tips</Link>
+            <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Terms of Service</Link> ·{' '}
+            <Link href="/safety" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Safety Tips</Link>
           </p>
         </div>
       </div>

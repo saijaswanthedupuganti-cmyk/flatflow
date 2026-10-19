@@ -18,7 +18,7 @@ function ResolvedCard() {
   return (
     <Glass tier="canvas" style={{ padding: 24 }}>
       <p style={{ fontWeight: 800, fontSize: 18, margin: 0 }}>One place for the whole flat</p>
-      <div className={h.resolvedRow}><CheckCircle2 color="var(--or-teal)" aria-hidden />Trash today: <b>Ravi</b></div>
+      <div className={h.resolvedRow}><CheckCircle2 color="var(--or-teal)" aria-hidden />Trash today: <b>Rahul</b></div>
       <div className={h.resolvedRow}><IndianRupee color="var(--or-blue)" aria-hidden />Milk ₹60 · split 4 ways</div>
       <div className={h.resolvedRow} style={{ borderBottom: 0 }}><Receipt color="var(--or-navy)" aria-hidden />Wifi ₹1,200 · ₹300 each</div>
     </Glass>

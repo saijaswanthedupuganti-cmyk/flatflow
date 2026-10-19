@@ -79,14 +79,11 @@
 .flowItem:nth-child(-n+3) .flowTags li { background: rgba(20,184,166,.10); color: #115E59; }
 .flowPhone { width: 200px; justify-self: center; }
 
-/* Phones: a swipeable row of cards that peeks at the next step. */
+/* Phones: the six steps read top to bottom, in order, each fully visible (no sideways swiping to discover them). */
 @media (max-width: 759px) {
-  .flow { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; gap: 14px; overscroll-behavior-x: contain;
-    margin: 40px calc(-1 * var(--or-gutter)) 0; padding: 4px var(--or-gutter) 28px; scroll-padding-inline: var(--or-gutter); scrollbar-width: none; }
-  .flow::-webkit-scrollbar { display: none; }
-  .flowItem { flex: 0 0 min(84%, 340px); scroll-snap-align: start; }
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 36px; }
   .flowCard { padding: 22px 20px 24px; }
-  .flowPhone { width: min(196px, 60vw); }
+  .flowPhone { width: min(184px, 52vw); }
 }
 /* Tablets and small laptops: two columns, text above the phone. */
 @media (min-width: 760px) {

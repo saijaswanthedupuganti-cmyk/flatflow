@@ -16,6 +16,8 @@
 .tileInner { flex: 1; display: flex; flex-direction: column; padding: 8px; }
 .ui { height: 128px; border-radius: 19px; display: grid; place-items: center; overflow: hidden; position: relative;
   background: rgba(255,255,255,.72); box-shadow: inset 0 0 0 1px rgba(28,42,64,.05); font-size: 13px; color: #15302C; }
+/* The two large tiles carry a bigger UI fragment; give it room on phones too so nothing is cropped. */
+.lg .ui { height: 232px; }
 .tile[data-side="app"] .ui { background: rgba(255,255,255,.05); box-shadow: inset 0 0 0 1px rgba(255,255,255,.08); color: #fff; }
 .copy { padding: 18px 16px 16px; display: grid; gap: 6px; align-content: start; }
 .kicker { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 600; letter-spacing: .02em; color: #0F766E; }

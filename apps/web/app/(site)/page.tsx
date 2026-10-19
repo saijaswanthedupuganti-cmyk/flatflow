@@ -4,6 +4,7 @@ import path from 'node:path'
 import Hero from '@/components/site/home/Hero'
 import Problem from '@/components/site/home/Problem'
 import PinnedStory from '@/components/site/home/PinnedStory'
+import Features from '@/components/site/home/Features'
 import Voice from '@/components/site/home/Voice'
 import Discover from '@/components/site/home/Discover'
 import Trust from '@/components/site/home/Trust'
@@ -28,6 +29,7 @@ export default function HomePage() {
       <Discover />
       <Problem />
       <PinnedStory />
+      <Features />
       <Voice />
       <Trust />
       <Install />

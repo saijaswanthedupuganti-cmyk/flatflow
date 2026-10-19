@@ -51,39 +51,67 @@
   .heroInner { grid-template-columns: .95fr 1.05fr; gap: 24px; }
   .qr { display: block; }
 }
-.problemStage { position: relative; margin-top: 48px; min-height: 420px; display: grid; place-items: center; }
-.bubble { position: absolute; padding: 12px 16px; border-radius: 18px 18px 18px 6px; background: #fff; box-shadow: 0 8px 24px rgba(15,23,42,.08); font-size: 15px; max-width: 220px; border: 1px solid var(--or-line); }
-.bubbleChat { transform-origin: left bottom; }
-.bubbleMine { background: #DCF8C6; border-radius: 18px 18px 6px 18px; }
-.resolved { position: relative; z-index: 2; width: min(420px, 100%); padding: 24px; }
 .resolvedRow { display: flex; gap: 12px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--or-line); }
-.story { display: grid; gap: 40px; margin-top: 56px; }
-/* Desktop pinned phone: screens are stacked and crossfade in place, so the phone is never blank. */
-.storyStack { position: relative; height: 100%; }
-.storyLayer { position: absolute; inset: 0; }
-.storyRail { display: none; }
-.storyPhoneCol { display: none; }
-.storySteps { display: grid; gap: 24px; }
-.step { padding: 28px; }
-.step h3 { font-size: clamp(22px, 2.4vw, 30px); margin: 10px 0 8px; }
-.step p { color: var(--or-text-2); margin: 0; }
-.stepPhone { width: min(220px, 62vw); margin: 24px auto 0; }
-.stepDot { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; }
-@media (min-width: 1024px) {
-  .story { grid-template-columns: 1fr 1fr; gap: 64px; }
-  .storyPhoneCol { display: block; }
-  .storyPhoneSticky { position: sticky; top: 16vh; width: 250px; margin: 0 auto; }
-  .storySteps { gap: 0; }
-  .step { min-height: 72vh; display: flex; flex-direction: column; justify-content: center; background: none !important; border: 0 !important; box-shadow: none !important;
-    opacity: .4; transition: opacity 200ms var(--or-ease); }
-  .stepActive { opacity: 1; }
-  .stepPhone { display: none; }
-  .storyPhoneSticky { display: flex; gap: 28px; align-items: center; width: auto; justify-content: center; }
-  .storyPhone { width: 250px; flex-shrink: 0; }
-  .storyRail { display: grid; gap: 12px; list-style: none; margin: 0; padding: 0; }
-  .storyRail li { width: 8px; height: 8px; border-radius: 999px; background: #CBD5E1; position: relative; overflow: hidden; }
-  .storyRail li::after { content: ''; position: absolute; inset: 0; border-radius: inherit; background: var(--or-blue); opacity: 0; transform: scale(.4); transition: opacity 200ms var(--or-ease), transform 200ms var(--or-ease); }
-  .storyRail li[data-on]::after { opacity: 1; transform: scale(1); }
+/* ---------- How it works: six steps, each paired with its own live phone ---------- */
+.storySection { background:
+  radial-gradient(60% 34% at 50% 0%, rgba(37,99,235,.08), rgba(37,99,235,0) 70%),
+  radial-gradient(40% 30% at 100% 70%, rgba(20,184,166,.07), rgba(20,184,166,0) 70%),
+  var(--or-canvas); }
+.flow { list-style: none; padding: 0; margin: 56px 0 0; position: relative; display: grid; gap: 20px; grid-template-columns: minmax(0, 1fr); }
+.flowItem { position: relative; display: flex; }
+.flowItem > * { flex: 1; }
+.flowCard { height: 100%; display: grid; gap: 24px; align-content: space-between; padding: 24px; border-radius: 28px; background: #fff;
+  box-shadow: 0 0 0 1px rgba(28,42,64,.06), 0 1px 2px rgba(28,42,64,.04), 0 24px 48px -28px rgba(28,42,64,.22);
+  transition: box-shadow 300ms var(--or-ease); }
+@media (hover: hover) and (pointer: fine) {
+  .flowCard:hover { box-shadow: 0 0 0 1px rgba(37,99,235,.18), 0 1px 2px rgba(28,42,64,.04), 0 32px 60px -28px rgba(28,42,64,.3); }
+}
+.flowText { display: grid; justify-items: start; align-content: start; }
+.flowText h3 { font-size: clamp(21px, 2vw, 25px); letter-spacing: -0.022em; line-height: 1.15; margin: 18px 0 8px; text-wrap: balance; }
+.flowText p { margin: 0; color: var(--or-text-2); font-size: 16px; line-height: 1.6; text-wrap: pretty; max-width: 46ch; }
+.flowNum { display: inline-grid; place-items: center; min-width: 28px; height: 28px; padding: 0 8px; border-radius: 999px; font-size: 13px; font-weight: 700;
+  font-variant-numeric: tabular-nums; color: var(--or-navy); background: #fff; box-shadow: 0 0 0 1px rgba(28,42,64,.12); grid-area: 1 / 1; }
+.flowIcon { grid-area: 1 / 1; margin-left: 40px; width: 40px; height: 40px; margin-top: -6px; border-radius: 12px; display: grid; place-items: center;
+  color: var(--or-blue-deep); background: linear-gradient(180deg, #EEF3FE, #E2EAFD); box-shadow: inset 0 1px 0 rgba(255,255,255,.8); }
+.flowItem:nth-child(-n+3) .flowIcon { color: #0F766E; background: linear-gradient(180deg, #E8F8F5, #D7F2EC); }
+.flowTags { list-style: none; padding: 0; margin: 18px 0 0; display: flex; flex-wrap: wrap; gap: 6px; }
+.flowTags li { font-size: 13px; font-weight: 600; line-height: 1; padding: 7px 10px; border-radius: 8px; background: rgba(37,99,235,.07); color: #1E3A8A; }
+.flowItem:nth-child(-n+3) .flowTags li { background: rgba(20,184,166,.10); color: #115E59; }
+.flowPhone { width: 200px; justify-self: center; }
+
+/* Phones: the six steps read top to bottom, in order, each fully visible (no sideways swiping to discover them). */
+@media (max-width: 759px) {
+  .flow { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; margin-top: 36px; }
+  .flowCard { padding: 22px 20px 24px; }
+  .flowPhone { width: min(184px, 52vw); }
+}
+/* Tablets and small laptops: two columns, text above the phone. */
+@media (min-width: 760px) {
+  .flow { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 24px; }
+}
+/* Desktop: a staggered two-column timeline, text beside each phone, numbers on a centre rail. */
+@media (min-width: 1180px) {
+  .flow { column-gap: 72px; row-gap: 28px; grid-template-rows: repeat(7, auto); }
+  .flow::before { content: ''; position: absolute; left: 50%; top: 0; bottom: 0; width: 1px; transform: translateX(-.5px);
+    background: linear-gradient(180deg, rgba(37,99,235,0), rgba(37,99,235,.28) 6%, rgba(20,184,166,.28) 94%, rgba(20,184,166,0)); }
+  .flowItem:nth-child(odd) { grid-column: 1; }
+  .flowItem:nth-child(even) { grid-column: 2; }
+  .flowItem:nth-child(1) { grid-row: 1 / span 2; }
+  .flowItem:nth-child(2) { grid-row: 2 / span 2; }
+  .flowItem:nth-child(3) { grid-row: 3 / span 2; }
+  .flowItem:nth-child(4) { grid-row: 4 / span 2; }
+  .flowItem:nth-child(5) { grid-row: 5 / span 2; }
+  .flowItem:nth-child(6) { grid-row: 6 / span 2; }
+  .flowCard { grid-template-columns: minmax(0, 1fr) 232px; gap: 28px; align-items: center; padding: 26px 26px 26px 30px; }
+  .flowItem:nth-child(even) .flowCard { grid-template-columns: 232px minmax(0, 1fr); padding: 26px 30px 26px 26px; }
+  .flowItem:nth-child(even) .flowPhone { order: -1; }
+  .flowPhone { width: 232px; }
+  .flowText { align-self: center; }
+  .flowIcon { margin-left: 0; margin-top: 0; }
+  /* The number leaves the card and sits on the rail, level with the card's first line. */
+  .flowNum { position: absolute; top: 36px; z-index: 1; }
+  .flowItem:nth-child(odd) .flowNum { right: -50px; }
+  .flowItem:nth-child(even) .flowNum { left: -50px; }
 }
 .voiceGrid { display: grid; gap: 48px; margin-top: 48px; align-items: center; }
 .voiceStage { display: grid; justify-items: center; gap: 28px; position: relative; padding: 32px 0; }
@@ -127,23 +155,49 @@
 .enter { animation: enterUp .6s cubic-bezier(0.23, 1, 0.32, 1) both; }
 @keyframes enterUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 
-.journeyGrid { display: grid; gap: 20px; margin-top: 48px; }
-.journeyCard { padding: 24px; display: grid; gap: 24px; align-items: center; grid-template-columns: 1fr; }
-.journeyPhone { width: min(200px, 56vw); margin: 0 auto; }
-.journeyTitle { font-size: clamp(22px, 2.4vw, 28px); margin: 12px 0 10px; }
-.journeyList { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; color: var(--or-text-2); }
+/* ---------- Discover: both journeys side by side, equal size ---------- */
+.discoverSection { background:
+  radial-gradient(55% 40% at 85% 10%, rgba(37,99,235,.07), rgba(37,99,235,0) 70%),
+  radial-gradient(45% 35% at 5% 90%, rgba(20,184,166,.06), rgba(20,184,166,0) 70%),
+  #fff; }
+.journeyGrid { display: grid; gap: 16px; margin-top: 56px; }
+.journeyCard { height: 100%; padding: 24px; display: grid; gap: 24px; align-items: center; grid-template-columns: 1fr; border-radius: 28px;
+  background: linear-gradient(180deg, #F1F5FE, #F7F9FC 75%); box-shadow: inset 0 0 0 1px rgba(28,42,64,.06), inset 0 1px 0 #fff; }
+.journeyCard[data-journey='person'] { background: linear-gradient(180deg, #EEF9F6, #F7F9FC 75%); }
+.journeyPhone { width: min(210px, 58vw); margin: 0 auto; }
+.journeyTitle { font-size: clamp(22px, 2.4vw, 28px); letter-spacing: -0.022em; margin: 16px 0 12px; }
+.journeyList { list-style: none; padding: 0; margin: 0; display: grid; gap: 10px; color: var(--or-text-2); font-size: 16px; line-height: 1.5; }
 .journeyList li { display: flex; gap: 10px; align-items: flex-start; }
-.journeyList li svg { flex-shrink: 0; margin-top: 4px; }
-.discoverFoot { margin-top: 28px; display: grid; gap: 4px; }
-@media (min-width: 640px) { .journeyCard { grid-template-columns: 200px 1fr; } .journeyPhone { width: 200px; } }
-@media (min-width: 1100px) { .journeyGrid { grid-template-columns: 1fr 1fr; } }
+.journeyList li svg { flex-shrink: 0; margin-top: 3px; }
+.discoverMore { list-style: none; padding: 0; margin: 16px 0 0; display: grid; gap: 10px; grid-template-columns: minmax(0, 1fr); }
+.discoverMore li { display: flex; gap: 12px; align-items: center; padding: 16px 18px; border-radius: 18px; background: #F7F9FC; box-shadow: inset 0 0 0 1px rgba(28,42,64,.06);
+  font-size: 15px; font-weight: 600; line-height: 1.35; color: var(--or-text); }
+.discoverMore li svg { flex-shrink: 0; color: var(--or-blue-deep); }
+.discoverFoot { margin-top: 32px; display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: center; justify-content: space-between; }
+.discoverFoot .privacyNote { margin: 4px 0; }
+@media (min-width: 640px) { .journeyCard { grid-template-columns: 210px 1fr; } .journeyPhone { width: 210px; } .discoverMore { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (min-width: 1100px) { .journeyGrid { grid-template-columns: 1fr 1fr; } .journeyCard { padding: 28px; gap: 32px; } .discoverMore { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
-/* Phones: the scattered bubbles become a simple chat column so none run off-screen. */
-@media (max-width: 767px) {
-  .problemStage { display: flex; flex-direction: column; align-items: flex-start; gap: 10px; min-height: 0; }
-  .bubble { position: static; max-width: 82%; }
-  /* Scroll-linked offsets are for wide screens; the chat-column version (bubbleChat) animates its own y. */
-  .bubble:not(.bubbleChat) { transform: none !important; }
-  .bubbleMine { align-self: flex-end; }
-  .resolved { margin-top: 14px; padding: 0; }
+
+.stepDot { display: inline-grid; place-items: center; width: 40px; height: 40px; border-radius: 12px; color: #fff; }
+
+/* ---------- Problem: the flat chat versus the same jobs sorted ---------- */
+.problemStage { margin-top: 48px; display: grid; gap: 20px; align-items: center; grid-template-columns: minmax(0, 1fr); }
+.chatPanel { display: flex; flex-direction: column; gap: 8px; padding: 18px; border-radius: 28px; max-width: 460px; width: 100%;
+  background: #EEF1EC; box-shadow: inset 0 0 0 1px rgba(28,42,64,.06); }
+.chatHead { display: flex; gap: 10px; align-items: center; padding: 2px 4px 10px; margin-bottom: 4px; border-bottom: 1px solid rgba(28,42,64,.08); }
+.chatHead b { display: block; font-size: 15px; line-height: 1.2; }
+.chatHead small { color: var(--or-text-2); font-size: 12px; }
+.chatAvatar { width: 36px; height: 36px; border-radius: 12px; display: grid; place-items: center; background: var(--or-navy); color: #fff; font-size: 12px; font-weight: 700; }
+.bubble { align-self: flex-start; max-width: 82%; padding: 9px 13px; border-radius: 16px 16px 16px 5px; background: #fff; font-size: 15px; line-height: 1.4;
+  box-shadow: 0 1px 1px rgba(28,42,64,.06); }
+.bubbleMine { align-self: flex-end; background: #DCF8C6; border-radius: 16px 16px 5px 16px; }
+.bubbleWho { display: block; font-size: 12px; font-weight: 700; color: #0F766E; }
+.problemArrow { justify-self: center; width: 44px; height: 44px; border-radius: 999px; display: grid; place-items: center; color: #fff; background: var(--or-blue);
+  box-shadow: 0 10px 24px -8px rgba(37,99,235,.55); transform: rotate(90deg); }
+.resolved { width: 100%; max-width: 440px; }
+@media (min-width: 900px) {
+  .problemStage { grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 40px; }
+  .chatPanel { justify-self: end; }
+  .problemArrow { transform: none; }
 }

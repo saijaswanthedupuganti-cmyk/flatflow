@@ -1,76 +1,80 @@
-'use client'
-import { useEffect, useRef, useState } from 'react'
-import { motion, useInView } from 'framer-motion'
-import { RefreshCw, IndianRupee, Receipt, Plane } from 'lucide-react'
-import Section from '../Section'
-import Glass from '../Glass'
+import { KeyRound, Repeat, ArrowLeftRight, ReceiptText, HandCoins, CalendarCheck } from 'lucide-react'
+import Section, { Reveal } from '../Section'
 import PhoneFrame from '../mockups/PhoneFrame'
+import JoinScreen from '../mockups/JoinScreen'
 import TasksScreen from '../mockups/TasksScreen'
+import AwayScreen from '../mockups/AwayScreen'
+import AddExpenseScreen from '../mockups/AddExpenseScreen'
 import ExpenseScreen from '../mockups/ExpenseScreen'
 import BillsScreen from '../mockups/BillsScreen'
-import AwayScreen from '../mockups/AwayScreen'
-import { EASE } from '../motion'
 import h from './home.module.css'
 
+/** The flat-management loop in the order a flat lives it. Every claim maps to a screen in the Android app. */
 const STEPS = [
-  { title: 'Tasks rotate fairly', body: 'Set a chore once. Oddroof hands it to the next person every time, and skips whoever is away.', icon: RefreshCw, color: 'var(--or-teal)', Screen: TasksScreen, label: 'Tasks: the trash turn is done and passes to the next flatmate' },
-  { title: 'Expenses split themselves', body: 'Add what you paid. Everyone sees their share and who owes whom, without a spreadsheet.', icon: IndianRupee, color: 'var(--or-blue)', Screen: ExpenseScreen, label: 'Expenses: your balance and what each flatmate owes or is owed' },
-  { title: 'Bills and month close', body: 'Rent, electricity and wifi in one list. Mark them paid and close the month with everyone settled.', icon: Receipt, color: 'var(--or-navy)', Screen: BillsScreen, label: 'Expenses, monthly bills: rent, electricity and wifi being marked paid' },
-  { title: 'Away mode', body: 'Going home for a festival? Switch on away and your turns pass on until you are back.', icon: Plane, color: 'var(--or-teal)', Screen: AwayScreen, label: 'Going away: pause your turns while you are out of town' },
+  {
+    title: 'Start a flat or join one', icon: KeyRound, Screen: JoinScreen,
+    body: 'Create your flat and share its invite code. If your flat asks for approval, the admin lets each new member in.',
+    details: ['Invite code', 'Admin approval'],
+    label: 'Join a flat: an invite code is entered, the flat is found and a join request goes to the admin',
+  },
+  {
+    title: 'Chores rotate on their own', icon: Repeat, Screen: TasksScreen,
+    body: 'Set a task once and choose how often it repeats. When it is done, the turn passes to the next flatmate.',
+    details: ['Daily', 'Weekly', 'Fortnightly', 'Monthly'],
+    label: 'Tasks: the trash turn is ticked off and passes to the next flatmate',
+  },
+  {
+    title: 'Swap a turn, or go away', icon: ArrowLeftRight, Screen: AwayScreen,
+    body: 'Ask a flatmate to cover a task. Heading home? Mark yourself away and the rotation skips you until you are back.',
+    details: ['Swap requests', 'Away mode'],
+    label: 'Going away: switch on away and your turns pass to the rest of the flat',
+  },
+  {
+    title: 'Add an expense, split it your way', icon: ReceiptText, Screen: AddExpenseScreen,
+    body: 'Log what you paid, then split it with everyone or only the people involved, equally or by custom amounts.',
+    details: ['Equal split', 'Custom split'],
+    label: 'Add expense: 1,200 rupees of groceries split equally, one flatmate unticked so each share becomes 400',
+  },
+  {
+    title: 'See who owes whom, then settle up', icon: HandCoins, Screen: ExpenseScreen,
+    body: 'Balances break down person by person. Record a settlement when you pay someone back. Oddroof keeps the record and never moves money.',
+    details: ['Record a settlement', 'Mark received'],
+    label: 'Expenses: your balance and what each flatmate owes or is owed',
+  },
+  {
+    title: 'Close the month on bills', icon: CalendarCheck, Screen: BillsScreen,
+    body: 'Rent, electricity and wifi repeat every month and split into shares. Mark each one paid, then close the month.',
+    details: ['Monthly bills', 'Close month'],
+    label: 'Monthly bills: rent, electricity and wifi being marked paid',
+  },
 ] as const
 
-function Step({ i, onActive, children }: { i: number; onActive: (i: number) => void; children: React.ReactNode }) {
-  const ref = useRef<HTMLElement>(null)
-  const inView = useInView(ref, { amount: 0.6 })
-  useEffect(() => { if (inView) onActive(i) }, [inView, i, onActive])
-  return <article ref={ref} data-story-step={i}>{children}</article>
-}
-
 export default function PinnedStory() {
-  const [active, setActive] = useState(0)
   return (
-    <Section id="how-it-works" tone="canvas" eyebrow="How it works"
-      title="Everything a shared flat argues about, settled."
-      lede="Four everyday jobs, handled the same fair way for everyone in the flat.">
-      <div className={h.story}>
-        <div className={h.storySteps}>
-          {STEPS.map((s, i) => {
-            const Icon = s.icon
-            return (
-              <Step key={s.title} i={i} onActive={setActive}>
-                <Glass tier="canvas" className={`${h.step} ${active === i ? h.stepActive : ''}`}>
-                  <span className={h.stepDot} style={{ background: s.color }}><Icon size={20} aria-hidden /></span>
+    <Section id="how-it-works" tone="canvas" className={h.storySection} eyebrow="How it works"
+      title="From move-in to month-end, one fair loop."
+      lede="Six everyday jobs in the order your flat meets them. Each one is a real screen in the app, running below.">
+      <ol className={h.flow} aria-label="How Oddroof runs a flat">
+        {STEPS.map((s, i) => {
+          const Icon = s.icon
+          return (
+            <li key={s.title} className={h.flowItem} data-story-step={i} style={{ '--i': i } as React.CSSProperties}>
+              <Reveal className={h.flowCard} delay={(i % 2) * 0.08}>
+                <div className={h.flowText}>
+                  <span className={h.flowNum} aria-hidden>{i + 1}</span>
+                  <span className={h.flowIcon}><Icon size={20} strokeWidth={1.75} aria-hidden /></span>
                   <h3>{s.title}</h3>
                   <p>{s.body}</p>
-                  <div className={h.stepPhone}><PhoneFrame label={s.label}><s.Screen /></PhoneFrame></div>
-                </Glass>
-              </Step>
-            )
-          })}
-        </div>
-        <div className={h.storyPhoneCol}>
-          <div className={h.storyPhoneSticky} data-active-screen={String(active)}>
-            <div className={h.storyPhone}>
-              <PhoneFrame label={STEPS[active].label}>
-                {/* All four screens stay mounted and crossfade in place: no blank phone between steps. */}
-                <div className={h.storyStack}>
-                  {STEPS.map((st, i) => (
-                    <motion.div key={st.title} className={h.storyLayer} initial={false}
-                      animate={{ opacity: active === i ? 1 : 0, scale: active === i ? 1 : 0.98 }}
-                      transition={{ duration: 0.24, ease: EASE }}
-                      style={{ zIndex: active === i ? 1 : 0, pointerEvents: active === i ? 'auto' : 'none' }}>
-                      <st.Screen />
-                    </motion.div>
-                  ))}
+                  <ul className={h.flowTags} aria-label="In the app">
+                    {s.details.map(d => <li key={d}>{d}</li>)}
+                  </ul>
                 </div>
-              </PhoneFrame>
-            </div>
-            <ol className={h.storyRail} aria-label="Progress">
-              {STEPS.map((st, i) => <li key={st.title} data-on={active === i ? '' : undefined} aria-current={active === i ? 'step' : undefined}><span className="sr-only">{st.title}</span></li>)}
-            </ol>
-          </div>
-        </div>
-      </div>
+                <div className={h.flowPhone}><PhoneFrame label={s.label}><s.Screen /></PhoneFrame></div>
+              </Reveal>
+            </li>
+          )
+        })}
+      </ol>
     </Section>
   )
 }

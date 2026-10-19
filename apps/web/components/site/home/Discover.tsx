@@ -1,6 +1,5 @@
-import { Search, UserPlus, Lock, BadgeCheck, MessageCircle } from 'lucide-react'
+import { Search, UserPlus, Lock, BadgeCheck, MessageCircle, Megaphone, ShieldAlert, Bookmark } from 'lucide-react'
 import Section, { Reveal } from '../Section'
-import Glass from '../Glass'
 import SiteButton from '../SiteButton'
 import PhoneFrame from '../mockups/PhoneFrame'
 import DiscoverFlatScreen from '../mockups/DiscoverFlatScreen'
@@ -20,9 +19,16 @@ const JOURNEYS = [
   },
 ] as const
 
+const MORE = [
+  { icon: Megaphone, text: 'Post a vacancy, or post that you are looking' },
+  { icon: MessageCircle, text: 'Request to connect, then chat in the app' },
+  { icon: ShieldAlert, text: 'Safety tips, report and block' },
+  { icon: Bookmark, text: 'Save flats to a private shortlist' },
+]
+
 export default function Discover() {
   return (
-    <Section id="discover" tone="white" eyebrow="Discover"
+    <Section id="discover" tone="white" className={h.discoverSection} eyebrow="Discover"
       title="Find your next flat, or your next flatmate."
       lede="Discover connects people with rooms and rooms with people, with privacy built in from the first tap.">
       <div className={h.journeyGrid}>
@@ -30,7 +36,7 @@ export default function Discover() {
           const Icon = j.icon
           return (
             <Reveal key={j.title} delay={i * 0.08}>
-              <Glass tier="canvas" className={h.journeyCard}>
+              <div className={h.journeyCard} data-journey={i === 0 ? 'flat' : 'person'}>
                 <div className={h.journeyPhone} data-listing=""><PhoneFrame label={j.label}><j.Screen /></PhoneFrame></div>
                 <div>
                   <span className={h.stepDot} style={{ background: j.color }}><Icon size={20} aria-hidden /></span>
@@ -39,15 +45,20 @@ export default function Discover() {
                     {j.points.map(p => <li key={p}><BadgeCheck size={16} color={j.color} aria-hidden />{p}</li>)}
                   </ul>
                 </div>
-              </Glass>
+              </div>
             </Reveal>
           )
         })}
       </div>
+      <ul className={h.discoverMore}>
+        {MORE.map(({ icon: Icon, text }) => <li key={text}><Icon size={18} strokeWidth={1.75} aria-hidden />{text}</li>)}
+      </ul>
       <div className={h.discoverFoot}>
-        <p className={h.privacyNote}><Lock size={16} aria-hidden />Approximate location only. Contact details stay hidden until you both accept.</p>
-        <p className={h.privacyNote}><MessageCircle size={16} aria-hidden />Talk inside the app first, share numbers only when you are ready.</p>
-        <div><SiteButton href="/discover" variant="primary">See everything in Discover</SiteButton></div>
+        <div>
+          <p className={h.privacyNote}><Lock size={16} aria-hidden />Approximate location only. Contact details stay hidden until you both accept.</p>
+          <p className={h.privacyNote}><MessageCircle size={16} aria-hidden />Talk inside the app first, share numbers only when you are ready.</p>
+        </div>
+        <SiteButton href="/discover" variant="primary">See everything in Discover</SiteButton>
       </div>
     </Section>
   )

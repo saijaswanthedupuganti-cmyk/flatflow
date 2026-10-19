@@ -26,7 +26,7 @@ export default function BillsScreen() {
             <div><div className={m.taskName}>{b.n}</div><div className={m.muted}>{b.a}</div></div>
             <span className={m.state}>
               <span className={`${m.pill} ${m.duePill} ${paid ? m.off : ''}`}>Due 5th</span>
-              <span className={`${m.pill} ${paid ? '' : m.off}`}>Paid</span>
+              <span className={`${m.pill} ${m.paidPill} ${paid ? '' : m.off}`}>Paid</span>
             </span>
           </div>
         )

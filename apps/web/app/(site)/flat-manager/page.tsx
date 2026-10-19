@@ -16,7 +16,7 @@ export default function FlatManagerPage() {
       </PageHero>
       <Problem />
       <PinnedStory />
-      <FinalCta hasPhoto={false} download={<DownloadButton variant="light" />} />
+      <FinalCta hasPhoto={false} download={<DownloadButton />} />
     </main>
   )
 }

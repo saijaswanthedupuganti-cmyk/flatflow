@@ -19,7 +19,7 @@ export default function AboutPage() {
           <p>Questions, ideas or press: <a href="mailto:hello@habitiq.app">hello@habitiq.app</a></p>
         </div>
       </Section>
-      <FinalCta hasPhoto={false} download={<DownloadButton variant="light" />} />
+      <FinalCta hasPhoto={false} download={<DownloadButton />} />
     </main>
   )
 }

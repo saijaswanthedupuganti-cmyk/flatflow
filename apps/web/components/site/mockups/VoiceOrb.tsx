@@ -25,8 +25,8 @@ function Ribbon({ live, flip }: { live: boolean; flip?: boolean }) {
       style={flip ? { transform: 'scaleX(-1)' } : undefined}>
       <defs>
         <linearGradient id="or-ribbon" x1="0" x2="1">
-          <stop offset="0" stopColor="#A78BFA" stopOpacity=".2" />
-          <stop offset="1" stopColor="#7AA2FF" stopOpacity=".95" />
+          <stop offset="0" style={{ stopColor: 'var(--or-action-bright)', stopOpacity: 0.2 }} />
+          <stop offset="1" style={{ stopColor: 'var(--or-action-bright)', stopOpacity: 0.95 }} />
         </linearGradient>
       </defs>
       {STRANDS.map((d, i) => (
@@ -39,7 +39,7 @@ function Ribbon({ live, flip }: { live: boolean; flip?: boolean }) {
   )
 }
 
-/** The voice orb: blue sphere, two rings, bars that move while listening; optional wave ribbons either side. */
+/** The voice orb: teal (press-me) sphere, two rings, bars that move while listening; optional wave ribbons either side. */
 export default function VoiceOrb({ size = 120, listening = true, ribbons = false }: { size?: number | string; listening?: boolean; ribbons?: boolean }) {
   const reduce = useCalm()
   const live = listening && !reduce

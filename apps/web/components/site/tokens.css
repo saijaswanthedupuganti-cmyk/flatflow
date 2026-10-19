@@ -1,15 +1,67 @@
+/*
+  Oddroof brand palette "C — Navy and teal" (owner-approved).
+  Teal  = the only "press me" colour: buttons, CTAs, toggles, checkboxes, selected chips/segments, active states, focus rings.
+  Navy  = brand surfaces (hero/summary cards, dark sections, footer, voice base) and heading ink.
+  Blue  = text links and info only.
+  Status colours only for status, always paired with text or an icon.
+  This file is the only place raw hex is allowed on the marketing site.
+*/
 .or-site {
-  --or-blue: #2563EB;
-  --or-blue-deep: #1D4ED8;
+  /* Action (teal) */
+  --or-action: #0F766E;          /* white on it 5.47:1; on canvas 5.10:1 */
+  --or-action-pressed: #115E59;  /* white on it 7.58:1 */
+  --or-on-action: #FFFFFF;
+  --or-action-subtle: #E6F4F1;   /* --or-action on it 4.84:1 */
+  --or-action-bright: #14B8A6;   /* decorative accents only, never text on white */
+
+  /* Brand (navy) */
   --or-navy: #1C2A40;
-  --or-amber: #F5A524;
-  --or-coral: #FF6B5A;
-  --or-teal: #14B8A6;
-  --or-violet: #8B5CF6;
-  --or-canvas: #F7F9FC;
-  --or-text: #0F172A;
-  --or-text-2: #475569;
-  --or-line: #E2E8F0;
+  --or-navy-deep: #0B1220;
+  --or-on-navy: #FFFFFF;          /* 14.44:1 on navy */
+  --or-on-navy-muted: #C7D0DE;    /* 9.28:1 on navy */
+
+  /* Links and info (blue) */
+  --or-link: #2563EB;             /* 5.17:1 on white */
+  --or-info-subtle: #EEF4FF;
+
+  /* Neutrals (cool, navy-tinted) */
+  --or-canvas: #F5F7FA;
+  --or-surface: #FFFFFF;
+  --or-surface-subtle: #EEF2F6;
+  --or-line: #E1E6EE;
+  --or-control-border: #7A8699;   /* 3.69:1 on white, 3.28:1 on surface-subtle: safe for control borders */
+  --or-text: #141C2B;
+  --or-text-2: #5A6578;           /* 5.89:1 on white, 5.48:1 on canvas */
+  --or-text-3: #5F6B7A;           /* 5.43:1 on white, 5.06:1 on canvas */
+
+  /* Status */
+  --or-success: #21643B;
+  --or-success-bg: #EAF6ED;
+  --or-warning: #8A5100;
+  --or-warning-bg: #FFF5DC;
+  --or-danger: #B4233C;
+  --or-danger-bg: #FFF0F3;
+
+  /* Device hardware in phone mockups (graphite, navy-tinted) */
+  --or-device-hi: #6B7685;
+  --or-device: #1A2333;
+  --or-device-deep: #0B1220;
+
+  /* Legacy names, kept working */
+  --or-blue: var(--or-link);           /* links/info only */
+  --or-blue-deep: var(--or-action-pressed);
+  --or-teal: var(--or-action-bright);
+
+  /* Shared legal pages use the app's Tailwind theme; map it to the site palette inside the site only. */
+  --foreground: var(--or-text);
+  --muted-foreground: var(--or-text-2);
+  --border: var(--or-line);
+  --ring: var(--or-action);
+  --color-foreground: var(--or-text);
+  --color-muted-foreground: var(--or-text-2);
+  --color-border: var(--or-line);
+  --color-ring: var(--or-action);
+
   --or-radius-lg: 28px;
   --or-radius-md: 20px;
   --or-radius-sm: 14px;
@@ -36,16 +88,15 @@
   color: inherit;
 }
 .or-site :focus-visible {
-  outline: 3px solid var(--or-blue);
+  outline: 3px solid var(--or-action);
   outline-offset: 3px;
   border-radius: 8px;
 }
-/* Brand band (navy to blue) behind inner-page heroes and the final call to action; also used as a photo tint. */
+/* Navy brand band behind inner-page heroes and the final call to action; ambient light stays a faint teal. */
 .or-golden {
   background:
-    radial-gradient(110% 80% at 85% 0%, rgba(37,99,235,.55), transparent 60%),
-    radial-gradient(80% 70% at 5% 100%, rgba(20,184,166,.20), transparent 60%),
-    linear-gradient(160deg, #0F1A2E 0%, #1C2A40 42%, #1D4ED8 100%);
+    radial-gradient(110% 80% at 85% 0%, rgba(20,184,166,.08), transparent 60%),
+    linear-gradient(160deg, var(--or-navy-deep) 0%, var(--or-navy) 100%);
 }
 @media (prefers-reduced-motion: reduce) {
   .or-site *, .or-site *::before, .or-site *::after {

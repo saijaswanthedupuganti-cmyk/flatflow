@@ -22,8 +22,8 @@ export default function Voice() {
             return (
               <Reveal key={p.title} delay={i * 0.08}>
                 <Glass tier="dark" className={h.voicePoint}>
-                  <Icon size={22} color="#9DB8FF" aria-hidden />
-                  <div><b>{p.title}</b><p style={{ margin: '4px 0 0', color: '#C9D4E8' }}>{p.body}</p></div>
+                  <Icon size={22} color="var(--or-action-bright)" aria-hidden />
+                  <div><b>{p.title}</b><p style={{ margin: '4px 0 0', color: 'var(--or-on-navy-muted)' }}>{p.body}</p></div>
                 </Glass>
               </Reveal>
             )

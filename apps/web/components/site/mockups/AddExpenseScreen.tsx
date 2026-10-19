@@ -19,7 +19,7 @@ export default function AddExpenseScreen() {
 
       <div className={m.field}>
         <span className={m.fieldLabel}>What was it for?</span>
-        <span className={`${m.fieldBox} ${m.outline}`}><ReceiptText size="1.1em" aria-hidden style={{ color: '#50615E', flexShrink: 0 }} />Groceries</span>
+        <span className={`${m.fieldBox} ${m.outline}`}><ReceiptText size="1.1em" aria-hidden style={{ color: 'var(--or-text-2)', flexShrink: 0 }} />Groceries</span>
       </div>
       <div className={m.field}>
         <span className={m.fieldLabel}>Amount (₹)</span>

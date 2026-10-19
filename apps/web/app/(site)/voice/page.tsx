@@ -14,7 +14,7 @@ export default function VoicePage() {
         <DownloadButton showMeta />
       </PageHero>
       <Voice />
-      <FinalCta hasPhoto={false} download={<DownloadButton variant="light" />} />
+      <FinalCta hasPhoto={false} download={<DownloadButton />} />
     </main>
   )
 }

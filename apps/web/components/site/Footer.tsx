@@ -4,14 +4,14 @@ import s from './site.module.css'
 
 // Column labels are h2: the footer sits after the page's h1, so h3 would skip a level.
 // Inline style mirrors the old `.footer h3` rule in site.module.css.
-const colHeading = { color: '#fff', fontSize: 14, letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 12px' } as const
+const colHeading = { color: 'var(--or-on-navy)', fontSize: 14, letterSpacing: '.12em', textTransform: 'uppercase', margin: '0 0 12px' } as const
 
 export default function Footer() {
   return (
     <footer className={s.footer}>
       <div className={s.footerGrid}>
         <div>
-          <p className={s.logo} style={{ color: '#fff' }}>Oddroof</p>
+          <p className={s.logo} style={{ color: 'var(--or-on-navy)' }}>Oddroof</p>
           <p style={{ maxWidth: '36ch', marginTop: 12 }}>A calmer shared flat: fair tasks, clear money, and safe ways to find your next flatmate.</p>
         </div>
         <nav aria-labelledby="footer-products">

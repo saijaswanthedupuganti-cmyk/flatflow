@@ -17,14 +17,14 @@ export default function JoinScreen() {
   const sent = step >= CODE.length + 2
   return (
     <div ref={ref} className={m.page}>
-      <div className={m.label} style={{ color: '#0F766E' }}>Personalised setup</div>
+      <div className={m.label} style={{ color: 'var(--or-navy)' }}>Personalised setup</div>
       <div className={m.h1} style={{ marginTop: '2%' }}>Join a flat</div>
       <div className={m.sub}>Enter the invite shared by your flat admin</div>
 
       <div className={m.field}>
         <span className={m.fieldLabel}>Invite code</span>
         <span className={`${m.fieldBox} ${m.outline}`}>
-          <KeyRound size="1.1em" aria-hidden style={{ color: '#50615E', flexShrink: 0 }} />
+          <KeyRound size="1.1em" aria-hidden style={{ color: 'var(--or-text-2)', flexShrink: 0 }} />
           {typed ? <b className={m.code}>{typed}</b> : <span className={m.muted}>FLAT-A3B9</span>}
         </span>
       </div>
@@ -33,7 +33,7 @@ export default function JoinScreen() {
         <div className={m.label}>Flat found</div>
         <div className={m.foundTop}>
           <div><div className={m.flatTitle}>Sunrise Heights 4B</div><div className={m.muted}>4 members</div></div>
-          <span className={m.pill}>Active</span>
+          <span className={`${m.pill} ${m.paidPill}`}>Active</span>
         </div>
         <div className={m.muted}>Admin approval is required. You&apos;ll join after they accept.</div>
       </div>

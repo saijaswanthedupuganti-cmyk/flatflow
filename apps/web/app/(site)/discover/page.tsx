@@ -16,7 +16,7 @@ export default function DiscoverPage() {
       </PageHero>
       <Discover />
       <Trust />
-      <FinalCta hasPhoto={false} download={<DownloadButton variant="light" />} />
+      <FinalCta hasPhoto={false} download={<DownloadButton />} />
     </main>
   )
 }

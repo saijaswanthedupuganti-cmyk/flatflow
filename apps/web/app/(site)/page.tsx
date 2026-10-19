@@ -33,7 +33,7 @@ export default function HomePage() {
       <Voice />
       <Trust />
       <Install />
-      <FinalCta hasPhoto={hasPhoto(FINAL_PHOTO)} download={<DownloadButton variant="light" />} />
+      <FinalCta hasPhoto={hasPhoto(FINAL_PHOTO)} download={<DownloadButton />} />
     </main>
   )
 }

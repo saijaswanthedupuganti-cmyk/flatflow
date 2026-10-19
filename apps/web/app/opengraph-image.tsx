@@ -6,9 +6,7 @@ export const alt = 'Oddroof — Your flat, sorted'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
-const NAVY = '#1C2A40'
-const BLUE = '#2563EB'
-const TEAL = '#14B8A6'
+import { BRAND } from '@/components/site/brand'
 
 export default async function OgImage() {
   const mark = await readFile(join(process.cwd(), 'public', 'brand', 'oddroof-mark.png'))
@@ -24,8 +22,8 @@ export default async function OgImage() {
           flexDirection: 'column',
           justifyContent: 'center',
           padding: '0 96px',
-          background: NAVY,
-          backgroundImage: `radial-gradient(circle at 85% 15%, rgba(37,99,235,0.45) 0%, transparent 55%), radial-gradient(circle at 10% 95%, rgba(20,184,166,0.22) 0%, transparent 50%)`,
+          background: BRAND.navy,
+          backgroundImage: `radial-gradient(circle at 85% 15%, rgba(20,184,166,0.08) 0%, transparent 55%), linear-gradient(160deg, ${BRAND.navyDeep} 0%, ${BRAND.navy} 100%)`,
           fontFamily: 'sans-serif',
           position: 'relative',
         }}
@@ -36,7 +34,7 @@ export default async function OgImage() {
               width: 128,
               height: 128,
               borderRadius: 32,
-              background: '#FFFFFF',
+              background: BRAND.surface,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -46,24 +44,24 @@ export default async function OgImage() {
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={markSrc} width={96} height={73} alt="" />
           </div>
-          <div style={{ fontSize: 112, fontWeight: 800, color: '#FFFFFF', letterSpacing: '-4px', lineHeight: 1 }}>
+          <div style={{ fontSize: 112, fontWeight: 800, color: BRAND.onNavy, letterSpacing: '-4px', lineHeight: 1 }}>
             Oddroof
           </div>
         </div>
 
-        <div style={{ fontSize: 52, fontWeight: 700, color: '#FFFFFF', marginTop: 48, letterSpacing: '-1px' }}>
+        <div style={{ fontSize: 52, fontWeight: 700, color: BRAND.onNavy, marginTop: 48, letterSpacing: '-1px' }}>
           Your flat, sorted.
         </div>
-        <div style={{ fontSize: 28, color: '#C9D4E8', marginTop: 16, maxWidth: 900, lineHeight: 1.35 }}>
+        <div style={{ fontSize: 28, color: BRAND.onNavyMuted, marginTop: 16, maxWidth: 900, lineHeight: 1.35 }}>
           Fair tasks, shared expenses and bills, and safe flat and flatmate discovery.
         </div>
 
         <div style={{ position: 'absolute', left: 96, right: 96, bottom: 56, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div style={{ display: 'flex', gap: 12 }}>
-            <div style={{ width: 48, height: 8, borderRadius: 8, background: BLUE }} />
-            <div style={{ width: 24, height: 8, borderRadius: 8, background: TEAL }} />
+            <div style={{ width: 48, height: 8, borderRadius: 8, background: BRAND.action }} />
+            <div style={{ width: 24, height: 8, borderRadius: 8, background: BRAND.actionBright }} />
           </div>
-          <div style={{ fontSize: 26, color: '#C9D4E8', fontWeight: 600 }}>habitiq.app · Free on Android</div>
+          <div style={{ fontSize: 26, color: BRAND.onNavyMuted, fontWeight: 600 }}>habitiq.app · Free on Android</div>
         </div>
       </div>
     ),

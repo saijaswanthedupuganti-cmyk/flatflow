@@ -34,7 +34,7 @@ export default function DiscoverFlatScreen() {
         <span className={m.chip}><span>Chennai</span></span>
         <span className={m.chip}><span>Delhi</span></span>
       </div>
-      <div className={m.resultsHead}><b>Places for you</b><span className={m.linkTeal}>My posts</span></div>
+      <div className={m.resultsHead}><b>Places for you</b><span className={m.link}>My posts</span></div>
       <div className={`${m.ofCount} ${m.muted} ${on ? '' : m.off}`}>2 of 2 flats</div>
       {LISTINGS.map((l, i) => (
         <motion.div key={l.title} className={`${m.listing} ${m.outline}`} initial={false}

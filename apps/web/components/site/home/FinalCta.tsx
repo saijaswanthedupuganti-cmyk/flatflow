@@ -9,7 +9,7 @@ export default function FinalCta({ hasPhoto, download }: { hasPhoto: boolean; do
   return (
     <section id="get-oddroof" className={`${h.final} or-golden`}>
       {hasPhoto && <Image src={FINAL_PHOTO} alt="" fill sizes="100vw" style={{ objectFit: 'cover' }} />}
-      <div className={h.heroScrim} style={{ background: 'rgba(10,18,34,.45)' }} />
+      <div className={h.heroScrim} style={{ background: 'rgba(11,18,32,.45)' }} />
       <Reveal className={h.finalInner}>
         <h2>Make your flat feel like home.</h2>
         <p style={{ maxWidth: '40ch', margin: 0, color: 'rgba(255,255,255,.9)' }}>Free for every flatmate. Create your flat or join one with an invite code.</p>

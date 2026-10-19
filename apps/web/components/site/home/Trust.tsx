@@ -5,10 +5,10 @@ import SiteButton from '../SiteButton'
 import h from './home.module.css'
 
 const TILES = [
-  { icon: EyeOff, color: 'var(--or-blue)', title: 'Contact stays private', body: 'Phone numbers and emails stay hidden until you accept a connection.' },
-  { icon: MapPin, color: 'var(--or-teal)', title: 'Approximate location only', body: 'Listings show the area, never the exact address.' },
+  { icon: EyeOff, color: 'var(--or-navy)', title: 'Contact stays private', body: 'Phone numbers and emails stay hidden until you accept a connection.' },
+  { icon: MapPin, color: 'var(--or-navy)', title: 'Approximate location only', body: 'Listings show the area, never the exact address.' },
   { icon: Trash2, color: 'var(--or-navy)', title: 'Your data, your call', body: 'Delete your account and your data from the app at any time.' },
-  { icon: Scale, color: 'var(--or-blue-deep)', title: 'Built for India\'s DPDP Act', body: 'A named grievance contact and clear rules on what we keep and why.' },
+  { icon: Scale, color: 'var(--or-navy)', title: 'Built for India\'s DPDP Act', body: 'A named grievance contact and clear rules on what we keep and why.' },
 ]
 
 export default function Trust() {

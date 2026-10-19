@@ -8,12 +8,12 @@ import h from './home.module.css'
 
 const JOURNEYS = [
   {
-    title: 'Find a flat', icon: Search, color: 'var(--or-blue)', Screen: DiscoverFlatScreen,
+    title: 'Find a flat', icon: Search, color: 'var(--or-navy)', Screen: DiscoverFlatScreen,
     label: 'Find a flat: the Hyderabad filter switches on, listings with rent per head appear and a connect request is sent',
     points: ['Rooms posted by people who live there', 'Filter by area, budget and lifestyle', 'See how the flat runs before you connect'],
   },
   {
-    title: 'Find a flatmate', icon: UserPlus, color: 'var(--or-teal)', Screen: DiscoverPeopleScreen,
+    title: 'Find a flatmate', icon: UserPlus, color: 'var(--or-navy)', Screen: DiscoverPeopleScreen,
     label: 'Find a person: flatmate seekers with area, budget and a short intro, and a connect request is sent',
     points: ['Seekers share area, budget and habits', 'Any flatmate can post your vacancy', 'It goes live once your admin approves'],
   },

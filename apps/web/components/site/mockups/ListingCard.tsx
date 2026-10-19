@@ -10,7 +10,7 @@ export default function ListingCard({ listing }: { listing: Listing }) {
       <div className={h.listingBody}>
         <b style={{ fontSize: 18 }}>₹{listing.rent.toLocaleString('en-IN')}<span style={{ fontWeight: 500, fontSize: 14, color: 'var(--or-text-2)' }}> /head</span></b>
         <span style={{ display: 'flex', gap: 6, alignItems: 'center', color: 'var(--or-text-2)', fontSize: 14 }}><MapPin size={14} aria-hidden />{listing.area}, {listing.city}</span>
-        <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: '#0B7A6C' }}><BadgeCheck size={14} aria-hidden />{listing.room} · admin approved</span>
+        <span style={{ display: 'flex', gap: 6, alignItems: 'center', fontSize: 13, color: 'var(--or-success)' }}><BadgeCheck size={14} aria-hidden />{listing.room} · admin approved</span>
         <div className={h.listingTags}>{listing.tags.map(t => <span key={t}>{t}</span>)}</div>
       </div>
     </div>

@@ -17,7 +17,7 @@ const TASKS = [
 export default function HomeScreen() {
   const { ref, step } = useLoopStep(TASKS.length + 2, 1600)
   return (
-    <div ref={ref} style={{ height: '100%', background: '#F6F8F8', position: 'relative' }}>
+    <div ref={ref} style={{ height: '100%', background: 'var(--or-canvas)', position: 'relative' }}>
       <div className={m.homeHero}>
         <Image src={HERO_BG} alt="" fill sizes="300px" style={{ objectFit: 'cover', objectPosition: '30% center' }} />
         <div className={m.topRow}>
@@ -38,17 +38,17 @@ export default function HomeScreen() {
           <ChevronRight size="1em" aria-hidden style={{ flexShrink: 0 }} />
           <div style={{ marginLeft: 'auto', display: 'grid', justifyItems: 'center', gap: '.2em' }}>
             <div className={m.stack} style={{ marginLeft: '.45em' }}>
-              <span style={{ background: '#E6F6F3', color: '#0F766E' }}>S</span>
-              <span style={{ background: '#F3E8D8', color: '#7A5A2E' }}>A</span>
-              <span style={{ background: '#FCE8E6', color: '#B4372B' }}>R</span>
-              <span style={{ background: 'rgba(255,255,255,.2)', color: '#fff' }}>+1</span>
+              <span style={{ background: 'var(--or-navy)', color: 'var(--or-on-navy)' }}>S</span>
+              <span style={{ background: 'var(--or-surface-subtle)', color: 'var(--or-navy)' }}>A</span>
+              <span style={{ background: 'var(--or-line)', color: 'var(--or-navy)' }}>R</span>
+              <span style={{ background: 'rgba(255,255,255,.2)', color: 'var(--or-on-navy)' }}>+1</span>
             </div>
             <span style={{ fontSize: '.6em' }}>4 members</span>
           </div>
         </div>
         <div className={`${m.gCard} ${m.split}`}>
           <div>
-            <span className={m.splitIcon} style={{ background: '#2BB39C' }}><Check size="1em" aria-hidden /></span>
+            <span className={m.splitIcon} style={{ background: 'var(--or-action)' }}><Check size="1em" aria-hidden /></span>
             <div><div className={m.splitBig}>3</div><div style={{ fontSize: '.7em', fontWeight: 600 }}>Tasks for you</div><div className={m.splitSmall}>Due soon</div></div>
           </div>
           <div>
@@ -58,7 +58,7 @@ export default function HomeScreen() {
         </div>
       </div>
       <div className={m.todayPanel}>
-        <div className={m.panelHead}><span>Today&apos;s tasks</span><span className={m.linkTeal}>See all →</span></div>
+        <div className={m.panelHead}><span>Today&apos;s tasks</span><span className={m.link}>See all →</span></div>
         {TASKS.map((t, i) => {
           const done = step > i
           return (

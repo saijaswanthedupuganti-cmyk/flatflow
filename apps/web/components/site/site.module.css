@@ -4,8 +4,8 @@
   -webkit-backdrop-filter: blur(18px) saturate(140%);
   backdrop-filter: blur(18px) saturate(140%);
   border: 1px solid rgba(255,255,255,.30);
-  box-shadow: 0 20px 60px rgba(16,12,30,.28), inset 0 1px 0 rgba(255,255,255,.35);
-  color: #fff;
+  box-shadow: 0 20px 60px rgba(11,18,32,.28), inset 0 1px 0 rgba(255,255,255,.35);
+  color: var(--or-on-navy);
 }
 .glass[data-glass="canvas"] {
   background: rgba(255,255,255,.76);
@@ -19,15 +19,15 @@
   -webkit-backdrop-filter: blur(20px);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255,255,255,.12);
-  box-shadow: inset 0 0 40px rgba(47,107,255,.18);
-  color: #fff;
+  box-shadow: inset 0 0 40px rgba(20,184,166,.06);
+  color: var(--or-on-navy);
 }
 /* No blur support (set by Glass.tsx via CSS.supports) or reduced transparency → solid. */
-.noBlur[data-glass="photo"] { background: rgba(40,30,50,.92); }
+.noBlur[data-glass="photo"] { background: rgba(11,18,32,.92); }
 .noBlur[data-glass="canvas"] { background: rgba(255,255,255,.98); }
 .noBlur[data-glass="dark"] { background: rgba(28,42,64,.96); }
 @media (prefers-reduced-transparency: reduce) {
-  .glass[data-glass="photo"] { background: rgba(40,30,50,.92); }
+  .glass[data-glass="photo"] { background: rgba(11,18,32,.92); }
   .glass[data-glass="canvas"] { background: rgba(255,255,255,.98); }
   .glass[data-glass="dark"] { background: rgba(28,42,64,.96); }
 }
@@ -39,30 +39,30 @@
   transition: transform 160ms var(--or-ease), background-color 160ms var(--or-ease), box-shadow 160ms var(--or-ease);
 }
 .btn:active { transform: scale(.97); }
-.primary { background: var(--or-blue); color: #fff; box-shadow: 0 10px 30px rgba(47,107,255,.35); }
-.soft { background: rgba(255,255,255,.72); color: #0B1736; border: 1px solid rgba(11,23,54,.12); box-shadow: 0 6px 18px rgba(15,30,80,.08); }
+.primary { background: var(--or-action); color: var(--or-on-action); box-shadow: 0 10px 30px -6px rgba(15,118,110,.35); }
+.soft { background: rgba(255,255,255,.72); color: var(--or-navy); border: 1px solid rgba(28,42,64,.12); box-shadow: 0 6px 18px rgba(28,42,64,.08); }
 /* Hover lift and colour only where a real pointer can hover; touch taps get the press scale alone. */
 @media (hover: hover) and (pointer: fine) {
   .btn:hover { transform: translateY(-1px); }
   .btn:hover:active { transform: scale(.97); }
-  .primary:hover { background: var(--or-blue-deep); }
-  .soft:hover { background: #fff; }
+  .primary:hover { background: var(--or-action-pressed); }
+  .soft:hover { background: var(--or-surface); }
   .ghost:hover { background: rgba(255,255,255,.22); }
 }
-.ghost { background: rgba(255,255,255,.14); color: #fff; border: 1px solid rgba(255,255,255,.4); }
-.light { background: #fff; color: var(--or-navy); }
+.ghost { background: rgba(255,255,255,.14); color: var(--or-on-navy); border: 1px solid rgba(255,255,255,.4); }
+.light { background: var(--or-surface); color: var(--or-navy); }
 .meta { margin-top: 10px; font-size: 13px; opacity: .85; }
 
 .section { padding: clamp(72px, 10vw, 140px) var(--or-gutter); }
 .toneCanvas { background: var(--or-canvas); }
-.toneWhite { background: #fff; }
-.toneDark { background: var(--or-navy); color: #fff; }
+.toneWhite { background: var(--or-surface); }
+.toneDark { background: var(--or-navy); color: var(--or-on-navy); }
 .inner { max-width: var(--or-max); margin: 0 auto; }
-.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--or-blue); }
-.toneDark .eyebrow { color: #9DB8FF; }
+.eyebrow { font-size: 13px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase; color: var(--or-navy); }
+.toneDark .eyebrow { color: var(--or-on-navy-muted); }
 .title { font-size: clamp(32px, 5vw, 56px); margin: 12px 0 0; max-width: 18ch; }
 .lede { margin-top: 18px; max-width: 60ch; color: var(--or-text-2); font-size: clamp(17px, 1.6vw, 19px); }
-.toneDark .lede { color: #C9D4E8; }
+.toneDark .lede { color: var(--or-on-navy-muted); }
 
 .navWrap { position: fixed; top: 14px; left: 14px; right: 14px; z-index: 50; display: flex; justify-content: center; pointer-events: none; }
 .nav {
@@ -85,24 +85,24 @@
 .navCta { display: none; }
 .burger { margin-left: auto; width: 44px; height: 44px; border-radius: 999px; border: 0; background: rgba(127,127,127,.18); color: inherit; display: grid; place-items: center; cursor: pointer; }
 .sheet { position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.45); display: flex; justify-content: flex-end; }
-.sheetPanel { width: min(360px, 100%); height: 100%; background: #fff; color: var(--or-text); padding: 24px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.sheetPanel { width: min(360px, 100%); height: 100%; background: var(--or-surface); color: var(--or-text); padding: 24px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
 .sheetPanel a { padding: 14px 6px; color: var(--or-text); text-decoration: none; font-weight: 600; border-bottom: 1px solid var(--or-line); }
 @media (min-width: 900px) {
   .navLinks, .navCta { display: flex; }
   .burger { display: none; }
 }
 
-.footer { background: var(--or-navy); color: #C9D4E8; padding: 64px var(--or-gutter) 40px; }
+.footer { background: var(--or-navy); color: var(--or-on-navy-muted); padding: 64px var(--or-gutter) 40px; }
 .footerGrid { max-width: var(--or-max); margin: 0 auto; display: grid; gap: 32px; grid-template-columns: 1fr; }
-.footer h3 { color: #fff; font-size: 14px; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 12px; }
-.footer a { color: #C9D4E8; text-decoration: none; display: inline-block; padding: 6px 0; min-height: 32px; }
-.footer a:hover { color: #fff; }
+.footer h3 { color: var(--or-on-navy); font-size: 14px; letter-spacing: .12em; text-transform: uppercase; margin: 0 0 12px; }
+.footer a { color: var(--or-on-navy-muted); text-decoration: none; display: inline-block; padding: 6px 0; min-height: 32px; }
+.footer a:hover { color: var(--or-on-navy); }
 .footerBottom { max-width: var(--or-max); margin: 40px auto 0; padding-top: 24px; border-top: 1px solid rgba(255,255,255,.1); font-size: 14px; }
 @media (min-width: 768px) { .footerGrid { grid-template-columns: 2fr 1fr 1fr 1fr; } }
 .noBlur.navScrolled { background: rgba(255,255,255,.97) !important; }
 .menu { background: rgba(255,255,255,.97) !important; }
 
-.pageHero { position: relative; overflow: hidden; color: #fff; padding: 150px var(--or-gutter) 80px; }
+.pageHero { position: relative; overflow: hidden; color: var(--or-on-navy); padding: 150px var(--or-gutter) 80px; }
 .pageHeroInner { position: relative; z-index: 2; max-width: var(--or-max); margin: 0 auto; display: grid; gap: 48px; grid-template-columns: minmax(0, 1fr); align-items: center; }
 .pageHero h1 { font-size: clamp(36px, 6vw, 64px); margin: 12px 0 0; max-width: 16ch; text-wrap: balance; }
 .pageHeroPhone { width: min(250px, 66vw); margin: 0 auto; }
@@ -111,24 +111,26 @@
   .pageHeroPhone { width: 270px; }
 }
 .pageLede { margin-top: 18px; max-width: 56ch; font-size: clamp(17px, 1.8vw, 20px); color: rgba(255,255,255,.9); }
-.pageHeroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(10,18,34,.55), rgba(10,18,34,.1)); z-index: 1; }
-.pageHero .eyebrow { color: #9DB8FF; }
+.pageHeroScrim { position: absolute; inset: 0; background: linear-gradient(100deg, rgba(11,18,32,.55), rgba(11,18,32,.1)); z-index: 1; }
+.pageHero .eyebrow { color: var(--or-on-navy-muted); }
 .linkList { list-style: none; padding: 0; margin: 32px 0 0; display: grid; gap: 12px; max-width: 640px; }
-.linkList a { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: var(--or-radius-md); background: #fff; border: 1px solid var(--or-line); color: var(--or-text); text-decoration: none; font-weight: 700; }
-@media (hover: hover) and (pointer: fine) { .linkList a:hover { border-color: var(--or-blue); } }
+.linkList a { display: flex; justify-content: space-between; align-items: center; padding: 18px 20px; border-radius: var(--or-radius-md); background: var(--or-surface); border: 1px solid var(--or-line); color: var(--or-text); text-decoration: none; font-weight: 700; }
+@media (hover: hover) and (pointer: fine) { .linkList a:hover { border-color: var(--or-action); } }
 .prose { max-width: 68ch; color: var(--or-text-2); font-size: 18px; }
 .prose p { margin: 0 0 16px; }
+.prose a { color: var(--or-link); text-decoration: underline; text-underline-offset: 2px; }
+.prose strong { color: var(--or-text); }
 
 /* Light glass navbar pill (hero brief): 65% white, white hairline, soft shadow, navy text. */
-.navLight[data-glass] { background: rgba(255,255,255,.65); border: 1px solid rgba(255,255,255,.85); color: #0B1736;
-  box-shadow: 0 8px 30px rgba(15,30,80,.08); padding-top: 8px; padding-bottom: 8px; }
+.navLight[data-glass] { background: rgba(255,255,255,.65); border: 1px solid rgba(255,255,255,.85); color: var(--or-navy);
+  box-shadow: 0 8px 30px rgba(28,42,64,.08); padding-top: 8px; padding-bottom: 8px; }
 .navLight .btn { min-height: 44px; }
 .noBlur.navLight[data-glass] { background: rgba(255,255,255,.97); }
 
 /* Download row: APK button plus an honest, non-interactive Play Store placeholder. */
 .storeRow { display: flex; flex-wrap: wrap; gap: 12px; align-items: flex-start; }
 .playSoon { display: inline-flex; align-items: center; gap: 10px; min-height: 52px; padding: 0 18px 0 14px; border-radius: 14px;
-  background: rgba(15,23,42,.06); color: #334155; border: 1px dashed rgba(15,23,42,.28); cursor: default; user-select: none; line-height: 1.15; }
+  background: rgba(28,42,64,.05); color: var(--or-text-2); border: 1px dashed rgba(28,42,64,.28); cursor: default; user-select: none; line-height: 1.15; }
 .playSoon small { display: block; font-size: 11px; font-weight: 600; letter-spacing: .02em; text-transform: uppercase; opacity: .8; }
 .playSoon b { font-size: 15px; }
 .playSoonOnDark { background: rgba(255,255,255,.08); color: rgba(255,255,255,.88); border-color: rgba(255,255,255,.35); }
@@ -137,3 +139,6 @@
 .phEnter { animation: phEnter .7s cubic-bezier(0.23, 1, 0.32, 1) both; }
 .pageHeroPhone.phEnter { animation-delay: 160ms; }
 @keyframes phEnter { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+
+/* Teal on navy: a faint white ring keeps the button edge legible (3:1 UI boundary). */
+:global(.or-golden) .primary, .toneDark .primary { box-shadow: 0 0 0 1px rgba(255,255,255,.28), 0 10px 30px -6px rgba(11,18,32,.5); }

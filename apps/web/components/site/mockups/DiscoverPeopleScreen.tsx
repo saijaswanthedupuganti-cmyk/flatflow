@@ -31,7 +31,7 @@ export default function DiscoverPeopleScreen() {
         <span className={m.chip}><span>Work from home</span></span>
         <span className={m.chip}><span>Vegetarian</span></span>
       </div>
-      <div className={m.resultsHead}><b>People looking nearby</b><span className={m.linkTeal}>My posts</span></div>
+      <div className={m.resultsHead}><b>People looking nearby</b><span className={m.link}>My posts</span></div>
       {PEOPLE.map((p, i) => (
         <motion.div key={p.name} className={`${m.pCard} ${m.outline}`} initial={false}
           animate={on ? { opacity: 1, y: 0 } : { opacity: 0, y: 8 }}
@@ -41,7 +41,7 @@ export default function DiscoverPeopleScreen() {
             <div style={{ flex: 1 }}><div className={m.pName}>{p.name}</div><div className={m.muted}>{p.where}</div></div>
             <ChevronRight size="1em" aria-hidden style={{ flexShrink: 0 }} />
           </div>
-          <div className={m.newTag}><Info size="1.1em" aria-hidden />New to Oddroof <span className={m.linkTeal}>Why?</span></div>
+          <div className={m.newTag}><Info size="1.1em" aria-hidden />New to Oddroof <span className={m.link}>Why?</span></div>
           {p.bio && <div className={m.bio}>{p.bio}</div>}
           <div className={m.connect}>
             <span className={i === 0 && sent ? m.off : ''}>Connect</span>

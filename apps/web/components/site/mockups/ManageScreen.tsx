@@ -27,7 +27,7 @@ export default function ManageScreen() {
         <div><span>Overdue task</span><span className={m.muted}>Kitchen cleanup · was due yesterday</span></div>
         <div><span>Balance to settle</span><span className={m.muted}>You owe ₹850 to 1 person</span></div>
       </div>
-      <div className={m.secTitle}>Recent activity<span className={m.linkTeal}>View all</span></div>
+      <div className={m.secTitle}>Recent activity<span className={m.link}>View all</span></div>
       <div className={m.act}>
         <div>Anita completed Kitchen cleanup<div className={m.muted}>2 hours ago</div></div>
         <div>You added an expense: Groceries<div className={m.muted}>Yesterday</div></div>

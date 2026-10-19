@@ -52,7 +52,7 @@ fun VacancyReviewSheet(
     val c = LocalHqColors.current
     // The request being written, so a second tap can't approve or decline it twice.
     var busyUid by remember { mutableStateOf<String?>(null) }
-    HqBottomSheet(onDismiss = onDismiss, title = "Vacancy to review") {
+    HqBottomSheet(onDismiss = onDismiss, title = "Room listing to review") {
         if (requests.isEmpty()) {
             Text("Nothing waiting right now.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(vertical = 16.dp))
             return@HqBottomSheet

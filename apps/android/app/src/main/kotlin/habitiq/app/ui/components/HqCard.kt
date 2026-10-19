@@ -17,6 +17,8 @@ import habitiq.app.ui.theme.HqRadius
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.LocalHqColors
 import habitiq.app.ui.theme.hqPressable
+import habitiq.app.ui.theme.HqShadow
+import habitiq.app.ui.theme.hqShadow
 
 /**
  * Semantic card variants (design doc section 24). Cards are for grouping related information --
@@ -45,8 +47,8 @@ fun HqCard(
     val shape = RoundedCornerShape(HqRadius.card)
     val base = modifier
         .fillMaxWidth()
-        // Figma card lift: 0 7px 22px rgba(25,49,47,.035); Status cards are flat.
-        .then(if (variant == HqCardVariant.Status) Modifier else Modifier.shadow(2.dp, shape, ambientColor = c.textPrimary.copy(alpha = .06f), spotColor = c.textPrimary.copy(alpha = .06f)))
+        // One card elevation everywhere: Floating (tinted, light only) + 1dp subtle border. Status cards are flat.
+        .then(if (variant == HqCardVariant.Status) Modifier else Modifier.hqShadow(HqShadow.Floating, shape))
         .clip(shape)
         .then(
             when (variant) {

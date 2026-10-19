@@ -161,7 +161,7 @@ fun ProfileScreen(
                     email = user?.email.orEmpty(),
                     flatName = flatInfo?.name,
                     flatSupport = "$role · ${members.size} ${if (members.size == 1) "member" else "members"}" + if (multiFlat) " · switch flats" else "",
-                    discoverySupport = if (myLooking?.active == true) "Your looking post is visible" else "Tell people how you live",
+                    discoverySupport = if (myLooking?.active == true) "Visible in Discover" else "Tell people how you live",
                 ),
                 onEdit = { pane = ProfilePane.EDIT },
                 onOpenFlat = { if (flatInfo == null) onStartOnboarding() else pane = ProfilePane.FLAT },
@@ -192,9 +192,9 @@ fun ProfileScreen(
     }
     if (showSignOutConfirm) {
         HqConfirmDialog(
-            title = "Sign out of Oddroof?",
-            message = "You'll need to sign in again to use Oddroof.",
-            confirmLabel = "Sign out",
+            title = "Log out of Oddroof?",
+            message = "You'll need to log in again to use Oddroof.",
+            confirmLabel = "Log out",
             onConfirm = {
                 showSignOutConfirm = false
                 onSignOut()
@@ -221,7 +221,7 @@ private fun EditAccountPane(
                 habitiq.app.ui.components.HqAvatar(name.ifBlank { user?.email.orEmpty() }, size = habitiq.app.ui.components.HqAvatarSize.XL)
             }
             Text(
-                "This is your Oddroof account — not your Discovery looking post.",
+                "This is your Oddroof account. Your Discover profile is separate.",
                 style = HqType.bodyMedium,
                 color = c.textSecondary
             )
@@ -243,12 +243,12 @@ private fun EditAccountPane(
                 onValueChange = {},
                 label = "Email",
                 enabled = false,
-                helperText = "Email is tied to sign-in and can’t be changed here.",
+                helperText = "Your email is how you log in, so it can’t be changed here.",
                 singleLine = true
             )
             if (!user?.photoUrl?.toString().isNullOrBlank()) {
                 Text(
-                    "Your photo comes from Google Sign-In. In-app photo upload isn’t available yet.",
+                    "Your photo comes from your Google account. You can’t upload a photo in Oddroof yet.",
                     style = HqType.caption,
                     color = c.textMuted,
                     modifier = Modifier.padding(top = HqSpacing.sm)
@@ -301,7 +301,7 @@ private fun MyFlatPane(
                         habitiq.app.ui.components.HqAvatar(
                             member.nickname.ifBlank { "Member" }, size = habitiq.app.ui.components.HqAvatarSize.MD,
                             tone = habitiq.app.ui.components.hqToneFor(member.nickname, member.uid == uid),
-                            modifier = Modifier.border(2.dp, Color.White, CircleShape),
+                            modifier = Modifier.border(2.dp, LocalHqColors.current.surfaceBase, CircleShape),
                         )
                     }
                 }
@@ -324,7 +324,7 @@ private fun MyFlatPane(
                 habitiq.app.ui.components.HqMenuRow("Members", support = "${members.size} in this flat", lastRow = !isAdmin && !multiFlat, onClick = onOpenMembers)
                 if (multiFlat) habitiq.app.ui.components.HqMenuRow("Switch flat", support = "Open another flat", lastRow = !isAdmin, onClick = onOpenFlatSwitcher)
                 if (isAdmin) {
-                    habitiq.app.ui.components.HqMenuRow("Flat settings", support = "Name, join mode and vacancy", onClick = onOpenFlatSettings)
+                    habitiq.app.ui.components.HqMenuRow("Flat settings", support = "Name, who can join, and room listing", onClick = onOpenFlatSettings)
                     habitiq.app.ui.components.HqMenuRow("Activity log", support = "Everything that happened in the flat", lastRow = true, onClick = onOpenActivity)
                 }
             }
@@ -345,23 +345,18 @@ private fun DiscoveryProfilePane(
     var lookingIn by remember { mutableStateOf(looking?.lookingIn.orEmpty()) }
     var budget by remember { mutableStateOf(looking?.budget?.takeIf { it > 0 }?.toInt()?.toString().orEmpty()) }
     var bio by remember { mutableStateOf(looking?.bio.orEmpty()) }
-    var gender by remember { mutableStateOf(looking?.gender?.ifBlank { "any" } ?: "any") }
+    var gender by remember { mutableStateOf(normalizeGender(looking?.gender)) }
     var tags by remember {
         mutableStateOf(
             looking?.lifestyleTags.orEmpty().split(",").map { it.trim() }.filter { it.isNotEmpty() }.toSet()
         )
     }
     var active by remember { mutableStateOf(looking?.active != false) }
-    val identityOptions = listOf(
-        "any" to "Prefer not to say",
-        "female" to "Woman",
-        "male" to "Man",
-        "other" to "Non-binary / other"
-    )
+    val identityOptions = GenderOptions
 
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = "Discovery Profile", onBack = onBack)
+        HqBackAppBar(title = "Your Discover profile", onBack = onBack)
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl)
         ) {
@@ -384,8 +379,8 @@ private fun DiscoveryProfilePane(
                 keyboardType = KeyboardType.Number
             )
             Spacer(Modifier.height(HqSpacing.md))
-            habitiq.app.ui.components.HqSectionTitle("Your information")
-            Text("Optional. Used so others can understand you — not as a filter you set on people.", style = HqType.caption, color = c.textMuted)
+            habitiq.app.ui.components.HqSectionTitle("Gender")
+            Text("Optional. Shown on your profile so flats know who is asking.", style = HqType.caption, color = c.textMuted)
             Spacer(Modifier.height(HqSpacing.sm))
             FlowRow(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 identityOptions.forEach { (value, label) ->
@@ -403,14 +398,14 @@ private fun DiscoveryProfilePane(
             HqTextField(bio, { bio = it }, label = "About you", placeholder = "e.g. Software engineer, early riser, loves cooking", singleLine = false, minLines = 3)
             Spacer(Modifier.height(HqSpacing.md))
             habitiq.app.ui.components.HqSettingRow(
-                title = "Visible in Discovery",
-                support = "When on, your looking post appears in Find a flatmate.",
+                title = "Visible in Discover",
+                support = "When on, flats looking for a flatmate can find you.",
             ) {
-                habitiq.app.ui.components.HqSwitch(checked = active, onCheckedChange = { active = it }, contentDescription = "Visible in Discovery")
+                habitiq.app.ui.components.HqSwitch(checked = active, onCheckedChange = { active = it }, contentDescription = "Visible in Discover")
             }
             Spacer(Modifier.height(HqSpacing.xl))
             HqButton(
-                text = "Save Discovery profile",
+                text = "Save profile",
                 onClick = {
                     onSave(city, lookingIn, budget.toDoubleOrNull() ?: 0.0, bio, gender, tags.joinToString(","), active)
                 },

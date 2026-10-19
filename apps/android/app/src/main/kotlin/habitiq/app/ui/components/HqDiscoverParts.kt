@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
@@ -56,7 +57,7 @@ fun HqSearchBar(
     val searchFocus = androidx.compose.ui.platform.LocalFocusManager.current
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
-            Modifier.weight(1f).height(48.dp).clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(horizontal = 12.dp),
+            Modifier.weight(1f).heightIn(min = 48.dp).clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(horizontal = 12.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
@@ -74,7 +75,7 @@ fun HqSearchBar(
         }
         Box {
             Row(
-                Modifier.height(48.dp).clip(shape).background(if (activeFilters > 0) c.selectedBg else c.surfaceBase)
+                Modifier.heightIn(min = 48.dp).clip(shape).background(if (activeFilters > 0) c.selectedBg else c.surfaceBase)
                     .border(1.dp, if (activeFilters > 0) c.selectedBorder else c.borderSubtle, shape)
                     .clickable(role = Role.Button, onClick = onFilters).padding(horizontal = 12.dp),
                 verticalAlignment = Alignment.CenterVertically,

@@ -40,7 +40,12 @@ import habitiq.app.ui.components.HqInlineError
 import habitiq.app.ui.components.HqInlineLoading
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.components.HqTextField
-import habitiq.app.ui.components.HqTitleOnlyAppBar
+import habitiq.app.ui.components.HqBackAppBar
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.LiveRegionMode
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -65,19 +70,17 @@ fun JoinFlatScreen(
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(c.canvas)
-            .verticalScroll(rememberScrollState())
-    ) {
-        HqTitleOnlyAppBar(onBack = onBack)
-        Column(Modifier.padding(horizontal = HqSpacing.xxl), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Text("PERSONALISED SETUP", style = HqType.labelSmall, color = c.textBrand, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
-            Text("Join a flat", style = HqType.titleLarge2, color = c.textPrimary)
-            Text("Enter the invite shared by your flat admin", style = HqType.bodyMedium, color = c.textSecondary)
-        }
-        Column(modifier = Modifier.fillMaxWidth().padding(HqSpacing.xxl)) {
+    val loading = state is FlatUiState.Loading
+    val found = preview
+    Column(Modifier.fillMaxSize().background(c.canvas).navigationBarsPadding()) {
+        HqBackAppBar(title = "Join a flat", onBack = onBack)
+        Column(
+            Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal)
+        ) {
+            Text(
+                "Ask your flatmate for the invite code.", style = HqType.bodyLarge, color = c.textSecondary,
+                modifier = Modifier.padding(bottom = HqSpacing.xl)
+            )
             HqTextField(
                 value = code,
                 onValueChange = {
@@ -90,63 +93,38 @@ fun JoinFlatScreen(
                 keyboardType = KeyboardType.Ascii,
                 capitalization = KeyboardCapitalization.Characters,
                 imeAction = ImeAction.Done,
-                onImeAction = if (preview == null && code.isNotBlank() && state !is FlatUiState.Loading) {
+                onImeAction = if (found == null && code.isNotBlank() && !loading) {
                     { viewModel.lookupFlat(code) }
                 } else null
             )
-            Spacer(Modifier.height(HqSpacing.lg))
-            val found = preview
-            if (found == null) {
-                FlatRoleCallout(
-                    accentColor = c.actionPrimaryBg,
-                    text = "Ask your flat admin for the invite code."
-                )
-                Spacer(Modifier.height(HqSpacing.xl))
-                HqButton(
-                    text = "Continue",
-                    onClick = { viewModel.lookupFlat(code) },
-                    enabled = state !is FlatUiState.Loading,
-                    loading = state is FlatUiState.Loading
-                )
-            } else {
+            if (found != null) {
                 Row(
-                    Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(20.dp)).background(c.surfaceSubtle).padding(16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically,
+                    Modifier.padding(top = HqSpacing.lg).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(habitiq.app.ui.theme.HqRadius.card))
+                        .background(c.surfaceSubtle).padding(HqSpacing.lg),
+                    horizontalArrangement = Arrangement.spacedBy(HqSpacing.md), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Home, habitiq.app.ui.components.HqTileTone.Teal)
-                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text("FLAT FOUND", style = HqType.labelSmall, color = c.textMuted, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
+                        Text("Flat found", style = HqType.labelMedium, color = c.textSecondary)
                         Text(found.name, color = c.textPrimary, style = HqType.titleSmall2)
-                        Text("${found.memberCount} members", color = c.textSecondary, style = HqType.bodyMedium)
+                        Text("${found.memberCount} ${if (found.memberCount == 1) "member" else "members"}", color = c.textSecondary, style = HqType.bodyMedium)
                     }
-                    habitiq.app.ui.components.HqBadge(if (found.memberCount >= 8) "Full" else "Active", if (found.memberCount >= 8) habitiq.app.ui.components.HqBadgeTone.Warning else habitiq.app.ui.components.HqBadgeTone.Success)
+                    if (found.memberCount >= 8) habitiq.app.ui.components.HqBadge("Full", habitiq.app.ui.components.HqBadgeTone.Warning)
                 }
                 Text(
-                    if (found.joinMode == "approval") {
-                        "Admin approval is required. You'll join after they accept."
-                    } else {
-                        "You're joining this flat."
+                    when {
+                        found.memberCount >= 8 -> "This flat has 8 members, which is the most a flat can have."
+                        found.joinMode == "approval" -> "The flat admin approves new members. You'll join once they approve."
+                        else -> "You'll join this flat straight away."
                     },
                     color = c.textSecondary,
                     style = HqType.bodyMedium,
                     modifier = Modifier.padding(top = HqSpacing.md)
                 )
-                Spacer(Modifier.height(HqSpacing.xl))
-                HqButton(
-                    text = when {
-                        found.memberCount >= 8 -> "This flat is full"
-                        found.joinMode == "approval" -> "Request to join"
-                        else -> "Join Flat"
-                    },
-                    onClick = { viewModel.joinFlat(code) },
-                    enabled = state !is FlatUiState.Loading && found.memberCount < 8,
-                    loading = state is FlatUiState.Loading
-                )
-                HqButton(text = "Use another code", onClick = { viewModel.clearPreview() }, variant = HqButtonVariant.Secondary)
             }
             when (val current = state) {
                 is FlatUiState.Loading -> HqInlineLoading(
-                    label = if (preview == null) "Checking…" else "Joining…",
+                    label = if (found == null) "Finding flat…" else "Joining…",
                     modifier = Modifier.padding(top = HqSpacing.md)
                 )
                 is FlatUiState.Error -> HqInlineError(
@@ -155,13 +133,43 @@ fun JoinFlatScreen(
                 )
                 is FlatUiState.Success -> if (pendingApproval) {
                     Text(
-                        "Join request sent. The flat admin will approve you.",
+                        "Request sent. You'll join once the flat admin approves.",
                         color = c.statusSuccessFg,
-                        style = HqType.bodySmall,
-                        modifier = Modifier.padding(top = HqSpacing.md)
+                        style = HqType.bodyMedium,
+                        modifier = Modifier.padding(top = HqSpacing.md).semantics { liveRegion = LiveRegionMode.Polite }
                     )
                 }
                 else -> {}
+            }
+            Spacer(Modifier.height(HqSpacing.xxl))
+        }
+        // Main action stays at the bottom, in the thumb zone.
+        Column(
+            Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.md),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)
+        ) {
+            if (found == null) {
+                HqButton(
+                    text = "Find flat",
+                    onClick = { viewModel.lookupFlat(code) },
+                    enabled = !loading,
+                    loading = loading
+                )
+            } else {
+                HqButton(
+                    text = when {
+                        found.memberCount >= 8 -> "This flat is full"
+                        found.joinMode == "approval" -> "Send request to join"
+                        else -> "Join flat"
+                    },
+                    onClick = { viewModel.joinFlat(code) },
+                    enabled = !loading && found.memberCount < 8,
+                    loading = loading
+                )
+                HqTextButton(
+                    text = "Use another code", onClick = { viewModel.clearPreview() },
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                )
             }
         }
     }

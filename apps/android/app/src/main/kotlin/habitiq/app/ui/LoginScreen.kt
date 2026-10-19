@@ -91,7 +91,7 @@ fun LoginScreen(
             Spacer(Modifier.height(HqSpacing.lg))
             Text("Welcome back", style = HqType.headlineLarge, color = c.textPrimary)
             Text(
-                "Sign in to continue your shared-living journey.",
+                "Log in to see your flat.",
                 style = HqType.bodyMedium,
                 color = c.textSecondary,
                 modifier = Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.xxxl)
@@ -145,7 +145,7 @@ fun LoginScreen(
             HqButton(
                 text = "Log in",
                 onClick = { viewModel.signInWithEmail(email, password) },
-                // Disabled, not spinning: the shared "Signing in…" line below covers email and Google alike.
+                // Disabled, not spinning: the shared "Logging in…" line below covers email and Google alike.
                 enabled = state !is AuthUiState.Loading,
             )
             Spacer(Modifier.height(HqSpacing.md))
@@ -156,13 +156,13 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(HqSpacing.xs))
             HqTextButton(
-                text = "Need an account? Sign up",
+                text = "Need an account? Create account",
                 onClick = onNavigateToSignup,
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Spacer(Modifier.height(HqSpacing.lg))
             when (val current = state) {
-                is AuthUiState.Loading -> HqInlineLoading(label = "Signing in…")
+                is AuthUiState.Loading -> HqInlineLoading(label = "Logging in…")
                 is AuthUiState.Error -> HqInlineError(current.message)
                 is AuthUiState.Info -> HqInlineInfo(current.message)
                 else -> {}

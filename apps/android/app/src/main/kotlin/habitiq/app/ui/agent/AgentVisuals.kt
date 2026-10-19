@@ -55,6 +55,7 @@ import habitiq.app.ui.components.HqIcons
 import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 import kotlin.math.roundToLong
 
 /** Cards rise and settle in once. Returns a 0..1 progress; it's 1 immediately when [animate] is false. */
@@ -97,7 +98,7 @@ private fun CardFrame(p: Float, content: @Composable () -> Unit) {
     val c = LocalHqColors.current
     val shape = RoundedCornerShape(22.dp)
     val surface = if (LocalAgentGlass.current) Modifier.glass(shape, strong = true)
-    else Modifier.shadow(10.dp, shape, ambientColor = Color.Black.copy(alpha = .10f), spotColor = Color.Black.copy(alpha = .10f))
+    else Modifier.hqShadow(habitiq.app.ui.theme.HqShadow.Floating, shape)
         .clip(shape).background(c.surfaceRaised).border(1.dp, c.borderSubtle, shape)
     Box(Modifier.entrance(p).fillMaxWidth().then(surface).padding(18.dp)) { content() }
 }

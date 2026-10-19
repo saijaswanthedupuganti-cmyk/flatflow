@@ -49,6 +49,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -81,6 +82,7 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHeroBleed
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
@@ -127,28 +129,19 @@ data class HomeUiModel(
     val isAdmin: Boolean = false,
 )
 
-/** Palette taken from the Oddroof dashboard reference (light). Dark mode falls back to theme tokens. */
-private object HomeLook {
-    val ink = Color(0xFF0F1F3D)
-    val muted = Color(0xFF5E6B7E)
-    val link = Color(0xFF0E8C7E)
-    val page = Color(0xFFF2F6FA)
-    val emptyBox = Color(0xFFF2F6FC)
+/**
+ * Colour grade for the evening hero photo only (a dusk tint and warm lamp light). Everything that is not drawn
+ * over the photo uses theme tokens, so light and dark mode follow the design system.
+ */
+private object HeroPhotoGrade {
     val dusk = Color(0xFF221B33)
     val warm = Color(0xFFFF8A3D)
 }
 
-private fun sp(v: Float) = androidx.compose.ui.unit.TextUnit(v, androidx.compose.ui.unit.TextUnitType.Sp)
-
-private data class QuickAction(
-    val title: String, val support: String, val icon: androidx.compose.ui.graphics.vector.ImageVector,
-    val tile: Color, val chip: Color, val glyph: Color, val onClick: () -> Unit,
-)
-
 /**
- * Authenticated Home, matching the Oddroof dashboard reference: an evening photo hero with the
- * greeting, a glass "Your flat" card and a glass summary card, then a white Today's tasks panel and
- * pastel Quick actions. Pending requests, recent activity and Discover follow below.
+ * Authenticated Home, in reading order: greeting and the flat summary (your flat, tasks, balance) over the
+ * evening photo, then "Your tasks" (overdue first), then anything waiting for the person (join and swap
+ * requests, only when present), then "Recent activity". Adding things lives behind the + button, not here.
  */
 @Composable
 fun HomeContent(
@@ -172,7 +165,7 @@ fun HomeContent(
     onOpenProfile: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
-    val page = if (c.isDark) c.canvas else HomeLook.page
+    val page = c.canvas
     HqHeroBleedEffect()
     val density = androidx.compose.ui.platform.LocalDensity.current
     val pinAtPx = WindowInsets.statusBars.getTop(density) + with(density) { 56.dp.toPx() }
@@ -181,9 +174,7 @@ fun HomeContent(
         pinned = heroPinnedState.value,
         showLogo = true,
         actions = {
-            androidx.compose.material3.IconButton(onClick = onOpenNotifications, modifier = Modifier.size(HqSize.target)) {
-                Icon(HqIcons.Bell, contentDescription = "Notifications", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
-            }
+            habitiq.app.ui.components.HqIconButton(icon = HqIcons.Bell, contentDescription = "Notifications", onClick = onOpenNotifications)
         },
     )
     Column(modifier.fillMaxSize().background(page).verticalScroll(rememberScrollState())) {
@@ -192,13 +183,13 @@ fun HomeContent(
         }
 
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
-            Column(Modifier.padding(horizontal = 8.dp).padding(bottom = HqSpacing.screenEnd)) {
+            Column(Modifier.padding(horizontal = HqSpacing.sm).padding(bottom = HqSpacing.screenEnd)) {
                 TodayPanel(model, completingTaskId, onOpenTasks, onOpenTask, onCompleteTask)
 
                 if (model.pending.isNotEmpty()) {
-                    Column(Modifier.padding(horizontal = 10.dp)) {
-                        HqSectionTitle("Pending activity")
-                        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Column(Modifier.padding(horizontal = HqSpacing.md)) {
+                        HqSectionTitle("Waiting for you")
+                        Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
                             model.pending.forEach { item ->
                                 HqCalloutCard(
                                     title = item.title, support = item.body, icon = HqIcons.Users,
@@ -209,22 +200,19 @@ fun HomeContent(
                     }
                 }
 
-                QuickActions(model, onAddTask, onAddExpense, onAddBill, onInvite)
-
-                Column(Modifier.padding(horizontal = 10.dp)) {
-                    if (model.activity.isNotEmpty()) {
-                        HqSectionTitle("Recent activity", action = "View all", onAction = onOpenActivity)
+                if (model.activity.isNotEmpty()) {
+                    Column(Modifier.padding(horizontal = HqSpacing.md)) {
+                        HqSectionTitle("Recent activity", action = "See all", onAction = onOpenActivity)
                         val spine = c.borderSubtle
                         Column(
                             Modifier.padding(start = 14.dp).drawBehind {
                                 drawLine(spine, Offset(0f, 0f), Offset(0f, size.height), strokeWidth = 1.dp.toPx())
                             },
-                            verticalArrangement = Arrangement.spacedBy(17.dp),
+                            verticalArrangement = Arrangement.spacedBy(HqSpacing.lg),
                         ) {
                             model.activity.forEach { item -> HqTimelineItem(item.text, item.time, Modifier.offset(x = (-14).dp)) }
                         }
                     }
-                    DiscoverTeaser(onOpenDiscover)
                 }
             }
         }
@@ -237,7 +225,8 @@ private fun HomeHero(
     onOpenFlatSwitcher: () -> Unit, onOpenExpenses: () -> Unit,
     onOpenNotifications: () -> Unit, onOpenMembers: () -> Unit, onOpenProfile: () -> Unit,
 ) {
-    Box(Modifier.fillMaxWidth().background(HomeLook.dusk)) {
+    val c = LocalHqColors.current
+    Box(Modifier.fillMaxWidth().background(HeroPhotoGrade.dusk)) {
         Image(
             painterResource(R.drawable.home_hero),
             contentDescription = null,
@@ -246,14 +235,14 @@ private fun HomeHero(
             modifier = Modifier.matchParentSize(),
         )
         // Evening grade: dusk at the top for the logo and greeting, warm lamp light through the middle.
-        Box(Modifier.matchParentSize().background(HomeLook.warm.copy(alpha = .22f)))
+        Box(Modifier.matchParentSize().background(HeroPhotoGrade.warm.copy(alpha = .22f)))
         Box(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
-                    0f to HomeLook.dusk.copy(alpha = .80f),
-                    .30f to HomeLook.dusk.copy(alpha = .52f),
-                    .60f to HomeLook.dusk.copy(alpha = .46f),
-                    .88f to HomeLook.dusk.copy(alpha = .30f),
+                    0f to HeroPhotoGrade.dusk.copy(alpha = .80f),
+                    .30f to HeroPhotoGrade.dusk.copy(alpha = .56f),
+                    .60f to HeroPhotoGrade.dusk.copy(alpha = .50f),
+                    .88f to HeroPhotoGrade.dusk.copy(alpha = .34f),
                     1f to Color.Transparent,
                 ),
             ),
@@ -267,29 +256,29 @@ private fun HomeHero(
             Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp).padding(top = 10.dp, bottom = 44.dp),
         ) {
             HeroTopBar(model, onOpenNotifications, onOpenMembers, onOpenProfile)
-            Spacer(Modifier.size(42.dp))
+            Spacer(Modifier.size(HqSpacing.xxxl))
             Text(
-                LocalDate.now().format(DateTimeFormatter.ofPattern("EEE, d MMMM", Locale.ENGLISH)).uppercase(),
-                style = HqType.labelMedium.copy(letterSpacing = sp(3f)),
-                color = Color.White.copy(alpha = .86f),
+                LocalDate.now().format(DateTimeFormatter.ofPattern("EEEE, d MMMM", Locale.ENGLISH)),
+                style = HqType.labelMedium,
+                color = c.onImage.copy(alpha = .88f),
                 fontWeight = FontWeight.SemiBold,
                 modifier = Modifier.padding(start = 6.dp),
             )
             Text(
-                "${greeting()},\n${model.greetingName} 👋",
-                style = HqType.display.copy(fontSize = sp(32f), lineHeight = sp(38f)),
-                color = Color.White,
-                modifier = Modifier.padding(start = 6.dp, top = 10.dp),
+                "${greeting()}, ${model.greetingName}",
+                style = HqType.display,
+                color = c.onImage,
+                modifier = Modifier.padding(start = 6.dp, top = HqSpacing.sm).semantics { heading() },
             )
             Text(
-                "${model.summaryHeadline} A calm look at ${model.flatName} today.",
+                model.summaryHeadline,
                 style = HqType.bodyLarge,
-                color = Color.White.copy(alpha = .9f),
-                modifier = Modifier.padding(start = 6.dp, top = 8.dp, end = 40.dp),
+                color = c.onImage.copy(alpha = .92f),
+                modifier = Modifier.padding(start = 6.dp, top = HqSpacing.sm, end = HqSpacing.huge),
             )
-            Spacer(Modifier.size(22.dp))
+            Spacer(Modifier.size(HqSpacing.xl))
             FlatCard(model, onOpenFlatSwitcher, onOpenMembers)
-            Spacer(Modifier.size(8.dp))
+            Spacer(Modifier.size(HqSpacing.sm))
             SummaryCard(model, onOpenExpenses)
         }
     }
@@ -297,8 +286,8 @@ private fun HomeHero(
 
 private fun Modifier.heroGlass(shape: androidx.compose.ui.graphics.Shape): Modifier = this
     .clip(shape)
-    // Smoky glass: a warm-dark tint keeps white text readable over bright parts of the photo.
-    .background(Brush.verticalGradient(listOf(Color(0xFF3A2E3E).copy(alpha = .42f), Color(0xFF2A2232).copy(alpha = .36f))))
+    // Smoky glass: a dark tint of the photo grade keeps white text readable over bright parts of the photo.
+    .background(Brush.verticalGradient(listOf(HeroPhotoGrade.dusk.copy(alpha = .48f), HeroPhotoGrade.dusk.copy(alpha = .40f))))
     .background(Brush.verticalGradient(listOf(Color.White.copy(alpha = .16f), Color.White.copy(alpha = .06f))))
     .border(1.dp, Brush.verticalGradient(listOf(Color.White.copy(alpha = .42f), Color.White.copy(alpha = .12f))), shape)
 
@@ -314,57 +303,59 @@ private fun GlassIconButton(label: String, onClick: () -> Unit, content: @Compos
 
 @Composable
 private fun HeroTopBar(model: HomeUiModel, onOpenNotifications: () -> Unit, onOpenMembers: () -> Unit, onOpenProfile: () -> Unit) {
-    Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = 48.dp), verticalAlignment = Alignment.CenterVertically) {
-        habitiq.app.ui.components.HqWordmark(height = 30.dp, tint = Color.White)
+    val c = LocalHqColors.current
+    Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = HqSize.target), verticalAlignment = Alignment.CenterVertically) {
+        habitiq.app.ui.components.HqWordmark(height = 30.dp, tint = c.onImage)
         Spacer(Modifier.weight(1f))
         GlassIconButton(if (model.unreadCount > 0) "Notifications, ${model.unreadCount} unread" else "Notifications", onOpenNotifications) {
             Box {
-                Icon(HqIcons.Bell, null, tint = Color.White, modifier = Modifier.size(22.dp))
+                Icon(HqIcons.Bell, null, tint = c.onImage, modifier = Modifier.size(HqIconSize.md))
                 if (model.unreadCount > 0) {
-                    Box(Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp).size(9.dp).clip(CircleShape).background(Color(0xFFFF3B30)))
+                    Box(Modifier.align(Alignment.TopEnd).offset(x = 3.dp, y = (-2).dp).size(9.dp).clip(CircleShape).background(c.brandCoral))
                 }
             }
         }
-        Spacer(Modifier.size(10.dp))
-        GlassIconButton("Members", onOpenMembers) { Icon(HqIcons.Users, null, tint = Color.White, modifier = Modifier.size(22.dp)) }
-        Spacer(Modifier.size(10.dp))
+        Spacer(Modifier.size(HqSpacing.md))
+        GlassIconButton("Members", onOpenMembers) { Icon(HqIcons.Users, null, tint = c.onImage, modifier = Modifier.size(HqIconSize.md)) }
+        Spacer(Modifier.size(HqSpacing.md))
         Box(
-            Modifier.size(HqSize.target).clip(CircleShape).background(Color.White.copy(alpha = .92f))
+            Modifier.size(HqSize.target).clip(CircleShape).background(c.surfaceRaised)
                 .clickable(role = Role.Button, onClickLabel = "Profile", onClick = onOpenProfile)
                 .semantics { contentDescription = "Profile" },
             contentAlignment = Alignment.Center,
         ) {
-            Text(model.greetingName.take(1).uppercase(), style = HqType.titleSmall2, color = HomeLook.link, modifier = Modifier.clearAndSetSemantics {})
+            Text(model.greetingName.take(1).uppercase(), style = HqType.titleSmall2, color = c.textBrand, modifier = Modifier.clearAndSetSemantics {})
         }
     }
 }
 
 @Composable
 private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenMembers: () -> Unit) {
+    val c = LocalHqColors.current
     val shape = RoundedCornerShape(22.dp)
     Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = "Switch flat", onClick = onOpenFlatSwitcher)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
+                .padding(horizontal = 14.dp, vertical = HqSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF2E8C80).copy(alpha = .75f))
-                    .border(1.dp, Color.White.copy(alpha = .25f), RoundedCornerShape(13.dp)),
+                Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).background(c.brandTeal.copy(alpha = .55f))
+                    .border(1.dp, c.onImage.copy(alpha = .25f), RoundedCornerShape(13.dp)),
                 contentAlignment = Alignment.Center,
-            ) { Icon(HqIcons.Home, null, tint = Color(0xFFB8F2EA), modifier = Modifier.size(24.dp)) }
+            ) { Icon(HqIcons.Home, null, tint = c.onImage, modifier = Modifier.size(HqIconSize.md)) }
             Spacer(Modifier.size(14.dp))
             Column(Modifier.weight(1f)) {
-                Text("YOUR FLAT", style = HqType.labelSmall.copy(letterSpacing = sp(2f)), color = Color.White.copy(alpha = .82f), fontWeight = FontWeight.SemiBold)
+                Text("Your flat", style = HqType.labelMedium, color = c.onImage.copy(alpha = .86f))
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(model.flatName, style = HqType.titleSmall2.copy(lineHeight = sp(22f)), color = Color.White, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Icon(HqIcons.Chevron, null, tint = Color.White, modifier = Modifier.padding(start = 6.dp).size(18.dp))
+                    Text(model.flatName, style = HqType.titleSmall2, color = c.onImage, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Icon(HqIcons.Chevron, null, tint = c.onImage, modifier = Modifier.padding(start = 6.dp).size(HqIconSize.sm))
                 }
             }
         }
-        Box(Modifier.size(width = 1.dp, height = 44.dp).background(Color.White.copy(alpha = .22f)))
+        Box(Modifier.size(width = 1.dp, height = 44.dp).background(c.onImage.copy(alpha = .22f)))
         Column(
-            Modifier.clickable(role = Role.Button, onClickLabel = "Members", onClick = onOpenMembers).padding(horizontal = 10.dp, vertical = 12.dp),
+            Modifier.clickable(role = Role.Button, onClickLabel = "Members", onClick = onOpenMembers).padding(horizontal = 10.dp, vertical = HqSpacing.md),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             val shown = model.memberNames.take(3)
@@ -374,19 +365,19 @@ private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenM
                     HqAvatar(
                         name, size = HqAvatarSize.SM,
                         tone = listOf(HqAvatarTone.Teal, HqAvatarTone.Sand, HqAvatarTone.Coral)[i % 3],
-                        modifier = Modifier.offset(x = (-8 * i).dp).border(2.dp, Color.White, CircleShape),
+                        modifier = Modifier.offset(x = (-8 * i).dp).border(2.dp, c.onImage, CircleShape),
                     )
                 }
                 if (extra > 0) {
                     Box(
                         Modifier.offset(x = (-8 * shown.size).dp).size(32.dp).heroGlass(CircleShape),
                         contentAlignment = Alignment.Center,
-                    ) { Text("+$extra", style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.SemiBold) }
+                    ) { Text("+$extra", style = HqType.labelMedium, color = c.onImage, fontWeight = FontWeight.SemiBold) }
                 }
             }
             Text(
                 "${model.memberCount} ${if (model.memberCount == 1) "member" else "members"}",
-                style = HqType.bodyMedium, color = Color.White.copy(alpha = .9f), modifier = Modifier.padding(top = 4.dp),
+                style = HqType.bodyMedium, color = c.onImage.copy(alpha = .9f), modifier = Modifier.padding(top = HqSpacing.xs),
             )
         }
     }
@@ -394,6 +385,7 @@ private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenM
 
 @Composable
 private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
+    val c = LocalHqColors.current
     val b = model.balance
     val moneyTitle = when {
         b.owe > 0 -> "You owe ${model.balanceText(b.owe)}"
@@ -407,32 +399,31 @@ private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
     }
     val shape = RoundedCornerShape(22.dp)
     Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
-        Row(Modifier.weight(1f).padding(start = 12.dp, end = 6.dp, top = 12.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-            Box(Modifier.size(38.dp).clip(CircleShape).background(Color(0xFF8FE3D3).copy(alpha = .35f)), contentAlignment = Alignment.Center) {
-                Box(Modifier.size(22.dp).clip(CircleShape).background(Color(0xFF3CC3AA)), contentAlignment = Alignment.Center) {
-                    Icon(HqIcons.Check, null, tint = Color.White, modifier = Modifier.size(14.dp))
+        Row(Modifier.weight(1f).padding(start = HqSpacing.md, end = 6.dp, top = HqSpacing.md, bottom = HqSpacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(38.dp).clip(CircleShape).background(c.brandTeal.copy(alpha = .35f)), contentAlignment = Alignment.Center) {
+                Box(Modifier.size(22.dp).clip(CircleShape).background(c.brandTeal), contentAlignment = Alignment.Center) {
+                    Icon(HqIcons.Check, null, tint = c.onImage, modifier = Modifier.size(14.dp))
                 }
             }
             Spacer(Modifier.size(10.dp))
             Column {
-                Text("${model.assignedCount}", style = HqType.titleSmall2, color = Color.White)
-                Text(if (model.assignedCount == 1) "Task for you" else "Tasks for you", style = HqType.rowTitle.copy(fontSize = sp(15f)), color = Color.White, maxLines = 1, softWrap = false, overflow = TextOverflow.Ellipsis)
-                Text(if (model.assignedCount == 0) "All caught up" else "Due soon", style = HqType.bodySmall, color = Color.White.copy(alpha = .78f), maxLines = 1)
+                Text("${model.assignedCount}", style = HqType.titleSmall2, color = c.onImage)
+                Text(if (model.assignedCount == 1) "Task for you" else "Tasks for you", style = HqType.rowTitle, color = c.onImage, maxLines = 2, overflow = TextOverflow.Ellipsis)
             }
         }
-        Box(Modifier.size(width = 1.dp, height = 52.dp).background(Color.White.copy(alpha = .22f)))
+        Box(Modifier.size(width = 1.dp, height = 52.dp).background(c.onImage.copy(alpha = .22f)))
         Row(
             Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = "Open balances", onClick = onOpenExpenses)
-                .padding(start = 14.dp, end = 12.dp, top = 12.dp, bottom = 12.dp),
+                .padding(start = 14.dp, end = HqSpacing.md, top = HqSpacing.md, bottom = HqSpacing.md),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.size(42.dp).heroGlass(CircleShape), contentAlignment = Alignment.Center) {
-                Text("₹", style = HqType.titleSmall2, color = Color.White)
+                Text("₹", style = HqType.titleSmall2, color = c.onImage)
             }
-            Spacer(Modifier.size(12.dp))
+            Spacer(Modifier.size(HqSpacing.md))
             Column {
-                Text(moneyTitle, style = HqType.rowTitle.copy(lineHeight = sp(20f), fontFeatureSettings = "tnum"), color = Color.White, fontWeight = FontWeight.SemiBold, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(moneySupport, style = HqType.bodyMedium, color = Color.White.copy(alpha = .78f), maxLines = 1)
+                Text(moneyTitle, style = HqType.amountRow, color = c.onImage, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(moneySupport, style = HqType.bodyMedium, color = c.onImage.copy(alpha = .82f), maxLines = 1)
             }
         }
     }
@@ -444,24 +435,22 @@ private fun TodayPanel(
     onOpenTasks: () -> Unit, onOpenTask: (String) -> Unit, onCompleteTask: (String) -> Unit,
 ) {
     val c = LocalHqColors.current
-    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
-    val link = if (c.isDark) c.textBrand else HomeLook.link
     val shape = RoundedCornerShape(26.dp)
     Column(
         Modifier.fillMaxWidth()
-            .shadow(12.dp, shape, ambientColor = Color(0xFF1B3A6B).copy(alpha = .08f), spotColor = Color(0xFF1B3A6B).copy(alpha = .08f))
-            .clip(shape).background(c.surfaceRaised).padding(horizontal = 16.dp, vertical = 18.dp),
+            .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, shape)
+            .clip(shape).background(c.surfaceRaised).padding(horizontal = HqSpacing.lg, vertical = 18.dp),
     ) {
-        Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = 14.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Today's tasks", style = HqType.titleMedium2.copy(fontSize = sp(22f)), color = ink, modifier = Modifier.weight(1f))
+        Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = HqSpacing.md), verticalAlignment = Alignment.CenterVertically) {
+            Text("Your tasks", style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.weight(1f).semantics { heading() })
             Row(
-                Modifier.defaultMinSize(minHeight = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onOpenTasks)
+                Modifier.defaultMinSize(minHeight = HqSize.target).clip(RoundedCornerShape(HqSpacing.md)).clickable(role = Role.Button, onClick = onOpenTasks)
                     .semantics { contentDescription = "See all tasks" }
-                    .padding(horizontal = 6.dp, vertical = 8.dp),
+                    .padding(horizontal = 6.dp, vertical = HqSpacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("See all", style = HqType.rowTitle, color = link, fontWeight = FontWeight.SemiBold, modifier = Modifier.clearAndSetSemantics {})
-                Icon(HqIcons.Arrow, null, tint = link, modifier = Modifier.padding(start = 6.dp).size(18.dp))
+                Text("See all", style = HqType.rowTitle, color = c.textBrand, fontWeight = FontWeight.SemiBold, modifier = Modifier.clearAndSetSemantics {})
+                Icon(HqIcons.Arrow, null, tint = c.textBrand, modifier = Modifier.padding(start = 6.dp).size(HqIconSize.sm))
             }
         }
         if (model.tasks.isEmpty()) {
@@ -482,7 +471,6 @@ private fun TodayPanel(
                                 fontWeight = if (task.overdue) FontWeight.Bold else FontWeight.Normal,
                             )
                         },
-                        trailing = { HqPill("YOU") },
                     )
                 }
             }
@@ -490,22 +478,20 @@ private fun TodayPanel(
     }
 }
 
-/** "You're all caught up!" with the clipboard-and-sparkles illustration from the reference. */
+/** Nothing assigned: a calm note with the clipboard illustration, no call to action. */
 @Composable
 private fun HomeEmptyTasks() {
     val c = LocalHqColors.current
-    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
-    val muted = if (c.isDark) c.textSecondary else HomeLook.muted
     val shape = RoundedCornerShape(22.dp)
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(if (c.isDark) c.surfaceSubtle else HomeLook.emptyBox).padding(vertical = 24.dp, horizontal = 16.dp),
+        Modifier.fillMaxWidth().clip(shape).background(c.surfaceSubtle).padding(vertical = HqSpacing.xxl, horizontal = HqSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         ClipboardDone(Modifier.size(width = 120.dp, height = 84.dp))
-        Text("You're all caught up!", style = HqType.titleSmall2.copy(fontSize = sp(20f)), color = ink, modifier = Modifier.padding(top = 14.dp))
+        Text("No tasks for you right now", style = HqType.titleSmall2, color = c.textPrimary, modifier = Modifier.padding(top = 14.dp))
         Text(
-            "Nothing is assigned to you right now.\nEnjoy your day! 🎉",
-            style = HqType.bodyLarge, color = muted,
+            "Tasks your flat gives you show up here.",
+            style = HqType.bodyLarge, color = c.textSecondary,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
@@ -514,6 +500,13 @@ private fun HomeEmptyTasks() {
 
 @Composable
 private fun ClipboardDone(modifier: Modifier) {
+    val c = LocalHqColors.current
+    val ray = c.brandTeal.copy(alpha = .45f)
+    val boardBack = c.borderControl
+    val boardTop = c.surfaceRaised
+    val boardBottom = c.selectedBg
+    val clip = c.borderControl
+    val check = c.brandTeal
     androidx.compose.foundation.Canvas(modifier) {
         val cx = size.width / 2
         val boardW = size.height * 0.62f
@@ -521,7 +514,6 @@ private fun ClipboardDone(modifier: Modifier) {
         val top = size.height * 0.14f
         val left = cx - boardW / 2
         val cy = top + boardH / 2
-        val ray = Color(0xFF8FB8F2)
         listOf(-150.0, -125.0, -55.0, -30.0, 150.0, 30.0).forEach { deg ->
             val a = Math.toRadians(deg)
             val r1 = boardW * 0.80f
@@ -534,87 +526,26 @@ private fun ClipboardDone(modifier: Modifier) {
             )
         }
         val radius = androidx.compose.ui.geometry.CornerRadius(10.dp.toPx())
-        drawRoundRect(Color(0xFFBCD6F7), Offset(left - 6.dp.toPx(), top + 4.dp.toPx()), androidx.compose.ui.geometry.Size(boardW, boardH), radius)
+        drawRoundRect(boardBack, Offset(left - 6.dp.toPx(), top + 4.dp.toPx()), androidx.compose.ui.geometry.Size(boardW, boardH), radius)
         drawRoundRect(
-            Brush.verticalGradient(listOf(Color(0xFFF5F9FF), Color(0xFFE3EEFD)), startY = top, endY = top + boardH),
+            Brush.verticalGradient(listOf(boardTop, boardBottom), startY = top, endY = top + boardH),
             Offset(left, top), androidx.compose.ui.geometry.Size(boardW, boardH), radius,
         )
         drawRoundRect(
-            Color(0xFFA9C8F2), Offset(cx - boardW * 0.28f, top - 5.dp.toPx()),
+            clip, Offset(cx - boardW * 0.28f, top - 5.dp.toPx()),
             androidx.compose.ui.geometry.Size(boardW * 0.56f, 10.dp.toPx()), androidx.compose.ui.geometry.CornerRadius(5.dp.toPx()),
         )
-        val check = androidx.compose.ui.graphics.Path().apply {
+        val path = androidx.compose.ui.graphics.Path().apply {
             moveTo(cx - boardW * 0.2f, top + boardH * 0.55f)
             lineTo(cx - boardW * 0.04f, top + boardH * 0.70f)
             lineTo(cx + boardW * 0.24f, top + boardH * 0.40f)
         }
         drawPath(
-            check, Color(0xFF14A08F),
+            path, check,
             style = androidx.compose.ui.graphics.drawscope.Stroke(
                 width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round, join = androidx.compose.ui.graphics.StrokeJoin.Round,
             ),
         )
-    }
-}
-
-@Composable
-private fun QuickActions(model: HomeUiModel, onAddTask: () -> Unit, onAddExpense: () -> Unit, onAddBill: () -> Unit, onInvite: () -> Unit) {
-    val c = LocalHqColors.current
-    val ink = if (c.isDark) c.textPrimary else HomeLook.ink
-    val muted = if (c.isDark) c.textSecondary else HomeLook.muted
-    val dark = c.isDark
-    fun tone(light: Long, darkAlpha: Float) = if (dark) Color(light).copy(alpha = darkAlpha) else Color(light)
-    val icons = androidx.compose.material.icons.Icons.Rounded
-    val actions = buildList {
-        if (model.isAdmin) add(QuickAction("Add task", "Assign or\nrotate", icons.CheckCircle, tone(0xFFE6F6F1, .10f), tone(0xFFCBEDE3, .22f), Color(0xFF14A08F), onAddTask))
-        add(QuickAction("Add expense", "Split with\nflatmates", icons.CreditCard, tone(0xFFE9F0FC, .10f), tone(0xFFD3E2FA, .22f), Color(0xFF2F6BEF), onAddExpense))
-        if (model.isAdmin) add(QuickAction("Add bill", "Set up\nrecurring", icons.Description, tone(0xFFFFF3E6, .10f), tone(0xFFFFE0BD, .22f), Color(0xFFF08A1C), onAddBill))
-        if (model.canInvite) add(QuickAction("Invite flatmate", "Share code", icons.Group, tone(0xFFF1EDFC, .10f), tone(0xFFE1D9FA, .22f), Color(0xFF7457E0), onInvite))
-    }
-    Column(Modifier.padding(horizontal = 10.dp).padding(top = 26.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Quick actions", style = HqType.titleMedium2.copy(fontSize = sp(22f)), color = ink, softWrap = false)
-            Text(
-                "Add, track or manage in seconds.", style = HqType.bodySmall.copy(fontSize = sp(12.5f)), color = muted, maxLines = 1,
-                overflow = TextOverflow.Ellipsis, textAlign = androidx.compose.ui.text.style.TextAlign.End,
-                modifier = Modifier.weight(1f).padding(start = 10.dp),
-            )
-        }
-        Row(Modifier.fillMaxWidth().height(androidx.compose.foundation.layout.IntrinsicSize.Max).padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            actions.forEach { a ->
-                Column(
-                    Modifier.weight(1f).fillMaxHeight().heightIn(min = 104.dp).clip(RoundedCornerShape(20.dp)).background(a.tile)
-                        .clickable(role = Role.Button, onClick = a.onClick).padding(horizontal = 3.dp, vertical = 12.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Box(Modifier.size(40.dp).clip(RoundedCornerShape(12.dp)).background(a.chip), contentAlignment = Alignment.Center) {
-                        Icon(a.icon, null, tint = a.glyph, modifier = Modifier.size(24.dp))
-                    }
-                    Text(
-                        a.title, style = HqType.rowTitle.copy(fontSize = sp(13.5f), lineHeight = sp(18f), letterSpacing = sp(-0.1f)), color = ink, fontWeight = FontWeight.SemiBold,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 8.dp),
-                    )
-                    Text(
-                        a.support, style = HqType.bodySmall.copy(fontSize = sp(12f), lineHeight = sp(16f)), color = muted,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(top = 3.dp),
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun DiscoverTeaser(onOpenDiscover: () -> Unit) {
-    val c = LocalHqColors.current
-    Box(Modifier.padding(top = 26.dp).fillMaxWidth().clip(RoundedCornerShape(20.dp)).background(c.surfaceSubtle)) {
-        Box(Modifier.align(Alignment.TopEnd).offset(x = 28.dp, y = (-32).dp).size(95.dp).clip(CircleShape).background(c.selectedBg))
-        Column(Modifier.padding(20.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("DISCOVER", style = HqType.labelSmall, color = c.textBrand, fontWeight = FontWeight.ExtraBold)
-            Text("Looking for a flatmate?", style = HqType.titleSmall2, color = c.textPrimary, modifier = Modifier.padding(top = 3.dp))
-            Text("Find people and flats that fit the way you live.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = 9.dp))
-            HqButton(text = "Explore Discover", onClick = onOpenDiscover, variant = HqButtonVariant.Secondary, fullWidth = false, trailingIcon = HqIcons.Arrow)
-        }
     }
 }
 

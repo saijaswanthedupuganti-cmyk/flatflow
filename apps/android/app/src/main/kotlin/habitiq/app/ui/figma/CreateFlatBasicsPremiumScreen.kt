@@ -2,7 +2,8 @@ package habitiq.app.ui.figma
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -19,7 +20,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqButton
-import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.components.HqTextField
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqRadius
@@ -27,7 +27,7 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
-/** Figma 64:349 — Create a Flat: Basics (Premium), step 1 of 5. */
+/** Create a flat, step 1 of 2: name (required) and type. [onSkip] is kept for callers; the name cannot be skipped. */
 @Composable
 fun CreateFlatBasicsPremiumScreen(
     flatName: String,
@@ -40,27 +40,27 @@ fun CreateFlatBasicsPremiumScreen(
     modifier: Modifier = Modifier
 ) {
     val c = LocalHqColors.current
-    val types = listOf("apartment" to "Apartment", "house" to "Independent House")
+    val types = listOf("apartment" to "Apartment", "house" to "Independent house")
 
     Box(modifier.fillMaxSize().background(c.canvas)) {
         Column(Modifier.fillMaxSize()) {
-            FlatWizardPremiumHeader(currentStep = 1, onBack = onBack, onSkip = onSkip)
+            FlatWizardPremiumHeader(currentStep = 1, onBack = onBack)
             Column(
                 Modifier
                     .weight(1f)
                     .verticalScroll(rememberScrollState())
                     .padding(horizontal = HqSpacing.xxl)
-                    .padding(top = HqSpacing.huge, bottom = HqSpacing.xxl),
-                verticalArrangement = Arrangement.spacedBy(HqSpacing.huge)
+                    .padding(top = HqSpacing.lg, bottom = HqSpacing.xxl),
+                verticalArrangement = Arrangement.spacedBy(HqSpacing.xxxl)
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                     Text(
-                        "Let's start with the basics",
+                        "Name your flat",
                         color = c.textPrimary,
                         style = HqType.headlineLarge
                     )
                     Text(
-                        "Tell us about your flat",
+                        "Your flatmates will see this name.",
                         color = c.textSecondary,
                         style = HqType.bodyLarge
                     )
@@ -68,7 +68,7 @@ fun CreateFlatBasicsPremiumScreen(
                 HqTextField(
                     value = flatName,
                     onValueChange = onFlatNameChange,
-                    label = "Flat Name",
+                    label = "Flat name",
                     placeholder = "e.g. The Penthouse, Cozy 3BHK",
                     leadingIcon = Icons.Filled.Home,
                     imeAction = ImeAction.Done,
@@ -76,7 +76,7 @@ fun CreateFlatBasicsPremiumScreen(
                 )
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
                     Text(
-                        "Flat Type",
+                        "Flat type",
                         color = c.textPrimary,
                         style = HqType.labelLarge
                     )
@@ -89,17 +89,14 @@ fun CreateFlatBasicsPremiumScreen(
                         )
                     }
                 }
-                Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
-                    HqButton(
-                        text = "Continue",
-                        enabled = flatName.isNotBlank(),
-                        onClick = onContinue
-                    )
-                    Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        HqTextButton(text = "Skip for now", onClick = onSkip)
-                    }
-                }
             }
+            // Sticky main action in the thumb zone. The name is required, so there is no Skip on this step.
+            HqButton(
+                text = "Continue",
+                enabled = flatName.isNotBlank(),
+                onClick = onContinue,
+                modifier = Modifier.navigationBarsPadding().padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.md)
+            )
         }
     }
 }
@@ -121,8 +118,8 @@ private fun FlatTypeOption(label: String, selected: Boolean, onClick: () -> Unit
                     Modifier.border(1.dp, c.borderSubtle, shape)
                 }
             )
-            .clickable(onClick = onClick)
-            .padding(horizontal = HqSpacing.xxl, vertical = HqSpacing.xxl),
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
+            .padding(horizontal = HqSpacing.xl, vertical = HqSpacing.lg),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(

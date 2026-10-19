@@ -114,10 +114,10 @@ private data class Suggestion(val label: String, val icon: ImageVector, val tint
 
 /** Starters shown while listening. A null [Suggestion.text] means "start talking with a hint". */
 private val SUGGESTIONS = listOf(
-    Suggestion("What do I need to do today?", Icons.Rounded.CalendarMonth, Color(0xFF4D9C8E), "What do I need to do today?"),
-    Suggestion("Add an expense", Icons.Rounded.Add, Color(0xFF3B6FF0), null),
-    Suggestion("Who owes me money?", Icons.Rounded.Group, Color(0xFF7B5BE0), "Who owes me?"),
-    Suggestion("What do I owe?", Icons.Rounded.CurrencyRupee, Color(0xFFC98A3E), "What do I owe?"),
+    Suggestion("What do I need to do today?", Icons.Rounded.CalendarMonth, VoiceColors.buttonTop, "What do I need to do today?"),
+    Suggestion("Add an expense", Icons.Rounded.Add, VoiceColors.buttonTop, null),
+    Suggestion("Who owes me money?", Icons.Rounded.Group, VoiceColors.buttonTop, "Who owes me?"),
+    Suggestion("What do I owe?", Icons.Rounded.CurrencyRupee, VoiceColors.buttonTop, "What do I owe?"),
 )
 
 /**
@@ -309,7 +309,7 @@ private fun StateContent(
                 Spacer(Modifier.height(18.dp))
                 Box(
                     Modifier.size(64.dp).clip(CircleShape)
-                        .background(Brush.verticalGradient(listOf(Color(0xFF3CC3AA), Color(0xFF14937F)))),
+                        .background(Brush.verticalGradient(listOf(VoiceColors.orbMid, VoiceColors.buttonTop))),
                     contentAlignment = Alignment.Center,
                 ) { Icon(Icons.Rounded.Check, null, tint = White, modifier = Modifier.size(34.dp)) }
                 Spacer(Modifier.height(14.dp))

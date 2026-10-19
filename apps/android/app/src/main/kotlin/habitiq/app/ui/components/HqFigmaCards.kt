@@ -46,8 +46,8 @@ fun HqIconTile(icon: ImageVector?, tone: HqTileTone, modifier: Modifier = Modifi
     val c = LocalHqColors.current
     val (bg, fg) = when (tone) {
         HqTileTone.Teal -> c.selectedBg to c.selectedFg
-        HqTileTone.Coral -> c.warmBg to Color(0xFFBC5144)
-        HqTileTone.Sand -> Color(0xFFF3EADC) to Color(0xFF806039)
+        HqTileTone.Coral -> c.warmBg to c.warmFg
+        HqTileTone.Sand -> c.statusWarningBg to c.statusWarningFg
         HqTileTone.Neutral -> c.surfaceSubtle to c.textSecondary
     }
     Box(modifier.size(size.dp).clip(RoundedCornerShape((size * 0.31f).dp)).background(bg), contentAlignment = Alignment.Center) {
@@ -149,7 +149,7 @@ fun HqCalloutCard(
 ) {
     val c = LocalHqColors.current
     val shape = RoundedCornerShape(18.dp)
-    val (bg, border) = if (tone == HqTileTone.Coral) Color(0xFFFFFAFA) to Color(0xFFF7D8D3) else c.surfaceBase to c.borderSubtle
+    val (bg, border) = if (tone == HqTileTone.Coral) c.surfaceBase to c.statusDangerFg.copy(alpha = .24f) else c.surfaceBase to c.borderSubtle
     Row(
         modifier.fillMaxWidth().clip(shape).background(bg).border(1.dp, border, shape)
             .hqPressable(onClick = onClick).padding(15.dp),
@@ -171,10 +171,10 @@ fun HqTimelineItem(text: String, time: String, modifier: Modifier = Modifier, mo
     val c = LocalHqColors.current
     Row(modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(11.dp)) {
         Box(
-            Modifier.size(28.dp).clip(CircleShape).background(if (money) Color(0xFFF3EADC) else c.selectedBg),
+            Modifier.size(28.dp).clip(CircleShape).background(if (money) c.statusWarningBg else c.selectedBg),
             contentAlignment = Alignment.Center,
         ) {
-            if (money) Text("₹", style = HqType.labelMedium, color = Color(0xFF7D613B))
+            if (money) Text("₹", style = HqType.labelMedium, color = c.statusWarningFg)
             else Icon(icon, null, tint = c.selectedFg, modifier = Modifier.size(15.dp))
         }
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {

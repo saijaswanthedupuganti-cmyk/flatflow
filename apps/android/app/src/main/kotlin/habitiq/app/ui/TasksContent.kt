@@ -98,7 +98,7 @@ fun TasksContent(
         val toDo = if (model.scope == TaskScope.Mine) model.mineCount else model.allCount
         Row(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 23.dp), verticalAlignment = Alignment.Bottom) {
             Column(Modifier.weight(1f)) {
-                Text(if (model.scope == TaskScope.Mine) "YOUR TASKS" else "ALL TASKS", style = HqType.labelSmall, color = c.textMuted, fontWeight = FontWeight.ExtraBold)
+                Text(if (model.scope == TaskScope.Mine) "Your tasks" else "All tasks", style = HqType.labelMedium, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
                 Text(if (toDo == 0) "All clear" else "$toDo to do", style = HqType.display.copy(fontSize = 29.sp), color = c.textPrimary)
             }
             if (model.overdueCount > 0 || model.overdueOnly) {
@@ -117,7 +117,7 @@ fun TasksContent(
             if (model.away) {
                 HqCalloutCard(
                     title = "You're away",
-                    support = "Tasks skip you until you return. Tap to return.",
+                    support = "Tasks skip you until you're back. Tap to change.",
                     icon = HqIcons.Clock,
                     tone = HqTileTone.Neutral,
                     onClick = onOpenAway,
@@ -150,9 +150,9 @@ fun TasksContent(
                         assigneeIsMe = task.assigneeText == "You",
                         badge = if (task.overdue && !task.completed) "Overdue" else null,
                         meta = if (task.overdue && !task.completed) null else when (task.kind) {
-                            HomeTaskKind.Group -> "Group task"
-                            HomeTaskKind.OneOff -> "One-time"
-                            HomeTaskKind.Rotating -> "Rotation"
+                            HomeTaskKind.Group -> "Takes turns"
+                            HomeTaskKind.OneOff -> "Once"
+                            HomeTaskKind.Rotating -> "Takes turns"
                         },
                         metaIcon = if (task.kind == HomeTaskKind.Rotating) HqIcons.Clock else null,
                         overdue = task.overdue && !task.completed,
@@ -170,8 +170,8 @@ fun TasksContent(
         if (!model.away) {
             Spacer(Modifier.height(HqSpacing.xl))
             HqCalloutCard(
-                title = "Going away?",
-                support = "Pause your turns while you're out of town.",
+                title = "Mark me as away",
+                support = "Your turns pause while you're away.",
                 icon = HqIcons.Clock,
                 tone = HqTileTone.Neutral,
                 onClick = onOpenAway,
@@ -194,14 +194,21 @@ private fun EmptyTasks(model: TasksUiModel, onCreateTask: () -> Unit) {
             model.overdueOnly -> Text("Nothing is overdue.", style = HqType.bodyLarge, color = c.textSecondary)
             model.scope == TaskScope.Mine -> {
                 Text("Nothing on your plate", style = HqType.titleSmall2, color = c.textPrimary)
-                Text("No tasks are assigned to you right now.", style = HqType.bodyMedium, color = c.textSecondary)
+                Text(
+                    if (!model.isAdmin && model.allCount == 0) "No tasks yet. Only your flat admin can add tasks."
+                    else "No tasks are assigned to you right now.",
+                    style = HqType.bodyMedium, color = c.textSecondary,
+                )
             }
             model.isAdmin -> {
                 Text("No tasks yet", style = HqType.titleSmall2, color = c.textPrimary)
-                Text("Create a simple rotation so everyone knows whose turn it is.", style = HqType.bodyMedium, color = c.textSecondary)
-                HqButton(text = "Create task", onClick = onCreateTask, fullWidth = false)
+                Text("Add a task so everyone knows whose turn it is.", style = HqType.bodyMedium, color = c.textSecondary)
+                HqButton(text = "Add task", onClick = onCreateTask, fullWidth = false)
             }
-            else -> Text("No tasks yet.", style = HqType.bodyLarge, color = c.textSecondary)
+            else -> {
+                Text("No tasks yet", style = HqType.titleSmall2, color = c.textPrimary)
+                Text("Only your flat admin can add tasks.", style = HqType.bodyMedium, color = c.textSecondary)
+            }
         }
     }
 }

@@ -10,8 +10,6 @@ import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.components.HqIconTile
 import habitiq.app.ui.components.HqIcons
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -48,9 +46,11 @@ import habitiq.app.ui.components.HqRowDivider
 import habitiq.app.ui.components.HqSectionHeader
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.theme.HqIconSize
+import habitiq.app.ui.theme.HqRadius
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 
 data class ContributionLine(val label: String, val date: String, val text: String)
 
@@ -97,27 +97,27 @@ fun ExpensesContent(
     ) {
         header()
 
-        // Figma balance hero: dark teal gradient card, tracked caps label, the amount, then who.
+        // Balance hero: navy brand summary card, label, the amount, then who.
         Column(
             Modifier.fillMaxWidth()
-                .shadow(15.dp, RoundedCornerShape(24.dp), ambientColor = c.textPrimary.copy(alpha = .17f), spotColor = c.textPrimary.copy(alpha = .17f))
-                .clip(RoundedCornerShape(24.dp))
-                .background(Brush.linearGradient(listOf(Color(0xFF173A36), Color(0xFF102B28))))
+                .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, RoundedCornerShape(HqRadius.card))
+                .clip(RoundedCornerShape(HqRadius.card))
+                .background(c.brandInk)
                 .padding(22.dp),
             verticalArrangement = Arrangement.spacedBy(3.dp),
         ) {
-            Text("YOUR BALANCE", style = HqType.labelSmall, color = Color(0xFF8DD8CF), fontWeight = FontWeight.ExtraBold)
+            Text("Your balance", style = HqType.labelMedium, color = c.onBrandInk.copy(alpha = .8f), fontWeight = FontWeight.SemiBold)
             if (settled) {
-                Text("All settled", style = HqType.titleMedium2, color = Color.White, modifier = Modifier.padding(top = 4.dp))
-                Text("Nobody owes anything right now.", style = HqType.bodyMedium, color = Color(0xFFACBCBA))
+                Text("All settled", style = HqType.titleMedium2, color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                Text("Nobody owes anything right now.", style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f))
             } else {
                 model.oweText?.let {
-                    Text("You owe $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = Color.White, modifier = Modifier.padding(top = 4.dp))
-                    model.oweSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = Color(0xFFACBCBA)) }
+                    Text("You owe $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                    model.oweSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f)) }
                 }
                 model.owedText?.let {
-                    Text("You're owed $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = Color.White, modifier = Modifier.padding(top = 4.dp))
-                    model.owedSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = Color(0xFFACBCBA)) }
+                    Text("You're owed $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                    model.owedSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f)) }
                 }
             }
         }
@@ -134,7 +134,7 @@ fun ExpensesContent(
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Icon(HqIcons.Shield, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
-                Text("Oddroof records settlements but does not process payments.", style = HqType.bodyMedium, color = c.textSecondary)
+                Text("Oddroof records payments; it doesn't move money.", style = HqType.bodyMedium, color = c.textSecondary)
             }
         }
 
@@ -166,7 +166,7 @@ private fun PersonBalance(person: PersonBalanceItem, onSettle: () -> Unit) {
             }
             Spacer(Modifier.weight(1f))
             // A text action keeps the rows light; the confirmation dialog carries the weight of the decision.
-            HqTextButton(text = if (person.youOwe) "Record a settlement" else "Mark received", onClick = onSettle)
+            HqTextButton(text = if (person.youOwe) "Settle up" else "Mark received", onClick = onSettle)
         }
         if (expanded) {
             Column(Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.related), verticalArrangement = Arrangement.spacedBy(HqSpacing.related)) {
@@ -226,7 +226,7 @@ private fun EmptyExpenses(onAddExpense: () -> Unit) {
 @Composable
 fun ExpenseScopeTabs(monthly: Boolean, onSelect: (Boolean) -> Unit, modifier: Modifier = Modifier) {
     habitiq.app.ui.components.HqScopeTabs(
-        options = listOf("Daily splits" to null, "Monthly bills" to null),
+        options = listOf("Expenses" to null, "Bills" to null),
         selectedIndex = if (monthly) 1 else 0,
         onSelect = { onSelect(it == 1) },
         modifier = modifier,

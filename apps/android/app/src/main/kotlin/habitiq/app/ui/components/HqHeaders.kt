@@ -50,9 +50,7 @@ fun HqPageHeader(
         verticalAlignment = Alignment.Top,
     ) {
         if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(HqSize.target).offset(x = (-7).dp)) {
-                Icon(HqIcons.Back, contentDescription = "Back", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
-            }
+            HqIconButton(icon = HqIcons.Back, contentDescription = "Back", onClick = onBack, modifier = Modifier.offset(x = (-7).dp))
         }
         Column(Modifier.weight(1f)) {
             Text(title, style = HqType.titleLarge2, color = c.textPrimary)

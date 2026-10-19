@@ -68,11 +68,16 @@ fun HqDateField(
     errorText: String? = null,
     allowPast: Boolean = false,
     immediateLabel: String? = null,
+    /** When set, today's date reads as this word (e.g. "Today") instead of the full date. */
+    todayLabel: String? = null,
+    /** False hides the clear button, for fields that always hold a value (they have a default). */
+    clearable: Boolean = true,
 ) {
     val c = LocalHqColors.current
     var open by remember { mutableStateOf(false) }
     val parsed = remember(value) { runCatching { LocalDate.parse(value.take(10)) }.getOrNull() }
     val display = when {
+        parsed != null && todayLabel != null && parsed == LocalDate.now() -> todayLabel
         parsed != null -> parsed.format(DisplayFormat)
         value.isNotBlank() -> value
         else -> null
@@ -92,7 +97,7 @@ fun HqDateField(
                 .defaultMinSize(minHeight = 51.dp)
                 .clip(RoundedCornerShape(HqRadius.field))
                 .background(c.surfaceBase)
-                .border(1.dp, if (isError) c.statusDangerFg else c.borderSubtle, RoundedCornerShape(HqRadius.field))
+                .border(1.dp, if (isError) c.statusDangerFg else c.borderControl, RoundedCornerShape(HqRadius.field))
                 .clickable(role = Role.Button) { open = true }
                 .semantics { contentDescription = "$label: ${display ?: "not set"}. Opens a calendar." }
                 .padding(start = 14.dp, end = 4.dp),
@@ -106,10 +111,8 @@ fun HqDateField(
                 color = if (display != null) c.textPrimary else c.textMuted,
                 modifier = Modifier.weight(1f).padding(vertical = 14.dp),
             )
-            if (display != null) {
-                IconButton(onClick = { onValueChange("") }) {
-                    Icon(Icons.Filled.Close, contentDescription = "Clear $label", tint = c.iconDefault)
-                }
+            if (display != null && clearable) {
+                HqIconButton(icon = Icons.Filled.Close, contentDescription = "Clear $label", onClick = { onValueChange("") })
             }
         }
         val caption = errorText ?: helperText
@@ -152,24 +155,19 @@ fun HqDateField(
         DatePickerDialog(
             onDismissRequest = { open = false },
             confirmButton = {
-                TextButton(
-                    enabled = state.selectedDateMillis != null,
-                    onClick = {
+                HqTextButton(text = "Done", enabled = state.selectedDateMillis != null, onClick = {
                         state.selectedDateMillis?.let { millis ->
                             onValueChange(Instant.ofEpochMilli(millis).atZone(ZoneOffset.UTC).toLocalDate().toString())
                         }
                         open = false
-                    },
-                ) { Text("Done", color = c.textBrand) }
+                    })
             },
             dismissButton = {
                 Row {
                     if (immediateLabel != null) {
-                        TextButton(onClick = { onValueChange(DateImmediately); open = false }) {
-                            Text(immediateLabel, color = c.textBrand)
-                        }
+                        HqTextButton(text = immediateLabel, onClick = { onValueChange(DateImmediately); open = false })
                     }
-                    TextButton(onClick = { open = false }) { Text("Cancel", color = c.textSecondary) }
+                    HqTextButton(text = "Cancel", onClick = { open = false }, color = c.textSecondary)
                 }
             },
             colors = colors,

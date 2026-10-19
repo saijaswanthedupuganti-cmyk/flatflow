@@ -88,7 +88,7 @@ fun SignupScreen(
             Spacer(Modifier.height(HqSpacing.lg))
             Text("Create your account", style = HqType.headlineLarge, color = c.textPrimary)
             Text(
-                "Join people finding a better way to live together.",
+                OddroofValueSentence,
                 style = HqType.bodyMedium,
                 color = c.textSecondary,
                 modifier = Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.xxxl)
@@ -146,7 +146,7 @@ fun SignupScreen(
             Spacer(Modifier.height(HqSpacing.xl))
 
             HqButton(
-                text = "Sign up",
+                text = "Create account",
                 onClick = { viewModel.signUpWithEmail(email, password) },
                 enabled = state !is AuthUiState.Loading && email.isNotBlank() && hasMinLength && hasLetterAndNumber && hasSpecial,
             )

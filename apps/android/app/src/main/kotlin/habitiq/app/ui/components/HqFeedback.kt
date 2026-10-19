@@ -20,11 +20,13 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -50,7 +52,9 @@ fun HqEmptyState(
         modifier.fillMaxWidth().padding(HqSpacing.xxl),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Icon(icon, contentDescription = null, tint = c.iconDefault, modifier = Modifier.size(48.dp))
+        androidx.compose.foundation.layout.Box(Modifier.size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.selectedBg), contentAlignment = Alignment.Center) {
+            Icon(icon, contentDescription = null, tint = c.selectedFg, modifier = Modifier.size(HqIconSize.lg))
+        }
         Spacer(Modifier.height(HqSpacing.lg))
         Text(title, style = HqType.titleSmall2, color = c.textPrimary, textAlign = TextAlign.Center)
         Spacer(Modifier.height(HqSpacing.xs))
@@ -158,5 +162,31 @@ fun HqCardSkeleton(modifier: Modifier = Modifier) {
         HqSkeletonBlock(height = 14.dp)
         Spacer(Modifier.height(HqSpacing.sm))
         HqSkeletonBlock(height = 14.dp, modifier = Modifier.fillMaxWidth(0.6f))
+    }
+}
+
+/**
+ * Placeholder for a list that is loading: [rows] rows shaped like [HqRow] (leading circle, two text
+ * lines) inside an [HqGroup]. The sweep stops under reduced motion. Hidden from TalkBack except for a
+ * single "Loading" description.
+ */
+@Composable
+fun HqListSkeleton(modifier: Modifier = Modifier, rows: Int = 3) {
+    HqGroup(modifier.semantics(mergeDescendants = true) { contentDescription = "Loading" }) {
+        repeat(rows) { i ->
+            Row(
+                Modifier.fillMaxWidth().padding(horizontal = HqSpacing.component, vertical = HqSpacing.related),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
+            ) {
+                HqSkeletonBlock(Modifier.size(40.dp).clip(androidx.compose.foundation.shape.CircleShape), height = 40.dp)
+                Column(Modifier.weight(1f)) {
+                    HqSkeletonBlock(Modifier.fillMaxWidth(if (i % 2 == 0) 0.7f else 0.55f), height = 14.dp)
+                    Spacer(Modifier.height(HqSpacing.sm))
+                    HqSkeletonBlock(Modifier.fillMaxWidth(0.4f), height = 12.dp)
+                }
+            }
+            if (i < rows - 1) HqRowDivider(startInset = HqSpacing.component + 40.dp + HqSpacing.related)
+        }
     }
 }

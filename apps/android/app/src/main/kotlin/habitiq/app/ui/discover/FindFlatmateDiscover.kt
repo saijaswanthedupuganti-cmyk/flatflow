@@ -81,124 +81,112 @@ fun FindFlatmateDiscoverContent(
     header: @Composable () -> Unit = {},
     listState: androidx.compose.foundation.lazy.LazyListState? = null,
 ) {
-    val c = LocalHqColors.current
-    LazyColumn(Modifier.fillMaxSize(), state = listState ?: androidx.compose.foundation.lazy.rememberLazyListState(), contentPadding = PaddingValues(bottom = HqSpacing.xxl)) {
-      item(key = "discover-top") {
-       Column {
-        header()
-        habitiq.app.ui.components.HqSearchBar(
-            value = filters.cityArea,
-            onValueChange = { onFiltersChange(filters.copy(cityArea = it)) },
-            placeholder = "Search people or area",
-            onFilters = onOpenFilters,
-            activeFilters = filters.activeCount,
-            modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal),
-        )
-        androidx.compose.foundation.layout.Spacer(Modifier.height(14.dp))
-        habitiq.app.ui.components.HqChipRow(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
-            listOf("Male", "Female", "Work from home", "Vegetarian", "No smoking", "Social").forEach { tag ->
-                HqChip(
-                    label = tag,
-                    selected = filters.lifestyleTags.any { it.equals(tag, ignoreCase = true) } || filters.gender.equals(tag, ignoreCase = true),
-                    onClick = {
-                        val gender = tag.lowercase()
-                        if (gender == "male" || gender == "female") {
-                            onFiltersChange(filters.copy(gender = gender))
-                        } else {
-                            val next = filters.lifestyleTags.toMutableSet()
-                            if (!next.add(tag)) next.remove(tag)
-                            onFiltersChange(filters.copy(lifestyleTags = next))
+    LazyColumn(
+        Modifier.fillMaxSize(),
+        state = listState ?: androidx.compose.foundation.lazy.rememberLazyListState(),
+        contentPadding = PaddingValues(bottom = HqSpacing.xxl),
+        verticalArrangement = Arrangement.spacedBy(HqSpacing.lg),
+    ) {
+        item(key = "discover-top") {
+            Column {
+                header()
+                habitiq.app.ui.components.HqSearchBar(
+                    value = filters.cityArea,
+                    onValueChange = { onFiltersChange(filters.copy(cityArea = it)) },
+                    placeholder = "Search an area or landmark",
+                    onFilters = onOpenFilters,
+                    activeFilters = filters.activeCount,
+                    modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal),
+                )
+                AppliedFilterRow(
+                    buildList<Pair<String, () -> Unit>> {
+                        if (filters.budgetMin.isNotBlank() || filters.budgetMax.isNotBlank()) {
+                            add(habitiq.app.discover.DiscoverFilterLogic.budgetLabel(filters.budgetMin, filters.budgetMax) to { onFiltersChange(filters.copy(budgetMin = "", budgetMax = "")) })
                         }
+                        if (filters.gender != "any") add(habitiq.app.discover.ListingFacts.suitsLabel(filters.gender) to { onFiltersChange(filters.copy(gender = "any")) })
+                        filters.lifestyleTags.forEach { tag -> add(tag to { onFiltersChange(filters.copy(lifestyleTags = filters.lifestyleTags - tag)) }) }
                     }
+                ) { onFiltersChange(SeekerFilters(cityArea = filters.cityArea)) }
+                ResultsRow(
+                    text = when {
+                        isLoading -> "Searching…"
+                        filters.activeCount > 0 || filters.cityArea.isNotBlank() -> "${filtered.size} of ${seekers.size} people"
+                        else -> "${seekers.size} ${if (seekers.size == 1) "person" else "people"} looking"
+                    },
+                    onNearPlace = null,
+                    onMyPosts = onMyPosts,
                 )
             }
         }
-        habitiq.app.ui.components.HqSectionTitle("People looking nearby", action = "My posts", onAction = onMyPosts, modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal))
-        AppliedFilters(
-            buildList<Pair<String, () -> Unit>> {
-                if (filters.cityArea.isNotBlank()) add(filters.cityArea to { onFiltersChange(filters.copy(cityArea = "")) })
-                if (filters.budgetMin.isNotBlank() || filters.budgetMax.isNotBlank()) add("Budget" to { onFiltersChange(filters.copy(budgetMin = "", budgetMax = "")) })
-                if (filters.gender != "any") add(filters.gender.replaceFirstChar { it.uppercase() } to { onFiltersChange(filters.copy(gender = "any")) })
-                filters.lifestyleTags.forEach { tag -> add(tag to { onFiltersChange(filters.copy(lifestyleTags = filters.lifestyleTags - tag)) }) }
-            }
-        ) { onFiltersChange(SeekerFilters()) }
-
-       }
-      }
         when {
             isLoading -> item { DiscoveryLoading("Finding people…") }
             loadError != null -> item { DiscoveryError("Couldn't load results.", loadError, onRetry) }
             filtered.isEmpty() -> item {
                 DiscoveryEmpty(
                     title = "No flatmates found",
-                    body = "Try removing one filter or expanding your search.",
-                    actionLabel = if (filters.activeCount > 0) "Edit filters" else null,
+                    body = "Try removing one filter or a wider area.",
+                    actionLabel = if (filters.activeCount > 0) "Change filters" else null,
                     onAction = if (filters.activeCount > 0) onOpenFilters else null,
                     person = true
                 )
             }
             else -> items(filtered, key = { it.id }) { seeker ->
-                androidx.compose.foundation.layout.Box(Modifier.padding(horizontal = HqSpacing.lg).padding(top = HqSpacing.sm, bottom = HqSpacing.md)) {
-                    FlatmateCard(
-                        seeker = seeker,
-                        signals = Compatibility.seekerSignals(seeker, filters, viewerCity).map { it.label },
-                        trust = TrustCopy.forSeeker(trustConsent),
-                        onView = { onOpenProfile(seeker) },
-                        onConnect = { onConnect(seeker) }
-                    )
-                }
+                FlatmateCard(
+                    seeker = seeker,
+                    signals = Compatibility.seekerSignals(seeker, filters, viewerCity).map { it.label },
+                    trust = TrustCopy.forSeeker(trustConsent),
+                    onView = { onOpenProfile(seeker) },
+                    onConnect = { onConnect(seeker) },
+                    modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal),
+                )
             }
         }
     }
 }
 
+/**
+ * The flatmate result, in the same card as a flat: name + budget on one line, one facts line, the areas,
+ * at most three calm tags in one row (+N), one trust line. People don't get a photo slot (privacy), the
+ * avatar sits beside the name instead. The whole card opens the profile, where "Send request" lives.
+ * [onView] null = preview, not tappable.
+ */
 @Composable
 fun FlatmateCard(
     seeker: SeekerProfile,
     signals: List<String>,
     trust: TrustPresentation,
-    onView: () -> Unit,
-    onConnect: () -> Unit
+    onView: (() -> Unit)?,
+    onConnect: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val c = LocalHqColors.current
     val name = seeker.displayName.ifBlank { "Oddroof user" }
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
-    Column(
-        Modifier.fillMaxWidth()
-            .androidx_shadow(shape, c.textPrimary)
-            .clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
-            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onView)
-            .padding(top = 15.dp, start = 15.dp, end = 15.dp, bottom = HqSpacing.xs),
-        verticalArrangement = Arrangement.spacedBy(HqSpacing.xs),
-    ) {
-        Row(verticalAlignment = Alignment.Top, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            habitiq.app.ui.components.HqAvatar(name = name, size = habitiq.app.ui.components.HqAvatarSize.LG, tone = habitiq.app.ui.components.hqToneFor(name, false))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                Text(name, style = HqType.titleSmall2.copy(fontSize = HqType.rowTitle.fontSize), color = c.textPrimary, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    listOf(
-                        listOf(seeker.lookingIn, seeker.city).filter { it.isNotBlank() }.distinct().joinToString(", ").takeIf { it.isNotBlank() }?.let { "Looking in $it" },
-                        seeker.budget.takeIf { it > 0 }?.let { "Budget ${formatInr(it)}" },
-                    ).filterNotNull().joinToString(" \u00b7 ").ifBlank { "Location on request" },
-                    style = HqType.bodyMedium, color = c.textSecondary,
+    val tags = (signals + seeker.lifestyleTags.split(",", ";").map { it.trim() }).filter { it.isNotEmpty() }.distinctBy { it.lowercase() }
+    DiscoverCardShell(onClick = onView, clickLabel = "View $name", modifier = modifier) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
+            habitiq.app.ui.components.HqAvatar(name = name, size = habitiq.app.ui.components.HqAvatarSize.MD, tone = habitiq.app.ui.components.hqToneFor(name, false))
+            Box(Modifier.weight(1f)) {
+                TitleAmountRow(
+                    title = name,
+                    amount = seeker.budget.takeIf { it > 0 }?.let { formatInr(it) },
+                    amountUnit = seeker.budget.takeIf { it > 0 }?.let { "/mo" },
                 )
             }
-            Icon(habitiq.app.ui.components.HqIcons.Chevron, null, tint = c.iconDefault, modifier = Modifier.padding(top = 4.dp).size(HqIconSize.sm))
         }
-        TrustBadge(trust)
-        CompatibilityBlock("Why you may fit", signals.take(3))
-        if (seeker.bio.isNotBlank()) {
-            Text(seeker.bio, style = HqType.bodyMedium, color = c.textSecondary, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        listOfNotNull(
+            "Looking for a room",
+            habitiq.app.ui.genderLabel(seeker.gender).takeIf { habitiq.app.ui.normalizeGender(seeker.gender) != "any" },
+        ).joinToString(" · ").let { Text(it, style = HqType.bodyMedium, color = c.textPrimary) }
+        listOf(seeker.lookingIn, seeker.city).map { it.trim() }.filter { it.isNotBlank() }.distinct().joinToString(", ")
+            .takeIf { it.isNotBlank() }?.let { IconLine(habitiq.app.ui.components.HqIcons.Pin, it) }
+        if (tags.isNotEmpty()) {
+            Spacer(Modifier.height(HqSpacing.xs / 2))
+            OneRowTags(tags)
         }
-        // The card opens the profile; one quiet action keeps the old Connect shortcut without a button pair.
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            HqTextButton(text = "Connect", onClick = onConnect)
-        }
+        Spacer(Modifier.height(HqSpacing.xs / 2))
+        IconLine(habitiq.app.ui.components.HqIcons.Shield, trust.label, tint = c.textBrand, style = HqType.labelSmall)
     }
 }
-
-private fun Modifier.androidx_shadow(shape: androidx.compose.ui.graphics.Shape, tint: androidx.compose.ui.graphics.Color): Modifier =
-    this.shadow(3.dp, shape, ambientColor = tint.copy(alpha = .06f), spotColor = tint.copy(alpha = .06f))
 
 @Composable
 fun FlatmateProfileScreen(
@@ -239,12 +227,12 @@ fun FlatmateProfileScreen(
             val factShape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
             Row(Modifier.fillMaxWidth().padding(top = 8.dp).clip(factShape).border(1.dp, c.borderSubtle, factShape)) {
                 Column(Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("BUDGET", style = HqType.labelSmall, color = c.textMuted, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                    Text("Budget", style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     Text(if (seeker.budget > 0) "Up to ${formatInr(seeker.budget)}" else "Not listed", style = HqType.rowTitle, color = c.textPrimary)
                 }
                 Box(Modifier.width(1.dp).height(60.dp).background(c.borderSubtle))
                 Column(Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("LOOKING IN", style = HqType.labelSmall, color = c.textMuted, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                    Text("Looking in", style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                     Text(seeker.lookingIn.ifBlank { seeker.city }.ifBlank { "Open to areas" }, style = HqType.rowTitle, color = c.textPrimary)
                 }
             }
@@ -268,19 +256,19 @@ fun FlatmateProfileScreen(
             ) {
                 Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(HqIconSize.sm))
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                    Text("Connect safely", style = HqType.labelMedium, color = c.textPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text("Stay safe", style = HqType.labelMedium, color = c.textPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     Text("Personal contact details stay private until you choose to share them.", style = HqType.bodyMedium, color = c.textPrimary)
                 }
             }
             if (isSelf) {
-                Text("This is your looking post.", style = HqType.bodyMedium, color = c.textMuted)
+                Text("This is your post.", style = HqType.bodyMedium, color = c.textMuted)
             } else if (blocked) {
                 Text("Blocked", style = HqType.titleMedium, color = c.statusDangerFg)
             } else {
                 ConnectionActions(
                     status = connectionStatus,
                     incomingRequestId = incomingRequestId,
-                    connectLabel = "Connect with ${name.substringBefore(" ")}",
+                    connectLabel = "Send request to ${name.substringBefore(" ")}",
                     onConnect = onConnect,
                     onMessage = onMessage,
                     onAccept = onAccept,

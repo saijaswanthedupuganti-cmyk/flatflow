@@ -45,7 +45,7 @@ class DiscoverScreenshotTest : ScreenshotHarness() {
 
     @androidx.compose.runtime.Composable
     private fun flatsContent() = Column {
-        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a person"), 0, {}) }
+        Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a flatmate"), 0, {}) }
         UseAFlatDiscoverContent(flats, flats, VacancyFilters(cityArea = "Hyderabad", roomType = "private"), {}, false, null, {}, {}, {})
     }
 
@@ -68,7 +68,7 @@ class DiscoverScreenshotTest : ScreenshotHarness() {
 
     @Test fun people() = shoot("discover-people") {
         Column {
-            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a person"), 1, {}) }
+            Column(Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) { HqSegmentedControl(listOf("Find a flat", "Find a flatmate"), 1, {}) }
             FindFlatmateDiscoverContent(people, people, SeekerFilters(gender = "female"), {}, false, null, {}, null, true, {}, {}, {})
         }
     }

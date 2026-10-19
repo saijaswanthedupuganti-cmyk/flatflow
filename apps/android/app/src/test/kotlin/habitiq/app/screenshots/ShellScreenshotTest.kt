@@ -26,7 +26,7 @@ class ShellScreenshotTest : ScreenshotHarness() {
         Column(Modifier.padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             listOf(
                 Triple("Home", AppTab.HOME, ShellCreate.None),
-                Triple("Discover", AppTab.DISCOVER, ShellCreate.Direct("Create a Discovery post") {}),
+                Triple("Discover", AppTab.DISCOVER, ShellCreate.Direct("List a room") {}),
                 Triple("Manage", AppTab.TASKS, ShellCreate.Direct("Add task") {}),
                 Triple("Profile", AppTab.PROFILE, ShellCreate.None),
                 Triple("Home + mic", AppTab.HOME, ShellCreate.Menu(listOf(habitiq.app.ui.CreateOption("Add expense") {}))),

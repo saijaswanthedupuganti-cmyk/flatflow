@@ -61,7 +61,7 @@ fun GoingAwayScreen(viewModel: FlatViewModel, onBack: () -> Unit, onSent: () -> 
     val allAssigned = myTasks.isNotEmpty() && myTasks.all { selections.containsKey(it.taskId) }
 
     FigmaScreenBackground {
-        HqBackAppBar(title = "Going Away", onBack = onBack)
+        HqBackAppBar(title = "I'm away", onBack = onBack)
         Text(
             "Assign your tasks to a flatmate before you leave. Accountability remains with you until they accept.",
             color = c.textSecondary,

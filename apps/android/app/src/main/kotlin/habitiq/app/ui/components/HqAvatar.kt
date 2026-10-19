@@ -26,9 +26,6 @@ enum class HqAvatarSize(val diameter: Dp, val fontSize: androidx.compose.ui.unit
     XL(80.dp, 24.sp),
 }
 
-private val HqSand = androidx.compose.ui.graphics.Color(0xFFF3EADC)
-private val HqSandInk = androidx.compose.ui.graphics.Color(0xFF7D613B)
-private val HqCoralInk = androidx.compose.ui.graphics.Color(0xFFB84C40)
 
 /** Figma avatar tones: teal (default), sand and coral initials on a soft fill. */
 enum class HqAvatarTone { Teal, Sand, Coral }
@@ -57,8 +54,8 @@ fun HqAvatar(
     }
     val (bg, fg) = when (tone) {
         HqAvatarTone.Teal -> c.selectedBg to c.selectedFg
-        HqAvatarTone.Sand -> HqSand to HqSandInk
-        HqAvatarTone.Coral -> c.warmBg to HqCoralInk
+        HqAvatarTone.Sand -> c.statusWarningBg to c.statusWarningFg
+        HqAvatarTone.Coral -> c.warmBg to c.warmFg
     }
     Box(
         modifier.size(size.diameter).clip(CircleShape).background(bg),

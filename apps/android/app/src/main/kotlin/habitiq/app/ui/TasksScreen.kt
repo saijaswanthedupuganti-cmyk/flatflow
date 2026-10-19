@@ -193,10 +193,11 @@ fun SwapReviewSheet(
                 val from = members.find { it.uid == swap.fromUserId }?.nickname ?: "Flatmate"
                 HqCard(variant = HqCardVariant.Standard, padding = HqSpacing.component) {
                     Text("$from wants you to cover \"$taskName\"", style = HqType.bodyLarge, color = c.textPrimary)
-                    Row(Modifier.padding(top = HqSpacing.sm), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                        HqButton(text = "Accept", onClick = { onAccept(swap.id) }, fullWidth = false)
-                        HqButton(text = "Decline", onClick = { onReject(swap.id) }, variant = HqButtonVariant.Secondary, fullWidth = false)
-                    }
+                    habitiq.app.ui.components.HqButtonPair(
+                        secondary = { HqButton(text = "Decline", onClick = { onReject(swap.id) }, variant = HqButtonVariant.Secondary) },
+                        primary = { HqButton(text = "Accept", onClick = { onAccept(swap.id) }) },
+                        modifier = Modifier.padding(top = HqSpacing.sm),
+                    )
                 }
             }
             if (incoming.isEmpty()) Text("No pending requests.", style = HqType.bodyLarge, color = c.textSecondary)

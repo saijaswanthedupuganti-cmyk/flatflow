@@ -66,7 +66,7 @@ fun SettingsScreen(
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         habitiq.app.ui.components.HqPageHeader(
             title = "Privacy & Security",
-            subtitle = "Manage your account preferences",
+            subtitle = "App lock, policies and your account",
             onBack = onBack,
             modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
         )
@@ -87,11 +87,11 @@ fun SettingsScreen(
             Spacer(Modifier.height(HqSpacing.xxl))
             habitiq.app.ui.components.HqMenuGroup("Legal & safety") {
                 habitiq.app.ui.components.HqMenuRow(
-                    title = "Privacy Policy", support = "What we collect and your rights",
+                    title = "Privacy policy", support = "What we collect and your rights",
                     onClick = { openLegalLink(context, "https://habitiq.app/privacy") },
                 )
                 habitiq.app.ui.components.HqMenuRow(
-                    title = "Terms of Service", support = "Rules for using Oddroof and Discover",
+                    title = "Terms of service", support = "Rules for using Oddroof and Discover",
                     onClick = { openLegalLink(context, "https://habitiq.app/terms") },
                 )
                 habitiq.app.ui.components.HqMenuRow(
@@ -112,7 +112,7 @@ fun SettingsScreen(
                 )
             }
             Spacer(Modifier.height(HqSpacing.xl))
-            habitiq.app.ui.components.HqDangerSoftButton("Sign out", onSignOut)
+            habitiq.app.ui.components.HqDangerSoftButton("Log out", onSignOut)
             when (val current = deleteState) {
                 is DeleteAccountState.Deleting -> {
                     Spacer(Modifier.height(HqSpacing.md))

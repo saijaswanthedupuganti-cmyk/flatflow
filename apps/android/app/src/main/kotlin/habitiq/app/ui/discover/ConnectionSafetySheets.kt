@@ -61,7 +61,7 @@ fun ConnectionRequestSheet(
     var message by remember {
         mutableStateOf("Hi $toName, this looks like a good fit. Are you still looking?")
     }
-    HqBottomSheet(onDismiss = onDismiss, title = "Send connection request") {
+    HqBottomSheet(onDismiss = onDismiss, title = "Send request") {
         // Scrolls so the message field and Send button stay reachable above the keyboard on short screens.
         Column(Modifier.verticalScroll(rememberScrollState())) {
             Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -152,7 +152,7 @@ fun BlockConfirmation(
 ) {
     HqConfirmDialog(
         title = "Block $name?",
-        message = "You won’t be able to message or connect with this person.",
+        message = "You won’t be able to message this person or send them requests.",
         confirmLabel = "Block",
         onConfirm = { onConfirm(); onDismiss() },
         onDismiss = onDismiss,

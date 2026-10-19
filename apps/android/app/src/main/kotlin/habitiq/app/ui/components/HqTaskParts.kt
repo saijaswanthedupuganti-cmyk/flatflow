@@ -37,6 +37,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import habitiq.app.ui.theme.HqShapes
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.shadow
@@ -110,12 +112,12 @@ fun hqTaskMotifVector(m: HqTaskMotif): ImageVector = motifCache.getOrPut(m) { mo
 fun HqListHeading(left: String, modifier: Modifier = Modifier, right: String? = null) {
     val c = LocalHqColors.current
     Row(modifier.fillMaxWidth().padding(top = 21.dp, bottom = 9.dp, start = 3.dp, end = 3.dp), horizontalArrangement = Arrangement.SpaceBetween) {
-        Text(left.uppercase(), style = HqType.labelSmall, color = c.textMuted, fontWeight = FontWeight.ExtraBold)
-        if (right != null) Text(right.uppercase(), style = HqType.labelSmall, color = c.textMuted, fontWeight = FontWeight.ExtraBold)
+        Text(left, style = HqType.labelMedium, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
+        if (right != null) Text(right, style = HqType.labelMedium, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
     }
 }
 
-enum class HqBadgeTone { Warning, Success, Info, Neutral }
+enum class HqBadgeTone { Warning, Success, Info, Neutral, Danger }
 
 /** Figma `.status-badge`: tiny uppercase capsule with a soft fill. */
 @Composable
@@ -124,11 +126,12 @@ fun HqBadge(label: String, tone: HqBadgeTone, modifier: Modifier = Modifier) {
     val (bg, fg) = when (tone) {
         HqBadgeTone.Warning -> c.statusWarningBg to c.statusWarningFg
         HqBadgeTone.Success -> c.selectedBg to c.selectedFg
-        HqBadgeTone.Info -> Color(0xFFEDF5FA) to Color(0xFF2F6784)
+        HqBadgeTone.Info -> c.statusInfoBg to c.statusInfoFg
         HqBadgeTone.Neutral -> c.surfaceSubtle to c.textSecondary
+        HqBadgeTone.Danger -> c.statusDangerBg to c.statusDangerFg
     }
     Text(
-        label.uppercase(), style = HqType.labelSmall, color = fg, fontWeight = FontWeight.ExtraBold,
+        label.replaceFirstChar { it.uppercase() }, style = HqType.labelSmall, color = fg, fontWeight = FontWeight.SemiBold,
         modifier = modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 7.dp, vertical = 4.dp),
     )
 }
@@ -161,14 +164,16 @@ fun HqLargeTaskCard(
     onComplete: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(19.dp)
-    val edge = Color(0xFFFF6B5A)
-    val motif = hqTaskMotifFor(title)
+    val shape = HqShapes.card
+    val edge = c.statusDangerFg
+    // The decorative chore motif only shows at normal text sizes; at large text it gives its space to the words.
+    val largeText = LocalDensity.current.fontScale > 1.15f
+    val motif = if (largeText) null else hqTaskMotifFor(title)
     Box(
         modifier.fillMaxWidth()
-            .shadow(2.dp, shape, ambientColor = c.textPrimary.copy(alpha = .06f), spotColor = c.textPrimary.copy(alpha = .06f))
+
             .clip(shape)
-            .background(if (overdue) Brush.horizontalGradient(0f to (if (c.isDark) c.surfaceRaised else Color(0xFFFFFAF6)), .68f to c.surfaceBase) else SolidColor(c.surfaceBase))
+            .background(c.surfaceBase)
             .border(BorderStroke(1.dp, c.borderSubtle), shape)
             .then(if (overdue) Modifier.drawBehind { drawLine(edge, Offset(1.5.dp.toPx(), 12.dp.toPx()), Offset(1.5.dp.toPx(), size.height - 12.dp.toPx()), strokeWidth = 3.dp.toPx()) } else Modifier)
             .clickable(role = Role.Button, onClick = onOpen)
@@ -176,7 +181,7 @@ fun HqLargeTaskCard(
     ) {
         if (motif != null) {
             Icon(
-                hqTaskMotifVector(motif), null, tint = Color(0xFF7BAEA7).copy(alpha = .55f),
+                hqTaskMotifVector(motif), null, tint = c.textBrand.copy(alpha = .22f),
                 modifier = Modifier.align(Alignment.CenterEnd).padding(end = 62.dp).size(66.dp),
             )
         }
@@ -202,7 +207,7 @@ fun HqLargeTaskCard(
             Column(Modifier.weight(1f).padding(start = 4.dp, end = if (motif != null) 52.dp else 4.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text(title, style = HqType.rowTitle, color = if (quiet) c.textSecondary else c.textPrimary)
                 Text(due, style = HqType.bodyMedium, color = c.textSecondary)
-                if (badge != null) HqBadge(badge, HqBadgeTone.Warning, Modifier.padding(top = 4.dp))
+                if (badge != null) HqBadge(badge, if (overdue) HqBadgeTone.Danger else HqBadgeTone.Warning, Modifier.padding(top = 4.dp))
                 if (meta != null) {
                     Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                         if (metaIcon != null) Icon(metaIcon, null, tint = c.textSecondary, modifier = Modifier.size(15.dp))
@@ -212,7 +217,7 @@ fun HqLargeTaskCard(
             }
             Column(Modifier.padding(end = 8.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 HqAvatar(assigneeName, size = HqAvatarSize.SM, tone = hqToneFor(assigneeName, assigneeIsMe))
-                Text(assigneeLabel.uppercase(), style = HqType.labelSmall, color = c.textSecondary, fontWeight = FontWeight.ExtraBold, maxLines = 1)
+                Text(assigneeLabel, style = HqType.labelSmall, color = c.textSecondary, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
         }
     }

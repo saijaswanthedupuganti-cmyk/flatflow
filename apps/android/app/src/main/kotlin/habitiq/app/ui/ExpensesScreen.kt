@@ -53,6 +53,16 @@ import habitiq.app.ui.components.HqCard
 import habitiq.app.ui.components.HqCardVariant
 import habitiq.app.ui.components.HqChip
 import habitiq.app.ui.components.HqConfirmDialog
+import habitiq.app.ui.components.HqChipFlow
+import habitiq.app.ui.components.HqDiscardChangesDialog
+import habitiq.app.ui.components.HqInlineError
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.semantics.heading
+import kotlinx.coroutines.launch
 import habitiq.app.ui.components.HqEmptyState
 import habitiq.app.ui.components.HqRootAppBar
 import habitiq.app.ui.components.HqTextButton
@@ -89,10 +99,11 @@ fun ExpensesScreen(
     val monthly by viewModel.expenseScopeMonthly.collectAsStateWithLifecycleCompat()
 
     var showAdd by remember { mutableStateOf(false) }
-    var justAdded by remember { mutableStateOf<String?>(null) }
     var pending by remember { mutableStateOf<PendingSettlement?>(null) }
+    var recording by remember { mutableStateOf(false) }
     val haptics = LocalHapticFeedback.current
-    BackHandler(enabled = showAdd || justAdded != null) { showAdd = false; justAdded = null }
+    val snackbar = habitiq.app.ui.components.LocalHqSnackbar.current
+    BackHandler(enabled = showAdd) { showAdd = false }
     LaunchedEffect(triggerAdd) { if (triggerAdd) { showAdd = true; viewModel.showAddExpenseTrigger.value = false } }
     // Manage's "Payment due" card lands here. The balance breakdown is always visible now, so the
     // trigger only needs consuming.
@@ -104,40 +115,50 @@ fun ExpensesScreen(
     val owed = balances.filter { it.value > 0 }
 
     if (showAdd) {
-        AddExpenseScreen(
-            viewModel = viewModel,
+        AddExpenseForm(
             members = members,
             currentUid = uid,
             onBack = { showAdd = false },
-            onSaved = { label ->
+            onSubmit = { d, done ->
+                viewModel.addExpense(
+                    d.description, d.amount, d.splitAmong, d.category,
+                    splitType = if (d.customSplits == null) "equal" else "custom",
+                    customSplits = d.customSplits,
+                    paidBy = d.paidBy,
+                    onDone = done,
+                )
+            },
+            onSaved = {
                 showAdd = false
-                justAdded = label
+                snackbar?.show("Expense added")
             }
         )
-        return
-    }
-    justAdded?.let { label ->
-        ExpenseAddedScreen(label, onAnother = { justAdded = null; showAdd = true }, onDone = { justAdded = null })
         return
     }
 
     pending?.let { p ->
         HqConfirmDialog(
-            title = if (p.youOwe) "Record settlement?" else "Mark as received?",
-            message = if (p.youOwe) {
-                "You're recording that you paid ${p.name} ${formatInr(p.amount)}. Oddroof doesn't move money; this updates the balance between you."
+            title = if (p.youOwe) "Settle up with ${p.name}?" else "Mark as received?",
+            message = (if (p.youOwe) {
+                "You're recording that you paid ${p.name} ${formatInr(p.amount)}."
             } else {
-                "You're recording that ${p.name} paid you ${formatInr(p.amount)}. Oddroof doesn't move money; this updates the balance between you."
-            },
-            confirmLabel = if (p.youOwe) "Record settlement" else "Mark received",
+                "You're recording that ${p.name} paid you ${formatInr(p.amount)}."
+            }) + " $SettleNote",
+            confirmLabel = if (p.youOwe) "Record payment" else "Mark received",
             confirmVariant = HqButtonVariant.Primary,
             onConfirm = {
+                if (recording) return@HqConfirmDialog
+                recording = true
                 haptics.performHapticFeedback(HapticFeedbackType.Confirm)
-                if (p.youOwe) viewModel.recordManualSettlement(p.otherUid, p.amount)
-                else viewModel.recordMarkReceived(p.otherUid, p.amount)
-                pending = null
+                val done: (Boolean) -> Unit = { ok ->
+                    recording = false
+                    pending = null
+                    snackbar?.show(if (ok) "Payment recorded" else "Unable to record the payment. Check your connection and try again.")
+                }
+                if (p.youOwe) viewModel.recordManualSettlement(p.otherUid, p.amount, done)
+                else viewModel.recordMarkReceived(p.otherUid, p.amount, done)
             },
-            onDismiss = { pending = null },
+            onDismiss = { if (!recording) pending = null },
         )
     }
 
@@ -212,175 +233,205 @@ internal fun buildExpensesModel(
     )
 }
 
+/** Shared wording for every "record a payment" confirmation: Oddroof keeps the record, not the money. */
+internal const val SettleNote = "Oddroof records this; it doesn't move money."
+
+/** Forgiving money input: accepts "1,200", "1200", " 1200 " and "₹1,200". Null when it isn't a number. */
+internal fun lenientPaise(text: String): Long? = parsePaise(text.replace("₹", "").replace(" ", ""))
+
+/** What the Add expense form collected; maps 1:1 onto [FlatViewModel.addExpense]. */
+data class ExpenseDraft(
+    val description: String,
+    val amount: Double,
+    val splitAmong: List<String>,
+    val category: String,
+    val customSplits: Map<String, Double>?,
+    val paidBy: String,
+)
+
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun AddExpenseScreen(viewModel: FlatViewModel, members: List<Member>, currentUid: String, onBack: () -> Unit, onSaved: (String) -> Unit) {
+fun AddExpenseForm(
+    members: List<Member>,
+    currentUid: String,
+    onBack: () -> Unit,
+    onSubmit: (ExpenseDraft, (Boolean) -> Unit) -> Unit,
+    onSaved: () -> Unit,
+    autoFocus: Boolean = true,
+) {
     val c = LocalHqColors.current
-    var desc by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var category by remember { mutableStateOf("Lifestyle") }
-    var equalSplit by remember { mutableStateOf(true) }
+    val scope = rememberCoroutineScope()
+    var amount by rememberSaveable { mutableStateOf("") }
+    var desc by rememberSaveable { mutableStateOf("") }
+    var paidBy by rememberSaveable { mutableStateOf(currentUid) }
+    var equalSplit by rememberSaveable { mutableStateOf(true) }
+    // Everyone is in the split until the person changes it (null), so late-loading members are included.
+    var picked by remember { mutableStateOf<Set<String>?>(null) }
+    var customAmounts by remember { mutableStateOf(mapOf<String, String>()) }
+    var category by rememberSaveable { mutableStateOf("Other") }
+    var amountError by remember { mutableStateOf<String?>(null) }
+    var descError by remember { mutableStateOf<String?>(null) }
+    var splitError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
-    var selected by remember(members) { mutableStateOf(members.map { it.uid }.toSet()) }
-    var customAmounts by remember { mutableStateOf(mapOf<String, String>()) }
-    var paidBy by remember { mutableStateOf(currentUid) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val amountFocus = remember { FocusRequester() }
+    val descFocus = remember { FocusRequester() }
+    val splitBring = remember { BringIntoViewRequester() }
 
-    val totalPaise = parsePaise(amount) ?: 0L
-    val assignedPaise = selected.sumOf { parsePaise(customAmounts[it].orEmpty()) ?: 0L }
+    val selected = picked ?: members.map { it.uid }.toSet()
+    val totalPaise = lenientPaise(amount) ?: 0L
+    val assignedPaise = selected.sumOf { lenientPaise(customAmounts[it].orEmpty()) ?: 0L }
     val remainingPaise = totalPaise - assignedPaise
-    val customValid = equalSplit || (totalPaise > 0 && remainingPaise == 0L)
-    val canSubmit = desc.isNotBlank() && totalPaise > 0 && selected.isNotEmpty() && customValid
+    val dirty = amount.isNotBlank() || desc.isNotBlank() || customAmounts.values.any { it.isNotBlank() }
+
+    LaunchedEffect(Unit) { if (autoFocus) runCatching { amountFocus.requestFocus() } }
+    fun close() { if (dirty && !saving) confirmDiscard = true else onBack() }
+    BackHandler(enabled = dirty || saving) { if (!saving) confirmDiscard = true }
+
     fun submit() {
-        val amt = totalPaise / 100.0
+        if (saving) return
+        amountError = when {
+            amount.isBlank() -> "Enter the amount, like 1,200."
+            lenientPaise(amount) == null -> "Enter the amount as a number, like 1,200."
+            totalPaise <= 0L -> "Enter an amount above ₹0."
+            else -> null
+        }
+        descError = if (desc.isBlank()) "Enter what it was for, like \"Groceries\"." else null
+        splitError = when {
+            selected.isEmpty() -> "Choose at least one person to split with."
+            !equalSplit && totalPaise > 0 && remainingPaise > 0 -> "${formatInr(remainingPaise / 100.0)} still to assign."
+            !equalSplit && totalPaise > 0 && remainingPaise < 0 -> "Shares are ${formatInr(-remainingPaise / 100.0)} over the total."
+            else -> null
+        }
+        when {
+            amountError != null -> { runCatching { amountFocus.requestFocus() }; return }
+            descError != null -> { runCatching { descFocus.requestFocus() }; return }
+            splitError != null -> { scope.launch { splitBring.bringIntoView() }; return }
+        }
+        val split = members.map { it.uid }.filter { it in selected }
+        val custom = if (equalSplit) null else split.associateWith { (lenientPaise(customAmounts[it].orEmpty()) ?: 0L) / 100.0 }
         saving = true
         saveError = null
-        val custom = if (equalSplit) null else selected.associateWith { (parsePaise(customAmounts[it].orEmpty()) ?: 0L) / 100.0 }
-        viewModel.addExpense(
-            desc,
-            amt,
-            selected.toList(),
-            category.lowercase(),
-            splitType = if (equalSplit) "equal" else "custom",
-            customSplits = custom,
-            paidBy = paidBy,
-        ) { ok ->
+        onSubmit(ExpenseDraft(desc.trim(), totalPaise / 100.0, split, category.lowercase(), custom, paidBy)) { ok ->
             saving = false
-            if (ok) onSaved("${formatInr(amt)} for $desc") else saveError = "Couldn't add the expense. Try again."
+            if (ok) onSaved() else saveError = "Unable to add the expense. Check your connection and try again."
         }
     }
-    // The keyboard's Done key submits only when the form is complete; otherwise it just closes the keyboard.
-    val imeSubmit: (() -> Unit)? = if (canSubmit && !saving) ({ submit() }) else null
 
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = "Add expense", onBack = onBack)
+        HqBackAppBar(title = "Add expense", onBack = { close() })
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.group)
         ) {
-            HqTextField(value = desc, onValueChange = { desc = it }, label = "What was it for?", placeholder = "e.g., Groceries", leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong)
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                Text("Category", style = HqType.labelMedium, color = c.textSecondary)
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    TaskCategories.forEach { cat ->
-                        HqChip(label = cat, selected = category == cat, onClick = { category = cat })
-                    }
-                }
-            }
             HqTextField(
-                value = amount, onValueChange = { amount = it }, label = "Amount (₹)", placeholder = "e.g., 1,200",
+                value = amount,
+                onValueChange = { amount = it; amountError = null },
+                label = "Amount (₹)", placeholder = "e.g. 1,200",
                 leadingIcon = Icons.Filled.CurrencyRupee, keyboardType = KeyboardType.Decimal,
-                imeAction = if (equalSplit) ImeAction.Done else ImeAction.Next,
-                onImeAction = if (equalSplit) imeSubmit else null,
+                errorText = amountError,
+                modifier = Modifier.focusRequester(amountFocus),
             )
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    Icon(Icons.Filled.AccountBalanceWallet, null, tint = c.iconDefault)
-                    Text("Paid by", style = HqType.labelMedium, color = c.textSecondary)
-                }
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+            HqTextField(
+                value = desc,
+                onValueChange = { desc = it; descError = null },
+                label = "What was it for?", placeholder = "e.g. Groceries",
+                leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong,
+                errorText = descError,
+                imeAction = ImeAction.Done,
+                modifier = Modifier.focusRequester(descFocus),
+            )
+            FormGroup("Paid by") {
+                HqChipFlow {
                     members.forEach { member ->
                         HqChip(
-                            label = if (member.uid == currentUid) "You" else member.nickname.substringBefore(" "),
+                            label = if (member.uid == currentUid) "You" else member.nickname.substringBefore(" ").ifBlank { "Flatmate" },
                             selected = paidBy == member.uid,
                             onClick = { paidBy = member.uid },
                         )
                     }
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    Icon(Icons.Filled.Groups, null, tint = c.iconDefault)
-                    Text("Split", style = HqType.labelMedium, color = c.textSecondary)
-                }
+            FormGroup("Split", Modifier.bringIntoViewRequester(splitBring)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    HqChip(label = "Equal split", selected = equalSplit, onClick = { equalSplit = true })
-                    HqChip(label = "Custom split", selected = !equalSplit, onClick = { equalSplit = false })
+                    HqChip(label = "Split equally", selected = equalSplit, onClick = { equalSplit = true; splitError = null })
+                    HqChip(label = "Custom amounts", selected = !equalSplit, onClick = { equalSplit = false; splitError = null })
                 }
                 Text(
                     if (equalSplit) "Shared equally between everyone checked below." else "Enter what each checked person owes.",
                     style = HqType.bodyMedium, color = c.textSecondary,
                 )
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                 val lastShareUid = members.lastOrNull { it.uid in selected }?.uid
                 members.forEach { member ->
                     val on = member.uid in selected
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .defaultMinSize(minHeight = HqSize.target)
-                            .toggleable(value = on, role = Role.Checkbox) { checked ->
-                                selected = if (checked) selected + member.uid else selected - member.uid
-                            },
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
-                    ) {
-                        Checkbox(checked = on, onCheckedChange = null)
-                        Text(member.nickname, style = HqType.bodyLarge, color = c.textPrimary)
-                    }
+                    habitiq.app.ui.components.HqCheckboxRow(
+                        title = if (member.uid == currentUid) "You" else member.nickname.substringBefore(" ").ifBlank { "Flatmate" },
+                        checked = on,
+                        onCheckedChange = { checked ->
+                            picked = if (checked) selected + member.uid else selected - member.uid
+                            splitError = null
+                        },
+                    )
                     if (!equalSplit && on) {
                         HqTextField(
                             value = customAmounts[member.uid].orEmpty(),
-                            onValueChange = { customAmounts = customAmounts + (member.uid to it) },
-                            label = "${member.nickname}'s share (₹)",
+                            onValueChange = { customAmounts = customAmounts + (member.uid to it); splitError = null },
+                            label = if (member.uid == currentUid) "Your share (₹)" else "${member.nickname.substringBefore(" ").ifBlank { "Flatmate" }}'s share (₹)",
                             keyboardType = KeyboardType.Decimal,
                             imeAction = if (member.uid == lastShareUid) ImeAction.Done else ImeAction.Next,
-                            onImeAction = if (member.uid == lastShareUid) imeSubmit else null,
                             modifier = Modifier.padding(start = HqSpacing.xxxl, bottom = HqSpacing.sm),
                         )
                     }
                 }
-            }
-            if (!equalSplit) {
-                // Name the actual gap so the person can fix it; never a generic "invalid".
-                val message = when {
-                    totalPaise <= 0L -> "Enter the total amount first."
-                    remainingPaise == 0L -> "Shares add up to ${formatInr(totalPaise / 100.0)}."
-                    remainingPaise > 0 -> "${formatInr(remainingPaise / 100.0)} still to assign."
-                    else -> "Shares are ${formatInr(-remainingPaise / 100.0)} over the total."
+                if (!equalSplit && splitError == null) {
+                    // Name the actual gap so the person can fix it; never a generic "invalid".
+                    val message = when {
+                        totalPaise <= 0L -> "Enter the total amount first."
+                        remainingPaise == 0L -> "Shares add up to ${formatInr(totalPaise / 100.0)}."
+                        remainingPaise > 0 -> "${formatInr(remainingPaise / 100.0)} still to assign."
+                        else -> "Shares are ${formatInr(-remainingPaise / 100.0)} over the total."
+                    }
+                    Text(
+                        message,
+                        style = HqType.bodyLarge,
+                        color = if (remainingPaise == 0L && totalPaise > 0) c.statusSuccessFg else c.statusWarningFg,
+                        modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
+                    )
                 }
-                Text(
-                    message,
-                    style = HqType.bodyLarge,
-                    color = if (remainingPaise == 0L && totalPaise > 0) c.statusSuccessFg else c.statusWarningFg,
-                    modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite },
-                )
+                splitError?.let { HqInlineError(it) }
             }
-            Spacer(Modifier.height(HqSpacing.xxhuge))
-        }
-        Column(Modifier.fillMaxWidth().background(c.surfaceBase).navigationBarsPadding().padding(HqSpacing.screenHorizontal)) {
-            saveError?.let {
-                Text(it, color = c.statusDangerFg, style = HqType.bodyMedium, modifier = Modifier.padding(bottom = HqSpacing.sm))
+            FormGroup("Category (optional)") {
+                HqChipFlow {
+                    TaskCategories.forEach { cat ->
+                        HqChip(label = cat, selected = category == cat, onClick = { category = cat })
+                    }
+                }
             }
-            HqButton(
-                text = if (saving) "Adding…" else "Add expense",
-                loading = saving,
-                enabled = canSubmit,
-                onClick = { submit() }
-            )
+            Spacer(Modifier.height(HqSpacing.lg))
         }
+        Column(
+            Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().imePadding()
+                .padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+        ) {
+            saveError?.let { HqInlineError(it) }
+            HqButton(text = "Add expense", loading = saving, onClick = { submit() })
+        }
+    }
+
+    if (confirmDiscard) {
+        HqDiscardChangesDialog(onKeepEditing = { confirmDiscard = false }, onDiscard = { confirmDiscard = false; onBack() })
     }
 }
 
+/** A short label directly above the controls it names (chunking + proximity). */
 @Composable
-private fun ExpenseAddedScreen(label: String, onAnother: () -> Unit, onDone: () -> Unit) {
+internal fun FormGroup(label: String, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val c = LocalHqColors.current
-    HqFadeUp(modifier = Modifier.fillMaxSize()) {
-    Column(
-        Modifier.fillMaxSize().background(c.canvas).padding(HqSpacing.xxl),
-        verticalArrangement = Arrangement.Center,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Box(
-            Modifier.size(88.dp).clip(CircleShape).background(c.statusSuccessBg),
-            contentAlignment = Alignment.Center
-        ) { Icon(Icons.Filled.CheckCircle, null, tint = c.statusSuccessFg, modifier = Modifier.size(52.dp)) }
-        Spacer(Modifier.height(HqSpacing.xl))
-        Text("Expense added", style = HqType.headlineMedium, color = c.textPrimary)
-        Text(label, style = HqType.bodyLarge, color = c.textSecondary, modifier = Modifier.padding(vertical = HqSpacing.lg))
-        HqButton(text = "View expense", onClick = onDone)
-        Spacer(Modifier.height(HqSpacing.md))
-        HqButton(text = "Add another", onClick = onAnother, variant = HqButtonVariant.Secondary)
-    }
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+        Text(label, style = HqType.labelMedium, color = c.textPrimary, modifier = Modifier.semantics { heading() })
+        content()
     }
 }
+

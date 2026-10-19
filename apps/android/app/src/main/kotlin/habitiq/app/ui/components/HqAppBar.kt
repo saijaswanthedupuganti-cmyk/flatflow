@@ -14,6 +14,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,9 +47,7 @@ private fun HqAppBarBase(
         horizontalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         if (onBack != null) {
-            IconButton(onClick = onBack, modifier = Modifier.size(HqSize.target)) {
-                Icon(HqIcons.Back, contentDescription = "Back", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
-            }
+            HqIconButton(icon = HqIcons.Back, contentDescription = "Back", onClick = onBack)
         }
         if (title != null) {
             Text(
@@ -81,3 +80,52 @@ fun HqTitleOnlyAppBar(onBack: () -> Unit, modifier: Modifier = Modifier) =
 @Composable
 fun HqTitleWithActionAppBar(title: String, onBack: () -> Unit, modifier: Modifier = Modifier, action: @Composable RowScope.() -> Unit) =
     HqAppBarBase(title = title, modifier = modifier, onBack = onBack, actions = action)
+
+/**
+ * THE app bar pattern for new and migrated screens (one pattern, two sizes):
+ *
+ * - Standard (`large = false`): 64dp bar on the canvas -- 48dp back arrow, an 18sp single-line title,
+ *   trailing [actions] (each an [HqIconButton] or [HqTextButton]). Use on detail screens and forms.
+ * - Large (`large = true`): the same 56dp row with back + actions, then a 28sp display title on its
+ *   own line at the screen gutter. Use on a hierarchy's top screen and on screens whose title is
+ *   the content (a task name).
+ *
+ * The title is a heading for TalkBack; the back arrow is announced "Back". [onBack] null = root screen.
+ */
+@Composable
+fun HqAppBar(
+    title: String,
+    modifier: Modifier = Modifier,
+    onBack: (() -> Unit)? = null,
+    large: Boolean = false,
+    actions: @Composable RowScope.() -> Unit = {},
+) {
+    val c = LocalHqColors.current
+    val gutter = habitiq.app.ui.theme.HqSpacing.screenHorizontal
+    androidx.compose.foundation.layout.Column(modifier.fillMaxWidth().background(c.canvas)) {
+        Row(
+            Modifier.fillMaxWidth()
+                .defaultMinSize(minHeight = if (large) HqSize.appBarContent else 64.dp)
+                .padding(start = if (onBack != null) habitiq.app.ui.theme.HqSpacing.xs else gutter, end = habitiq.app.ui.theme.HqSpacing.xs),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(habitiq.app.ui.theme.HqSpacing.xs),
+        ) {
+            if (onBack != null) HqIconButton(icon = HqIcons.Back, contentDescription = "Back", onClick = onBack)
+            if (!large) {
+                Text(
+                    title, style = HqType.titleSmall2, color = c.textPrimary, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).semantics { heading() },
+                )
+            } else {
+                Spacer(Modifier.weight(1f))
+            }
+            actions()
+        }
+        if (large) {
+            Text(
+                title, style = HqType.titleLarge2, color = c.textPrimary,
+                modifier = Modifier.fillMaxWidth().padding(start = gutter, end = gutter, top = habitiq.app.ui.theme.HqSpacing.xs, bottom = habitiq.app.ui.theme.HqSpacing.lg).semantics { heading() },
+            )
+        }
+    }
+}

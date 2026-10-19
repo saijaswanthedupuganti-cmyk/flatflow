@@ -86,14 +86,44 @@ class HqColorContrastTest {
 
     @Test
     fun brandAnchorsAreNotApprovedForText() {
-        // Spec section 5.3: white on the raw anchors fails and must never be used for text.
+        // Palette C: teal is the only press-me colour and carries white text at AA; the bright
+        // teal anchor and the retired coral never carry white text.
         assertTrue(ratio(Color.White, Color(0xFF14B8A6)) < 4.5)
         assertTrue(ratio(Color.White, Color(0xFFFF6B5A)) < 4.5)
-        themes.values.forEach { c ->
-            assertEquals(Color(0xFF14B8A6), c.brandTeal)
-            assertEquals(Color(0xFFFF6B5A), c.brandCoral)
+        assertEquals(Color(0xFF0F766E), HqLightColors.brandTeal)
+        assertEquals(HqLightColors.actionPrimaryBg, HqLightColors.brandTeal)
+        assertTrue(ratio(HqLightColors.actionPrimaryFg, HqLightColors.brandTeal) >= 4.5)
+    }
+
+    @Test
+    fun paletteCNeutralCorrectionsHold() {
+        // Palette C corrections: 94A3B8 (2.56:1) and 6B7685 (4.30:1) failed, these replace them.
+        assertEquals(Color(0xFF7A8699), HqLightColors.borderControl)
+        assertEquals(Color(0xFF5F6B7A), HqLightColors.textMuted)
+        val c = HqLightColors
+        for ((name, bg) in listOf("white" to Color.White, "canvas" to c.canvas, "subtle" to c.surfaceSubtle)) {
+            assertNonText("light", "control border on $name", c.borderControl, bg)
+            assertText("light", "muted on $name", c.textMuted, bg)
         }
     }
+
+    @Test
+    fun componentRolesMeetContrast() {
+        themes.forEach { (t, c) ->
+            assertNonText(t, "control on (switch/checkbox) on canvas", c.controlOn, c.canvas)
+            assertNonText(t, "control on on base", c.controlOn, c.surfaceBase)
+            assertNonText(t, "control off on base", c.controlOff, c.surfaceBase)
+            assertNonText(t, "switch thumb on track", c.onControlOn, c.controlOn)
+            assertText(t, "snackbar text", c.snackbarFg, c.snackbarBg)
+            assertText(t, "snackbar action", c.snackbarAction, c.snackbarBg)
+            assertText(t, "segment label", c.textPrimary, c.segmentSelectedBg)
+            assertText(t, "segment unselected label", c.textSecondary, c.segmentTrack)
+            assertText(t, "on brand ink", c.onBrandInk, c.brandInk)
+            assertText(t, "link on canvas", c.link, c.canvas)
+            assertText(t, "link on base", c.link, c.surfaceBase)
+        }
+    }
+
 
     @Test
     fun specReferenceRatiosHold() {

@@ -1,7 +1,6 @@
 package habitiq.app.ui.components
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -26,7 +25,7 @@ fun HqWordmark(modifier: Modifier = Modifier, height: Dp = 36.dp, tint: androidx
         modifier = modifier.height(height),
         colorFilter = when {
             tint != null -> ColorFilter.tint(tint)
-            isSystemInDarkTheme() -> ColorFilter.tint(c.textPrimary)
+            c.isDark -> ColorFilter.tint(c.textPrimary)
             else -> null
         },
     )

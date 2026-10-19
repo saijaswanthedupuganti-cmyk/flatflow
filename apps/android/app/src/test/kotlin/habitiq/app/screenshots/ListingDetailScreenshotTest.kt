@@ -27,13 +27,13 @@ class ListingDetailScreenshotTest : ScreenshotHarness() {
         ),
     )
 
-    private fun render(name: String, dark: Boolean) = shoot(name, dark = dark) {
+    private fun render(name: String, dark: Boolean, fontScale: Float = 1f, status: ConnectionStatus = ConnectionStatus.NONE, own: Boolean = false) = shoot(name, dark = dark, fontScale = fontScale) {
         FlatListingDetailScreen(
             listing = listing,
             trust = TrustPresentation(TrustTier.HABITIQ_MEMBER, "Oddroof member", "Members use Oddroof together."),
             signals = emptyList(),
-            connectionStatus = ConnectionStatus.NONE,
-            incomingRequestId = null, blocked = false, isOwnListing = false,
+            connectionStatus = status,
+            incomingRequestId = null, blocked = false, isOwnListing = own,
             interestedCount = 0, interestedPeople = emptyList(), onOpenInterested = {},
             onBack = {}, onConnect = {}, onMessage = {}, onAccept = {}, onDecline = {}, onReport = {}, onBlock = {},
             saved = false, onToggleSave = {},
@@ -45,4 +45,11 @@ class ListingDetailScreenshotTest : ScreenshotHarness() {
 
     @Config(qualifiers = "w390dp-h1800dp-xxhdpi", sdk = [34])
     @Test fun dark() = render("listing-dark", true)
+
+    @Config(qualifiers = "w390dp-h3400dp-xxhdpi", sdk = [34])
+    @Test fun largeFont() = render("listing-font2", false, fontScale = 2f)
+
+    @Test fun requestSent() = render("listing-request-sent", false, status = ConnectionStatus.REQUEST_SENT)
+
+    @Test fun ownListing() = render("listing-own", false, own = true)
 }

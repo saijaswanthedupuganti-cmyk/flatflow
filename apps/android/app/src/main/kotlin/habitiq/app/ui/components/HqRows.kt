@@ -219,3 +219,56 @@ fun HqIllustratedPanel(
         HqIllustration(art, Modifier.width(artSize))
     }
 }
+
+/**
+ * The general list row (design doc 10.5). One geometry for every list in the app:
+ * 16dp sides, 12dp vertical padding, 12dp gaps, min 56dp (72dp with [supporting]).
+ *
+ * - [leading]: an icon (24dp) or an avatar (40dp) in a fixed 40dp column, so titles align across rows. Divider inset = 16 + 40 + 12.
+ * - [title] one to two lines, [supporting] the secondary line.
+ * - [trailing]: a value text, a chevron, a switch visual or an [HqIconButton]. When [onClick] is
+ *   set the whole row is one target, so a trailing control must not be separately clickable.
+ * Put rows inside an [HqGroup] separated by [HqRowDivider]; never give a row its own card.
+ */
+@Composable
+fun HqRow(
+    title: String,
+    modifier: Modifier = Modifier,
+    supporting: String? = null,
+    leading: (@Composable () -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+) {
+    val c = LocalHqColors.current
+    Row(
+        modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = if (supporting != null) HqSize.rowTwoLine else HqSize.row)
+            .then(if (onClick != null) Modifier.hqPressable(enabled = enabled, onClick = onClick) else Modifier)
+            .padding(horizontal = HqSpacing.component, vertical = HqSpacing.related),
+        horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) {
+            Box(Modifier.defaultMinSize(minWidth = HqSize.avatarMedium), contentAlignment = Alignment.Center) { leading() }
+        }
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(title, style = HqType.rowTitle, color = if (enabled) c.textPrimary else c.disabledFg, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            if (supporting != null) Text(supporting, style = HqType.bodyMedium, color = if (enabled) c.textSecondary else c.disabledFg)
+        }
+        if (trailing != null) trailing()
+    }
+}
+
+/** Standard trailing chevron for a row that navigates. Decorative: the row carries the action. */
+@Composable
+fun HqRowChevron() {
+    Icon(Icons.Filled.ChevronRight, null, tint = LocalHqColors.current.iconDefault, modifier = Modifier.size(HqIconSize.md))
+}
+
+/** Standard trailing value text ("₹1,250", "Weekly") for a row. */
+@Composable
+fun HqRowValue(text: String, color: Color = LocalHqColors.current.textSecondary) {
+    Text(text, style = HqType.bodyMedium, color = color)
+}

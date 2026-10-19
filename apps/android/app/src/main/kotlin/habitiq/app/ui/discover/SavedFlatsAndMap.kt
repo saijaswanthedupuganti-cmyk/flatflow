@@ -62,7 +62,7 @@ fun SavedFlatsScreen(
         Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.screenEnd),
     ) {
-        HqPageHeader(title = "Saved flats", subtitle = "Keep a shortlist before you connect", onBack = onBack)
+        HqPageHeader(title = "Saved flats", subtitle = "Your shortlist before you send a request", onBack = onBack)
         if (saved.isEmpty()) {
             Column(
                 Modifier.fillMaxWidth().padding(top = 48.dp, start = 12.dp, end = 12.dp),

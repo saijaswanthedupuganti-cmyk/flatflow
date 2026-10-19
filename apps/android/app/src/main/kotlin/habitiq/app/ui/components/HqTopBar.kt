@@ -130,9 +130,7 @@ private fun BoxScope.HqCompactBar(entry: HqTopBarEntry, statusInset: Boolean) {
     ) {
         val back = entry.onBack
         if (back != null) {
-            IconButton(onClick = back, modifier = Modifier.size(HqSize.target)) {
-                Icon(HqIcons.Back, contentDescription = "Back", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
-            }
+            HqIconButton(icon = HqIcons.Back, contentDescription = "Back", onClick = back)
         } else {
             Spacer(Modifier.width(HqSpacing.md))
         }

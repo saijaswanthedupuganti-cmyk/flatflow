@@ -29,6 +29,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.foundation.layout.defaultMinSize
+import habitiq.app.ui.theme.HqSize
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.components.HqArt
 import habitiq.app.ui.components.HqIllustration
@@ -38,9 +42,15 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
+/** WORDS.md: the one sentence that says what Oddroof is. Shown on Welcome, Create account and the first choice. */
+const val OddroofValueSentence = "Oddroof keeps your flat in order. Split expenses, share chores and bills, and find a flat or a flatmate."
+
+const val StartChoicesTitle = "What do you want to do first?"
+const val StartChoicesSubtitle = "You can do the rest anytime."
+
 /**
- * The four starting options as Figma's numbered rows: number, tinted icon tile, title and support, arrow.
- * Same four callbacks and routing as before; only the presentation and wording follow the Figma file.
+ * The four ways to start, used by the first-choice screen and by Home when the person has no flat, so both
+ * read exactly the same. Plain rows: icon tile, title, one-line helper, arrow. The whole row is the target.
  */
 @Composable
 fun IntentChoices(
@@ -51,14 +61,30 @@ fun IntentChoices(
     modifier: Modifier = Modifier,
 ) {
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HqSpacing.related)) {
-        IntentRow("01", HqIcons.Search, HqTileTone.Coral, "I'm looking for a flat", "Find a room near work, college, or an area", onFindFlat)
-        IntentRow("02", HqIcons.Users, HqTileTone.Teal, "I'm looking for a flatmate", "Find people whose way of living fits yours", onFindPerson)
-        IntentRow("03", HqIcons.Manage, HqTileTone.Sand, "I want to manage my flat", "Organise tasks, expenses, bills, and members", onCreateFlat)
-        IntentRow("04", HqIcons.Home, HqTileTone.Neutral, "I'm joining an existing flat", "Use an invite code from your flat admin", onJoinFlat)
-        Row(Modifier.padding(top = HqSpacing.sm), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Icon(HqIcons.Shield, null, tint = LocalHqColors.current.textMuted, modifier = Modifier.size(15.dp))
-            Text("Your choice only personalises setup. It does not limit your account.", style = HqType.labelSmall, color = LocalHqColors.current.textMuted)
-        }
+        IntentRow(HqIcons.Home, HqTileTone.Teal, "Create a flat", "Invite your flatmates to share tasks and expenses", onCreateFlat)
+        IntentRow(HqIcons.Users, HqTileTone.Sand, "Join a flat", "Use the invite code from your flatmate", onJoinFlat)
+        IntentRow(HqIcons.Search, HqTileTone.Coral, "Find a flat", "Browse rooms near you", onFindFlat)
+        IntentRow(HqIcons.Discover, HqTileTone.Neutral, "Find a flatmate", "List a room in your flat", onFindPerson)
+    }
+}
+
+/** Title, subtitle and the four choices as one block, so every place that offers them uses one copy set. */
+@Composable
+fun StartChooser(
+    onFindFlat: () -> Unit,
+    onFindPerson: () -> Unit,
+    onCreateFlat: () -> Unit,
+    onJoinFlat: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = LocalHqColors.current
+    Column(modifier.fillMaxWidth()) {
+        Text(StartChoicesTitle, style = HqType.headlineMedium, color = c.textPrimary, modifier = Modifier.semantics { heading() })
+        Text(
+            StartChoicesSubtitle, style = HqType.bodyMedium, color = c.textSecondary,
+            modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl),
+        )
+        IntentChoices(onFindFlat = onFindFlat, onFindPerson = onFindPerson, onCreateFlat = onCreateFlat, onJoinFlat = onJoinFlat)
     }
 }
 
@@ -89,17 +115,17 @@ internal fun IntentTile(title: String, support: String, art: HqArt, onClick: () 
 }
 
 @Composable
-private fun IntentRow(number: String, icon: androidx.compose.ui.graphics.vector.ImageVector, tone: HqTileTone, title: String, support: String, onClick: () -> Unit) {
+private fun IntentRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tone: HqTileTone, title: String, support: String, onClick: () -> Unit) {
     val c = LocalHqColors.current
     Row(
-        Modifier.fillMaxWidth().then(surfaceModifier(onClick)).padding(horizontal = HqSpacing.component, vertical = 15.dp),
+        Modifier.fillMaxWidth().defaultMinSize(minHeight = HqSize.target).then(surfaceModifier(onClick))
+            .padding(horizontal = HqSpacing.component, vertical = HqSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalArrangement = Arrangement.spacedBy(HqSpacing.md),
     ) {
-        Text(number, style = HqType.labelSmall, color = c.textMuted, fontWeight = FontWeight.ExtraBold)
         HqIconTile(icon, tone, size = 44)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(title, style = HqType.rowTitle, color = c.textPrimary)
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
+            Text(title, style = HqType.rowTitle, color = c.textPrimary, fontWeight = FontWeight.SemiBold)
             Text(support, style = HqType.bodyMedium, color = c.textSecondary)
         }
         Icon(HqIcons.Arrow, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))

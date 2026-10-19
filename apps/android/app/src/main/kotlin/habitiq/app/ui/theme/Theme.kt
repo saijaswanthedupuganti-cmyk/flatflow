@@ -57,8 +57,9 @@ private val LightMaterialColors = lightColorScheme().applyHq(HqLightColors)
 private val DarkMaterialColors = darkColorScheme().applyHq(HqDarkColors)
 
 /**
- * Root theme wrapper. Light-first launch: the Figma Make file is light only, so the default ignores the OS
- * dark setting until the dark pass ships; then restore `isSystemInDarkTheme()` as the default.
+ * Root theme wrapper. This release is LIGHT ONLY (owner decision, Oct 2026): the app never reads the OS
+ * dark setting, so a dark-mode phone still renders the light palette. [dark] exists only for the
+ * screenshot gallery's "future dark" renders; production call sites must not pass it.
  * There is intentionally no in-app appearance setting (design doc section 1.2).
  * Wallpaper-derived dynamic color is off to preserve the approved contrast pairings.
  */

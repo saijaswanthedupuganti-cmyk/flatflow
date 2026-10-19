@@ -104,7 +104,7 @@ fun BiometricLockScreen(activity: FragmentActivity, onUnlocked: () -> Unit) {
         })
         prompt.authenticate(
             BiometricPrompt.PromptInfo.Builder()
-                .setTitle("Oddroof Vault")
+                .setTitle("Oddroof")
                 .setSubtitle("Verify to access your flat")
                 .setNegativeButtonText("Cancel")
                 .build()
@@ -139,14 +139,16 @@ fun DiscoverBoardScreen(
     onCreatePostConsumed: () -> Unit = {},
     openMyPosts: Boolean = false,
     onMyPostsConsumed: () -> Unit = {},
-    onRootBack: (() -> Unit)? = null
+    onRootBack: (() -> Unit)? = null,
+    /** True while a full-screen Discover flow is open (wizard, listing, profile, chat), so the shell hides its nav. */
+    onImmersiveChange: (Boolean) -> Unit = {},
 ) {
     val c = LocalHqColors.current
     LaunchedEffect(Unit) { viewModel.ensureDiscovery() }
 
     if (!DiscoverFlags.ENABLED) {
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            Text("Discovery is turned off in this build.", style = HqType.bodyMedium, color = c.textSecondary)
+            Text("Discover is turned off in this build.", style = HqType.bodyMedium, color = c.textSecondary)
         }
         return
     }
@@ -240,6 +242,9 @@ fun DiscoverBoardScreen(
         }
     }
 
+    LaunchedEffect(surface) { onImmersiveChange(surface in setOf("create", "flat", "person", "chat")) }
+    DisposableEffect(Unit) { onDispose { onImmersiveChange(false) } }
+
     var createInitialType by rememberSaveable { mutableStateOf<String?>(null) }
     LaunchedEffect(openCreatePost) {
         if (openCreatePost) {
@@ -303,8 +308,8 @@ fun DiscoverBoardScreen(
             onDismiss = { showFilterSheet = false },
             onApply = { showFilterSheet = false },
             onClear = {
-                if (mode == DiscoverMode.USE_A_FLAT) vacancyFilters = VacancyFilters()
-                else seekerFilters = SeekerFilters()
+                if (mode == DiscoverMode.USE_A_FLAT) vacancyFilters = VacancyFilters(cityArea = vacancyFilters.cityArea)
+                else seekerFilters = SeekerFilters(cityArea = seekerFilters.cityArea)
             },
             resultCount = if (mode == DiscoverMode.USE_A_FLAT) filteredVacancies.size else filteredSeekers.size,
         )
@@ -609,10 +614,10 @@ fun DiscoverBoardScreen(
                 Icon(Icons.Filled.CheckCircle, contentDescription = null, tint = c.statusSuccessFg, modifier = Modifier.size(62.dp))
             }
             Spacer(Modifier.height(HqSpacing.xl))
-            Text(if (publishedAsRequest) "Sent for approval" else "Your listing is live!", style = HqType.headlineMedium, color = c.textPrimary)
+            Text(if (publishedAsRequest) "Sent for approval" else "Your room is listed", style = HqType.headlineMedium, color = c.textPrimary)
             Text(
                 if (publishedAsRequest) "Your flat admin will review it. It goes live on Discover as soon as they approve."
-                else "People looking for a flatmate can now discover your home and send a request.",
+                else "People looking for a room can now find it in Discover and send you a request.",
                 style = HqType.bodyLarge,
                 color = c.textSecondary,
                 textAlign = TextAlign.Center,
@@ -651,17 +656,8 @@ fun DiscoverBoardScreen(
             )
             Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal)) {
                 DiscoverModeToggle(mode, DiscoverFlags.FIND_FLATMATE) { mode = it }
-                Spacer(Modifier.height(HqSpacing.sm))
-                Text(
-                    when (mode) {
-                        DiscoverMode.USE_A_FLAT -> "Find a place to live — flats, PGs and open rooms."
-                        DiscoverMode.FIND_A_PERSON -> "People looking for a home, matched to how you live."
-                    },
-                    style = HqType.bodySmall,
-                    color = c.textSecondary
-                )
             }
-            Spacer(Modifier.height(HqSpacing.sm))
+            Spacer(Modifier.height(HqSpacing.md))
             }
             when (mode) {
                 DiscoverMode.USE_A_FLAT -> UseAFlatDiscoverContent(
@@ -681,6 +677,8 @@ fun DiscoverBoardScreen(
                     onNearPlace = { surface = "map" },
                     header = discoverTop,
                     listState = flatList,
+                    savedIds = savedIds,
+                    onToggleSave = { l -> savedScope.launch { prefs.setFlatSaved(uid, l.flatId, l.flatId !in savedIds) } },
                 )
                 DiscoverMode.FIND_A_PERSON -> {
                     if (!DiscoverFlags.FIND_FLATMATE) {
@@ -733,17 +731,17 @@ private fun DiscoverEntry(
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(HqSpacing.xl)) {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-            HqTextButton(text = "Posts", onClick = onPosts)
-            HqTextButton(text = "Inbox", onClick = onInbox)
+            HqTextButton(text = "My posts", onClick = onPosts)
+            HqTextButton(text = "Requests", onClick = onInbox)
         }
         Text("Discover", style = HqType.headlineLarge, color = c.textPrimary)
-        Text("Find your next place or the right people to live with.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = HqSpacing.lg))
+        Text("Find a flat · Find a flatmate", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = HqSpacing.lg))
         androidx.compose.foundation.layout.Row(
             Modifier.height(androidx.compose.foundation.layout.IntrinsicSize.Max),
             horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
         ) {
-            habitiq.app.ui.IntentTile("Find a place", "Flats and rooms with space.", habitiq.app.ui.components.HqArt.SearchHouse, onFindPlace, Modifier.weight(1f))
-            habitiq.app.ui.IntentTile("Find a person", "Flatmates and households.", habitiq.app.ui.components.HqArt.IntentFlatmate, onFindPerson, Modifier.weight(1f))
+            habitiq.app.ui.IntentTile("Find a flat", "Browse rooms near you.", habitiq.app.ui.components.HqArt.SearchHouse, onFindPlace, Modifier.weight(1f))
+            habitiq.app.ui.IntentTile("Find a flatmate", "People looking for a room.", habitiq.app.ui.components.HqArt.IntentFlatmate, onFindPerson, Modifier.weight(1f))
         }
         Spacer(Modifier.height(HqSpacing.xl))
         Text("Search by area", style = HqType.titleSmall, color = c.textPrimary)
@@ -755,7 +753,7 @@ private fun DiscoverEntry(
         if (isAdmin) {
             Spacer(Modifier.height(HqSpacing.xl))
             habitiq.app.ui.components.HqGroup {
-                habitiq.app.ui.components.HqNavRow(title = "Post a vacancy", support = "List a room in your flat.", onClick = onPost)
+                habitiq.app.ui.components.HqNavRow(title = "List a room", support = "Find a flatmate for a room in your flat.", onClick = onPost)
             }
         }
     }
@@ -790,7 +788,7 @@ private fun DiscoverChoose(
 ) {
     val c = LocalHqColors.current
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = if (findingPerson) "Find a person" else "Find a place", onBack = onBack)
+        HqBackAppBar(title = if (findingPerson) "Find a flatmate" else "Find a flat", onBack = onBack)
         Column(
             Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
@@ -826,7 +824,7 @@ private fun DiscoverHeader(onBack: () -> Unit, onMyPosts: () -> Unit, onInbox: (
     // the shell's + (vacancy / looking) and "My posts" sits on the list's section title.
     habitiq.app.ui.components.HqPageHeader(
         title = "Discover",
-        subtitle = "Find a place or the right people.",
+        subtitle = "Find a flat · Find a flatmate",
         pinOnScroll = false,
         modifier = Modifier.padding(start = HqSpacing.screenHorizontal, end = HqSpacing.screenHorizontal, top = HqSpacing.sm),
         action = {
@@ -846,7 +844,7 @@ private fun FindPersonStub() {
             modifier = Modifier.padding(HqSpacing.xxxl)
         ) {
             Text("Find a flatmate", style = HqType.headlineSmall, color = c.textPrimary, textAlign = TextAlign.Center)
-            Text("This side of Discovery is feature-flagged off in this build.", style = HqType.bodyMedium, color = c.textSecondary, textAlign = TextAlign.Center)
+            Text("Finding a flatmate is not available yet.", style = HqType.bodyMedium, color = c.textSecondary, textAlign = TextAlign.Center)
         }
     }
 }
@@ -855,7 +853,7 @@ private fun FindPersonStub() {
 @Composable
 private fun DiscoverModeToggle(mode: DiscoverMode, findPersonEnabled: Boolean, onModeChange: (DiscoverMode) -> Unit) {
     habitiq.app.ui.components.HqSegmentedControl(
-        options = listOf("Find a Flat", if (findPersonEnabled) "Find a Flatmate" else "Find a Flatmate (soon)"),
+        options = listOf("Find a flat", if (findPersonEnabled) "Find a flatmate" else "Find a flatmate (soon)"),
         selectedIndex = if (mode == DiscoverMode.USE_A_FLAT) 0 else 1,
         onSelect = { onModeChange(if (it == 0) DiscoverMode.USE_A_FLAT else DiscoverMode.FIND_A_PERSON) },
     )
@@ -877,7 +875,7 @@ private fun ConnectionInboxScreen(
     fun label(partner: String): String {
         return vacancies.find { it.adminUid == partner }?.flatName
             ?: seekers.find { it.id == partner }?.displayName?.ifBlank { null }
-            ?: "Connection"
+            ?: "Someone on Discover"
     }
     // Figma Connections: Requests (incoming), Sent (waiting), Connected (open conversations).
     val incoming = connections.filter { it.toUid == uid && it.status == ConnectionStatus.REQUEST_SENT }
@@ -885,19 +883,19 @@ private fun ConnectionInboxScreen(
     val connected = connections.filter { it.status == ConnectionStatus.ACCEPTED || it.status == ConnectionStatus.CONVERSATION_OPEN || it.status == ConnectionStatus.MATCHED }
     Column(Modifier.fillMaxSize().background(c.canvas).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal).padding(bottom = HqSpacing.screenEnd)) {
         habitiq.app.ui.components.HqPageHeader(
-            title = "Connections",
-            subtitle = "Your Discovery requests and conversations",
+            title = "Requests",
+            subtitle = "Requests you sent and got in Discover",
             onBack = onBack,
             modifier = Modifier.padding(top = HqSpacing.sm),
         )
         if (connections.isEmpty()) {
             DiscoveryEmpty(
                 title = "Nothing here yet",
-                body = "Interested people will appear here when they contact you."
+                body = "When someone sends you a request in Discover, it shows here."
             )
         }
         if (incoming.isNotEmpty()) {
-            habitiq.app.ui.components.HqSectionTitle("Requests")
+            habitiq.app.ui.components.HqSectionTitle("New")
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 incoming.forEach { conn ->
                     val partner = conn.partnerId(uid)
@@ -947,7 +945,7 @@ private fun ConnectionInboxScreen(
                         habitiq.app.ui.components.HqAvatar(name, size = habitiq.app.ui.components.HqAvatarSize.MD, tone = habitiq.app.ui.components.hqToneFor(name, false))
                         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                             Text(name, style = HqType.rowTitle, color = c.textPrimary)
-                            Text(if (conn.status == ConnectionStatus.MATCHED) "Matched" else "Tap to message", style = HqType.bodyMedium, color = c.textSecondary)
+                            Text("Connected · Tap to message", style = HqType.bodyMedium, color = c.textSecondary)
                         }
                         Icon(habitiq.app.ui.components.HqIcons.Chevron, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.sm))
                     }

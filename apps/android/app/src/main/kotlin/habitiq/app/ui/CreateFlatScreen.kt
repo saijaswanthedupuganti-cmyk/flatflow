@@ -1,7 +1,15 @@
 package habitiq.app.ui
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import habitiq.app.ui.components.HqCard
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -78,30 +86,40 @@ fun CreateFlatScreen(
 
     when {
         createdFlatId != null || wizardStep == CreateFlatWizardStep.SUCCESS -> {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(HqSpacing.xxl)
-            ) {
-                Text("Your flat is ready", color = c.textPrimary, style = HqType.headlineMedium)
-                Text(
-                    "Now bring your flatmates in — or skip and set up later.",
-                    color = c.textSecondary,
-                    style = HqType.bodyMedium,
-                    modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.lg)
-                )
-                Text("Invite code: $createdFlatId", color = c.textBrand, style = HqType.titleMedium)
-                Spacer(Modifier.height(HqSpacing.xl))
-                HqButton(
-                    text = "Share invite code",
-                    onClick = { launchShareInviteCode(context, form.name, createdFlatId!!) }
-                )
-                Spacer(Modifier.height(HqSpacing.md))
-                HqButton(
-                    text = "I'll do this later",
-                    variant = HqButtonVariant.Secondary,
-                    onClick = { createdFlatId?.let { onDone(it) } }
-                )
+            Column(Modifier.fillMaxSize().background(c.canvas).navigationBarsPadding()) {
+                Column(
+                    Modifier.weight(1f).verticalScroll(rememberScrollState())
+                        .padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xxl)
+                ) {
+                    Text("Your flat is ready", color = c.textPrimary, style = HqType.headlineLarge, modifier = Modifier.semantics { heading() })
+                    Text(
+                        "Share this invite code with your flatmates",
+                        color = c.textSecondary,
+                        style = HqType.bodyLarge,
+                        modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl)
+                    )
+                    HqCard(modifier = Modifier.fillMaxWidth()) {
+                        Text("Invite code", color = c.textSecondary, style = HqType.labelMedium)
+                        Text(
+                            createdFlatId.orEmpty(), color = c.textPrimary, style = HqType.code,
+                            modifier = Modifier.padding(top = HqSpacing.xs)
+                        )
+                    }
+                }
+                Column(
+                    Modifier.padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.md),
+                    verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)
+                ) {
+                    HqButton(
+                        text = "Share invite code",
+                        onClick = { createdFlatId?.let { launchShareInviteCode(context, form.name, it) } }
+                    )
+                    HqButton(
+                        text = "Go to my flat",
+                        variant = HqButtonVariant.Secondary,
+                        onClick = { createdFlatId?.let { onDone(it) } }
+                    )
+                }
             }
         }
         wizardStep == CreateFlatWizardStep.BASICS -> {
@@ -128,8 +146,7 @@ fun CreateFlatScreen(
                 onBack = { step = CreateFlatWizardStep.BASICS.name },
                 onContinue = { viewModel.createFlat() },
                 onSkip = { viewModel.createFlat() },
-                showBottomSkip = true,
-                showHeaderSkip = true
+                showBottomSkip = true
             )
             if (state is FlatUiState.Error) {
                 HqInlineError(

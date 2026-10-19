@@ -84,7 +84,7 @@ fun ManageFlatHub(
     val onExpenses = area == ManageFlatArea.EXPENSES
     val header: @Composable () -> Unit = {
         Column {
-            HqPageHeader(title = "Manage Flat", subtitle = "Everything your home needs, in one place.")
+            HqPageHeader(title = "Your flat", subtitle = "Tasks, expenses and bills for everyone in your flat.")
             HqManageSwitch(
                 options = listOf("Tasks" to HqIcons.Check, "Expenses" to HqIcons.Receipt),
                 selectedIndex = if (onExpenses) 1 else 0,

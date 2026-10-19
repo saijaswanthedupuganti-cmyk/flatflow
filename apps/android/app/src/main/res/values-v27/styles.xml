@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- Light only this release: a qualified style replaces the base one, so repeat every item. -->
     <style name="Theme.Habitiq" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/habitiq_window_background</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:windowLightStatusBar">true</item>
         <item name="android:windowLightNavigationBar">true</item>
     </style>
 </resources>

@@ -78,6 +78,12 @@ fun FigmaHomeScreen(
     onAddBill: () -> Unit = {},
     onOpenProfile: () -> Unit = {},
     onReviewVacancies: () -> Unit = {},
+    // No-flat Home shows the four start choices. Until the caller wires each one, they fall back to the
+    // first-choice screen (create / join) and Discover (find a flat / find a flatmate).
+    onCreateFlat: () -> Unit = onStartOnboarding,
+    onJoinFlat: () -> Unit = onStartOnboarding,
+    onFindFlat: () -> Unit = onOpenDiscover,
+    onFindFlatmate: () -> Unit = onOpenDiscover,
 ) {
     val flatStatus by homeViewModel.flatStatus.collectAsStateWithLifecycleCompat()
     val dashboardStatus by dashboardViewModel.status.collectAsStateWithLifecycleCompat()
@@ -86,7 +92,7 @@ fun FigmaHomeScreen(
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         when (flatStatus) {
             is HomeFlatStatus.Loading -> HomeLoading()
-            is HomeFlatStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
+            is HomeFlatStatus.NoFlat -> NoFlatContent(onCreateFlat, onJoinFlat, onFindFlat, onFindFlatmate)
             is HomeFlatStatus.Error -> HomeError((flatStatus as HomeFlatStatus.Error).message) {
                 homeViewModel.checkFlatStatus(); dashboardViewModel.load()
             }
@@ -111,7 +117,7 @@ fun FigmaHomeScreen(
                     onOpenProfile = onOpenProfile,
                     onReviewVacancies = onReviewVacancies,
                 )
-                is HomeDashboardStatus.NoFlat -> NoFlatContent(onStartOnboarding, onOpenDiscover)
+                is HomeDashboardStatus.NoFlat -> NoFlatContent(onCreateFlat, onJoinFlat, onFindFlat, onFindFlatmate)
             }
         }
     }
@@ -212,16 +218,16 @@ internal fun buildHomeModel(
     val dueToday = mine.count { habitiq.app.lib.isDueToday(it.dueDate) && effectiveTaskStatus(it) != "overdue" }
 
     val headline = when {
-        overdue > 0 -> "${plural(overdue, "task")} overdue."
-        dueToday > 0 -> "${plural(dueToday, "task")} due today."
-        mine.isNotEmpty() -> "${plural(mine.size, "task")} assigned to you."
+        overdue > 0 -> "You have ${plural(overdue, "overdue task")}."
+        dueToday > 0 -> "You have ${plural(dueToday, "task")} due today."
+        mine.isNotEmpty() -> "You have ${plural(mine.size, "task")} coming up."
         else -> "You're all caught up."
     }
 
     val pending = buildList {
-        if (pendingJoins > 0) add(HomePendingItem(HomePendingItem.Kind.JoinRequests, "Join requests", "${plural(pendingJoins, "person", "people")} waiting for approval"))
-        if (pendingSwapsForMe > 0) add(HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap requests", "${plural(pendingSwapsForMe, "request")} waiting for your answer"))
-        if (pendingVacancies > 0) add(HomePendingItem(HomePendingItem.Kind.VacancyRequests, "Vacancy to review", "${plural(pendingVacancies, "flatmate")} posted a room for Discover"))
+        if (pendingJoins > 0) add(HomePendingItem(HomePendingItem.Kind.JoinRequests, "Join requests", "${plural(pendingJoins, "person", "people")} asked to join your flat"))
+        if (pendingSwapsForMe > 0) add(HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap turn", "${plural(pendingSwapsForMe, "flatmate")} asked to swap a turn with you"))
+        if (pendingVacancies > 0) add(HomePendingItem(HomePendingItem.Kind.VacancyRequests, "Room listing to review", "${plural(pendingVacancies, "flatmate")} listed a room in Discover"))
     }
 
     val owe = balances.filter { it.value < 0 }
@@ -273,66 +279,37 @@ private fun memberName(members: List<Member>, uid: String, currentUid: String) =
     if (uid == currentUid) "You" else members.find { it.uid == uid }?.nickname?.ifBlank { "A flatmate" } ?: "A flatmate"
 
 /**
- * Home before the person belongs to a flat: brand, a warm illustration, a clear promise, and the three
- * real ways forward as tappable rows (not one vague "Continue").
+ * Home before the person belongs to a flat: the wordmark, what Oddroof is, and the same four choices and copy as
+ * the first-choice screen ([StartChooser]), so there is one way to say it everywhere.
  */
 @Composable
-private fun NoFlatContent(onStartOnboarding: () -> Unit, onOpenDiscover: () -> Unit) {
+internal fun NoFlatContent(
+    onCreateFlat: () -> Unit,
+    onJoinFlat: () -> Unit,
+    onFindFlat: () -> Unit,
+    onFindFlatmate: () -> Unit,
+) {
     val c = LocalHqColors.current
     Column(
         Modifier
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal)
-            .padding(top = 20.dp, bottom = HqSpacing.screenEnd),
+            .padding(top = HqSpacing.xl, bottom = HqSpacing.screenEnd),
     ) {
         HqWordmark(height = 28.dp)
-        Box(Modifier.fillMaxWidth().padding(top = 28.dp), contentAlignment = Alignment.Center) {
-            HqIllustration(HqArt.SharedHome, Modifier.fillMaxWidth(0.78f))
-        }
         Text(
-            "WELCOME",
-            style = HqType.labelSmall,
-            color = c.textBrand,
-            fontWeight = FontWeight.ExtraBold,
-            modifier = Modifier.padding(top = 28.dp),
-        )
-        Text(
-            "Shared living,\nmade easier.",
-            style = HqType.display,
-            color = c.textPrimary,
-            modifier = Modifier.padding(top = 6.dp),
-        )
-        Text(
-            "Set up your home, join your flatmates, or find your next place. Pick where to start.",
+            OddroofValueSentence,
             style = HqType.bodyMedium,
             color = c.textSecondary,
-            modifier = Modifier.padding(top = 8.dp, bottom = 22.dp),
+            modifier = Modifier.padding(top = HqSpacing.lg, bottom = HqSpacing.xxl),
         )
-        HqGroup {
-            HqMenuRow(
-                title = "Set up my flat",
-                support = "Create a home and invite flatmates",
-                icon = HqIcons.Home,
-                tone = HqTileTone.Teal,
-                onClick = onStartOnboarding,
-            )
-            HqMenuRow(
-                title = "Join with a code",
-                support = "A flatmate shared an invite with you",
-                icon = HqIcons.Users,
-                tone = HqTileTone.Sand,
-                onClick = onStartOnboarding,
-            )
-            HqMenuRow(
-                title = "Find a flat or flatmate",
-                support = "Browse rooms and people in Discover",
-                icon = HqIcons.Discover,
-                tone = HqTileTone.Coral,
-                lastRow = true,
-                onClick = onOpenDiscover,
-            )
-        }
+        StartChooser(
+            onFindFlat = onFindFlat,
+            onFindPerson = onFindFlatmate,
+            onCreateFlat = onCreateFlat,
+            onJoinFlat = onJoinFlat,
+        )
     }
 }
 
@@ -340,7 +317,7 @@ private fun NoFlatContent(onStartOnboarding: () -> Unit, onOpenDiscover: () -> U
 @Composable
 private fun HomeLoading() {
     val c = LocalHqColors.current
-    Column(Modifier.fillMaxSize().semantics { contentDescription = "Loading your home" }) {
+    Column(Modifier.fillMaxSize().semantics { contentDescription = "Loading your flat" }) {
         habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(), height = 380.dp)
         Column(Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = 28.dp), verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(14.dp)) {
             habitiq.app.ui.components.HqSkeletonBlock(Modifier.fillMaxWidth(0.45f), height = 20.dp)

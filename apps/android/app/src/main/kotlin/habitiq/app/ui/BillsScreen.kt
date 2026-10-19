@@ -47,6 +47,7 @@ import habitiq.app.lib.currentMonthKey
 import habitiq.app.lib.suggestSettlements
 import habitiq.app.ui.components.HqBackAppBar
 import habitiq.app.ui.components.HqButton
+import habitiq.app.ui.components.HqButtonSize
 import habitiq.app.ui.components.HqButtonVariant
 import habitiq.app.ui.components.HqCard
 import habitiq.app.ui.components.HqCardVariant
@@ -55,6 +56,14 @@ import habitiq.app.ui.components.HqEmptyState
 import habitiq.app.ui.components.HqRootAppBar
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.components.HqTextField
+import habitiq.app.ui.components.HqChipFlow
+import habitiq.app.ui.components.HqInlineError
+import habitiq.app.ui.components.HqDiscardChangesDialog
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.foundation.selection.toggleable
+import androidx.compose.material.icons.filled.CurrencyRupee
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -75,6 +84,7 @@ fun BillsScreen(
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycleCompat()
     val currentUser by viewModel.currentUser.collectAsStateWithLifecycleCompat()
     val trigger by viewModel.showBillsTrigger.collectAsStateWithLifecycleCompat()
+    val snackbar = habitiq.app.ui.components.LocalHqSnackbar.current
     val addTrigger by viewModel.showAddBillTrigger.collectAsStateWithLifecycleCompat()
 
     var tab by remember { mutableStateOf("Bills") }
@@ -94,11 +104,23 @@ fun BillsScreen(
     }
 
     if (showAddBill) {
-        AddRecurringBillScreen(viewModel, members, onBack = { showAddBill = false }, onSaved = { showAddBill = false })
+        AddBillForm(
+            onBack = { showAddBill = false },
+            onSubmit = { d, done ->
+                viewModel.createRecurringBill(d.name, d.amount, d.billingDay, d.isVariable, members.map { it.uid }, onDone = done)
+            },
+            onSaved = { showAddBill = false; snackbar?.show("Bill saved") },
+        )
         return
     }
     if (showSettle) {
-        SettleUpScreen(viewModel, members, currentUser?.uid.orEmpty(), onBack = { showSettle = false })
+        SettleUpForm(
+            members = members,
+            uid = currentUser?.uid.orEmpty(),
+            onBack = { showSettle = false },
+            onSubmit = { toUid, amt, done -> viewModel.recordManualSettlement(toUid, amt, done) },
+            onSaved = { showSettle = false; snackbar?.show("Payment recorded") },
+        )
         return
     }
     bills.find { it.id == selectedBillId }?.let { bill ->
@@ -124,8 +146,8 @@ fun BillsScreen(
             Spacer(Modifier.height(HqSpacing.md))
         } else {
             habitiq.app.ui.components.HqPageHeader(
-                title = "Monthly Bills",
-                subtitle = "Recurring household bills for $month",
+                title = "Bills",
+                subtitle = "Bills that repeat every month",
                 onBack = onBack,
                 modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm, bottom = HqSpacing.md),
             )
@@ -135,7 +157,7 @@ fun BillsScreen(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal),
             horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
         ) {
-            listOf("Bills" to "Bills", "Collections" to "Collections", "Close" to "Close month").forEach { (key, label) ->
+            listOf("Bills" to "Bills", "Collections" to "Who pays this month", "Close" to "Mark month done").forEach { (key, label) ->
                 habitiq.app.ui.components.HqChip(label = label, selected = tab == key, onClick = { tab = key })
             }
         }
@@ -150,7 +172,7 @@ fun BillsScreen(
                     if (isAdmin) {
                         HqEmptyState(
                             icon = Icons.Filled.Add,
-                            title = "No recurring bills yet",
+                            title = "No bills yet",
                             message = "Add rent, WiFi, and other bills that repeat every month.",
                             primaryLabel = "Add bill",
                             onPrimaryClick = { showAddBill = true },
@@ -159,7 +181,7 @@ fun BillsScreen(
                         // No action to offer a non-admin here, so HqEmptyState (which requires a
                         // primaryLabel) doesn't fit -- a plain styled message stands in instead.
                         Text(
-                            "No recurring bills yet.",
+                            "No bills yet. Your flat admin adds them.",
                             style = HqType.bodyMedium,
                             color = c.textSecondary,
                             modifier = Modifier.padding(HqSpacing.lg),
@@ -179,14 +201,14 @@ fun BillsScreen(
                     bills.firstOrNull { it.active && it.rotationQueue.isNotEmpty() }?.let { bill ->
                         run {
                             Spacer(Modifier.height(HqSpacing.sm))
-                            Text("Payer rotation", style = HqType.titleMedium, color = c.textPrimary)
+                            Text("Who pays this month", style = HqType.titleMedium, color = c.textPrimary)
                             Spacer(Modifier.height(HqSpacing.sm))
                             HqCard {
                                 Text(bill.name, style = HqType.titleSmall, color = c.textPrimary)
                                 Text(
                                     bill.rotationQueue.mapIndexed { index, uid ->
                                         val name = members.find { it.uid == uid }?.nickname?.substringBefore(" ") ?: "Flatmate"
-                                        if (index == bill.currentPayerIndex) "$name (current)" else name
+                                        if (index == bill.currentPayerIndex) "$name (pays this month)" else name
                                     }.joinToString("  →  "),
                                     style = HqType.bodySmall,
                                     color = c.textSecondary
@@ -198,7 +220,7 @@ fun BillsScreen(
             }
             "Collections" -> Column(Modifier.padding(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 if (monthInstances.isEmpty()) {
-                    Text("No bills generated for $month yet.", style = HqType.bodyMedium, color = c.textSecondary)
+                    Text("This month's bills haven't started yet.", style = HqType.bodyMedium, color = c.textSecondary)
                 }
                 monthInstances.forEach { inst ->
                     BillInstanceRow(
@@ -231,15 +253,15 @@ fun BillsScreen(
                     ) {
                         habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Receipt, habitiq.app.ui.components.HqTileTone.Sand)
                         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                            Text("MONTHLY TOTAL", style = HqType.labelSmall, color = c.textMuted, fontWeight = androidx.compose.ui.text.font.FontWeight.ExtraBold)
+                            Text("Monthly total", style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
                             Text(formatInr(total), style = HqType.titleMedium2, color = c.textPrimary)
                             Text("${monthInstances.size} household ${if (monthInstances.size == 1) "bill" else "bills"}", style = HqType.bodyMedium, color = c.textSecondary)
                         }
                     }
                     if (isMonthClosed) {
-                        Text("Month $month is closed.", style = HqType.bodyMedium, color = c.statusSuccessFg)
+                        Text("This month is marked done.", style = HqType.bodyMedium, color = c.statusSuccessFg)
                     } else {
-                        habitiq.app.ui.components.HqSectionTitle("Before you close")
+                        habitiq.app.ui.components.HqSectionTitle("Before you mark it done")
                         if (suggestions.isNotEmpty()) {
                             Row(
                                 Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(c.statusWarningBg).padding(15.dp),
@@ -248,7 +270,7 @@ fun BillsScreen(
                                 Text("!", style = HqType.titleSmall2, color = c.statusWarningFg)
                                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
                                     Text("${suggestions.size} ${if (suggestions.size == 1) "balance is" else "balances are"} still outstanding", style = HqType.rowTitle, color = c.statusWarningFg)
-                                    Text("You can close the month now, but these balances will carry forward.", style = HqType.bodyMedium, color = c.statusWarningFg)
+                                    Text("You can mark the month done now; these balances carry forward.", style = HqType.bodyMedium, color = c.statusWarningFg)
                                 }
                             }
                         }
@@ -256,33 +278,42 @@ fun BillsScreen(
                     ReviewRow("Paid bills", "$paid")
                     ReviewRow("Skipped bills", "$skipped")
                     ReviewRow("Outstanding balances", formatInr(outstanding), warning = outstanding > 0)
-                    if (suggestions.isEmpty()) Text("All settled for $month!", style = HqType.bodyMedium, color = c.statusSuccessFg)
-                    suggestions.forEach { s -> SettlementSuggestionRow(s, members, onConfirm = { viewModel.recordSettlement(s) }) }
+                    if (suggestions.isEmpty()) Text("Everyone is settled up for this month.", style = HqType.bodyMedium, color = c.statusSuccessFg)
+                    suggestions.forEach { s ->
+                        SettlementSuggestionRow(s, members, onConfirm = {
+                            viewModel.recordSettlement(s) { ok ->
+                                snackbar?.show(if (ok) "Payment recorded" else "Unable to record the payment. Check your connection and try again.")
+                            }
+                        })
+                    }
                     Row(
                         Modifier.padding(top = 10.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp),
                         horizontalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.textSecondary, modifier = Modifier.size(19.dp))
-                        Text("Closing a month does not process payments. It creates a clear record for your flat.", style = HqType.bodyMedium, color = c.textSecondary)
+                        Text("Marking a month done doesn't move money. It keeps a clear record for your flat.", style = HqType.bodyMedium, color = c.textSecondary)
                     }
                     if (isAdmin && !isMonthClosed) {
-                        HqButton(text = "Close $month", onClick = { viewModel.closeMonth(month) })
+                        HqButton(text = "Mark month done", onClick = { viewModel.closeMonth(month) })
                     }
-                    HqButton(text = "Manual settle up", onClick = { showSettle = true }, variant = HqButtonVariant.Secondary)
+                    HqButton(text = "Settle up", onClick = { showSettle = true }, variant = HqButtonVariant.Secondary)
                     Spacer(Modifier.height(HqSpacing.sm))
-                    habitiq.app.ui.components.HqSectionTitle("Recorded settlements")
+                    habitiq.app.ui.components.HqSectionTitle("Recorded payments")
                     settlements.take(10).forEach { st -> SettlementHistoryRow(st, members) }
                 }
             }
         }
     }
     if (header == null && isAdmin && tab == "Bills") {
-        FloatingActionButton(
+        // The Bills tab's one Primary, bottom-end in the thumb zone.
+        HqButton(
+            text = "Add bill",
             onClick = { showAddBill = true },
+            leadingIcon = Icons.Filled.Add,
+            fullWidth = false,
+            size = HqButtonSize.Large,
             modifier = Modifier.fillMaxSize().wrapContentSize(Alignment.BottomEnd).padding(HqSpacing.lg),
-            containerColor = c.actionPrimaryBg,
-            contentColor = c.actionPrimaryFg,
-        ) { Icon(Icons.Filled.Add, "Add bill") }
+        )
     }
 }
 
@@ -312,7 +343,7 @@ private fun RecurringBillCard(
                 horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center,
             ) {
                 Text("${bill.billingDay}", style = HqType.titleSmall2, color = c.textPrimary)
-                Text("DAY", style = HqType.labelSmall, color = c.textMuted)
+                Text("Day", style = HqType.labelSmall, color = c.textSecondary)
             }
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                 Text(bill.name, style = HqType.rowTitle, color = c.textPrimary)
@@ -334,7 +365,7 @@ private fun RecurringBillCard(
                 HqTextButton(text = "Mark paid", onClick = { onMarkPaid(instance) })
             }
         } else if (isAdmin) {
-            HqTextButton(text = "Generate this month", onClick = { onGenerate(if (bill.isVariable) null else bill.amount) })
+            HqTextButton(text = "Start this month's bills", onClick = { onGenerate(if (bill.isVariable) null else bill.amount) })
         }
     }
 }
@@ -357,7 +388,7 @@ private fun BillInstanceRow(
                 // paidBy and collectorId are different people; the payer does not collect from themselves.
                 if (collectorId != inst.paidBy) {
                     val collector = members.find { it.uid == collectorId }?.nickname ?: collectorId
-                    Text("Collecting shares: $collector", style = HqType.bodyMedium, color = c.textSecondary)
+                    Text("$collector collects everyone's share", style = HqType.bodyMedium, color = c.textSecondary)
                 }
                 inst.amount?.let { Text(formatInr(it), style = HqType.amountRow, color = c.textPrimary) }
             }
@@ -372,14 +403,11 @@ private fun BillInstanceRow(
                 val collected = inst.collectedFrom?.get(uid) == true
                 val canToggle = isCollector || uid == currentUid
                 if (canToggle) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(
-                            checked = collected,
-                            onCheckedChange = { onToggleCollected(uid, it) },
-                            colors = CheckboxDefaults.colors(checkedColor = c.actionPrimaryBg, checkmarkColor = c.actionPrimaryFg, uncheckedColor = c.borderControl),
-                        )
-                        Text("$name ${if (collected) "paid their share" else "has not paid yet"}", style = HqType.bodyMedium, color = c.textSecondary)
-                    }
+                    habitiq.app.ui.components.HqCheckboxRow(
+                        title = "$name ${if (collected) "paid their share" else "has not paid yet"}",
+                        checked = collected,
+                        onCheckedChange = { onToggleCollected(uid, it) },
+                    )
                 }
             }
         }
@@ -393,8 +421,9 @@ private fun SettlementSuggestionRow(s: SuggestedSettlement, members: List<Member
     val to = members.find { it.uid == s.toUserId }?.nickname ?: s.toUserId
     HqCard {
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("$from → $to: ₹${s.amount.toInt()}", style = HqType.bodyMedium, color = c.textPrimary)
-            HqButton(text = "Confirm", onClick = onConfirm, fullWidth = false)
+            Text("$from → $to: ${formatInr(s.amount)}", style = HqType.bodyMedium, color = c.textPrimary, modifier = Modifier.weight(1f))
+            // Secondary: the screen's one filled button is "Mark month done".
+            HqButton(text = "Record payment", onClick = onConfirm, variant = HqButtonVariant.Secondary, fullWidth = false)
         }
     }
 }
@@ -430,16 +459,16 @@ private fun BillDetailScreen(
                 )
                 Text("Due on day ${bill.billingDay}", style = HqType.bodyMedium, color = c.textSecondary)
             }
-            Text("Payer rotation", style = HqType.titleMedium, color = c.textPrimary)
+            Text("Who pays this month", style = HqType.titleMedium, color = c.textPrimary)
             if (bill.rotationQueue.isEmpty()) {
-                Text("No rotation set for this bill.", style = HqType.bodyMedium, color = c.textSecondary)
+                Text("No one is set to pay this bill yet.", style = HqType.bodyMedium, color = c.textSecondary)
             } else {
                 bill.rotationQueue.forEachIndexed { index, uid ->
                     val current = index == bill.currentPayerIndex
                     HqCard {
                         Text(nameOf(uid), style = HqType.titleSmall, color = c.textPrimary)
                         Text(
-                            if (current) "Pays this round" else "In the rotation",
+                            if (current) "Pays this month" else "Takes a later turn",
                             style = HqType.bodySmall,
                             color = if (current) c.actionPrimaryBg else c.textSecondary
                         )
@@ -448,7 +477,7 @@ private fun BillDetailScreen(
             }
             Text("History", style = HqType.titleMedium, color = c.textPrimary)
             if (instances.isEmpty()) {
-                Text("No months generated yet.", style = HqType.bodyMedium, color = c.textSecondary)
+                Text("No months yet.", style = HqType.bodyMedium, color = c.textSecondary)
             } else {
                 instances.sortedByDescending { it.month }.forEach { inst ->
                     HqCard {
@@ -465,82 +494,186 @@ private fun BillDetailScreen(
     }
 }
 
+/** What the Add bill form collected; maps onto [FlatViewModel.createRecurringBill]. */
+data class BillDraft(val name: String, val amount: Double?, val billingDay: Int, val isVariable: Boolean)
+
 @Composable
-private fun AddRecurringBillScreen(viewModel: FlatViewModel, members: List<Member>, onBack: () -> Unit, onSaved: () -> Unit) {
+fun AddBillForm(onBack: () -> Unit, onSubmit: (BillDraft, (Boolean) -> Unit) -> Unit, onSaved: () -> Unit) {
     val c = LocalHqColors.current
-    var name by remember { mutableStateOf("") }
-    var amount by remember { mutableStateOf("") }
-    var billingDay by remember { mutableStateOf("1") }
-    var isVariable by remember { mutableStateOf(false) }
-    val canSave = name.isNotBlank() && (isVariable || amount.toDoubleOrNull() != null)
-    val save = {
-        val amt = amount.toDoubleOrNull()
-        viewModel.createRecurringBill(name, if (isVariable) null else amt, billingDay.toIntOrNull() ?: 1, isVariable, members.map { it.uid })
-        onSaved()
+    var name by rememberSaveable { mutableStateOf("") }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var isVariable by rememberSaveable { mutableStateOf(false) }
+    var billingDay by rememberSaveable { mutableStateOf("1") }
+    var nameError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<String?>(null) }
+    var dayError by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val nameFocus = remember { FocusRequester() }
+    val amountFocus = remember { FocusRequester() }
+    val dayFocus = remember { FocusRequester() }
+    val dirty = name.isNotBlank() || amount.isNotBlank()
+
+    LaunchedEffect(Unit) { runCatching { nameFocus.requestFocus() } }
+    fun close() { if (dirty && !saving) confirmDiscard = true else onBack() }
+    BackHandler(enabled = dirty || saving) { if (!saving) confirmDiscard = true }
+
+    fun submit() {
+        if (saving) return
+        val paise = lenientPaise(amount)
+        val day = billingDay.trim().toIntOrNull()
+        nameError = if (name.isBlank()) "Enter the bill name, like \"Rent\"." else null
+        amountError = when {
+            isVariable -> null
+            amount.isBlank() -> "Enter the amount, or turn on \"Amount changes every month\"."
+            paise == null || paise <= 0L -> "Enter the amount as a number above ₹0, like 12,000."
+            else -> null
+        }
+        dayError = if (day == null || day !in 1..28) "Enter a day from 1 to 28." else null
+        when {
+            nameError != null -> { runCatching { nameFocus.requestFocus() }; return }
+            amountError != null -> { runCatching { amountFocus.requestFocus() }; return }
+            dayError != null -> { runCatching { dayFocus.requestFocus() }; return }
+        }
+        saving = true
+        saveError = null
+        onSubmit(BillDraft(name.trim(), if (isVariable) null else (paise ?: 0L) / 100.0, day ?: 1, isVariable)) { ok ->
+            saving = false
+            if (ok) onSaved() else saveError = "Unable to save the bill. Check your connection and try again."
+        }
     }
 
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = "Add Recurring Bill", onBack = onBack)
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
-            HqTextField(value = name, onValueChange = { name = it }, label = "Bill name", placeholder = "Rent, WiFi…", leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong)
-            if (!isVariable) HqTextField(
-                value = amount,
-                onValueChange = { amount = it },
-                label = "Amount (₹)",
-                placeholder = "e.g. 12000",
-                leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong,
-                keyboardType = KeyboardType.Decimal
-            )
+        HqBackAppBar(title = "Add bill", onBack = { close() })
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.group),
+        ) {
             HqTextField(
-                value = billingDay,
-                onValueChange = { billingDay = it },
-                label = "Billing day (1-28)",
-                placeholder = "e.g. 5",
-                leadingIcon = Icons.Filled.CalendarMonth,
-                keyboardType = KeyboardType.Number,
-                imeAction = ImeAction.Done,
-                onImeAction = if (canSave) save else null
+                value = name, onValueChange = { name = it; nameError = null },
+                label = "Bill name", placeholder = "e.g. Rent, WiFi",
+                leadingIcon = Icons.AutoMirrored.Filled.ReceiptLong, errorText = nameError,
+                modifier = Modifier.focusRequester(nameFocus),
             )
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Checkbox(
+            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
+                if (!isVariable) {
+                    HqTextField(
+                        value = amount, onValueChange = { amount = it; amountError = null },
+                        label = "Amount (₹)", placeholder = "e.g. 12,000",
+                        leadingIcon = Icons.Filled.CurrencyRupee, keyboardType = KeyboardType.Decimal,
+                        errorText = amountError, modifier = Modifier.focusRequester(amountFocus),
+                    )
+                }
+                habitiq.app.ui.components.HqSwitchRow(
+                    title = "Amount changes every month",
                     checked = isVariable,
-                    onCheckedChange = { isVariable = it },
-                    colors = CheckboxDefaults.colors(checkedColor = c.actionPrimaryBg, checkmarkColor = c.actionPrimaryFg, uncheckedColor = c.borderControl),
+                    onCheckedChange = { isVariable = it; amountError = null },
+                    supporting = if (isVariable) "You'll enter the amount when you start each month's bills." else null,
                 )
-                Text("Variable amount (enter each month)", style = HqType.bodyMedium, color = c.textPrimary)
             }
-            HqButton(text = "Save bill", onClick = save)
+            HqTextField(
+                value = billingDay, onValueChange = { billingDay = it; dayError = null },
+                label = "Due on day", placeholder = "e.g. 5",
+                helperText = "A day from 1 to 28, so it works every month.",
+                leadingIcon = Icons.Filled.CalendarMonth, keyboardType = KeyboardType.Number,
+                errorText = dayError, imeAction = ImeAction.Done,
+                modifier = Modifier.focusRequester(dayFocus),
+            )
+            Spacer(Modifier.height(HqSpacing.lg))
         }
+        Column(
+            Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().imePadding()
+                .padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+        ) {
+            saveError?.let { HqInlineError(it) }
+            HqButton(text = "Save bill", loading = saving, onClick = { submit() })
+        }
+    }
+    if (confirmDiscard) {
+        HqDiscardChangesDialog(onKeepEditing = { confirmDiscard = false }, onDiscard = { confirmDiscard = false; onBack() })
     }
 }
 
 @Composable
-private fun SettleUpScreen(viewModel: FlatViewModel, members: List<Member>, uid: String, onBack: () -> Unit) {
+fun SettleUpForm(
+    members: List<Member>,
+    uid: String,
+    onBack: () -> Unit,
+    onSubmit: (String, Double, (Boolean) -> Unit) -> Unit,
+    onSaved: () -> Unit,
+) {
     val c = LocalHqColors.current
-    var toUid by remember { mutableStateOf(members.firstOrNull { it.uid != uid }?.uid.orEmpty()) }
-    var amount by remember { mutableStateOf("") }
-    val record = {
-        amount.toDoubleOrNull()?.let { viewModel.recordManualSettlement(toUid, it) }
-        onBack()
+    val others = members.filter { it.uid != uid }
+    var toUid by rememberSaveable { mutableStateOf<String?>(null) }
+    var amount by rememberSaveable { mutableStateOf("") }
+    var personError by remember { mutableStateOf<String?>(null) }
+    var amountError by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var confirmDiscard by remember { mutableStateOf(false) }
+    val amountFocus = remember { FocusRequester() }
+    val selectedTo = toUid ?: others.firstOrNull()?.uid
+    val dirty = amount.isNotBlank()
+
+    fun close() { if (dirty && !saving) confirmDiscard = true else onBack() }
+    BackHandler(enabled = dirty || saving) { if (!saving) confirmDiscard = true }
+
+    fun submit() {
+        if (saving) return
+        val paise = lenientPaise(amount)
+        personError = if (selectedTo == null) "Choose who you paid." else null
+        amountError = when {
+            amount.isBlank() -> "Enter the amount you paid, like 1,500."
+            paise == null || paise <= 0L -> "Enter the amount as a number above ₹0, like 1,500."
+            else -> null
+        }
+        if (amountError != null) { runCatching { amountFocus.requestFocus() }; return }
+        if (personError != null || selectedTo == null) return
+        saving = true
+        saveError = null
+        onSubmit(selectedTo, (paise ?: 0L) / 100.0) { ok ->
+            saving = false
+            if (ok) onSaved() else saveError = "Unable to record the payment. Check your connection and try again."
+        }
     }
+
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = "Settle up", onBack = onBack)
-        Column(Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(HqSpacing.xl), verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
-            Text("Pay to", style = HqType.titleSmall, color = c.textPrimary)
-            members.filter { it.uid != uid }.forEach { m ->
-                HqChip(label = m.nickname, selected = toUid == m.uid, onClick = { toUid = m.uid })
+        HqBackAppBar(title = "Settle up", onBack = { close() })
+        Column(
+            Modifier.weight(1f).verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.group),
+        ) {
+            Text(SettleNote, style = HqType.bodyMedium, color = c.textSecondary)
+            FormGroup("Paid to") {
+                HqChipFlow {
+                    others.forEach { m ->
+                        HqChip(label = m.nickname.ifBlank { "Flatmate" }, selected = selectedTo == m.uid, onClick = { toUid = m.uid; personError = null })
+                    }
+                }
+                personError?.let { HqInlineError(it) }
             }
             HqTextField(
-                value = amount,
-                onValueChange = { amount = it },
-                label = "Amount (₹)",
-                placeholder = "e.g. 1500",
-                keyboardType = KeyboardType.Decimal,
-                imeAction = ImeAction.Done,
-                onImeAction = if (amount.toDoubleOrNull() != null && toUid.isNotBlank()) record else null
+                value = amount, onValueChange = { amount = it; amountError = null },
+                label = "Amount (₹)", placeholder = "e.g. 1,500",
+                leadingIcon = Icons.Filled.CurrencyRupee, keyboardType = KeyboardType.Decimal,
+                errorText = amountError, imeAction = ImeAction.Done,
+                modifier = Modifier.focusRequester(amountFocus),
             )
-            HqButton(text = "Record settlement", onClick = record)
+            Spacer(Modifier.height(HqSpacing.lg))
         }
+        Column(
+            Modifier.fillMaxWidth().background(c.canvas).navigationBarsPadding().imePadding()
+                .padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.lg),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
+        ) {
+            saveError?.let { HqInlineError(it) }
+            HqButton(text = "Record payment", loading = saving, onClick = { submit() })
+        }
+    }
+    if (confirmDiscard) {
+        HqDiscardChangesDialog(onKeepEditing = { confirmDiscard = false }, onDiscard = { confirmDiscard = false; onBack() })
     }
 }
 

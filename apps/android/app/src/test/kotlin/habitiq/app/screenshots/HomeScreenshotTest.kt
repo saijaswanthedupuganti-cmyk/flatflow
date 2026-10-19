@@ -19,7 +19,7 @@ class HomeScreenshotTest : ScreenshotHarness() {
         roleLabel = "Admin",
         canInvite = true,
         greetingName = "Sai",
-        summaryHeadline = "1 task overdue.",
+        summaryHeadline = "You have 1 overdue task.",
         assignedCount = 3,
         memberCount = 4,
         tasks = listOf(
@@ -28,8 +28,8 @@ class HomeScreenshotTest : ScreenshotHarness() {
             HomeTaskItem("3", "Pay the wifi bill together", "You", "Due Oct 4", overdue = false, canComplete = true, kind = HomeTaskKind.Group),
         ),
         pending = listOf(
-            HomePendingItem(HomePendingItem.Kind.JoinRequests, "Join requests", "2 people waiting for approval"),
-            HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap requests", "1 request waiting for your answer"),
+            HomePendingItem(HomePendingItem.Kind.JoinRequests, "Join requests", "2 people asked to join your flat"),
+            HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap turn", "1 flatmate asked to swap a turn with you"),
         ),
         balance = HomeBalance(owe = 850.0, owed = 1240.5, oweCount = 1, owedCount = 2),
         balanceText = { formatInr(it) },
@@ -51,5 +51,8 @@ class HomeScreenshotTest : ScreenshotHarness() {
     @Test fun light() = render("home-light", full)
     @Test fun dark() = render("home-dark", full, dark = true)
     @Test fun largeText() = render("home-font2", full, font = 2f)
+    @Test fun noFlat() = shoot("home-no-flat") { habitiq.app.ui.NoFlatContent({}, {}, {}, {}) }
+    @Test fun noFlatDark() = shoot("home-no-flat-dark", dark = true) { habitiq.app.ui.NoFlatContent({}, {}, {}, {}) }
+    @Test fun noFlatLargeText() = shoot("home-no-flat-font2", fontScale = 2f) { habitiq.app.ui.NoFlatContent({}, {}, {}, {}) }
     @Test fun empty() = render("home-empty", full.copy(tasks = emptyList(), pending = emptyList(), activity = emptyList(), assignedCount = 0, summaryHeadline = "You're all caught up.", balance = HomeBalance(0.0, 0.0, 0, 0)))
 }

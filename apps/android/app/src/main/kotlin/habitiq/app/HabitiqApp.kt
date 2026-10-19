@@ -6,6 +6,7 @@ import habitiq.app.ui.ShellCreate
 import habitiq.app.ui.theme.HqLayout
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -79,13 +80,9 @@ import habitiq.app.ui.ManageFlatHub
 import habitiq.app.ui.ManageFlatArea
 import habitiq.app.ui.OnboardingIntent
 import habitiq.app.ui.SwapReviewSheet
-import habitiq.app.ui.figma.CreateRecurringTaskScreen
-import habitiq.app.ui.figma.CreateTaskTypeScreen
-import habitiq.app.ui.figma.CreateTempTaskScreen
 import habitiq.app.ui.figma.GoingAwayScreen
 import habitiq.app.ui.figma.TaskDetailScreen
-import habitiq.app.ui.figma.TaskCreatedScreen
-import habitiq.app.ui.figma.TaskStructure
+import habitiq.app.ui.figma.AddTaskScreen
 import habitiq.app.ui.ProfileScreen
 import habitiq.app.ui.SettingsScreen
 import habitiq.app.ui.SignupScreen
@@ -232,14 +229,14 @@ fun HabitiqApp() {
                     HqTextButton(text = "Try again", onClick = { startupAttempt += 1 })
                 }
             } else {
-                val navMotion = !habitiq.app.ui.theme.hqReduceMotion()
+                val t = habitiq.app.ui.theme.rememberHqTransitions()
                 NavHost(
                     navController = navController,
                     startDestination = startDestination,
-                    enterTransition = { if (navMotion) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300, easing = habitiq.app.ui.theme.HqEaseOut)) { it / 5 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40)) else androidx.compose.animation.EnterTransition.None },
-                    exitTransition = { if (navMotion) androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) else androidx.compose.animation.ExitTransition.None },
-                    popEnterTransition = { if (navMotion) androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(300, easing = habitiq.app.ui.theme.HqEaseOut)) { -it / 5 } + androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40)) else androidx.compose.animation.EnterTransition.None },
-                    popExitTransition = { if (navMotion) androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240)) { it / 6 } + androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(160)) else androidx.compose.animation.ExitTransition.None },
+                    enterTransition = { t.pushEnter },
+                    exitTransition = { t.pushExit },
+                    popEnterTransition = { t.popEnter },
+                    popExitTransition = { t.popExit },
                 ) {
                     composable(Routes.WELCOME) {
                         WelcomeScreen(
@@ -354,7 +351,10 @@ fun HabitiqApp() {
                         }
                         var showFlatSwitcher by remember { mutableStateOf(false) }
                         var profileOverlay by rememberSaveable { mutableStateOf<String?>(null) }
-                        var createTaskType by rememberSaveable { mutableStateOf("rotating_duty") }
+                        // Save confirmations ("Task added", "Expense added", ...) outlive the form that closed.
+                        val snackbarHostState = remember { androidx.compose.material3.SnackbarHostState() }
+                        val snackbarScope = rememberCoroutineScope()
+                        val snackbarController = remember { habitiq.app.ui.components.HqSnackbarController(snackbarHostState, snackbarScope) }
                         var adminHomeMode by rememberSaveable { mutableStateOf(AdminHomeMode.TASKS) }
                         var moneyOverlay by rememberSaveable { mutableStateOf<String?>(null) }
                         var tasksOverlay by rememberSaveable { mutableStateOf<String?>(null) }
@@ -364,6 +364,8 @@ fun HabitiqApp() {
                         var discoverOpenCreate by remember { mutableStateOf(false) }
                         var discoverCreateType by remember { mutableStateOf<String?>(null) }
                         var discoverOpenPosts by remember { mutableStateOf(false) }
+                        // Discover forms and detail screens take the whole screen: no nav pill or + over their bottom button.
+                        var discoverImmersive by remember { mutableStateOf(false) }
                         val notificationTarget by habitiq.app.services.NotificationNav.pending.collectAsStateWithLifecycleCompat()
                         LaunchedEffect(notificationTarget) {
                             if (habitiq.app.services.NotificationNav.opensMyPosts(notificationTarget)) {
@@ -528,10 +530,7 @@ fun HabitiqApp() {
                             when {
                                 profileOverlay != null -> profileOverlay = null
                                 moneyOverlay != null -> moneyOverlay = null
-                                tasksOverlay != null -> tasksOverlay = when (tasksOverlay) {
-                                    "create_recurring", "create_temp" -> "create_type"
-                                    else -> null
-                                }
+                                tasksOverlay != null -> tasksOverlay = null
                                 selectedTaskId != null -> selectedTaskId = null
                                 else -> selectedTab = AppTab.HOME
                             }
@@ -541,26 +540,26 @@ fun HabitiqApp() {
                         // (Android shared-axis X). The key captures the layer state so the outgoing screen
                         // keeps rendering what it showed while it animates away.
                         val overlayKey = OverlayKey(profileOverlay, moneyOverlay, tasksOverlay, selectedTaskId)
-                        val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
+                        val overlayT = habitiq.app.ui.theme.rememberHqTransitions()
+                        androidx.compose.runtime.CompositionLocalProvider(habitiq.app.ui.components.LocalHqSnackbar provides snackbarController) {
                         androidx.compose.animation.AnimatedContent(
                             targetState = overlayKey,
                             transitionSpec = {
-                                if (reduceMotion) {
-                                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
+                                if (targetState.depth >= initialState.depth) {
+                                    overlayT.pushEnter togetherWith overlayT.pushExit
                                 } else {
-                                    val forward = targetState.depth >= initialState.depth
-                                    val dir = if (forward) 1 else -1
-                                    (androidx.compose.animation.slideInHorizontally(androidx.compose.animation.core.tween(280, easing = habitiq.app.ui.theme.HqEaseOut)) { w -> dir * w / 5 } +
-                                        androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(220, delayMillis = 40))) togetherWith
-                                        (androidx.compose.animation.slideOutHorizontally(androidx.compose.animation.core.tween(240, easing = habitiq.app.ui.theme.HqEaseOut)) { w -> -dir * w / 8 } +
-                                            androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(140)))
+                                    overlayT.popEnter togetherWith overlayT.popExit
                                 }
                             },
                             label = "overlay",
                         ) { k ->
                             when (k.profile) {
                                 "members" -> MembersScreen(flatViewModel, onBack = { profileOverlay = null })
-                                "flat_settings" -> FlatSettingsScreen(flatViewModel, onBack = { profileOverlay = null })
+                                "flat_settings" -> FlatSettingsScreen(flatViewModel, onBack = { profileOverlay = null }, onListRoom = {
+                                    profileOverlay = null
+                                    selectedTab = AppTab.DISCOVER
+                                    discoverCreateType = "VACANCY"; discoverOpenCreate = true
+                                })
                                 "activity" -> ActivityLogScreen(flatViewModel, onBack = { profileOverlay = null })
                             }
 
@@ -584,37 +583,16 @@ fun HabitiqApp() {
                                             manageAreaName = ManageFlatArea.TASKS.name
                                         }
                                     )
-                                    "create_type" -> CreateTaskTypeScreen(
-                                        exampleNames = flatViewModelMembers
-                                            .sortedByDescending { it.uid == flatViewModelUser?.uid }
-                                            .map { it.nickname },
+                                    // One form for every task; after a save it closes onto Tasks with a snackbar.
+                                    "add_task" -> AddTaskScreen(
+                                        viewModel = flatViewModel,
                                         onBack = { tasksOverlay = null },
-                                        onSelect = { type ->
-                                            createTaskType = if (type == TaskStructure.GROUP) "group_duty" else "rotating_duty"
-                                            tasksOverlay = when (type) {
-                                                TaskStructure.RECURRING, TaskStructure.GROUP -> "create_recurring"
-                                                TaskStructure.TEMP -> "create_temp"
-                                            }
-                                        }
-                                    )
-                                    "create_recurring" -> CreateRecurringTaskScreen(
-                                        viewModel = flatViewModel,
-                                        onBack = { tasksOverlay = "create_type" },
-                                        onCreated = { tasksOverlay = "task_created" },
-                                        taskType = createTaskType
-                                    )
-                                    "create_temp" -> CreateTempTaskScreen(
-                                        viewModel = flatViewModel,
-                                        onBack = { tasksOverlay = "create_type" },
-                                        onCreated = { tasksOverlay = "task_created" }
-                                    )
-                                    "task_created" -> TaskCreatedScreen(
-                                        onViewTask = {
+                                        onAdded = {
                                             tasksOverlay = null
                                             selectedTab = AppTab.TASKS
                                             manageAreaName = ManageFlatArea.TASKS.name
-                                        },
-                                        onAddAnother = { tasksOverlay = "create_type" }
+                                            snackbarController.show("Task added")
+                                        }
                                     )
                                     else -> if (k.taskId != null) {
                                         val task = flatViewModelTasks.find { it.taskId == k.taskId }
@@ -646,20 +624,20 @@ fun HabitiqApp() {
                                         // actions appear only when the person is in a flat; tasks only for admins.
                                         val inFlat = flatInfo != null
                                         val createOptions = buildList {
-                                            if (inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "create_type" })
+                                            if (inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "add_task" })
                                             if (inFlat) add(CreateOption("Add expense") {
                                                 selectedTab = AppTab.TASKS
                                                 manageAreaName = ManageFlatArea.EXPENSES.name
                                                 flatViewModel.expenseScopeMonthly.value = false
                                                 flatViewModel.showAddExpenseTrigger.value = true
                                             })
-                                            if (inFlat && shellIsAdmin) add(CreateOption("Add monthly bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
+                                            if (inFlat && shellIsAdmin) add(CreateOption("Add bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
                                             // Any member can post a vacancy; a member's post waits for admin approval.
-                                            if (inFlat) add(CreateOption("Post a vacancy") {
+                                            if (inFlat) add(CreateOption("List a room") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "VACANCY"; discoverOpenCreate = true
                                             })
-                                            if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("Post that I'm looking") {
+                                            if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("I'm looking for a room") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "LOOKING"; discoverOpenCreate = true
                                             })
@@ -670,6 +648,7 @@ fun HabitiqApp() {
                                         }
                                         AppShell(
                                             selectedTab = selectedTab,
+                                            chromeHidden = selectedTab == AppTab.DISCOVER && discoverImmersive,
                                             createAction = createAction,
                                             onMic = {
                                                 agentOpen = true
@@ -740,9 +719,14 @@ fun HabitiqApp() {
                                                     onReviewJoinRequests = { profileOverlay = "members" },
                                                     onReviewSwapRequests = { showSwapReview = true },
                                                     onOpenDiscover = { selectedTab = AppTab.DISCOVER },
+                                                    // No-flat Home: each choice goes straight where it says, no second chooser.
+                                                    onCreateFlat = { createForDiscover = false; navController.navigate(Routes.CREATE_FLAT) },
+                                                    onJoinFlat = { navController.navigate(Routes.JOIN_FLAT) },
+                                                    onFindFlat = { discoverMode = DiscoverMode.USE_A_FLAT; selectedTab = AppTab.DISCOVER },
+                                                    onFindFlatmate = { discoverMode = DiscoverMode.FIND_A_PERSON; selectedTab = AppTab.DISCOVER },
                                                     onOpenMembers = { profileOverlay = "members" },
                                                     onOpenActivity = { profileOverlay = "activity" },
-                                                    onAddTask = { tasksOverlay = "create_type" },
+                                                    onAddTask = { tasksOverlay = "add_task" },
                                                     onAddExpense = {
                                                         selectedTab = AppTab.TASKS
                                                         manageAreaName = ManageFlatArea.EXPENSES.name
@@ -763,7 +747,8 @@ fun HabitiqApp() {
                                                     createPostType = discoverCreateType,
                                                     onCreatePostConsumed = { discoverOpenCreate = false },
                                                     openMyPosts = discoverOpenPosts,
-                                                    onMyPostsConsumed = { discoverOpenPosts = false }
+                                                    onMyPostsConsumed = { discoverOpenPosts = false },
+                                                    onImmersiveChange = { discoverImmersive = it }
                                                 )
                                                 AppTab.TASKS -> ManageFlatHub(
                                                     viewModel = flatViewModel,
@@ -772,7 +757,7 @@ fun HabitiqApp() {
                                                     onAreaChange = { manageAreaName = it.name },
                                                     onOpenGoingAway = { tasksOverlay = "going_away" },
                                                     onOpenTaskDetail = { selectedTaskId = it },
-                                                    onOpenCreateTask = { tasksOverlay = "create_type" },
+                                                    onOpenCreateTask = { tasksOverlay = "add_task" },
                                                     onReviewSwaps = { showSwapReview = true },
                                                     onOpenBills = { openMonthlyBills() },
                                                     onOpenActivity = { profileOverlay = "activity" }
@@ -810,6 +795,12 @@ fun HabitiqApp() {
                             }
 
                         }
+                        }
+                        androidx.compose.foundation.layout.Box(
+                            androidx.compose.ui.Modifier.fillMaxSize().then(androidx.compose.ui.Modifier.navigationBarsPadding())
+                                .padding(start = habitiq.app.ui.theme.HqSpacing.lg, end = habitiq.app.ui.theme.HqSpacing.lg, bottom = habitiq.app.ui.theme.HqSize.navigationContent + habitiq.app.ui.theme.HqSpacing.xxl),
+                            contentAlignment = androidx.compose.ui.Alignment.BottomCenter,
+                        ) { habitiq.app.ui.components.HqSnackbarHost(snackbarHostState) }
                         FlatSwitcherSheet(
                             viewModel = flatViewModel,
                             visible = showFlatSwitcher,
@@ -942,5 +933,5 @@ fun HabitiqApp() {
 /** Snapshot of the layers drawn over the shell, used to animate between them. */
 private data class OverlayKey(val profile: String?, val money: String?, val tasks: String?, val taskId: String?) {
     val depth: Int get() = listOf(profile, money, tasks, taskId).count { it != null } +
-        (if (tasks == "create_recurring" || tasks == "create_temp" || tasks == "task_created") 1 else 0)
+        (if (tasks == "add_task") 1 else 0)
 }

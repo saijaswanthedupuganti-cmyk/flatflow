@@ -47,44 +47,6 @@ import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
 /**
- * Two (or a few) mutually exclusive scopes on one shared track, e.g. My tasks / All tasks. Cells
- * share the width equally because it is a genuine equal-choice control (design doc 10.4). Each
- * cell is a full 48dp target; the selected state is a raised pill plus heavier text and the
- * selected semantics, never colour alone.
- */
-@Composable
-fun HqSegmentedControl(options: List<String>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
-    val c = LocalHqColors.current
-    // Figma `.segmented`: #eff3f2 track, 5dp padding, 3dp gaps, 15dp radius; active cell is a white 11dp pill with a soft lift.
-    val track = RoundedCornerShape(15.dp)
-    val cell = RoundedCornerShape(11.dp)
-    Row(
-        modifier.fillMaxWidth().clip(track).background(c.surfaceSubtle).padding(5.dp).selectableGroup(),
-        horizontalArrangement = Arrangement.spacedBy(3.dp),
-    ) {
-        options.forEachIndexed { index, label ->
-            val selected = index == selectedIndex
-            Box(
-                Modifier.weight(1f).defaultMinSize(minHeight = HqSize.target)
-                    .then(if (selected) Modifier.shadow(4.dp, cell, ambientColor = c.textPrimary.copy(alpha = .09f), spotColor = c.textPrimary.copy(alpha = .09f)) else Modifier)
-                    .clip(cell)
-                    .background(if (selected) c.surfaceBase else Color.Transparent)
-                    .selectable(selected = selected, role = Role.Tab, onClick = { onSelect(index) }),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    label,
-                    style = HqType.labelMedium,
-                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
-                    color = if (selected) c.textPrimary else c.textSecondary,
-                    modifier = Modifier.padding(horizontal = HqSpacing.sm),
-                )
-            }
-        }
-    }
-}
-
-/**
  * Secondary scope tabs (e.g. My tasks / All tasks) that sit under a primary [HqSegmentedControl].
  * Lighter than a second segmented track so the two levels never look identical: text tabs with a
  * count pill and a 2dp brand underline on the selected tab, over a hairline divider.
@@ -131,30 +93,6 @@ fun HqScopeTabs(options: List<Pair<String, Int?>>, selectedIndex: Int, onSelect:
                     )
                 }
             }
-        }
-    }
-}
-
-/**
- * Figma `.toggle`: 46x27 track (off #cbd5d2, on brand), 21dp white thumb. The track is exposed as a
- * Switch with a 48dp touch box, so state is announced rather than colour-only.
- */
-@Composable
-fun HqSwitch(checked: Boolean, onCheckedChange: (Boolean) -> Unit, modifier: Modifier = Modifier, contentDescription: String? = null) {
-    val c = LocalHqColors.current
-    val thumbX by androidx.compose.animation.core.animateDpAsState(if (checked) 19.dp else 0.dp, label = "switchThumb")
-    Box(
-        modifier
-            .defaultMinSize(minWidth = HqSize.target, minHeight = HqSize.target)
-            .toggleable(value = checked, role = Role.Switch, onValueChange = onCheckedChange)
-            .then(if (contentDescription != null) Modifier.semantics { this.contentDescription = contentDescription } else Modifier),
-        contentAlignment = Alignment.Center,
-    ) {
-        Box(
-            Modifier.size(width = 46.dp, height = 27.dp).clip(RoundedCornerShape(HqRadius.pill))
-                .background(if (checked) c.actionPrimaryBg else c.borderControl).padding(3.dp),
-        ) {
-            Box(Modifier.offset(x = thumbX).size(21.dp).clip(CircleShape).background(Color.White))
         }
     }
 }
@@ -288,7 +226,7 @@ fun HqRemovableChip(label: String, onRemove: () -> Unit, modifier: Modifier = Mo
     ) {
         Row(
             Modifier.defaultMinSize(minHeight = HqSize.chipVisual).clip(shape).background(c.selectedBg)
-                .border(2.dp, c.selectedBorder, shape).padding(start = HqSpacing.md, end = HqSpacing.sm),
+                .padding(start = HqSpacing.md, end = HqSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs),
         ) {

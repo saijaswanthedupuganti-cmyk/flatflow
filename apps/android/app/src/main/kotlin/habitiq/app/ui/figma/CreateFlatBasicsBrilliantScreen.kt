@@ -34,7 +34,7 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
-/** Figma 64:277 — Create a Flat: Basics (Brilliant & Story-driven), step 1 of 3. */
+/** Create a flat in one step: name (required) and city. [onSkip] is kept for callers; the name cannot be skipped. */
 @Composable
 fun CreateFlatBasicsBrilliantScreen(
     flatName: String,
@@ -52,7 +52,7 @@ fun CreateFlatBasicsBrilliantScreen(
 
     Box(modifier.fillMaxSize().background(c.canvas)) {
         Column(Modifier.fillMaxSize()) {
-            FlatWizardBrilliantHeader(currentStep = 1, onBack = onBack, onSkip = onSkip)
+            FlatWizardBrilliantHeader(currentStep = 1, totalSteps = 1, onBack = onBack)
             Column(
                 Modifier
                     .weight(1f)
@@ -73,28 +73,23 @@ fun CreateFlatBasicsBrilliantScreen(
                 }
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                     Text(
-                        buildAnnotatedString {
-                            append("Create your ")
-                            withStyle(SpanStyle(color = c.textBrand, fontWeight = FontWeight.SemiBold)) {
-                                append("shared home")
-                            }
-                        },
+                        "Create a flat",
                         color = c.textPrimary,
                         style = HqType.headlineMedium
                     )
                     Text(
-                        "Give your flat a name and tell us which city it's in.\nWe'll help you set up everything else later.",
+                        "Give your flat a name and add its city. You can invite flatmates next.",
                         color = c.textSecondary,
                         style = HqType.bodyMedium
                     )
                 }
-                HqTextField(value = flatName, onValueChange = onFlatNameChange, label = "Flat Name", placeholder = "Greenwood Heights")
+                HqTextField(value = flatName, onValueChange = onFlatNameChange, label = "Flat name", placeholder = "Greenwood Heights")
                 HqTextField(
                     value = city,
                     onValueChange = onCityChange,
                     label = "City",
                     placeholder = "Hyderabad",
-                    helperText = "We'll use this to help you find the best local services.",
+                    helperText = "Optional. You can add it later in Flat settings.",
                     imeAction = ImeAction.Done,
                     onImeAction = if (flatName.isNotBlank() && !loading) onCreateFlat else null
                 )
@@ -120,15 +115,12 @@ fun CreateFlatBasicsBrilliantScreen(
                     }
                 }
                 HqButton(
-                    text = if (loading) "Creating…" else "Create Flat",
+                    text = if (loading) "Creating flat…" else "Create flat",
                     onClick = onCreateFlat,
                     enabled = flatName.isNotBlank(),
                     loading = loading,
                     leadingIcon = if (loading) null else Icons.Filled.Home,
                 )
-                Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    HqTextButton(text = "Skip for now", onClick = onSkip)
-                }
                 Row(
                     Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center,

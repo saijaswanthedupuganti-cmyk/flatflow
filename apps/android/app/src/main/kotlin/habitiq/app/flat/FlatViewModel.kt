@@ -488,10 +488,11 @@ class FlatViewModel(
 
     fun createRecurringBill(
         name: String, amount: Double?, billingDay: Int, isVariable: Boolean,
-        memberUids: List<String>, collectorId: String? = null
+        memberUids: List<String>, collectorId: String? = null,
+        onDone: (Boolean) -> Unit = {}
     ) {
-        val uid = currentUser.value?.uid ?: return
-        val flat = _flatId.value ?: return
+        val uid = currentUser.value?.uid ?: return onDone(false)
+        val flat = _flatId.value ?: return onDone(false)
         val bill = RecurringBill(
             id = UUID.randomUUID().toString(), name = name.trim(), amount = amount,
             billingDay = billingDay.coerceIn(1, 28), rotationQueue = memberUids,
@@ -499,7 +500,7 @@ class FlatViewModel(
             createdBy = uid, createdAt = Instant.now().toString(),
             collectorId = collectorId ?: uid
         )
-        viewModelScope.launch { billsRepository.createRecurringBill(flat, bill) }
+        viewModelScope.launch { onDone(billsRepository.createRecurringBill(flat, bill).isSuccess) }
     }
 
     fun generateBill(billId: String, amount: Double?) {
@@ -546,25 +547,25 @@ class FlatViewModel(
         viewModelScope.launch { billsRepository.closeMonth(flat, cycle, uid) }
     }
 
-    fun recordSettlement(s: SuggestedSettlement) {
-        val flat = _flatId.value ?: return
-        val uid = currentUser.value?.uid ?: return
+    fun recordSettlement(s: SuggestedSettlement, onDone: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onDone(false)
+        val uid = currentUser.value?.uid ?: return onDone(false)
         val settlement = Settlement(
             id = UUID.randomUUID().toString(), fromUserId = s.fromUserId, toUserId = s.toUserId,
             amount = s.amount, date = LocalDate.now().toString(), month = currentMonthKey(),
             type = "immediate", createdAt = Instant.now().toString()
         )
-        viewModelScope.launch { billsRepository.addSettlement(flat, settlement, uid) }
+        viewModelScope.launch { onDone(billsRepository.addSettlement(flat, settlement, uid).isSuccess) }
     }
 
-    fun recordManualSettlement(toUserId: String, amount: Double) {
-        val uid = currentUser.value?.uid ?: return
-        recordSettlement(SuggestedSettlement(uid, toUserId, amount))
+    fun recordManualSettlement(toUserId: String, amount: Double, onDone: (Boolean) -> Unit = {}) {
+        val uid = currentUser.value?.uid ?: return onDone(false)
+        recordSettlement(SuggestedSettlement(uid, toUserId, amount), onDone)
     }
 
-    fun recordMarkReceived(fromUserId: String, amount: Double) {
-        val uid = currentUser.value?.uid ?: return
-        recordSettlement(SuggestedSettlement(fromUserId, uid, amount))
+    fun recordMarkReceived(fromUserId: String, amount: Double, onDone: (Boolean) -> Unit = {}) {
+        val uid = currentUser.value?.uid ?: return onDone(false)
+        recordSettlement(SuggestedSettlement(fromUserId, uid, amount), onDone)
     }
 
     fun updateSeekerProfile(

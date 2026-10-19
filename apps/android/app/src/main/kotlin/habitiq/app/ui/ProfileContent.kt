@@ -43,6 +43,29 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
+/**
+ * One gender list for every screen that asks for it (labels in this order). Stored values stay as they always
+ * were ("female", "male", "other", "any"), so existing documents keep working; [normalizeGender] maps older or
+ * free-text values ("Female", "Woman", "Prefer not to say", …) to one of these keys for display.
+ */
+val GenderOptions: List<Pair<String, String>> = listOf(
+    "female" to "Woman",
+    "male" to "Man",
+    "other" to "Non-binary",
+    "any" to "Prefer not to say",
+)
+
+/** Maps any stored gender value (old labels included) to a [GenderOptions] key. Unknown or blank means "any". */
+fun normalizeGender(stored: String?): String = when (stored?.trim()?.lowercase()) {
+    "female", "woman", "women", "f" -> "female"
+    "male", "man", "men", "m" -> "male"
+    "other", "non-binary", "nonbinary", "non-binary / other" -> "other"
+    else -> "any"
+}
+
+/** Display label for a stored gender value. */
+fun genderLabel(stored: String?): String = GenderOptions.first { it.first == normalizeGender(stored) }.second
+
 /** Everything the Profile home shows. The person's real identity is the only visual anchor. */
 data class ProfileUiModel(
     val displayName: String,
@@ -55,7 +78,7 @@ data class ProfileUiModel(
 
 /**
  * Profile home, following the Figma Make Profile: page header with an edit action, an identity row, then
- * grouped menu cards (My flat, Discovery, Preferences) and a soft sign-out button.
+ * grouped menu cards (Your flat, Discover, Preferences) and a soft Log out button, set apart at the bottom.
  */
 @Composable
 fun ProfileHomeContent(
@@ -77,9 +100,7 @@ fun ProfileHomeContent(
         HqPageHeader(
             title = "Profile",
             action = {
-                IconButton(onClick = onEdit, modifier = Modifier.size(HqSize.target)) {
-                    Icon(HqIcons.Edit, contentDescription = "Edit profile", tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
-                }
+                habitiq.app.ui.components.HqIconButton(icon = HqIcons.Edit, contentDescription = "Edit profile", onClick = onEdit)
             },
         )
 
@@ -114,7 +135,7 @@ fun ProfileHomeContent(
         }
 
         habitiq.app.ui.theme.HqFadeUp(index = 1) {
-        HqMenuGroup("My flat") {
+        HqMenuGroup("Your flat") {
             if (model.flatName != null) {
                 HqMenuRow(model.flatName, support = model.flatSupport, icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
             } else {
@@ -124,18 +145,18 @@ fun ProfileHomeContent(
         }
         Spacer(Modifier.size(21.dp))
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
-        HqMenuGroup("Discovery") {
-            HqMenuRow("My Discovery Profile", support = model.discoverySupport, icon = HqIcons.Discover, tone = HqTileTone.Coral, onClick = onOpenDiscovery)
-            HqMenuRow("My Posts", support = "Your rooms and looking posts", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
+        HqMenuGroup("Discover") {
+            HqMenuRow("Your Discover profile", support = model.discoverySupport, icon = HqIcons.Discover, tone = HqTileTone.Coral, onClick = onOpenDiscovery)
+            HqMenuRow("My posts", support = "Rooms you listed and your looking post", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
         }
         }
         Spacer(Modifier.size(21.dp))
         habitiq.app.ui.theme.HqFadeUp(index = 3) {
         HqMenuGroup("Preferences") {
-            HqMenuRow("Privacy & Security", support = "App lock and account", icon = HqIcons.Shield, tone = HqTileTone.Neutral, lastRow = true, onClick = onOpenPreferences)
+            HqMenuRow("Privacy and security", support = "App lock and account", icon = HqIcons.Shield, tone = HqTileTone.Neutral, lastRow = true, onClick = onOpenPreferences)
         }
         }
         Spacer(Modifier.size(24.dp))
-        HqDangerSoftButton("Sign out", onSignOut)
+        HqDangerSoftButton("Log out", onSignOut)
     }
 }

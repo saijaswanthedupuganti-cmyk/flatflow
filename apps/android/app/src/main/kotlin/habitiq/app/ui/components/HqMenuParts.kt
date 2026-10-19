@@ -47,7 +47,7 @@ fun HqMenuGroup(label: String?, modifier: Modifier = Modifier, content: @Composa
             .padding(horizontal = 14.dp, vertical = 4.dp),
     ) {
         if (label != null) {
-            Text(label.uppercase(), style = HqType.labelSmall, color = c.textBrand, fontWeight = FontWeight.ExtraBold, modifier = Modifier.padding(start = 2.dp, top = 11.dp, bottom = 4.dp))
+            Text(label, style = HqType.labelMedium, color = c.textSecondary, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(start = 2.dp, top = 11.dp, bottom = 4.dp))
         }
         content()
     }

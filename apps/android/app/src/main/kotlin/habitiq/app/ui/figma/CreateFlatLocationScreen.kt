@@ -24,7 +24,7 @@ import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
-/** Figma 64:105 / 64:158 — Create a Flat: Location (step 2 of 5). */
+/** Create a flat, step 2 of 2: where the flat is. Optional; one Skip under the main button. */
 @Composable
 fun CreateFlatLocationScreen(
     area: String,
@@ -47,8 +47,6 @@ fun CreateFlatLocationScreen(
         FlatWizardLocationHeader(
             currentStep = 2,
             onBack = onBack,
-            onSkip = onSkip,
-            showHeaderSkip = showHeaderSkip
         )
         Column(
             Modifier
@@ -60,12 +58,12 @@ fun CreateFlatLocationScreen(
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                 Text(
-                    "Where is your flat located?",
+                    "Where is your flat?",
                     color = c.textPrimary,
                     style = HqType.headlineMedium
                 )
                 Text(
-                    "Add address to help others discover",
+                    "Add the area and city. You can skip this and add it later in Flat settings.",
                     color = c.textSecondary,
                     style = HqType.bodyMedium
                 )
@@ -77,7 +75,7 @@ fun CreateFlatLocationScreen(
                         if (picked.city.isNotBlank()) onCityChange(picked.city)
                     }
                 )
-                HqTextField(value = area, onValueChange = onAreaChange, label = "Area / Locality", placeholder = "Madhapur", leadingIcon = Icons.Filled.LocationOn)
+                HqTextField(value = area, onValueChange = onAreaChange, label = "Area or locality", placeholder = "Madhapur", leadingIcon = Icons.Filled.LocationOn)
                 HqTextField(value = city, onValueChange = onCityChange, label = "City", placeholder = "Hyderabad", leadingIcon = Icons.Filled.LocationCity)
                 HqTextField(value = pincode, onValueChange = onPincodeChange, label = "Pincode", placeholder = "500081", leadingIcon = Icons.Filled.PinDrop,
                     keyboardType = KeyboardType.Number,
@@ -86,14 +84,14 @@ fun CreateFlatLocationScreen(
                 HqTextField(
                     value = landmark,
                     onValueChange = onLandmarkChange,
-                    label = "Nearby Landmark (Optional)",
-                    placeholder = "Eg. DLF, Image Hospital",
+                    label = "Nearby landmark (optional)",
+                    placeholder = "e.g. DLF, Image Hospital",
                     leadingIcon = Icons.Filled.LocationOn,
                     imeAction = ImeAction.Done,
                     onImeAction = onContinue
                 )
             }
-            Spacer(Modifier.height(120.dp))
+            Spacer(Modifier.height(HqSpacing.xxl))
         }
         Column(
             Modifier
@@ -101,14 +99,14 @@ fun CreateFlatLocationScreen(
                 .background(c.canvas)
                 .border(1.dp, c.borderSubtle)
                 .padding(horizontal = HqSpacing.xl)
-                .padding(top = HqSpacing.xxl, bottom = HqSpacing.xxl)
+                .padding(top = HqSpacing.md, bottom = HqSpacing.sm)
                 .navigationBarsPadding(),
-            verticalArrangement = Arrangement.spacedBy(HqSpacing.lg)
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)
         ) {
-            HqButton(text = "Continue", onClick = onContinue)
+            HqButton(text = "Create flat", onClick = onContinue)
             if (showBottomSkip && onSkip != null) {
                 Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                    HqTextButton(text = "Skip for now", onClick = onSkip)
+                    HqTextButton(text = "Skip", onClick = onSkip)
                 }
             }
         }

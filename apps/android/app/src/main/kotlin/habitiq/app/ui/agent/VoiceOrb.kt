@@ -29,23 +29,29 @@ import kotlin.math.sin
 /** What the orb is doing: listening reacts to the voice, thinking ripples gently, done rests. */
 enum class OrbMood { Listening, Thinking, Done }
 
+/**
+ * The voice overlay's own art palette (it draws on a navy surface in a Canvas, outside the token
+ * scheme). Palette C: teal is the "press me"/live colour, so the orb glows teal like the website
+ * (#14B8A6 to #0F766E) and the primary actions use the brand teal pair (white label >= 4.5:1).
+ */
 internal object VoiceColors {
-    val orbLight = Color(0xFF8CC8FF)
-    val orbMid = Color(0xFF3D7BFF)
-    val orbDeep = Color(0xFF1C4FE0)
-    val orbEdge = Color(0xFF173DB8)
-    val orbCore = Color(0xFF7FE8FF)
-    val ring = Color(0xFF5B8CFF)
-    val waveNear = Color(0xFF6D9BFF)
-    val waveFar = Color(0xFFA98BFF)
+    val orbLight = Color(0xFF99F6E4)
+    val orbMid = Color(0xFF14B8A6)
+    val orbDeep = Color(0xFF0F766E)
+    val orbEdge = Color(0xFF115E59)
+    val orbCore = Color(0xFF5EEAD4)
+    val ring = Color(0xFF2DD4BF)
+    val waveNear = Color(0xFF2DD4BF)
+    val waveFar = Color(0xFF5EEAD4)
     val scrimTop = Color(0xFF0E1A2E)
     val scrimBottom = Color(0xFF0B1424)
-    val buttonTop = Color(0xFF4C8DFF)
-    val buttonBottom = Color(0xFF1F5EFF)
+    /** Primary action fill (Save, Send, Ask again, the nav voice button): brand teal 700 to 800. */
+    val buttonTop = Color(0xFF0F766E)
+    val buttonBottom = Color(0xFF115E59)
 }
 
 /**
- * The listening orb from the Habitiq voice reference: a glossy blue sphere with a cyan core glow,
+ * The listening orb from the Habitiq voice reference: a glossy teal sphere with a bright core glow,
  * two halo rings, and fine sound waves streaming out to both screen edges. Everything is drawn in
  * one Canvas with transform-free maths so it stays smooth; [level] (0..1) swells rings and waves.
  * With [animate] false it renders one still frame (system animations off, screenshots).

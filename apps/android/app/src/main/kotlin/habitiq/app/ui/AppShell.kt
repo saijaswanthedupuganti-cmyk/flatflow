@@ -74,6 +74,7 @@ import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 
 enum class AppTab(val label: String, val icon: ImageVector) {
     HOME("Home", HqIcons.Home),
@@ -112,6 +113,8 @@ fun AppShell(
     createAction: ShellCreate = ShellCreate.None,
     onMic: (() -> Unit)? = null,
     overlayOpen: Boolean = false,
+    /** Full-screen flows (Discover wizard, listing detail) hide the nav pill and the floating +. */
+    chromeHidden: Boolean = false,
     overlay: @Composable (micCenter: androidx.compose.ui.geometry.Offset?) -> Unit = {},
     content: @Composable (AppTab) -> Unit
 ) {
@@ -122,28 +125,20 @@ fun AppShell(
     val blur by androidx.compose.animation.core.animateDpAsState(if (overlayOpen) 28.dp else 0.dp, tween(340), label = "appBlur")
     Box(modifier.fillMaxSize()) {
     Column(Modifier.fillMaxSize().then(if (blur > 0.dp) Modifier.blur(blur) else Modifier).background(c.canvas)) {
-        val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
-        // Material fade-through between top-level destinations: quick fade out, then fade + slight scale in.
+        val tabT = habitiq.app.ui.theme.rememberHqTransitions()
+        // Material fade-through between top-level destinations (peers with no spatial relation).
         Box(Modifier.weight(1f)) {
         androidx.compose.animation.AnimatedContent(
             targetState = selectedTab,
             modifier = Modifier.fillMaxSize(),
-            transitionSpec = {
-                if (reduceMotion) {
-                    androidx.compose.animation.EnterTransition.None togetherWith androidx.compose.animation.ExitTransition.None
-                } else {
-                    (androidx.compose.animation.fadeIn(androidx.compose.animation.core.tween(210, delayMillis = 70)) +
-                        androidx.compose.animation.scaleIn(androidx.compose.animation.core.tween(210, delayMillis = 70), initialScale = 0.985f)) togetherWith
-                        androidx.compose.animation.fadeOut(androidx.compose.animation.core.tween(90))
-                }
-            },
+            transitionSpec = { tabT.fadeThroughEnter togetherWith tabT.fadeThroughExit },
             label = "tabs",
         ) { tab -> Box(Modifier.fillMaxSize()) { content(tab) } }
             if (createAction is ShellCreate.Menu) {
                 QuickAddOverlay(open = menuOpen, options = createAction.options) { menuOpen = false }
             }
             // With the mic in the centre, Quick add lives in a floating + that is always in the same place.
-            if (onMic != null && createAction !is ShellCreate.None) {
+            if (!chromeHidden && onMic != null && createAction !is ShellCreate.None) {
                 QuickAddFab(
                     open = menuOpen,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 14.dp),
@@ -157,7 +152,7 @@ fun AppShell(
             }
         }
         val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-        if (!keyboardOpen) {
+        if (!keyboardOpen && !chromeHidden) {
             ShellBar(
                 selectedTab = selectedTab,
                 onTabSelected = { menuOpen = false; onTabSelected(it) },
@@ -216,7 +211,7 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
                         onLongPress = null,
                     )
                     create is ShellCreate.Direct -> CreateButton(create.label, false, create.onClick)
-                    create is ShellCreate.Menu -> CreateButton(if (menuOpen) "Close quick add" else "Quick add", menuOpen, onOpenMenu)
+                    create is ShellCreate.Menu -> CreateButton(if (menuOpen) "Close add menu" else "Add", menuOpen, onOpenMenu)
                     else -> Unit
                 }
             }
@@ -247,7 +242,7 @@ private fun CreateButton(label: String, open: Boolean, onClick: () -> Unit) {
         Modifier
             .offset(y = (-24).dp)
             .graphicsLayer { scaleX = press; scaleY = press }
-            .shadow(10.dp, shape, ambientColor = c.brandTeal.copy(alpha = .35f), spotColor = c.brandTeal.copy(alpha = .35f))
+            .hqShadow(habitiq.app.ui.theme.HqShadow.Raised, shape, tint = c.actionPrimaryBg)
             .size(54.dp)
             .clip(shape)
             .background(fill)
@@ -261,7 +256,7 @@ private fun CreateButton(label: String, open: Boolean, onClick: () -> Unit) {
 }
 
 /**
- * The agent entry, as in the Oddroof reference: a raised blue circle with a white ring, a soft blue
+ * The agent entry, as in the Oddroof reference: a raised teal circle with a white ring, a soft teal
  * glow and the five-bar voice glyph. Tap talks to Oddroof; long-press opens Quick add. While Quick
  * add is open it shows × and a tap closes it.
  */
@@ -273,13 +268,13 @@ private fun MicButton(menuOpen: Boolean, onPositioned: (androidx.compose.ui.geom
     val pressed by interaction.collectIsPressedAsState()
     val press by animateFloatAsState(if (pressed) 0.9f else 1f, spring(dampingRatio = 0.5f, stiffness = 900f), label = "micPress")
     val haptics = androidx.compose.ui.platform.LocalHapticFeedback.current
-    val blue = habitiq.app.ui.agent.VoiceColors
+    val voice = habitiq.app.ui.agent.VoiceColors
     Box(
         Modifier
             .offset(y = (-26).dp)
             .onGloballyPositioned { onPositioned(it.boundsInRoot().center) }
             .graphicsLayer { scaleX = press; scaleY = press }
-            .shadow(18.dp, CircleShape, ambientColor = blue.buttonBottom.copy(alpha = .55f), spotColor = blue.buttonBottom.copy(alpha = .55f))
+            .hqShadow(habitiq.app.ui.theme.HqShadow.Overlay, CircleShape, tint = voice.buttonBottom)
             .size(64.dp)
             .clip(CircleShape)
             .background(c.surfaceBase)
@@ -287,20 +282,20 @@ private fun MicButton(menuOpen: Boolean, onPositioned: (androidx.compose.ui.geom
             .clip(CircleShape)
             .background(
                 if (menuOpen) androidx.compose.ui.graphics.Brush.verticalGradient(listOf(c.textPrimary, c.textPrimary))
-                else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(blue.buttonTop, blue.buttonBottom))
+                else androidx.compose.ui.graphics.Brush.verticalGradient(listOf(voice.buttonTop, voice.buttonBottom))
             )
             .combinedClickable(
                 interactionSource = interaction,
                 indication = null,
                 role = Role.Button,
-                onClickLabel = if (menuOpen) "Close quick add" else "Talk to Oddroof",
-                onLongClickLabel = if (onLongPress != null) "Quick add" else null,
+                onClickLabel = if (menuOpen) "Close add menu" else "Talk to Oddroof",
+                onLongClickLabel = if (onLongPress != null) "Add" else null,
                 onLongClick = onLongPress?.let { action ->
                     { haptics.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress); action() }
                 },
                 onClick = onTap,
             )
-            .semantics { contentDescription = if (menuOpen) "Close quick add" else "Talk to Oddroof" },
+            .semantics { contentDescription = if (menuOpen) "Close add menu" else "Talk to Oddroof" },
         contentAlignment = Alignment.Center,
     ) {
         if (menuOpen) {
@@ -331,12 +326,12 @@ private fun QuickAddFab(open: Boolean, modifier: Modifier = Modifier, onClick: (
     Box(
         modifier
             .graphicsLayer { scaleX = press; scaleY = press }
-            .shadow(12.dp, CircleShape, ambientColor = c.brandTeal.copy(alpha = .4f), spotColor = c.brandTeal.copy(alpha = .4f))
+            .hqShadow(habitiq.app.ui.theme.HqShadow.Raised, CircleShape, tint = c.actionPrimaryBg)
             .size(56.dp)
             .clip(CircleShape)
             .background(fill)
             .clickable(interactionSource = interaction, indication = null, role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = if (open) "Close quick add" else "Quick add" },
+            .semantics { contentDescription = if (open) "Close add menu" else "Add" },
         contentAlignment = Alignment.Center,
     ) {
         Icon(HqIcons.Plus, null, tint = glyph, modifier = Modifier.size(28.dp).graphicsLayer { rotationZ = rotation })
@@ -363,7 +358,7 @@ private fun QuickAddOverlay(open: Boolean, options: List<CreateOption>, onClose:
         Box(
             Modifier.fillMaxSize()
                 .graphicsLayer { alpha = scrim }
-                .background(Color(0xFF091C1A).copy(alpha = .58f))
+                .background(LocalHqColors.current.scrim.copy(alpha = .58f))
                 .pointerInput(Unit) { detectTapGestures { onClose() } },
         )
         Column(
@@ -372,9 +367,9 @@ private fun QuickAddOverlay(open: Boolean, options: List<CreateOption>, onClose:
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(
-                "QUICK ADD",
-                style = HqType.labelSmall,
-                color = Color.White.copy(alpha = .85f),
+                "Add",
+                style = HqType.labelMedium,
+                color = LocalHqColors.current.onImage,
                 fontWeight = FontWeight.ExtraBold,
                 modifier = Modifier.padding(start = 4.dp, bottom = 2.dp).graphicsLayer { alpha = scrim },
             )
@@ -419,7 +414,7 @@ private fun QuickAddCard(option: CreateOption, modifier: Modifier = Modifier, on
         modifier
             .graphicsLayer { scaleX *= press; scaleY *= press }
             .fillMaxWidth()
-            .shadow(12.dp, shape, ambientColor = Color.Black.copy(alpha = .18f), spotColor = Color.Black.copy(alpha = .18f))
+            .hqShadow(habitiq.app.ui.theme.HqShadow.Overlay, shape)
             .clip(shape)
             .background(c.surfaceRaised)
             .clickable(interactionSource = interaction, indication = androidx.compose.material3.ripple(), role = Role.Button, onClick = onClick)
@@ -429,21 +424,23 @@ private fun QuickAddCard(option: CreateOption, modifier: Modifier = Modifier, on
     ) {
         habitiq.app.ui.components.HqIconTile(look.icon, look.tone, size = 42)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(option.label, style = HqType.rowTitle, color = c.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            look.support?.let { Text(it, style = HqType.bodySmall, color = c.textSecondary, maxLines = 1) }
+            Text(look.title ?: option.label, style = HqType.rowTitle, color = c.textPrimary, fontWeight = FontWeight.SemiBold, maxLines = 1)
+            look.support?.let { Text(it, style = HqType.bodySmall, color = c.textSecondary, maxLines = 2) }
         }
         Icon(HqIcons.Chevron, null, tint = c.textMuted, modifier = Modifier.size(HqIconSize.sm))
     }
 }
 
-private data class QuickAddLook(val icon: ImageVector, val tone: HqTileTone, val support: String?)
+/** [title] overrides the caller's label so the sheet always uses the WORDS.md names. */
+private data class QuickAddLook(val icon: ImageVector, val tone: HqTileTone, val support: String?, val title: String? = null)
 
 private fun quickAddLook(label: String): QuickAddLook = when {
-    label.contains("task", ignoreCase = true) -> QuickAddLook(HqIcons.Check, HqTileTone.Teal, "Create a shared responsibility")
-    label.contains("expense", ignoreCase = true) -> QuickAddLook(HqIcons.Receipt, HqTileTone.Sand, "Split a daily spend")
-    label.contains("bill", ignoreCase = true) -> QuickAddLook(HqIcons.Clock, HqTileTone.Coral, "Set up a recurring household bill")
-    label.contains("vacancy", ignoreCase = true) -> QuickAddLook(HqIcons.Discover, HqTileTone.Neutral, "List a room in your flat")
-    label.contains("looking", ignoreCase = true) -> QuickAddLook(HqIcons.Discover, HqTileTone.Neutral, "Say what you are looking for")
+    label.contains("task", ignoreCase = true) -> QuickAddLook(HqIcons.Check, HqTileTone.Teal, "A chore for you or your flatmates", "Add task")
+    label.contains("expense", ignoreCase = true) -> QuickAddLook(HqIcons.Receipt, HqTileTone.Sand, "Split something you paid for", "Add expense")
+    label.contains("bill", ignoreCase = true) -> QuickAddLook(HqIcons.Clock, HqTileTone.Coral, "Rent, Wi-Fi or anything paid every month", "Add bill")
+    label.contains("vacancy", ignoreCase = true) || label.contains("list a room", ignoreCase = true) ->
+        QuickAddLook(HqIcons.Discover, HqTileTone.Neutral, "Find a flatmate for a room in your flat", "List a room")
+    label.contains("looking", ignoreCase = true) -> QuickAddLook(HqIcons.Discover, HqTileTone.Neutral, "Tell flats what you need", "I'm looking for a room")
     else -> QuickAddLook(HqIcons.Plus, HqTileTone.Teal, null)
 }
 
@@ -451,8 +448,8 @@ private fun quickAddLook(label: String): QuickAddLook = when {
 private fun BottomNavItem(tab: AppTab, selected: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
     val c = LocalHqColors.current
     // Selected = brand-dark colour + heavier label + selected semantics (never colour alone).
-    // Selected tab is the voice-button blue in light mode (dashboard reference); dark keeps the brand tint.
-    val selectedInk = if (c.isDark) c.textBrand else Color(0xFF1F63F0)
+    // Palette C: selected is the teal "selected" pair (blue is reserved for links).
+    val selectedInk = c.selectedFg
     val color by animateColorAsState(if (selected) selectedInk else c.textMuted, tween(200), label = "navColor")
     val reduceMotion = habitiq.app.ui.theme.hqReduceMotion()
     val pill by animateFloatAsState(
@@ -481,7 +478,7 @@ private fun BottomNavItem(tab: AppTab, selected: Boolean, modifier: Modifier = M
                 Modifier.size(width = 52.dp, height = 30.dp)
                     .graphicsLayer { scaleX = 0.4f + 0.6f * pill; alpha = pill.coerceIn(0f, 1f) }
                     .clip(RoundedCornerShape(HqRadius.pill))
-                    .background(if (c.isDark) c.selectedBg else Color(0xFFE3ECFF)),
+                    .background(c.selectedBg),
             )
             Icon(
                 tab.icon, contentDescription = null, tint = color,

@@ -25,8 +25,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.layout.defaultMinSize
@@ -70,6 +68,7 @@ import habitiq.app.ui.theme.HqRadius
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
@@ -113,61 +112,61 @@ fun TaskDetailScreen(
             // Figma task-focus: dark card with status, title, notes, due/assignee tiles and the main action.
             Column(
                 Modifier.fillMaxWidth()
-                    .shadow(17.dp, RoundedCornerShape(26.dp), ambientColor = c.textPrimary.copy(alpha = .18f), spotColor = c.textPrimary.copy(alpha = .18f))
-                    .clip(RoundedCornerShape(26.dp))
-                    .background(Brush.linearGradient(if (done) listOf(Color(0xFF27534C), Color(0xFF1B3E39)) else listOf(Color(0xFF193C38), Color(0xFF112D2A))))
+                    .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, RoundedCornerShape(HqRadius.card))
+                    .clip(RoundedCornerShape(HqRadius.card))
+                    .background(c.brandInk)
                     .padding(20.dp),
             ) {
                 hqTaskMotifFor(task.name)?.let {
                     Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.TopEnd) {
-                        Icon(hqTaskMotifVector(it), null, tint = Color(0xFF86D9CE).copy(alpha = .18f), modifier = Modifier.size(110.dp))
+                        Icon(hqTaskMotifVector(it), null, tint = c.onBrandInk.copy(alpha = .12f), modifier = Modifier.size(110.dp))
                     }
                 }
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     HqBadge(
-                        when { done -> "Completed"; overdue -> "Overdue"; else -> formatDueLabel(task.dueDate) },
+                        when { done -> "Done"; overdue -> "Overdue"; else -> formatDueLabel(task.dueDate) },
                         if (done) HqBadgeTone.Success else HqBadgeTone.Warning,
                     )
-                    Text(task.frequency.replaceFirstChar { it.uppercase() }, style = HqType.labelSmall, color = Color(0xFFB8C8C5))
+                    Text(task.frequency.replaceFirstChar { it.uppercase() }, style = HqType.labelSmall, color = c.onBrandInk.copy(alpha = .8f))
                 }
-                Text(task.name, style = HqType.titleLarge2, color = Color.White, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
-                if (task.notes.isNotBlank()) Text(task.notes, style = HqType.bodyMedium, color = Color(0xFFBDC9C7))
+                Text(task.name, style = HqType.titleLarge2, color = c.onBrandInk, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+                if (task.notes.isNotBlank()) Text(task.notes, style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f))
                 Row(Modifier.padding(top = 18.dp, bottom = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    FocusTile(Modifier.weight(1f), label = "DUE", value = formatDueLabel(task.dueDate)) {
-                        Box(Modifier.size(31.dp).clip(RoundedCornerShape(10.dp)).background(Color(0x3314B8A6)), contentAlignment = Alignment.Center) {
-                            Icon(HqIcons.Clock, null, tint = Color(0xFF8DE2D8), modifier = Modifier.size(17.dp))
+                    FocusTile(Modifier.weight(1f), label = "Due", value = formatDueLabel(task.dueDate)) {
+                        Box(Modifier.size(31.dp).clip(RoundedCornerShape(10.dp)).background(c.onBrandInk.copy(alpha = .12f)), contentAlignment = Alignment.Center) {
+                            Icon(HqIcons.Clock, null, tint = c.onBrandInk, modifier = Modifier.size(17.dp))
                         }
                     }
-                    FocusTile(Modifier.weight(1f), label = "ASSIGNED TO", value = if (mine) "You" else assignee?.nickname?.substringBefore(" ") ?: "Unassigned") {
+                    FocusTile(Modifier.weight(1f), label = "Assigned to", value = if (mine) "You" else assignee?.nickname?.substringBefore(" ") ?: "Unassigned") {
                         HqAvatar(assignee?.nickname ?: "?", size = HqAvatarSize.SM, tone = hqToneFor(assignee?.nickname.orEmpty(), mine))
                     }
                 }
-                if (onComplete != null && mine) {
+                if (onComplete != null && mine && !done) {
                     HqButton(
-                        text = if (done) "Task completed" else "Mark as complete",
+                        text = "Mark done",
                         onClick = onComplete,
-                        enabled = !done,
                         leadingIcon = HqIcons.Check,
+                        haptic = true,
                     )
                 } else if (!mine && !done) {
                     Text(
                         "${assignee?.nickname?.substringBefore(" ") ?: "A flatmate"} is on this task",
-                        style = HqType.labelMedium, color = Color(0xFFAEBDBA),
+                        style = HqType.labelMedium, color = c.onBrandInk.copy(alpha = .8f),
                     )
                 }
             }
 
             if (queue.isNotEmpty()) {
-                HqSectionTitle("Rotation")
+                HqSectionTitle("Who takes turns")
                 Row(
-                    Modifier.fillMaxWidth().shadow(3.dp, RoundedCornerShape(20.dp), ambientColor = c.textPrimary.copy(alpha = .05f), spotColor = c.textPrimary.copy(alpha = .05f))
+                    Modifier.fillMaxWidth().hqShadow(habitiq.app.ui.theme.HqShadow.Floating, RoundedCornerShape(HqRadius.card))
                         .clip(RoundedCornerShape(20.dp)).background(c.surfaceBase).border(1.dp, c.borderSubtle, RoundedCornerShape(20.dp))
                         .padding(horizontal = 14.dp, vertical = 16.dp),
                     horizontalArrangement = Arrangement.SpaceEvenly,
                 ) {
                     queue.take(3).forEach { entry ->
                         val label = when (entry.state) {
-                            QueueState.NOW -> "NOW"; QueueState.NEXT -> "NEXT"; QueueState.SKIPPED -> "AWAY"; QueueState.QUEUED -> "THEN"
+                            QueueState.NOW -> "Now"; QueueState.NEXT -> "Next"; QueueState.SKIPPED -> "Away"; QueueState.QUEUED -> "Then"
                         }
                         val name = entry.member.nickname.substringBefore(" ")
                         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -186,17 +185,17 @@ fun TaskDetailScreen(
                 HqSectionTitle("Can't do this turn?")
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
                     if (onOpenAway != null) {
-                        HqCalloutCard("I'm unavailable", "Pause my turns temporarily", HqIcons.Clock, HqTileTone.Neutral, onClick = onOpenAway)
+                        HqCalloutCard("I'm away", "Pause my turns for a while", HqIcons.Clock, HqTileTone.Neutral, onClick = onOpenAway)
                     }
-                    HqCalloutCard("Request a swap", "Ask a flatmate to take this task", HqIcons.Users, HqTileTone.Teal, onClick = { swapOpen = true })
+                    HqCalloutCard("Swap turn", "Ask a flatmate to take this turn", HqIcons.Users, HqTileTone.Teal, onClick = { swapOpen = true })
                 }
                 Row(
-                    Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(17.dp)).background(Color(0xFFEFF8F6)).padding(14.dp),
+                    Modifier.padding(top = 14.dp).fillMaxWidth().clip(RoundedCornerShape(HqRadius.card)).background(c.selectedBg).padding(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Icon(HqIcons.Home, null, tint = c.textBrand, modifier = Modifier.size(HqIconSize.sm))
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("Keep our home running smoothly.", style = HqType.labelMedium, color = c.textBrand, fontWeight = FontWeight.Bold)
+                        Text("Keep your flat running smoothly.", style = HqType.labelMedium, color = c.textBrand, fontWeight = FontWeight.Bold)
                         Text("If you can't do this task, pause your turns or request a swap with a flatmate.", style = HqType.bodyMedium, color = c.textBrand)
                     }
                 }
@@ -232,7 +231,7 @@ fun TaskDetailScreen(
             }
             Row(Modifier.padding(top = 14.dp, bottom = 12.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Icon(HqIcons.Clock, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
-                Text("The task remains yours until it is accepted. Rotation changes only after acceptance.", style = HqType.bodyMedium, color = c.textSecondary)
+                Text("The task stays yours until a flatmate accepts. Turns change only after that.", style = HqType.bodyMedium, color = c.textSecondary)
             }
             HqButton(text = "Send swap request", enabled = picked != null, onClick = { picked?.let { onRequestSwap(it) }; swapOpen = false })
             Spacer(Modifier.height(HqSpacing.xxl))
@@ -242,15 +241,16 @@ fun TaskDetailScreen(
 
 @Composable
 private fun FocusTile(modifier: Modifier, label: String, value: String, leading: @Composable () -> Unit) {
+    val c = LocalHqColors.current
     val shape = RoundedCornerShape(14.dp)
     Row(
-        modifier.defaultMinSize(minHeight = 54.dp).clip(shape).background(Color.White.copy(alpha = .06f)).border(1.dp, Color.White.copy(alpha = .1f), shape).padding(9.dp),
+        modifier.defaultMinSize(minHeight = 54.dp).clip(shape).background(c.onBrandInk.copy(alpha = .08f)).border(1.dp, c.onBrandInk.copy(alpha = .14f), shape).padding(9.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         leading()
         Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(label, style = HqType.labelSmall, color = Color(0xFF91A6A3), fontWeight = FontWeight.Bold)
-            Text(value, style = HqType.labelMedium, color = Color.White, fontWeight = FontWeight.Bold)
+            Text(label, style = HqType.labelSmall, color = c.onBrandInk.copy(alpha = .8f), fontWeight = FontWeight.Bold)
+            Text(value, style = HqType.labelMedium, color = c.onBrandInk, fontWeight = FontWeight.Bold)
         }
     }
 }

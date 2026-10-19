@@ -30,25 +30,38 @@ object HqSpacing {
 }
 
 /**
- * Functional radius scale (design doc section 7.3). Use the functional names in new code;
- * `sm`..`xl` are v1.x aliases kept for the migration cycle.
+ * The one radius scale (design doc section 7.3). Every component reads a functional name; nothing
+ * hard-codes a corner. Nested corners are concentric: inner = outer - inset (the 16dp segmented
+ * track with a 4dp inset holds a 12dp indicator).
+ *
+ * | Step | dp   | Name(s)           | Used by                                              |
+ * |------|------|-------------------|------------------------------------------------------|
+ * | xs   | 8    | small             | badges, tags, skeleton blocks, inset elements        |
+ * | sm   | 12   | control           | segmented indicator, snackbar, inset option rows     |
+ * | md   | 16   | button, field     | every button size, every text field, segmented track |
+ * | lg   | 20   | card              | cards, groups, illustrated panels                    |
+ * | xl   | 28   | sheet             | sheet top corners, dialogs                           |
+ * | pill | full | pill              | chips, switch track and thumb, avatars               |
+ *
+ * `sm`..`xl` at the bottom are v1.x aliases kept only so older screens compile; new code uses the
+ * functional names above.
  */
 object HqRadius {
-    /** Small status badges, inset elements. */
+    /** xs (8): small status badges, inset elements. */
     val small: Dp = 8.dp
-    /** Buttons, text fields, interactive option rows. */
+    /** sm (12): segmented indicator, snackbar, inset option rows. */
     val control: Dp = 12.dp
     /** Floating bottom navigation pill (Figma radius 22). */
     val navPill: Dp = 22.dp
-    /** Figma primary/secondary buttons (radius 16). */
+    /** md (16): every button, at every size -- one corner for every button in the app. */
     val button: Dp = 16.dp
-    /** Main cards, intent cards, contextual summaries. */
+    /** lg (20): main cards, intent cards, contextual summaries. */
     val card: Dp = 20.dp
-    /** Top corners of Android sheets. */
-    val sheet: Dp = 30.dp
-    /** Figma text fields (radius 15). */
-    val field: Dp = 15.dp
-    /** Avatar circles, chips, segmented indicators. */
+    /** xl (28): top corners of Android sheets and the dialog surface. */
+    val sheet: Dp = 28.dp
+    /** md (16): text fields -- deliberately identical to [button] so a field and its submit button match. */
+    val field: Dp = 16.dp
+    /** Avatar circles, chips, switch, segmented indicators. */
     val pill: Dp = 9999.dp
 
     val sm: Dp = small
@@ -61,7 +74,8 @@ object HqRadius {
 /** Component-specific minima (design doc section 4.2 `metrics.size`). These are minima, never clipping boxes: content grows with text. */
 object HqSize {
     val target: Dp = 48.dp
-    val button: Dp = 52.dp
+    /** Default (Large) button height. See HqButtonSize for Medium 48 / Small 40. */
+    val button: Dp = 56.dp
     val input: Dp = 56.dp
     val row: Dp = 56.dp
     val rowTwoLine: Dp = 72.dp
@@ -101,6 +115,22 @@ object HqElevation {
     val subtle: Dp = 1.dp
     val low: Dp = 2.dp
     val modal: Dp = 8.dp
+}
+
+/**
+ * Tinted shadow levels (design doc section 7.4), applied with `Modifier.hqShadow`. Shadows are
+ * tinted with the ink colour, never pure black, and are dropped in dark mode, where depth comes
+ * from a lighter surface plus a subtle border instead.
+ */
+enum class HqShadow(val elevation: Dp, val ambientAlpha: Float, val spotAlpha: Float) {
+    /** No shadow (lists, rows, status cards). */
+    None(0.dp, 0f, 0f),
+    /** Cards and the selected segment: about y2 blur8 at 8%. */
+    Floating(3.dp, 0.05f, 0.08f),
+    /** Primary button lift, snackbar, menus. */
+    Raised(6.dp, 0.07f, 0.14f),
+    /** Dialogs and sheets: about y8 blur24 at 14%. */
+    Overlay(12.dp, 0.08f, 0.16f),
 }
 
 /** Icon size tokens (design doc section 17). Visual size only -- pad the touch target to ~48dp separately, see HqTouchTarget. */

@@ -89,7 +89,7 @@ fun MyPostsScreen(
         if (!showVacancy && !showLooking && !showPending) {
             DiscoveryEmpty(
                 title = if (tab == "active") "No active posts" else "No past posts",
-                body = "Create a vacancy or a looking post from +."
+                body = "Tap + to list a room or say you're looking for a room."
             )
             return
         }
@@ -129,8 +129,8 @@ fun MyPostsScreen(
                             style = HqType.bodyMedium, color = c.textSecondary,
                         )
                         Text(
-                            if (pending) "Your vacancy goes live on Discover as soon as your flat admin approves it."
-                            else "Your admin didn't approve this vacancy. Talk to them, then edit it and send it again.",
+                            if (pending) "Your room goes live in Discover as soon as your flat admin approves it."
+                            else "Your flat admin didn't approve this listing. Talk to them, then edit it and send it again.",
                             style = HqType.bodySmall, color = c.textSecondary,
                         )
                         Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
@@ -151,7 +151,7 @@ fun MyPostsScreen(
                         title = flat.name,
                         subtitle = "${vacancy.area} · ${vacancy.city}".trim(' ', '·') + " · Looking for a flatmate",
                         status = vacancyStatus?.name ?: "",
-                        meta = if (canManageVacancy) "$incomingCount connections" else "Ask your admin or the person who posted it to change this",
+                        meta = if (canManageVacancy) "$incomingCount ${if (incomingCount == 1) "request" else "requests"}" else "Ask your admin or the person who posted it to change this",
                         canManage = canManageVacancy,
                         isPublished = vacancyActive,
                         onEdit = onEdit,
@@ -166,10 +166,10 @@ fun MyPostsScreen(
             if (showLooking) {
                 item {
                     PostManageCard(
-                        title = "Looking for a flat",
+                        title = "I'm looking for a room",
                         subtitle = "${mySeeker.lookingIn.ifBlank { mySeeker.city }} · ${formatInr(mySeeker.budget)}",
                         status = lookingStatus?.name ?: "",
-                        meta = "Your looking post",
+                        meta = "Your post",
                         canManage = true,
                         isPublished = lookingActive,
                         onEdit = onEdit,
@@ -208,7 +208,7 @@ private fun PostManageCard(
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
             habitiq.app.ui.components.HqIconTile(
-                if (title.startsWith("Looking")) habitiq.app.ui.components.HqIcons.Profile else habitiq.app.ui.components.HqIcons.Home,
+                if (title.startsWith("I'm looking")) habitiq.app.ui.components.HqIcons.Profile else habitiq.app.ui.components.HqIcons.Home,
                 habitiq.app.ui.components.HqTileTone.Teal, size = 46,
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -228,7 +228,7 @@ private fun PostManageCard(
                 else HqButton(text = "Resume", onClick = onResume, fullWidth = false)
             }
             Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                HqButton(text = "Connections", onClick = onConnections, variant = HqButtonVariant.Secondary, fullWidth = false)
+                HqButton(text = "Requests", onClick = onConnections, variant = HqButtonVariant.Secondary, fullWidth = false)
                 if (allowClose) HqTextButton(text = "Close", onClick = onClose)
             }
         }

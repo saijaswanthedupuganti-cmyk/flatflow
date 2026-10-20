@@ -356,7 +356,6 @@ fun HabitiqApp() {
                         val snackbarScope = rememberCoroutineScope()
                         val snackbarController = remember { habitiq.app.ui.components.HqSnackbarController(snackbarHostState, snackbarScope) }
                         var adminHomeMode by rememberSaveable { mutableStateOf(AdminHomeMode.TASKS) }
-                        var moneyOverlay by rememberSaveable { mutableStateOf<String?>(null) }
                         var tasksOverlay by rememberSaveable { mutableStateOf<String?>(null) }
                         var selectedTaskId by rememberSaveable { mutableStateOf<String?>(null) }
                         var showSwapReview by remember { mutableStateOf(false) }
@@ -397,7 +396,6 @@ fun HabitiqApp() {
                         // Do not steal it into a full-screen overlay (that hid Manage Flat).
                         // Monthly bills is a scope inside Manage > Expenses, not a separate screen.
                         fun openMonthlyBills() {
-                            moneyOverlay = null
                             selectedTab = AppTab.TASKS
                             manageAreaName = ManageFlatArea.EXPENSES.name
                             flatViewModel.expenseScopeMonthly.value = true
@@ -523,13 +521,12 @@ fun HabitiqApp() {
                         // rendered below register their own handlers after this one, so theirs take priority.
                         // Last step: any tab other than Home returns to Home before the app exits.
                         BackHandler(
-                            enabled = profileOverlay != null || moneyOverlay != null || tasksOverlay != null ||
+                            enabled = profileOverlay != null || tasksOverlay != null ||
                                 selectedTaskId != null ||
                                 selectedTab != AppTab.HOME
                         ) {
                             when {
                                 profileOverlay != null -> profileOverlay = null
-                                moneyOverlay != null -> moneyOverlay = null
                                 tasksOverlay != null -> tasksOverlay = null
                                 selectedTaskId != null -> selectedTaskId = null
                                 else -> selectedTab = AppTab.HOME
@@ -539,7 +536,7 @@ fun HabitiqApp() {
                         // Overlays slide in from the right when going deeper and back out when returning
                         // (Android shared-axis X). The key captures the layer state so the outgoing screen
                         // keeps rendering what it showed while it animates away.
-                        val overlayKey = OverlayKey(profileOverlay, moneyOverlay, tasksOverlay, selectedTaskId)
+                        val overlayKey = OverlayKey(profileOverlay, tasksOverlay, selectedTaskId)
                         val overlayT = habitiq.app.ui.theme.rememberHqTransitions()
                         androidx.compose.runtime.CompositionLocalProvider(habitiq.app.ui.components.LocalHqSnackbar provides snackbarController) {
                         androidx.compose.animation.AnimatedContent(
@@ -563,16 +560,7 @@ fun HabitiqApp() {
                                 "activity" -> ActivityLogScreen(flatViewModel, onBack = { profileOverlay = null })
                             }
 
-                            if (k.profile == null && k.money != null) {
-                                when (k.money) {
-                                    "expenses" -> ExpensesScreen(
-                                        flatViewModel,
-                                        onBack = { moneyOverlay = null },
-                                        onOpenBills = { openMonthlyBills() }
-                                    )
-                                    "bills" -> BillsScreen(flatViewModel, onBack = { moneyOverlay = null })
-                                }
-                            } else if (k.profile == null) {
+                            if (k.profile == null) {
                                 when (k.tasks) {
                                     "going_away" -> GoingAwayScreen(
                                         viewModel = flatViewModel,
@@ -686,7 +674,6 @@ fun HabitiqApp() {
                                                 )
                                             },
                                             onTabSelected = {
-                                                if (it != selectedTab) moneyOverlay = null
                                                 selectedTab = it
                                             }
                                         ) {
@@ -931,7 +918,7 @@ fun HabitiqApp() {
 }
 
 /** Snapshot of the layers drawn over the shell, used to animate between them. */
-private data class OverlayKey(val profile: String?, val money: String?, val tasks: String?, val taskId: String?) {
-    val depth: Int get() = listOf(profile, money, tasks, taskId).count { it != null } +
+private data class OverlayKey(val profile: String?, val tasks: String?, val taskId: String?) {
+    val depth: Int get() = listOf(profile, tasks, taskId).count { it != null } +
         (if (tasks == "add_task") 1 else 0)
 }

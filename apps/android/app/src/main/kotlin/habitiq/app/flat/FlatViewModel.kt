@@ -146,6 +146,10 @@ class FlatViewModel(
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error.asStateFlow()
 
+    /** Set only when loading the flat or one of its lists fails (not by failed actions); cleared on reload. */
+    private val _loadError = MutableStateFlow(false)
+    val loadError: StateFlow<Boolean> = _loadError.asStateFlow()
+
     val showAddTaskTrigger = MutableStateFlow(false)
     val showAddExpenseTrigger = MutableStateFlow(false)
     val showBillsTrigger = MutableStateFlow(false)
@@ -307,6 +311,7 @@ class FlatViewModel(
 
     private suspend fun loadSession(user: FirebaseUser) {
         _loading.value = true
+        _loadError.value = false
         usersRepository.getUserProfile(user.uid).fold(
             onSuccess = { profile ->
                 _userProfile.value = profile
@@ -321,6 +326,7 @@ class FlatViewModel(
             },
             onFailure = {
                 _error.value = it.message
+                _loadError.value = true
                 _loading.value = false
             }
         )
@@ -336,6 +342,7 @@ class FlatViewModel(
         _flatId.value = flatId
         _loading.value = true
         _error.value = null
+        _loadError.value = false
         clearFlatState()
         flatObserveJob?.cancel()
         flatObserveJob = viewModelScope.launch {
@@ -344,6 +351,7 @@ class FlatViewModel(
                 .onFailure {
                     if (generation == flatGeneration) {
                         _error.value = it.message ?: "Couldn't load this flat."
+                        _loadError.value = true
                         _loading.value = false
                     }
                 }
@@ -352,6 +360,7 @@ class FlatViewModel(
                     flow.catch {
                         if (generation == flatGeneration) {
                             _error.value = "Couldn't load $label. Try again."
+                            _loadError.value = true
                             _loading.value = false
                         }
                     }.collect { value ->
@@ -503,33 +512,33 @@ class FlatViewModel(
         viewModelScope.launch { onDone(billsRepository.createRecurringBill(flat, bill).isSuccess) }
     }
 
-    fun generateBill(billId: String, amount: Double?) {
-        val flat = _flatId.value ?: return
-        val uid = currentUser.value?.uid ?: return
-        val bill = _recurringBills.value.find { it.id == billId } ?: return
+    fun generateBill(billId: String, amount: Double?, onResult: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onResult(false)
+        val uid = currentUser.value?.uid ?: return onResult(false)
+        val bill = _recurringBills.value.find { it.id == billId } ?: return onResult(false)
         viewModelScope.launch {
-            billsRepository.generateBill(flat, bill, amount, uid, _members.value.map { it.uid })
+            onResult(billsRepository.generateBill(flat, bill, amount, uid, _members.value.map { it.uid }).isSuccess)
         }
     }
 
-    fun markBillPaid(instanceId: String) {
-        val flat = _flatId.value ?: return
-        viewModelScope.launch { billsRepository.markBillPaid(flat, instanceId) }
+    fun markBillPaid(instanceId: String, onResult: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onResult(false)
+        viewModelScope.launch { onResult(billsRepository.markBillPaid(flat, instanceId).isSuccess) }
     }
 
-    fun skipBillInstance(instanceId: String) {
-        val flat = _flatId.value ?: return
-        viewModelScope.launch { billsRepository.skipBillInstance(flat, instanceId) }
+    fun skipBillInstance(instanceId: String, onResult: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onResult(false)
+        viewModelScope.launch { onResult(billsRepository.skipBillInstance(flat, instanceId).isSuccess) }
     }
 
-    fun markBillCollected(instanceId: String, memberUid: String, collected: Boolean) {
-        val flat = _flatId.value ?: return
-        viewModelScope.launch { billsRepository.markBillCollected(flat, instanceId, memberUid, collected) }
+    fun markBillCollected(instanceId: String, memberUid: String, collected: Boolean, onResult: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onResult(false)
+        viewModelScope.launch { onResult(billsRepository.markBillCollected(flat, instanceId, memberUid, collected).isSuccess) }
     }
 
-    fun closeMonth(month: String) {
-        val flat = _flatId.value ?: return
-        val uid = currentUser.value?.uid ?: return
+    fun closeMonth(month: String, onResult: (Boolean) -> Unit = {}) {
+        val flat = _flatId.value ?: return onResult(false)
+        val uid = currentUser.value?.uid ?: return onResult(false)
         val nets = computeNetBalances(month)
         val monthExpenses = _expenses.value.filter { it.date.startsWith(month) }
         val monthBills = _billInstances.value.filter { it.month == month && it.status != "skipped" }
@@ -544,7 +553,7 @@ class FlatViewModel(
             totalSettledINR = monthSettlements.sumOf { it.amount },
             carryForwardOut = nets.filter { abs(it.value) >= habitiq.app.lib.BALANCE_EPSILON }
         )
-        viewModelScope.launch { billsRepository.closeMonth(flat, cycle, uid) }
+        viewModelScope.launch { onResult(billsRepository.closeMonth(flat, cycle, uid).isSuccess) }
     }
 
     fun recordSettlement(s: SuggestedSettlement, onDone: (Boolean) -> Unit = {}) {

@@ -13,20 +13,27 @@ private object HqRef {
     val white = Color(0xFFFFFFFF)
 
     // Cool, navy-tinted neutrals (light theme).
-    val neutral25 = Color(0xFFF5F7FA)
+    // Values follow the Oct 2026 product brief; where a brief value fails the contrast test the
+    // closest passing value on the same hue is used instead (noted on the primitive).
+    val neutral25 = Color(0xFFF6F7FA)
     val neutral50 = Color(0xFFEEF2F6)
-    val neutral100 = Color(0xFFE6EBF1)
-    val neutral150 = Color(0xFFE1E6EE)
+    /** Disabled surface. */
+    val neutral100 = Color(0xFFE9EDF1)
+    /** Subtle border. */
+    val neutral150 = Color(0xFFDEE4EB)
     val neutral200 = Color(0xFFD5DDE7)
     val neutral300 = Color(0xFFB8C3D1)
     /** Control boundary: 3.3:1+ on white, canvas and subtle (the 94A3B8 first proposed was 2.56:1). */
     val neutral400 = Color(0xFF7A8699)
-    /** Muted text: 5:1+ on every light surface. */
-    val neutral500 = Color(0xFF5F6B7A)
-    val neutral600 = Color(0xFF5A6578)
+    /** Muted text. Brief #8791A0 is 2.83-3.19:1 on the light surfaces; closest value at 4.5:1+. */
+    val neutral500 = Color(0xFF656F7F)
+    /** Secondary text and default icons. */
+    val neutral600 = Color(0xFF626D7C)
+    /** Disabled text. Brief #929CAA is 2.36:1 on the disabled surface; closest value at 4.5:1+. */
+    val neutral650 = Color(0xFF616C7C)
     val neutral700 = Color(0xFF3A4556)
     val neutral800 = Color(0xFF232E3F)
-    val neutral900 = Color(0xFF141C2B)
+    val neutral900 = Color(0xFF17212F)
 
     // Dark theme (defined for a future release; this release renders light only).
     val night950 = Color(0xFF0B1220)
@@ -58,18 +65,21 @@ private object HqRef {
 
     val red50 = Color(0xFFFFF0F3)
     val red300 = Color(0xFFFFB3C1)
-    val red700 = Color(0xFFB4233C)
+    /** Error / danger: the brief value as given. Light theme only. */
+    val red700 = Color(0xFFC2414B)
     val red800 = Color(0xFF8F1C30)
     val red950 = Color(0xFF381C26)
 
     val amber50 = Color(0xFFFFF5DC)
     val amber300 = Color(0xFFFFD27A)
-    val amber700 = Color(0xFF8A5100)
+    /** Warning. Brief #A96B12 is 4.03:1 on amber50; closest value at 4.5:1+. Light theme only. */
+    val amber700 = Color(0xFF9E6411)
     val amber950 = Color(0xFF352B18)
 
     val green50 = Color(0xFFEAF6ED)
     val green300 = Color(0xFF8FD8A7)
-    val green700 = Color(0xFF21643B)
+    /** Success. Brief #21845A is 4.19:1 on green50; closest value at 4.5:1+. Light theme only. */
+    val green700 = Color(0xFF207E56)
     val green950 = Color(0xFF192E22)
 }
 
@@ -206,7 +216,7 @@ val HqLightColors = HqColorScheme(
     actionDangerHover = HqRef.red800,
     actionDangerPressed = HqRef.red800,
     disabledBg = HqRef.neutral100,
-    disabledFg = HqRef.neutral600,
+    disabledFg = HqRef.neutral650,
     disabledBorder = HqRef.neutral150,
     selectedBg = HqRef.teal50,
     selectedFg = HqRef.teal700,

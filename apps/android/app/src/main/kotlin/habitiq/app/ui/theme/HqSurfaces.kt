@@ -17,8 +17,8 @@ import androidx.compose.ui.unit.dp
 object HqShapes {
     val small = RoundedCornerShape(HqRadius.small)
     val control = RoundedCornerShape(HqRadius.control)
-    // Buttons are full pills (current Android and iOS convention); fields and cards keep their radii.
-    val button = RoundedCornerShape(50)
+    // Buttons share the field radius so a field and its submit button match; pills are for chips only.
+    val button = RoundedCornerShape(HqRadius.button)
     val field = RoundedCornerShape(HqRadius.field)
     val card = RoundedCornerShape(HqRadius.card)
     val dialog = RoundedCornerShape(HqRadius.sheet)

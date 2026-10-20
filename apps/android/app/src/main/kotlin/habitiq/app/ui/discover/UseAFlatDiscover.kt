@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -25,7 +27,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import coil3.compose.AsyncImage
 import habitiq.app.data.VacancyListing
@@ -33,11 +34,9 @@ import habitiq.app.discover.DiscoverFilterLogic
 import habitiq.app.discover.ListingFacts
 import habitiq.app.discover.VacancyFilters
 import habitiq.app.lib.formatInr
-import habitiq.app.ui.components.HqArt
 import habitiq.app.ui.components.HqChipRow
 import habitiq.app.ui.components.HqIconButton
 import habitiq.app.ui.components.HqIcons
-import habitiq.app.ui.components.HqIllustration
 import habitiq.app.ui.components.HqRemovableChip
 import habitiq.app.ui.components.HqSearchBar
 import habitiq.app.ui.components.HqTextButton
@@ -68,7 +67,7 @@ fun UseAFlatDiscoverContent(
     LazyColumn(
         Modifier.fillMaxSize(),
         state = listState ?: rememberLazyListState(),
-        contentPadding = PaddingValues(bottom = HqSpacing.xxl),
+        contentPadding = PaddingValues(bottom = HqSpacing.fabClearance),
         verticalArrangement = Arrangement.spacedBy(HqSpacing.lg),
     ) {
         item(key = "discover-top") {
@@ -122,17 +121,26 @@ fun UseAFlatDiscoverContent(
     }
 }
 
-/** Count on the left, quiet links on the right: one line, no section heading above the results. */
+/**
+ * Count on the left, quiet links on the right, no section heading above the results. On narrow
+ * screens or at large font sizes the links wrap under the count instead of squeezing it.
+ */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun ResultsRow(text: String, onNearPlace: (() -> Unit)?, onMyPosts: () -> Unit) {
     val c = LocalHqColors.current
-    Row(
+    FlowRow(
         Modifier.fillMaxWidth().padding(start = HqSpacing.screenHorizontal, end = HqSpacing.sm, top = HqSpacing.xs),
-        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
     ) {
-        Text(text, style = HqType.labelMedium, color = c.textSecondary, modifier = Modifier.weight(1f))
-        if (onNearPlace != null) HqTextButton(text = "Near a place", onClick = onNearPlace, leadingIcon = HqIcons.Pin)
-        HqTextButton(text = "My posts", onClick = onMyPosts)
+        Text(
+            text, style = HqType.labelMedium, color = c.textSecondary,
+            modifier = Modifier.align(Alignment.CenterVertically).padding(end = HqSpacing.sm),
+        )
+        Row(Modifier.align(Alignment.CenterVertically), verticalAlignment = Alignment.CenterVertically) {
+            if (onNearPlace != null) HqTextButton(text = "Near a place", onClick = onNearPlace, leadingIcon = HqIcons.Pin)
+            HqTextButton(text = "My posts", onClick = onMyPosts)
+        }
     }
 }
 
@@ -186,19 +194,17 @@ fun VacancyListingCard(
         clickLabel = "View ${listing.flatName}",
         modifier = modifier,
         media = {
-            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f).background(c.selectedBg)) {
+            Box(Modifier.fillMaxWidth().aspectRatio(16f / 9f)) {
+                // The listing's own placeholder sits under the photo: it shows with no photo, while
+                // the photo loads, and if it fails.
+                ListingPlaceholder(listing.flatId)
                 if (cover != null) {
                     AsyncImage(
                         model = cover,
                         contentDescription = null, // The card text already names the flat.
                         modifier = Modifier.fillMaxSize(),
                         contentScale = ContentScale.Crop,
-                        placeholder = ColorPainter(c.surfaceSubtle),
-                        error = ColorPainter(c.surfaceSubtle),
-                        fallback = ColorPainter(c.surfaceSubtle),
                     )
-                } else {
-                    HqIllustration(HqArt.Home, Modifier.align(Alignment.Center).fillMaxSize(0.5f))
                 }
                 if (listing.photoUrls.size > 1) {
                     Text(

@@ -2,9 +2,7 @@ package habitiq.app.discover
 
 import habitiq.app.data.SeekerProfile
 import habitiq.app.data.VacancyListing
-import java.time.Instant
 import java.time.LocalDate
-import java.time.temporal.ChronoUnit
 
 /** Filters for "Find a flat": vacancies with an open room. */
 data class VacancyFilters(
@@ -14,7 +12,6 @@ data class VacancyFilters(
     val genderPreference: String = "any",
     val flatType: String = "any",
     val roomType: String = "any",
-    val availabilityDays: Int? = null,
     val lifestyleTags: Set<String> = emptySet(),
     /** "any" | "furnished" | "semi_furnished" | "unfurnished". */
     val furnishing: String = "any",
@@ -28,7 +25,6 @@ data class VacancyFilters(
             genderPreference.takeIf { it != "any" },
             flatType.takeIf { it != "any" },
             roomType.takeIf { it != "any" },
-            availabilityDays?.toString(),
             furnishing.takeIf { it != "any" },
             available.takeIf { it != "any" },
         ).size + lifestyleTags.size
@@ -54,17 +50,17 @@ data class SeekerFilters(
 data class BudgetPreset(val label: String, val min: String, val max: String)
 
 object DiscoverFilterLogic {
-    val vacancyGenderOptions = listOf("any" to "Anyone", "male" to "Male", "female" to "Female", "women_only" to "Women only")
     /** Matches create-flat wizard: apartment | house (flatType on flat doc). */
     val flatTypeOptions = listOf("any" to "Any type", "apartment" to "Apartment", "house" to "Independent house")
     val roomTypeOptions = listOf("any" to "Any", "private" to "Private room", "shared" to "Shared room")
-    val availabilityOptions = listOf(null to "Any time", 7 to "Last 7 days", 30 to "Last 30 days", 90 to "Last 90 days")
     val seekerGenderOptions = listOf("any" to "Anyone", "male" to "Male", "female" to "Female", "other" to "Other")
     /** Common vacancy.lifestyle / customTags values (web VacancyListing schema). */
     val lifestyleTagOptions = listOf(
         "Vegetarian", "No Smoking", "No Alcohol", "Pet Friendly",
         "Work from Home", "Quiet", "Social", "Furnished", "AC", "WiFi"
     )
+    /** Lifestyle in the Find a flat filter: Furnished, AC and WiFi are left out, the Furnishing question covers them. */
+    val vacancyLifestyleFilterOptions = lifestyleTagOptions - setOf("Furnished", "AC", "WiFi")
 
     // Filter sheet choices: most-used first, at most five per question.
     val budgetPresets = listOf(
@@ -77,6 +73,22 @@ object DiscoverFilterLogic {
     val suitsFilterOptions = listOf("any" to "Anyone", "female" to "Women", "male" to "Men")
     val availableOptions = listOf("any" to "Any time", "now" to "Now", "month" to "This month", "later" to "Later")
     val furnishingFilterOptions = listOf("any" to "Any") + ListingFacts.furnishingOptions
+
+    /** True when the typed range is the same amounts as [preset] ("8k" matches "8000"; blank = open-ended). */
+    fun presetMatches(preset: BudgetPreset, min: String, max: String): Boolean =
+        MoneyInput.parse(preset.min) == MoneyInput.parse(min) && MoneyInput.parse(preset.max) == MoneyInput.parse(max)
+
+    /** Why a typed budget range can't be used, or null when it can (a blank side is open-ended). */
+    fun budgetError(min: String, max: String): String? {
+        val lo = MoneyInput.parse(min)
+        val hi = MoneyInput.parse(max)
+        return when {
+            min.isNotBlank() && lo == null -> "Enter the minimum as an amount, like 8000 or 8k."
+            max.isNotBlank() && hi == null -> "Enter the maximum as an amount, like 12000 or 12k."
+            lo != null && hi != null && lo > hi -> "Minimum is more than maximum. Lower the minimum or raise the maximum."
+            else -> null
+        }
+    }
 
     /** "₹8k–12k", "Under ₹8k", "₹18k+": a short label for an applied budget. */
     fun budgetLabel(min: String, max: String): String {
@@ -99,9 +111,6 @@ object DiscoverFilterLogic {
     fun applyVacancyFilters(listings: List<VacancyListing>, filters: VacancyFilters): List<VacancyListing> {
         val rentMin = MoneyInput.parse(filters.rentMin)?.toDouble()
         val rentMax = MoneyInput.parse(filters.rentMax)?.toDouble()
-        val cutoff = filters.availabilityDays?.let { days ->
-            Instant.now().minus(days.toLong(), ChronoUnit.DAYS)
-        }
 
         return listings.filter { listing ->
             matchesCityArea(filters.cityArea, listing.city, listing.area) &&
@@ -109,7 +118,6 @@ object DiscoverFilterLogic {
                 matchesGenderPreference(filters.genderPreference, listing.preferredGender) &&
                 matchesFlatType(filters.flatType, listing.flatType) &&
                 matchesRoomType(filters.roomType, listing.roomType) &&
-                matchesAvailability(cutoff, listing.updatedAt) &&
                 matchesFurnishing(filters.furnishing, listing.furnishing) &&
                 matchesAvailableWhen(filters.available, listing.availableFrom, listing.moveInTiming) &&
                 matchesVacancyTags(filters.lifestyleTags, listing.displayTags() + listing.amenities)
@@ -178,12 +186,6 @@ object DiscoverFilterLogic {
     private fun matchesRoomType(filter: String, roomType: String?): Boolean {
         if (filter == "any") return true
         return roomType?.equals(filter, ignoreCase = true) == true
-    }
-
-    private fun matchesAvailability(cutoff: Instant?, updatedAt: String): Boolean {
-        if (cutoff == null) return true
-        if (updatedAt.isBlank()) return true
-        return runCatching { Instant.parse(updatedAt) }.getOrNull()?.isAfter(cutoff) != false
     }
 
     private fun matchesFurnishing(filter: String, furnishing: String): Boolean {

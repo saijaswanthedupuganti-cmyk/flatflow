@@ -1,6 +1,5 @@
 package habitiq.app.ui
 
-import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqIconSize
 import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.components.HqDangerSoftButton
@@ -8,15 +7,10 @@ import habitiq.app.ui.components.HqMenuRow
 import habitiq.app.ui.components.HqMenuGroup
 import habitiq.app.ui.components.HqIcons
 import habitiq.app.ui.components.HqPageHeader
-import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.semantics.Role
+import habitiq.app.ui.components.HqCard
+import habitiq.app.ui.components.HqCardVariant
+import habitiq.app.ui.components.HqListSkeleton
 import androidx.compose.ui.text.style.TextOverflow
-import habitiq.app.ui.theme.HqRadius
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.Spacer
@@ -34,11 +28,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import habitiq.app.ui.components.HqAvatar
 import habitiq.app.ui.components.HqAvatarSize
-import habitiq.app.ui.components.HqButton
-import habitiq.app.ui.components.HqButtonVariant
-import habitiq.app.ui.components.HqGroup
-import habitiq.app.ui.components.HqNavRow
-import habitiq.app.ui.components.HqRowDivider
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -74,6 +63,8 @@ data class ProfileUiModel(
     val flatName: String?,
     val flatSupport: String,
     val discoverySupport: String,
+    /** True while the person has an active flat but its details haven't arrived yet. */
+    val flatLoading: Boolean = false,
 )
 
 /**
@@ -104,59 +95,69 @@ fun ProfileHomeContent(
             },
         )
 
-        // Identity card: one edit control (the header pencil); name and email never wrap mid-word.
-        Row(
-            Modifier.padding(top = 4.dp, bottom = 26.dp).fillMaxWidth()
-                .clip(RoundedCornerShape(HqRadius.card)).background(c.surfaceSubtle)
-                .clickable(role = Role.Button, onClick = onEdit)
-                .padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        // Identity card: the real name (or email) only. With neither, the card asks for a name rather
+        // than showing a placeholder as if it were data.
+        val title = model.displayName.ifBlank { model.email }
+        HqCard(
+            modifier = Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.xxl),
+            variant = HqCardVariant.Interactive,
+            onClick = onEdit,
+            padding = HqSpacing.component,
         ) {
-            HqAvatar(name = model.displayName.ifBlank { model.email }, size = HqAvatarSize.PROFILE)
-            Column(Modifier.weight(1f)) {
-                Text(
-                    model.displayName.ifBlank { "Your profile" },
-                    style = HqType.titleMedium2,
-                    color = c.textPrimary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                Text(
-                    model.email,
-                    style = HqType.bodyMedium,
-                    color = c.textSecondary,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 3.dp),
-                )
+            Row(
+                Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
+            ) {
+                HqAvatar(name = title, size = HqAvatarSize.PROFILE)
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
+                    Text(
+                        title.ifBlank { "Add your name" },
+                        style = HqType.titleMedium2,
+                        color = if (title.isBlank()) c.textBrand else c.textPrimary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                    if (model.email.isNotBlank() && model.email != title) {
+                        Text(
+                            model.email,
+                            style = HqType.bodyMedium,
+                            color = c.textSecondary,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                Icon(HqIcons.Chevron, contentDescription = null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.sm))
             }
-            Icon(HqIcons.Chevron, contentDescription = null, tint = c.textMuted, modifier = Modifier.size(HqIconSize.sm))
         }
 
         habitiq.app.ui.theme.HqFadeUp(index = 1) {
-        HqMenuGroup("Your flat") {
-            if (model.flatName != null) {
-                HqMenuRow(model.flatName, support = model.flatSupport, icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
-            } else {
-                HqMenuRow("No flat yet", support = "Create or join a flat", icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
+            when {
+                // The flat is still loading: don't claim "No flat yet" before we know.
+                model.flatLoading -> HqListSkeleton(rows = 1)
+                model.flatName != null -> HqMenuGroup("Your flat") {
+                    HqMenuRow(model.flatName, support = model.flatSupport, icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
+                }
+                else -> HqMenuGroup("Your flat") {
+                    HqMenuRow("No flat yet", support = "Create or join a flat", icon = HqIcons.Home, tone = HqTileTone.Teal, lastRow = true, onClick = onOpenFlat)
+                }
             }
         }
-        }
-        Spacer(Modifier.size(21.dp))
+        Spacer(Modifier.size(HqSpacing.xl))
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
         HqMenuGroup("Discover") {
             HqMenuRow("Your Discover profile", support = model.discoverySupport, icon = HqIcons.Discover, tone = HqTileTone.Coral, onClick = onOpenDiscovery)
             HqMenuRow("My posts", support = "Rooms you listed and your looking post", icon = HqIcons.Receipt, tone = HqTileTone.Sand, lastRow = true, onClick = onOpenMyPosts)
         }
         }
-        Spacer(Modifier.size(21.dp))
+        Spacer(Modifier.size(HqSpacing.xl))
         habitiq.app.ui.theme.HqFadeUp(index = 3) {
         HqMenuGroup("Preferences") {
             HqMenuRow("Privacy and security", support = "App lock and account", icon = HqIcons.Shield, tone = HqTileTone.Neutral, lastRow = true, onClick = onOpenPreferences)
         }
         }
-        Spacer(Modifier.size(24.dp))
+        Spacer(Modifier.size(HqSpacing.xxl))
         HqDangerSoftButton("Log out", onSignOut)
     }
 }

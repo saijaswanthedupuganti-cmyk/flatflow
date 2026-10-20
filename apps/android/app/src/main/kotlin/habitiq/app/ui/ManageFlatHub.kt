@@ -89,7 +89,7 @@ fun ManageFlatHub(
                 options = listOf("Tasks" to HqIcons.Check, "Expenses" to HqIcons.Receipt),
                 selectedIndex = if (onExpenses) 1 else 0,
                 onSelect = { onAreaChange(if (it == 1) ManageFlatArea.EXPENSES else ManageFlatArea.TASKS) },
-                modifier = Modifier.padding(bottom = 23.dp),
+                modifier = Modifier.padding(bottom = HqSpacing.xxl),
             )
         }
     }

@@ -95,16 +95,16 @@ fun MyPostsScreen(
         }
 
         LazyColumn(
-            contentPadding = PaddingValues(HqSpacing.lg),
+            contentPadding = PaddingValues(start = HqSpacing.lg, end = HqSpacing.lg, top = HqSpacing.lg, bottom = HqSpacing.fabClearance),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
         ) {
             item {
                 Row(
-                    Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(c.statusWarningBg).padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier.fillMaxWidth().clip(habitiq.app.ui.theme.HqShapes.control).background(c.statusWarningBg).padding(HqSpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
                 ) {
-                    androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(20.dp))
-                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(habitiq.app.ui.theme.HqIconSize.sm))
+                    Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs / 2)) {
                         Text("Keep locations approximate", style = HqType.labelMedium, color = c.textPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                         Text("Exact addresses are never shown on public posts.", style = HqType.bodyMedium, color = c.textPrimary)
                     }
@@ -114,9 +114,9 @@ fun MyPostsScreen(
                 item {
                     val pending = pendingRequest.status == "pending"
                     Column(
-                        Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(18.dp))
-                            .background(if (pending) c.statusInfoBg else c.statusDangerBg).padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                        Modifier.fillMaxWidth().clip(habitiq.app.ui.theme.HqShapes.card)
+                            .background(if (pending) c.statusInfoBg else c.statusDangerBg).padding(HqSpacing.lg),
+                        verticalArrangement = Arrangement.spacedBy(HqSpacing.xs),
                     ) {
                         Text(
                             if (pending) "Waiting for admin approval" else "Not approved",
@@ -133,7 +133,7 @@ fun MyPostsScreen(
                             else "Your flat admin didn't approve this listing. Talk to them, then edit it and send it again.",
                             style = HqType.bodySmall, color = c.textSecondary,
                         )
-                        Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
+                        Row(Modifier.padding(top = HqSpacing.sm), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
                             HqButton(
                                 text = if (pending) "Edit request" else "Edit and resend",
                                 onClick = onEditRequest,
@@ -201,17 +201,17 @@ private fun PostManageCard(
     onConnections: () -> Unit
 ) {
     val c = LocalHqColors.current
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    val shape = habitiq.app.ui.theme.HqShapes.card
     Column(
-        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(14.dp),
+        Modifier.fillMaxWidth().clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(HqSpacing.md),
         verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+        Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.md), verticalAlignment = Alignment.Top) {
             habitiq.app.ui.components.HqIconTile(
                 if (title.startsWith("I'm looking")) habitiq.app.ui.components.HqIcons.Profile else habitiq.app.ui.components.HqIcons.Home,
                 habitiq.app.ui.components.HqTileTone.Teal, size = 46,
             )
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                 habitiq.app.ui.components.HqBadge(
                     status.lowercase().replaceFirstChar { it.uppercase() },
                     if (isPublished) habitiq.app.ui.components.HqBadgeTone.Success else habitiq.app.ui.components.HqBadgeTone.Neutral,

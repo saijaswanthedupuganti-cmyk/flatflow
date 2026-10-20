@@ -15,7 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
+import habitiq.app.ui.theme.HqShapes
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,13 +33,13 @@ import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 
 /**
- * Figma `.profile-group`: a white 20dp card with a tracked-caps label and divided menu rows.
+ * Figma `.profile-group`: a white card (HqShapes.card) with a tracked-caps label and divided menu rows.
  * Rows are [HqMenuRow]; the last row loses its divider automatically via [lastRow].
  */
 @Composable
 fun HqMenuGroup(label: String?, modifier: Modifier = Modifier, content: @Composable ColumnScope.() -> Unit) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(20.dp)
+    val shape = HqShapes.card
     Column(
         modifier.fillMaxWidth()
             .shadow(3.dp, shape, ambientColor = c.textPrimary.copy(alpha = .05f), spotColor = c.textPrimary.copy(alpha = .05f))
@@ -89,7 +89,7 @@ fun HqMenuRow(
 fun HqDangerSoftButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
     Box(
-        modifier.fillMaxWidth().defaultMinSize(minHeight = 49.dp).clip(RoundedCornerShape(15.dp)).background(c.warmBg)
+        modifier.fillMaxWidth().defaultMinSize(minHeight = 49.dp).clip(HqShapes.button).background(c.warmBg)
             .hqPressable(onClick = onClick),
         contentAlignment = Alignment.Center,
     ) { Text(text, style = HqType.buttonLabel, color = c.statusDangerFg, fontWeight = FontWeight.Bold) }

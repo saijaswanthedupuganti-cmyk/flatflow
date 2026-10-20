@@ -97,6 +97,22 @@ sealed interface ShellCreate {
     data class Menu(val options: List<CreateOption>) : ShellCreate
 }
 
+private val LocalShellChromeHiders =
+    androidx.compose.runtime.staticCompositionLocalOf<androidx.compose.runtime.MutableIntState?> { null }
+
+/**
+ * Call from a full-screen form rendered inside a shell tab (Add expense, Add bill): while it is in
+ * composition the nav bar and the floating + are hidden, so neither covers the form's submit button.
+ */
+@Composable
+fun HideShellChrome() {
+    val hiders = LocalShellChromeHiders.current ?: return
+    androidx.compose.runtime.DisposableEffect(hiders) {
+        hiders.intValue++
+        onDispose { hiders.intValue-- }
+    }
+}
+
 /**
  * App-level navigation shell: Home, Manage, [contextual +], Discover, Profile (Figma order). The four
  * destinations are unchanged from the previous app; the centre slot is only for creating things.
@@ -120,6 +136,9 @@ fun AppShell(
 ) {
     val c = LocalHqColors.current
     var menuOpen by remember { mutableStateOf(false) }
+    val chromeHiders = remember { androidx.compose.runtime.mutableIntStateOf(0) }
+    val hideChrome = chromeHidden || chromeHiders.intValue > 0
+    val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
     var micCenter by remember { mutableStateOf<androidx.compose.ui.geometry.Offset?>(null) }
     // The voice overlay frosts the whole app behind it (real blur on Android 12+, the overlay's veil below that).
     val blur by androidx.compose.animation.core.animateDpAsState(if (overlayOpen) 28.dp else 0.dp, tween(340), label = "appBlur")
@@ -133,12 +152,16 @@ fun AppShell(
             modifier = Modifier.fillMaxSize(),
             transitionSpec = { tabT.fadeThroughEnter togetherWith tabT.fadeThroughExit },
             label = "tabs",
-        ) { tab -> Box(Modifier.fillMaxSize()) { content(tab) } }
+        ) { tab ->
+            Box(Modifier.fillMaxSize()) {
+                androidx.compose.runtime.CompositionLocalProvider(LocalShellChromeHiders provides chromeHiders) { content(tab) }
+            }
+        }
             if (createAction is ShellCreate.Menu) {
                 QuickAddOverlay(open = menuOpen, options = createAction.options) { menuOpen = false }
             }
             // With the mic in the centre, Quick add lives in a floating + that is always in the same place.
-            if (!chromeHidden && onMic != null && createAction !is ShellCreate.None) {
+            if (!hideChrome && !keyboardOpen && onMic != null && createAction !is ShellCreate.None) {
                 QuickAddFab(
                     open = menuOpen,
                     modifier = Modifier.align(Alignment.BottomEnd).padding(end = 18.dp, bottom = 14.dp),
@@ -151,8 +174,7 @@ fun AppShell(
                 }
             }
         }
-        val keyboardOpen = WindowInsets.ime.getBottom(LocalDensity.current) > 0
-        if (!keyboardOpen && !chromeHidden) {
+        if (!keyboardOpen && !hideChrome) {
             ShellBar(
                 selectedTab = selectedTab,
                 onTabSelected = { menuOpen = false; onTabSelected(it) },

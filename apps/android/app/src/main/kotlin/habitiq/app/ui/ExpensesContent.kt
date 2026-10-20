@@ -10,7 +10,6 @@ import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.components.HqIconTile
 import habitiq.app.ui.components.HqIcons
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.foundation.background
@@ -46,7 +45,7 @@ import habitiq.app.ui.components.HqRowDivider
 import habitiq.app.ui.components.HqSectionHeader
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.theme.HqIconSize
-import habitiq.app.ui.theme.HqRadius
+import habitiq.app.ui.theme.HqShapes
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -86,6 +85,9 @@ fun ExpensesContent(
     onSettle: (PersonBalanceItem) -> Unit,
     onAddExpense: () -> Unit,
     modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    loadFailed: Boolean = false,
+    onRetry: () -> Unit = {},
     header: @Composable () -> Unit = {},
 ) {
     val c = LocalHqColors.current
@@ -93,45 +95,45 @@ fun ExpensesContent(
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal)
-            .padding(top = HqSpacing.sm, bottom = HqSpacing.screenEnd),
+            .padding(top = HqSpacing.sm, bottom = HqSpacing.fabClearance),
     ) {
         header()
+        // In-place switch: Bills replaces this content below the same header (no navigation). It sits
+        // directly under the header in both scopes so it never jumps when switching.
+        ExpenseScopeTabs(monthly = false, onSelect = { monthly -> if (monthly) onOpenBills() })
+        Spacer(Modifier.height(HqSpacing.md))
 
         // Balance hero: navy brand summary card, label, the amount, then who.
         Column(
             Modifier.fillMaxWidth()
-                .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, RoundedCornerShape(HqRadius.card))
-                .clip(RoundedCornerShape(HqRadius.card))
+                .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, HqShapes.card)
+                .clip(HqShapes.card)
                 .background(c.brandInk)
-                .padding(22.dp),
-            verticalArrangement = Arrangement.spacedBy(3.dp),
+                .padding(HqSpacing.card),
+            verticalArrangement = Arrangement.spacedBy(HqSpacing.xs),
         ) {
             Text("Your balance", style = HqType.labelMedium, color = c.onBrandInk.copy(alpha = .8f), fontWeight = FontWeight.SemiBold)
             if (settled) {
-                Text("All settled", style = HqType.titleMedium2, color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                Text("All settled", style = HqType.titleMedium2, color = c.onBrandInk, modifier = Modifier.padding(top = HqSpacing.xs))
                 Text("Nobody owes anything right now.", style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f))
             } else {
                 model.oweText?.let {
-                    Text("You owe $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                    Text("You owe $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = HqSpacing.xs))
                     model.oweSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f)) }
                 }
                 model.owedText?.let {
-                    Text("You're owed $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = 4.dp))
+                    Text("You're owed $it", style = HqType.titleMedium2.copy(fontFeatureSettings = "tnum"), color = c.onBrandInk, modifier = Modifier.padding(top = HqSpacing.xs))
                     model.owedSupport?.let { s -> Text(s, style = HqType.bodyMedium, color = c.onBrandInk.copy(alpha = .8f)) }
                 }
             }
         }
 
-        Spacer(Modifier.size(18.dp))
-        // In-place switch: Monthly bills replaces this content below the same header (no navigation).
-        ExpenseScopeTabs(monthly = false, onSelect = { monthly -> if (monthly) onOpenBills() })
-
         if (model.people.isNotEmpty()) {
             HqSectionTitle("Breakdown")
             model.people.forEach { person -> PersonBalance(person) { onSettle(person) } }
             Row(
-                Modifier.padding(top = 18.dp).fillMaxWidth().clip(RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.padding(top = HqSpacing.lg).fillMaxWidth().clip(HqShapes.control).background(c.surfaceSubtle).padding(HqSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
             ) {
                 Icon(HqIcons.Shield, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
                 Text("Oddroof records payments; it doesn't move money.", style = HqType.bodyMedium, color = c.textSecondary)
@@ -139,7 +141,9 @@ fun ExpensesContent(
         }
 
         HqListHeading("Recent")
-        if (model.expenses.isEmpty()) {
+        if (model.expenses.isEmpty() && (loading || loadFailed)) {
+            ManageLoadPlaceholder(failed = loadFailed && !loading, onRetry = onRetry)
+        } else if (model.expenses.isEmpty()) {
             EmptyExpenses(onAddExpense)
         } else {
             model.expenses.forEachIndexed { index, item -> ExpenseRow(item, index) }
@@ -151,10 +155,10 @@ fun ExpensesContent(
 private fun PersonBalance(person: PersonBalanceItem, onSettle: () -> Unit) {
     val c = LocalHqColors.current
     var expanded by rememberSaveable(person.key) { mutableStateOf(false) }
-    Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
-        Row(Modifier.padding(vertical = 7.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxWidth().padding(vertical = HqSpacing.xs)) {
+        Row(Modifier.padding(vertical = HqSpacing.sm), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
             HqAvatar(person.name, size = HqAvatarSize.MD, tone = hqToneFor(person.name, false))
-            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                 Text(person.name, style = HqType.rowTitle, color = c.textPrimary)
                 Text(if (person.youOwe) "You owe" else "Owes you", style = HqType.bodyMedium, color = c.textSecondary)
             }
@@ -190,15 +194,15 @@ private fun PersonBalance(person: PersonBalanceItem, onSettle: () -> Unit) {
 private fun ExpenseRow(item: ExpenseListItem, index: Int) {
     val c = LocalHqColors.current
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 16.dp, horizontal = 3.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        Modifier.fillMaxWidth().padding(vertical = HqSpacing.lg, horizontal = HqSpacing.xs),
+        horizontalArrangement = Arrangement.spacedBy(HqSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         HqIconTile(
             null, listOf(HqTileTone.Teal, HqTileTone.Sand, HqTileTone.Coral)[index % 3], size = 44,
             glyph = item.title.firstOrNull()?.uppercase() ?: "R",
         )
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
             Text(item.title, style = HqType.rowTitle, color = c.textPrimary)
             Text(item.support, style = HqType.bodyMedium, color = c.textSecondary)
         }

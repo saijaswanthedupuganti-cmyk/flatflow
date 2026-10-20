@@ -1,13 +1,10 @@
 package habitiq.app.ui
 
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.autofill.ContentType
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.border
-import androidx.compose.foundation.shape.RoundedCornerShape
 import habitiq.app.lib.pairwisePersonalBalances
 import habitiq.app.lib.leaveFlatConsequences
 import habitiq.app.lib.LeaveMember
@@ -31,13 +28,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowForward
-import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.PersonSearch
-import androidx.compose.material.icons.filled.Settings
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -68,7 +58,7 @@ import habitiq.app.ui.components.HqErrorState
 import habitiq.app.ui.components.HqSkeletonBlock
 import habitiq.app.ui.components.HqTextButton
 import habitiq.app.ui.components.HqTextField
-import habitiq.app.ui.theme.HqIconSize
+import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -136,9 +126,12 @@ fun ProfileScreen(
                 pane = ProfilePane.HOME
             }
         )
+        // The flat's details haven't arrived (or it was just left): load rather than show a stand-in name.
+        pane == ProfilePane.FLAT && flatInfo == null -> ProfileSkeleton()
         pane == ProfilePane.FLAT -> MyFlatPane(
-            flatName = flatInfo?.name ?: "Your flat",
+            flatName = flatInfo?.name.orEmpty(),
             flatId = flatInfo?.id,
+            currentUserEmail = user?.email,
             isAdmin = isAdmin,
             members = members,
             uid = uid,
@@ -160,8 +153,13 @@ fun ProfileScreen(
                     displayName = displayName,
                     email = user?.email.orEmpty(),
                     flatName = flatInfo?.name,
-                    flatSupport = "$role · ${members.size} ${if (members.size == 1) "member" else "members"}" + if (multiFlat) " · switch flats" else "",
+                    flatSupport = listOfNotNull(
+                        role,
+                        members.size.takeIf { it > 0 }?.let { "$it ${if (it == 1) "member" else "members"}" },
+                        "switch flats".takeIf { multiFlat },
+                    ).joinToString(" · "),
                     discoverySupport = if (myLooking?.active == true) "Visible in Discover" else "Tell people how you live",
+                    flatLoading = profile?.activeFlatId != null && flatInfo == null,
                 ),
                 onEdit = { pane = ProfilePane.EDIT },
                 onOpenFlat = { if (flatInfo == null) onStartOnboarding() else pane = ProfilePane.FLAT },
@@ -268,6 +266,7 @@ private fun EditAccountPane(
 private fun MyFlatPane(
     flatName: String,
     flatId: String?,
+    currentUserEmail: String?,
     isAdmin: Boolean,
     members: List<Member>,
     uid: String,
@@ -287,25 +286,32 @@ private fun MyFlatPane(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl).padding(bottom = HqSpacing.xxl),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.md),
         ) {
-            // Figma flat-summary: a centred soft card with the flat, your role and the member avatars.
-            Column(
-                Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(c.surfaceSubtle).padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Home, habitiq.app.ui.components.HqTileTone.Teal)
-                Text(flatName, style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.padding(top = 10.dp))
-                Text(if (isAdmin) "You're an admin" else "Member", style = HqType.bodyMedium, color = c.textSecondary)
-                Row(Modifier.padding(vertical = 16.dp), horizontalArrangement = Arrangement.spacedBy((-8).dp)) {
-                    members.take(5).forEach { member ->
-                        habitiq.app.ui.components.HqAvatar(
-                            member.nickname.ifBlank { "Member" }, size = habitiq.app.ui.components.HqAvatarSize.MD,
-                            tone = habitiq.app.ui.components.hqToneFor(member.nickname, member.uid == uid),
-                            modifier = Modifier.border(2.dp, LocalHqColors.current.surfaceBase, CircleShape),
-                        )
+            // Flat summary: the flat, your role and the member avatars, in the standard card.
+            HqCard {
+                Column(
+                    Modifier.fillMaxWidth(),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(HqSpacing.xs),
+                ) {
+                    habitiq.app.ui.components.HqIconTile(habitiq.app.ui.components.HqIcons.Home, habitiq.app.ui.components.HqTileTone.Teal)
+                    Text(flatName, style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.padding(top = HqSpacing.sm))
+                    Text(if (isAdmin) "You're an admin" else "You're a member", style = HqType.bodyMedium, color = c.textSecondary)
+                    if (members.isEmpty()) {
+                        HqSkeletonBlock(Modifier.padding(vertical = HqSpacing.lg).fillMaxWidth(0.4f), height = HqSize.avatarMedium)
+                    } else {
+                        Row(Modifier.padding(vertical = HqSpacing.lg), horizontalArrangement = Arrangement.spacedBy(-HqSpacing.sm)) {
+                            members.take(5).forEach { member ->
+                                val name = memberDisplayName(member.nickname, currentUserEmail.takeIf { member.uid == uid })
+                                habitiq.app.ui.components.HqAvatar(
+                                    name, size = habitiq.app.ui.components.HqAvatarSize.MD,
+                                    tone = habitiq.app.ui.components.hqToneFor(name, member.uid == uid),
+                                    modifier = Modifier.border(2.dp, c.surfaceBase, CircleShape),
+                                )
+                            }
+                        }
+                        Text("${members.size} ${if (members.size == 1) "member" else "members"}", style = HqType.labelMedium, color = c.textPrimary)
                     }
                 }
-                Text("${members.size} ${if (members.size == 1) "member" else "members"}", style = HqType.labelMedium, color = c.textPrimary, fontWeight = FontWeight.Bold)
             }
             if (!flatId.isNullOrBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -321,7 +327,7 @@ private fun MyFlatPane(
                 }
             }
             habitiq.app.ui.components.HqMenuGroup(null) {
-                habitiq.app.ui.components.HqMenuRow("Members", support = "${members.size} in this flat", lastRow = !isAdmin && !multiFlat, onClick = onOpenMembers)
+                habitiq.app.ui.components.HqMenuRow("Members", support = if (members.isEmpty()) null else "${members.size} in this flat", lastRow = !isAdmin && !multiFlat, onClick = onOpenMembers)
                 if (multiFlat) habitiq.app.ui.components.HqMenuRow("Switch flat", support = "Open another flat", lastRow = !isAdmin, onClick = onOpenFlatSwitcher)
                 if (isAdmin) {
                     habitiq.app.ui.components.HqMenuRow("Flat settings", support = "Name, who can join, and room listing", onClick = onOpenFlatSettings)

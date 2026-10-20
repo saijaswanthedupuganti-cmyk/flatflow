@@ -76,7 +76,7 @@ fun ManageContent(
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal)
-            .padding(top = HqSpacing.sm, bottom = HqSpacing.screenEnd),
+            .padding(top = HqSpacing.sm, bottom = HqSpacing.fabClearance),
         verticalArrangement = Arrangement.spacedBy(HqSpacing.group),
     ) {
         Column {
@@ -183,5 +183,50 @@ private fun ManageRowTile(title: String, lines: List<TileLine>, art: HqArt, onCl
             }
         }
         Icon(Icons.Filled.ChevronRight, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
+    }
+}
+
+/**
+ * Shown in place of an empty state while a Manage list is still loading, or when it failed to load,
+ * so "No … yet" only ever means the flat really has nothing.
+ */
+@Composable
+internal fun ManageLoadPlaceholder(failed: Boolean, onRetry: () -> Unit, modifier: Modifier = Modifier) {
+    if (failed) {
+        habitiq.app.ui.components.HqErrorState(
+            title = "Couldn't load your flat",
+            message = "Check your connection and try again.",
+            onRetry = onRetry,
+            modifier = modifier,
+        )
+    } else {
+        habitiq.app.ui.components.HqListSkeleton(modifier.padding(top = HqSpacing.md), rows = 3)
+    }
+}
+
+/** Empty-state styling for a section with no action to offer (HqEmptyState always carries a button). */
+@Composable
+internal fun ManageEmptyNote(
+    title: String,
+    message: String,
+    modifier: Modifier = Modifier,
+    icon: androidx.compose.ui.graphics.vector.ImageVector? = null,
+) {
+    val c = LocalHqColors.current
+    Column(
+        modifier.fillMaxWidth().padding(HqSpacing.xxl),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(HqSpacing.xs),
+    ) {
+        if (icon != null) {
+            androidx.compose.foundation.layout.Box(
+                Modifier.padding(bottom = HqSpacing.md).size(72.dp).clip(androidx.compose.foundation.shape.CircleShape).background(c.selectedBg),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(icon, contentDescription = null, tint = c.selectedFg, modifier = Modifier.size(HqIconSize.lg))
+            }
+        }
+        Text(title, style = HqType.titleSmall2, color = c.textPrimary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+        Text(message, style = HqType.bodyMedium, color = c.textSecondary, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
     }
 }

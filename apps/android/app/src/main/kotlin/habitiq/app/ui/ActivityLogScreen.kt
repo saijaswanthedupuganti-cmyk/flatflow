@@ -80,10 +80,10 @@ fun ActivityLogScreen(viewModel: FlatViewModel, onBack: () -> Unit) {
             }
             item {
                 androidx.compose.foundation.layout.Row(
-                    Modifier.padding(top = 18.dp).fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(14.dp)).background(c.surfaceSubtle).padding(14.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    Modifier.padding(top = HqSpacing.lg).fillMaxWidth().clip(habitiq.app.ui.theme.HqShapes.control).background(c.surfaceSubtle).padding(HqSpacing.md),
+                    horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
                 ) {
-                    androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Bell, null, tint = c.textSecondary, modifier = Modifier.size(18.dp))
+                    androidx.compose.material3.Icon(habitiq.app.ui.components.HqIcons.Bell, null, tint = c.textSecondary, modifier = Modifier.size(habitiq.app.ui.theme.HqIconSize.sm))
                     Text("Notifications help you stay updated without turning Home into a management feed.", style = HqType.bodyMedium, color = c.textSecondary)
                 }
             }
@@ -102,17 +102,17 @@ private fun ActivityRow(entry: FlatActivity, unread: Boolean, onClick: () -> Uni
         "swap" in kind || "member" in kind || "join" in kind -> habitiq.app.ui.components.HqIcons.Users to habitiq.app.ui.components.HqTileTone.Coral
         else -> habitiq.app.ui.components.HqIcons.Bell to habitiq.app.ui.components.HqTileTone.Neutral
     }
-    val shape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
+    val shape = habitiq.app.ui.theme.HqShapes.card
     androidx.compose.foundation.layout.Row(
         Modifier.fillMaxWidth().clip(shape)
             .background(if (unread) c.selectedBg.copy(alpha = .45f) else c.surfaceBase)
             .border(1.dp, if (unread) c.selectedBorder.copy(alpha = .35f) else c.borderSubtle, shape)
-            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(14.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+            .clickable(role = androidx.compose.ui.semantics.Role.Button, onClick = onClick).padding(HqSpacing.lg),
+        horizontalArrangement = Arrangement.spacedBy(HqSpacing.md),
         verticalAlignment = androidx.compose.ui.Alignment.Top,
     ) {
         habitiq.app.ui.components.HqIconTile(icon, tone, size = 40)
-        androidx.compose.foundation.layout.Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
+        androidx.compose.foundation.layout.Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
             Text(entry.details, style = HqType.rowTitle, color = c.textPrimary)
             Text("${activityActionLabel(entry.action)} \u00b7 ${formatTimeAgo(entry.timestamp)}", style = HqType.labelSmall, color = c.textMuted)
         }

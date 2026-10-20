@@ -51,7 +51,7 @@ fun HqBottomSheet(
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        // Surface raised, 28dp top radius, 20dp sides, drag handle, scrim fades in with the sheet.
+        // Surface raised, 24dp top radius, 20dp sides, drag handle, scrim fades in with the sheet.
         containerColor = c.surfaceRaised,
         shape = habitiq.app.ui.theme.HqShapes.sheetTop,
         scrimColor = c.scrim.copy(alpha = if (c.isDark) 0.64f else 0.42f),
@@ -97,7 +97,7 @@ fun HqConfirmDialog(
 }
 
 /**
- * The dialog card itself (28dp corners, Overlay shadow, 24dp padding, max 400dp wide): heading,
+ * The dialog card itself (24dp corners, Overlay shadow, 24dp padding, max 400dp wide): heading,
  * message, then a dismiss (Tertiary) and confirm button aligned to the end. At large font sizes the
  * buttons wrap onto their own lines instead of clipping. Internal so the component gallery can
  * render it without a window.

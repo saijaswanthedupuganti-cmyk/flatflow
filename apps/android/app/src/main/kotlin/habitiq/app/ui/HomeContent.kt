@@ -28,7 +28,7 @@ import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
+import habitiq.app.ui.theme.HqShapes
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -183,7 +183,7 @@ fun HomeContent(
         }
 
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
-            Column(Modifier.padding(horizontal = HqSpacing.sm).padding(bottom = HqSpacing.screenEnd)) {
+            Column(Modifier.padding(horizontal = HqSpacing.sm).padding(bottom = HqSpacing.fabClearance)) {
                 TodayPanel(model, completingTaskId, onOpenTasks, onOpenTask, onCompleteTask)
 
                 if (model.pending.isNotEmpty()) {
@@ -240,9 +240,10 @@ private fun HomeHero(
             Modifier.matchParentSize().background(
                 Brush.verticalGradient(
                     0f to HeroPhotoGrade.dusk.copy(alpha = .80f),
-                    .30f to HeroPhotoGrade.dusk.copy(alpha = .56f),
-                    .60f to HeroPhotoGrade.dusk.copy(alpha = .50f),
-                    .88f to HeroPhotoGrade.dusk.copy(alpha = .34f),
+                    // Mid stops hold white body text at 4.5:1 even over the sunlit wall in the photo.
+                    .30f to HeroPhotoGrade.dusk.copy(alpha = .66f),
+                    .60f to HeroPhotoGrade.dusk.copy(alpha = .62f),
+                    .88f to HeroPhotoGrade.dusk.copy(alpha = .44f),
                     1f to Color.Transparent,
                 ),
             ),
@@ -253,7 +254,7 @@ private fun HomeHero(
                 .background(Brush.verticalGradient(listOf(Color.Transparent, page.copy(alpha = .85f), page))),
         )
         Column(
-            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = 18.dp).padding(top = 10.dp, bottom = 44.dp),
+            Modifier.fillMaxWidth().statusBarsPadding().padding(horizontal = HqSpacing.screenHorizontal).padding(top = 10.dp, bottom = 44.dp),
         ) {
             HeroTopBar(model, onOpenNotifications, onOpenMembers, onOpenProfile)
             Spacer(Modifier.size(HqSpacing.xxxl))
@@ -273,7 +274,7 @@ private fun HomeHero(
             Text(
                 model.summaryHeadline,
                 style = HqType.bodyLarge,
-                color = c.onImage.copy(alpha = .92f),
+                color = c.onImage,
                 modifier = Modifier.padding(start = 6.dp, top = HqSpacing.sm, end = HqSpacing.huge),
             )
             Spacer(Modifier.size(HqSpacing.xl))
@@ -332,7 +333,7 @@ private fun HeroTopBar(model: HomeUiModel, onOpenNotifications: () -> Unit, onOp
 @Composable
 private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenMembers: () -> Unit) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(22.dp)
+    val shape = HqShapes.card
     Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.weight(1f).clickable(role = Role.Button, onClickLabel = "Switch flat", onClick = onOpenFlatSwitcher)
@@ -340,8 +341,8 @@ private fun FlatCard(model: HomeUiModel, onOpenFlatSwitcher: () -> Unit, onOpenM
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(
-                Modifier.size(46.dp).clip(RoundedCornerShape(13.dp)).background(c.brandTeal.copy(alpha = .55f))
-                    .border(1.dp, c.onImage.copy(alpha = .25f), RoundedCornerShape(13.dp)),
+                Modifier.size(46.dp).clip(HqShapes.control).background(c.brandTeal.copy(alpha = .55f))
+                    .border(1.dp, c.onImage.copy(alpha = .25f), HqShapes.control),
                 contentAlignment = Alignment.Center,
             ) { Icon(HqIcons.Home, null, tint = c.onImage, modifier = Modifier.size(HqIconSize.md)) }
             Spacer(Modifier.size(14.dp))
@@ -397,7 +398,7 @@ private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
         b.owed > 0 -> "From ${b.owedCount} ${if (b.owedCount == 1) "person" else "people"}"
         else -> "No dues"
     }
-    val shape = RoundedCornerShape(22.dp)
+    val shape = HqShapes.card
     Row(Modifier.fillMaxWidth().heightIn(min = 76.dp).heroGlass(shape), verticalAlignment = Alignment.CenterVertically) {
         Row(Modifier.weight(1f).padding(start = HqSpacing.md, end = 6.dp, top = HqSpacing.md, bottom = HqSpacing.md), verticalAlignment = Alignment.CenterVertically) {
             Box(Modifier.size(38.dp).clip(CircleShape).background(c.brandTeal.copy(alpha = .35f)), contentAlignment = Alignment.Center) {
@@ -435,16 +436,16 @@ private fun TodayPanel(
     onOpenTasks: () -> Unit, onOpenTask: (String) -> Unit, onCompleteTask: (String) -> Unit,
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(26.dp)
+    val shape = HqShapes.card
     Column(
         Modifier.fillMaxWidth()
             .hqShadow(habitiq.app.ui.theme.HqShadow.Floating, shape)
-            .clip(shape).background(c.surfaceRaised).padding(horizontal = HqSpacing.lg, vertical = 18.dp),
+            .clip(shape).background(c.surfaceRaised).padding(horizontal = HqSpacing.lg, vertical = HqSpacing.lg),
     ) {
         Row(Modifier.fillMaxWidth().padding(start = 2.dp, bottom = HqSpacing.md), verticalAlignment = Alignment.CenterVertically) {
             Text("Your tasks", style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.weight(1f).semantics { heading() })
             Row(
-                Modifier.defaultMinSize(minHeight = HqSize.target).clip(RoundedCornerShape(HqSpacing.md)).clickable(role = Role.Button, onClick = onOpenTasks)
+                Modifier.defaultMinSize(minHeight = HqSize.target).clip(HqShapes.control).clickable(role = Role.Button, onClick = onOpenTasks)
                     .semantics { contentDescription = "See all tasks" }
                     .padding(horizontal = 6.dp, vertical = HqSpacing.sm),
                 verticalAlignment = Alignment.CenterVertically,
@@ -482,7 +483,7 @@ private fun TodayPanel(
 @Composable
 private fun HomeEmptyTasks() {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(22.dp)
+    val shape = HqShapes.card
     Column(
         Modifier.fillMaxWidth().clip(shape).background(c.surfaceSubtle).padding(vertical = HqSpacing.xxl, horizontal = HqSpacing.lg),
         horizontalAlignment = Alignment.CenterHorizontally,

@@ -132,7 +132,7 @@ fun HqBadge(label: String, tone: HqBadgeTone, modifier: Modifier = Modifier) {
     }
     Text(
         label.replaceFirstChar { it.uppercase() }, style = HqType.labelSmall, color = fg, fontWeight = FontWeight.SemiBold,
-        modifier = modifier.clip(RoundedCornerShape(6.dp)).background(bg).padding(horizontal = 7.dp, vertical = 4.dp),
+        modifier = modifier.clip(HqShapes.small).background(bg).padding(horizontal = 7.dp, vertical = 4.dp),
     )
 }
 
@@ -199,8 +199,8 @@ fun HqLargeTaskCard(
             ) {
                 if (completing) CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = c.textBrand)
                 else Box(
-                    Modifier.size(25.dp).clip(RoundedCornerShape(8.dp)).background(if (done) c.brandTeal else c.surfaceBase)
-                        .border(1.5.dp, if (done) c.brandTeal else c.borderControl, RoundedCornerShape(8.dp)),
+                    Modifier.size(25.dp).clip(HqShapes.small).background(if (done) c.brandTeal else c.surfaceBase)
+                        .border(1.5.dp, if (done) c.brandTeal else c.borderControl, HqShapes.small),
                     contentAlignment = Alignment.Center,
                 ) { if (done) Icon(HqIcons.Check, null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.xs)) }
             }
@@ -230,7 +230,7 @@ fun HqLargeTaskCard(
 @Composable
 fun HqManageSwitch(options: List<Pair<String, ImageVector>>, selectedIndex: Int, onSelect: (Int) -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    val track = RoundedCornerShape(18.dp)
+    val track = HqShapes.control // 12 track, 4 inset, 8 indicator: concentric
     BoxWithConstraints(modifier.fillMaxWidth().heightIn(min = 58.dp).clip(track).background(c.surfaceSubtle).padding(4.dp).selectableGroup()) {
         val cell = maxWidth / options.size
         val reduceMotion = hqReduceMotion()
@@ -242,8 +242,8 @@ fun HqManageSwitch(options: List<Pair<String, ImageVector>>, selectedIndex: Int,
         // matchParentSize: the track can grow with font scale (heightIn), so the indicator follows its height.
         Box(
             Modifier.matchParentSize().wrapContentWidth(Alignment.Start).offset(x = x).width(cell)
-                .shadow(6.dp, RoundedCornerShape(14.dp), ambientColor = c.textPrimary.copy(alpha = .1f), spotColor = c.textPrimary.copy(alpha = .1f))
-                .clip(RoundedCornerShape(14.dp)).background(c.surfaceBase),
+                .shadow(6.dp, HqShapes.small, ambientColor = c.textPrimary.copy(alpha = .1f), spotColor = c.textPrimary.copy(alpha = .1f))
+                .clip(HqShapes.small).background(c.surfaceBase),
         )
         Row(Modifier.fillMaxWidth().heightIn(min = 50.dp).height(IntrinsicSize.Min)) {
             options.forEachIndexed { i, (label, icon) ->

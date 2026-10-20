@@ -98,8 +98,15 @@ class HqColorContrastTest {
     @Test
     fun paletteCNeutralCorrectionsHold() {
         // Palette C corrections: 94A3B8 (2.56:1) and 6B7685 (4.30:1) failed, these replace them.
+        // Oct 2026 brief: muted 8791A0 (2.83:1 on subtle), disabled 929CAA (2.36:1), success 21845A
+        // (4.19:1 on its tint) and warning A96B12 (4.03:1) failed; the closest passing values are locked.
         assertEquals(Color(0xFF7A8699), HqLightColors.borderControl)
-        assertEquals(Color(0xFF5F6B7A), HqLightColors.textMuted)
+        assertEquals(Color(0xFF656F7F), HqLightColors.textMuted)
+        assertEquals(Color(0xFF616C7C), HqLightColors.disabledFg)
+        assertEquals(Color(0xFF207E56), HqLightColors.statusSuccessFg)
+        assertEquals(Color(0xFF9E6411), HqLightColors.statusWarningFg)
+        assertEquals(Color(0xFFC2414B), HqLightColors.statusDangerFg)
+        assertEquals(Color(0xFFF6F7FA), HqLightColors.canvas)
         val c = HqLightColors
         for ((name, bg) in listOf("white" to Color.White, "canvas" to c.canvas, "subtle" to c.surfaceSubtle)) {
             assertNonText("light", "control border on $name", c.borderControl, bg)

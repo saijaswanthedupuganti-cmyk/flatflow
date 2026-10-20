@@ -107,8 +107,8 @@ fun HqSegmentedControl(
     val haptics = rememberHqHaptics()
     val reduce = hqReduceMotion()
     val density = LocalDensity.current
-    val track = HqShapes.button // 16 = 12 (indicator) + 4 (inset): concentric
-    val pill = HqShapes.control
+    val track = HqShapes.control // 12 = 8 (indicator) + 4 (inset): concentric
+    val pill = HqShapes.small
 
     // Measured x/width of each segment, in px, relative to the row.
     val cells = remember(options.size) { mutableStateMapOf<Int, Pair<Int, Int>>() }

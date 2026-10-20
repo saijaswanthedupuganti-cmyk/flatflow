@@ -97,6 +97,8 @@ fun ExpensesScreen(
     val triggerAdd by viewModel.showAddExpenseTrigger.collectAsStateWithLifecycleCompat()
     val triggerBalances by viewModel.showBalancesTrigger.collectAsStateWithLifecycleCompat()
     val monthly by viewModel.expenseScopeMonthly.collectAsStateWithLifecycleCompat()
+    val loading by viewModel.loading.collectAsStateWithLifecycleCompat()
+    val loadError by viewModel.loadError.collectAsStateWithLifecycleCompat()
 
     var showAdd by remember { mutableStateOf(false) }
     var pending by remember { mutableStateOf<PendingSettlement?>(null) }
@@ -191,6 +193,9 @@ fun ExpensesScreen(
                     pending = PendingSettlement(person.key, person.name, abs(raw), youOwe = raw < 0)
                 },
                 onAddExpense = { showAdd = true },
+                loading = loading,
+                loadFailed = loadError,
+                onRetry = { viewModel.refresh() },
                 header = header ?: {},
             )
         }
@@ -259,6 +264,8 @@ fun AddExpenseForm(
     onSaved: () -> Unit,
     autoFocus: Boolean = true,
 ) {
+    // Full-screen form with its own submit button: the shell's nav bar and + would cover it.
+    HideShellChrome()
     val c = LocalHqColors.current
     val scope = rememberCoroutineScope()
     var amount by rememberSaveable { mutableStateOf("") }
@@ -266,8 +273,8 @@ fun AddExpenseForm(
     var paidBy by rememberSaveable { mutableStateOf(currentUid) }
     var equalSplit by rememberSaveable { mutableStateOf(true) }
     // Everyone is in the split until the person changes it (null), so late-loading members are included.
-    var picked by remember { mutableStateOf<Set<String>?>(null) }
-    var customAmounts by remember { mutableStateOf(mapOf<String, String>()) }
+    var picked by rememberSaveable { mutableStateOf<Set<String>?>(null) }
+    var customAmounts by rememberSaveable { mutableStateOf(mapOf<String, String>()) }
     var category by rememberSaveable { mutableStateOf("Other") }
     var amountError by remember { mutableStateOf<String?>(null) }
     var descError by remember { mutableStateOf<String?>(null) }

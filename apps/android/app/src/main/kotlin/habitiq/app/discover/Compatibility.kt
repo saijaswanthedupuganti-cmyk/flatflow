@@ -20,8 +20,8 @@ object Compatibility {
 
         val rent = listing.rentPerHead
         if (rent != null) {
-            val min = filters.rentMin.toDoubleOrNull() ?: viewer?.budget
-            val max = filters.rentMax.toDoubleOrNull() ?: viewer?.budget
+            val min = MoneyInput.parse(filters.rentMin)?.toDouble() ?: viewer?.budget
+            val max = MoneyInput.parse(filters.rentMax)?.toDouble() ?: viewer?.budget
             if (min != null && max != null && rent in min.coerceAtMost(max)..max.coerceAtLeast(min)) {
                 out += CompatibilitySignal("budget", "Within your budget")
             } else if (viewer != null && viewer.budget > 0 && rent <= viewer.budget) {
@@ -57,8 +57,8 @@ object Compatibility {
             out += CompatibilitySignal("location", "Interested in your city")
         }
 
-        val min = filters.budgetMin.toDoubleOrNull()
-        val max = filters.budgetMax.toDoubleOrNull()
+        val min = MoneyInput.parse(filters.budgetMin)?.toDouble()
+        val max = MoneyInput.parse(filters.budgetMax)?.toDouble()
         if (seeker.budget > 0 && (min == null || seeker.budget >= min) && (max == null || seeker.budget <= max) && (min != null || max != null)) {
             out += CompatibilitySignal("budget", "Budget fits your range")
         }

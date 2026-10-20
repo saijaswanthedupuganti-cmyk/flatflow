@@ -1,7 +1,6 @@
 package habitiq.app.ui.discover
 
 import android.content.Intent
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -35,16 +34,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.painter.ColorPainter
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import habitiq.app.R
 import habitiq.app.data.VacancyListing
 import habitiq.app.discover.CompatibilitySignal
 import habitiq.app.discover.ConnectionStatus
@@ -110,7 +106,7 @@ fun FlatListingDetailScreen(
             ) {
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                     Text(listing.flatName.ifBlank { "Room in a flat" }, style = HqType.titleMedium2, color = c.textPrimary, modifier = Modifier.semantics { heading() })
-                    IconLine(HqIcons.Pin, (ListingFacts.areaLine(listing).ifBlank { "Area shared later" }) + " · approximate area")
+                    ListingFacts.areaLine(listing).takeIf { it.isNotBlank() }?.let { IconLine(HqIcons.Pin, "$it · approximate area") }
                 }
                 KeyFacts(listing)
                 RentBreakdown(listing)
@@ -118,16 +114,13 @@ fun FlatListingDetailScreen(
                     Section("About this room") { Text(listing.about, style = HqType.bodyLarge, color = c.textSecondary) }
                 }
                 TagSections(listing)
-                CompatibilityBlock("Why this may fit you", signals.map { it.label })
+                // Room type and area are already in the facts and the area line above; only new reasons show here.
+                CompatibilityBlock("Why this may fit you", signals.filter { it.id != "room" && it.id != "location" }.map { it.label })
                 WhoLivesHere(listing)
                 Interested(isOwnListing, interestedCount, interestedPeople, onOpenInterested)
                 Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
                     TrustBadge(trust)
                     SafetyNote()
-                    Text(
-                        "Sending a request doesn't add anyone to the flat. Joining still uses the flat's invite.",
-                        style = HqType.labelSmall, color = c.textSecondary,
-                    )
                 }
             }
         }
@@ -158,18 +151,13 @@ private fun ListingHero(
     val c = LocalHqColors.current
     val context = LocalContext.current
     var menuOpen by remember { mutableStateOf(false) }
-    Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f).background(c.selectedBg)) {
+    Box(Modifier.fillMaxWidth().aspectRatio(4f / 3f)) {
         val cover = listing.photoUrls.firstOrNull()
+        // The listing's own placeholder: shown with no photo, while the photo loads, and if it fails.
+        ListingPlaceholder(listing.flatId)
         if (cover != null) {
             AsyncImage(
                 model = cover, contentDescription = "Photo of ${listing.flatName}",
-                modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
-                placeholder = ColorPainter(c.surfaceSubtle), error = ColorPainter(c.surfaceSubtle), fallback = ColorPainter(c.surfaceSubtle),
-            )
-        } else {
-            Image(
-                painter = painterResource(R.drawable.home_hero),
-                contentDescription = "Placeholder picture; this listing has no photo yet",
                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop,
             )
         }
@@ -233,16 +221,18 @@ private fun Section(title: String, content: @Composable ColumnScope.() -> Unit) 
     }
 }
 
-/** Four facts in a 2 x 2 block: room, beds, furnishing, when it's free. */
+/** Up to four facts in a 2 x 2 block: room, beds, furnishing, when it's free. Facts the flat didn't give are left out. */
 @Composable
 private fun KeyFacts(listing: VacancyListing) {
     val c = LocalHqColors.current
-    val facts = listOf(
-        (ListingFacts.roomTypeLabel(listing.roomType) ?: "Not given") to "Room",
-        "${listing.bedsAvailable} free" to "Beds",
-        (ListingFacts.furnishingLabel(listing.furnishing) ?: "Not given") to "Furnishing",
-        (ListingFacts.availabilityLabel(listing.availableFrom, listing.moveInTiming)?.removePrefix("Available ")?.replaceFirstChar { it.uppercase() } ?: "Ask") to "Available",
+    val facts = listOfNotNull(
+        ListingFacts.roomTypeLabel(listing.roomType)?.let { it to "Room" },
+        listing.bedsAvailable.takeIf { it > 0 }?.let { "$it free" to "Beds" },
+        ListingFacts.furnishingLabel(listing.furnishing)?.let { it to "Furnishing" },
+        ListingFacts.availabilityLabel(listing.availableFrom, listing.moveInTiming)
+            ?.removePrefix("Available ")?.replaceFirstChar { it.uppercase() }?.let { it to "Available" },
     )
+    if (facts.isEmpty()) return
     Column(
         Modifier.fillMaxWidth().clip(HqShapes.card).background(c.surfaceBase).border(1.dp, c.borderSubtle, HqShapes.card).padding(HqSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(HqSpacing.lg),
@@ -250,20 +240,29 @@ private fun KeyFacts(listing: VacancyListing) {
         facts.chunked(2).forEach { row ->
             Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.lg)) {
                 row.forEach { (value, label) -> HqFact(value = value, label = label, modifier = Modifier.weight(1f)) }
+                // An odd last fact keeps half the width, so the columns stay aligned.
+                if (row.size == 1) Spacer(Modifier.weight(1f))
             }
         }
     }
 }
 
+/** Only the money facts the flat gave; the section is left out when there are none. */
 @Composable
 private fun RentBreakdown(listing: VacancyListing) {
+    val c = LocalHqColors.current
+    val rows = listOfNotNull(
+        listing.rentPerHead?.let { Triple("Rent per person", "${formatInr(it)}/mo", c.textPrimary) },
+        listing.securityDeposit?.let { Triple("Security deposit", formatInr(it), null) },
+        ListingFacts.noticeLabel(listing.noticePeriod)?.let { Triple("Notice period", it, null) },
+    )
+    if (rows.isEmpty()) return
     Section("Rent") {
         HqGroup {
-            HqRow(title = "Rent per person", trailing = { HqRowValue(listing.rentPerHead?.let { "${formatInr(it)}/mo" } ?: "Ask the flat", LocalHqColors.current.textPrimary) })
-            HqRowDivider()
-            HqRow(title = "Security deposit", trailing = { HqRowValue(listing.securityDeposit?.let { formatInr(it) } ?: "Not set") })
-            HqRowDivider()
-            HqRow(title = "Notice period", trailing = { HqRowValue(ListingFacts.noticeLabel(listing.noticePeriod) ?: "Not set") })
+            rows.forEachIndexed { i, (title, value, color) ->
+                if (i > 0) HqRowDivider()
+                HqRow(title = title, trailing = { if (color != null) HqRowValue(value, color) else HqRowValue(value) })
+            }
         }
     }
 }
@@ -290,13 +289,14 @@ private fun WhoLivesHere(listing: VacancyListing) {
     val c = LocalHqColors.current
     val names = listing.health?.members.orEmpty()
     val headline = listing.health?.headline?.takeIf { it.isNotBlank() }
+    // Nothing known about the people here: leave the section out rather than say so.
+    if (names.isEmpty() && headline == null && listing.memberCount <= 0) return
     Section(if (listing.memberCount > 0) "Who lives here (${listing.memberCount})" else "Who lives here") {
         if (headline != null) Text("Flat activity: $headline", style = HqType.bodyMedium, color = c.textSecondary)
         if (names.isEmpty()) {
-            Text(
-                if (listing.memberCount > 0) "Names are shared when the flat admin chooses to." else "Not shared yet.",
-                style = HqType.bodyMedium, color = c.textSecondary,
-            )
+            if (listing.memberCount > 0) {
+                Text("Names are shared when the flat admin chooses to.", style = HqType.bodyMedium, color = c.textSecondary)
+            }
         } else {
             HqGroup {
                 names.forEachIndexed { i, member ->
@@ -316,11 +316,13 @@ private fun WhoLivesHere(listing: VacancyListing) {
 private fun Interested(isOwnListing: Boolean, count: Int, people: List<Pair<String, String>>, onOpen: (String) -> Unit) {
     val c = LocalHqColors.current
     if (!isOwnListing) {
-        Text(
-            if (count > 0) "$count ${if (count == 1) "person has" else "people have"} sent a request. Only the flat sees who."
-            else "No requests yet. Be the first to send one.",
-            style = HqType.bodyMedium, color = c.textSecondary,
-        )
+        Section("Requests") {
+            Text(
+                if (count > 0) "$count ${if (count == 1) "person has" else "people have"} sent a request. Only the flat sees who."
+                else "No requests yet. Be the first to send one.",
+                style = HqType.bodyMedium, color = c.textSecondary,
+            )
+        }
         return
     }
     Section("Requests for this room") {
@@ -345,8 +347,10 @@ private fun SafetyNote() {
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
     ) {
         Icon(HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(habitiq.app.ui.theme.HqIconSize.sm))
+        // The one safety note on the listing (chats, money, address, and what a request does).
         Text(
-            "Keep chats in Oddroof. Never pay before viewing. Share an exact address only when you're comfortable.",
+            "Keep chats in Oddroof and never pay before viewing. Share an exact address only when you're comfortable. " +
+                "Sending a request doesn't add anyone to the flat; joining still uses the flat's invite.",
             style = HqType.bodyMedium, color = c.textPrimary,
         )
     }

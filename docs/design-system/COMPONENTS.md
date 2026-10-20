@@ -44,19 +44,22 @@ Component roles added in this pass (names only; they default to existing values)
 ### Spacing (4dp grid)
 `xs 4 · sm 8 · md 12 · lg 16 · xl 20 · xxl 24 · xxxl 32 · huge 40`. Screen gutter 20. Row padding 16 x 12.
 Card padding 20. Gap between form fields 20, between sections 32.
+`HqSpacing.fabClearance` (86) is the bottom padding for any scrolling screen under the shell's floating +
+(56 button + 14 inset + 16 gap), so the last row is never covered. A full-screen form shown inside a shell tab
+(Add expense, Add bill) calls `HideShellChrome()` (`ui/AppShell.kt`) to hide the nav bar and the + while it is
+on screen.
 
 ### Radius (one scale)
 | Step | dp | Token | Used by |
 |---|---|---|---|
-| xs | 8 | `HqRadius.small` | badges, tags, skeleton blocks |
-| sm | 12 | `HqRadius.control` | segmented indicator, snackbar |
-| md | 16 | `HqRadius.button`, `HqRadius.field` | every button, every field, segmented track |
-| lg | 20 | `HqRadius.card` | cards, groups |
-| xl | 28 | `HqRadius.sheet` | sheets (top corners), dialogs |
-| pill | full | `HqRadius.pill` | chips, switch, avatars |
+| xs | 8 | `HqRadius.small` | badges, tags, skeleton blocks, segmented indicator |
+| sm | 12 | `HqRadius.control`, `HqRadius.button`, `HqRadius.field` | every button, every field, segmented track, snackbar |
+| md | 16 | `HqRadius.card` | cards, groups |
+| lg | 24 | `HqRadius.sheet` | sheets (top corners), dialogs |
+| pill | full | `HqRadius.pill` | chips, switch, avatars, nav pill (`HqRadius.navPill` 22) |
 
-Nested corners are concentric: inner = outer - inset (16 track, 4 inset, 12 indicator). Shapes are ready-made
-in `HqShapes`.
+Buttons are not pills: they share the field radius so a field and its submit button match. Nested corners are
+concentric: inner = outer - inset (12 track, 4 inset, 8 indicator). Shapes are ready-made in `HqShapes`.
 
 ### Elevation
 `Modifier.hqShadow(HqShadow.X, shape)`: tinted with the ink colour, never black, dropped in dark.
@@ -104,7 +107,7 @@ a meaningful primary confirm, `tick()` on segment change, `toggle()` on switches
 | `GhostOnDark` | white outline + label | on navy surfaces and photos only |
 
 Sizes: `Large` 56 (default when `fullWidth`), `Medium` 48 (default otherwise), `Small` 40 visual / 48 target.
-Same 16dp radius and 16sp SemiBold label at every size. States: pressed (spring to 97% + state layer + bounded
+Same 12dp radius and 16sp SemiBold label at every size. States: pressed (spring to 97% + state layer + bounded
 ripple), focused (2dp focus ring outside the shape), disabled (neutral fill, 38% label, announced disabled),
 loading (spinner replaces the label in place, width does not change, TalkBack hears "Loading").
 
@@ -141,7 +144,7 @@ large font sizes. Switch the content below with `fadeThroughEnter/Exit`. Not for
 = an applied value the person can remove. Lay chips out with `HqChipFlow`.
 
 ### HqTextField / HqAmountField
-Label above (never floating), 56dp, 16dp radius, 1dp control border at rest; focus animates to a 2dp teal
+Label above (never floating), 56dp, 12dp radius, 1dp control border at rest; focus animates to a 2dp teal
 border (fast tween); error = red border + icon + message under the field, announced politely; helper text
 under the field when there is no error. `prefix`/`suffix`/`trailingContent` for units and pickers.
 `HqAmountField` = "₹" prefix, decimal keypad, at most 2 decimals. Set `imeAction = Done` and `onImeAction`
@@ -151,7 +154,7 @@ to submit on the last field. Use `HqDateField` for dates.
   for read-only values (show them as text).
 
 ### HqCard, HqGroup, HqRow
-`HqCard` = one radius (20), one elevation (Floating + 1dp subtle border), 20 padding. `Status` variant is flat
+`HqCard` = one radius (16), one elevation (Floating + 1dp subtle border), 20 padding. `Status` variant is flat
 and tinted. Cards group one object; don't put cards in cards.
 `HqGroup` + `HqRow` + `HqRowDivider` for lists: rows never get their own card. `HqRow(title, supporting,
 leading, trailing, onClick)`: fixed 40dp leading column (icon or avatar) so titles align; trailing
@@ -166,9 +169,9 @@ pins on scroll) stays for screens already using it. Older `HqBackAppBar`/`HqRoot
 inline style and should migrate to `HqAppBar`.
 
 ### Overlays
-`HqBottomSheet(onDismiss, title)`: 28dp top corners, drag handle (sheets only), scrim fades with the sheet,
+`HqBottomSheet(onDismiss, title)`: 24dp top corners, drag handle (sheets only), scrim fades with the sheet,
 20dp sides. For details, filters, quick actions; a 10-field form is a full screen instead.
-`HqConfirmDialog(title, message, confirmLabel, ...)`: only for destructive or critical decisions. 28dp
+`HqConfirmDialog(title, message, confirmLabel, ...)`: only for destructive or critical decisions. 24dp
 corners, Overlay shadow, centred entrance 96% to 100% + fade (no scale under reduced motion), dismiss
 (Tertiary) then confirm on the end; buttons wrap at large fonts. `HqDiscardChangesDialog` for leaving a
 form with typed input.

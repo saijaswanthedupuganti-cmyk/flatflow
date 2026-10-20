@@ -1,17 +1,15 @@
 package habitiq.app.ui.discover
 
-import androidx.compose.ui.draw.shadow
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.border
-import androidx.compose.ui.graphics.Color
 import androidx.compose.foundation.background
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -19,31 +17,22 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.Badge
-import androidx.compose.material3.BadgedBox
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import habitiq.app.R
 import habitiq.app.data.SeekerProfile
 import habitiq.app.lib.formatInr
 import habitiq.app.discover.Compatibility
@@ -51,14 +40,10 @@ import habitiq.app.discover.ConnectionStatus
 import habitiq.app.discover.SeekerFilters
 import habitiq.app.discover.TrustCopy
 import habitiq.app.discover.TrustPresentation
-import habitiq.app.ui.components.HqButton
 import habitiq.app.ui.components.HqBackAppBar
-import habitiq.app.ui.components.HqButtonVariant
-import habitiq.app.ui.components.HqCard
-import habitiq.app.ui.components.HqChip
-import habitiq.app.ui.components.HqTextButton
-import habitiq.app.ui.components.HqTextField
+import habitiq.app.ui.components.HqIconButton
 import habitiq.app.ui.theme.HqIconSize
+import habitiq.app.ui.theme.HqShapes
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
@@ -84,7 +69,7 @@ fun FindFlatmateDiscoverContent(
     LazyColumn(
         Modifier.fillMaxSize(),
         state = listState ?: androidx.compose.foundation.lazy.rememberLazyListState(),
-        contentPadding = PaddingValues(bottom = HqSpacing.xxl),
+        contentPadding = PaddingValues(bottom = HqSpacing.fabClearance),
         verticalArrangement = Arrangement.spacedBy(HqSpacing.lg),
     ) {
         item(key = "discover-top") {
@@ -207,33 +192,48 @@ fun FlatmateProfileScreen(
 ) {
     val c = LocalHqColors.current
     val name = seeker.displayName.ifBlank { "Oddroof user" }
+    var menuOpen by remember { mutableStateOf(false) }
     Column(Modifier.fillMaxSize().background(c.canvas)) {
-        HqBackAppBar(title = "Profile", onBack = onBack)
+        // Report and Block live in the overflow menu so they never compete with Send request.
+        HqBackAppBar(title = "Profile", onBack = onBack, actions = {
+            if (!isSelf && !blocked) {
+                Box {
+                    HqIconButton(icon = habitiq.app.ui.components.HqIcons.More, contentDescription = "More options for $name", onClick = { menuOpen = true })
+                    DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, containerColor = c.surfaceRaised) {
+                        DropdownMenuItem(text = { Text("Report", style = HqType.bodyLarge, color = c.textPrimary) }, onClick = { menuOpen = false; onReport() })
+                        DropdownMenuItem(text = { Text("Block", style = HqType.bodyLarge, color = c.statusDangerFg) }, onClick = { menuOpen = false; onBlock() })
+                    }
+                }
+            }
+        })
         Column(
             Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.xl).padding(bottom = HqSpacing.xxxl),
             verticalArrangement = Arrangement.spacedBy(HqSpacing.md)
         ) {
-            // Figma profile-person: centred identity block, then two key facts.
-            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            // Figma profile-person: centred identity block, then the key facts the person gave.
+            Column(Modifier.fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
                 habitiq.app.ui.components.HqAvatar(name = name, size = habitiq.app.ui.components.HqAvatarSize.XL, tone = habitiq.app.ui.components.hqToneFor(name, false))
-                Text(name, style = HqType.titleLarge2, color = c.textPrimary, modifier = Modifier.padding(top = 8.dp))
-                Text(
-                    listOf(seeker.city, seeker.lookingIn.takeIf { it.isNotBlank() }?.let { "Looking in $it" }).filterNotNull().filter { it.isNotBlank() }.distinct().joinToString(" \u00b7 "),
-                    style = HqType.bodyMedium,
-                    color = c.textSecondary
-                )
+                Text(name, style = HqType.titleLarge2, color = c.textPrimary, modifier = Modifier.padding(top = HqSpacing.sm))
+                listOf(seeker.city, seeker.lookingIn.takeIf { it.isNotBlank() }?.let { "Looking in $it" }).filterNotNull().filter { it.isNotBlank() }.distinct()
+                    .joinToString(" \u00b7 ").takeIf { it.isNotBlank() }
+                    ?.let { Text(it, style = HqType.bodyMedium, color = c.textSecondary) }
                 TrustBadge(trust)
             }
-            val factShape = androidx.compose.foundation.shape.RoundedCornerShape(18.dp)
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp).clip(factShape).border(1.dp, c.borderSubtle, factShape)) {
-                Column(Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("Budget", style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                    Text(if (seeker.budget > 0) "Up to ${formatInr(seeker.budget)}" else "Not listed", style = HqType.rowTitle, color = c.textPrimary)
-                }
-                Box(Modifier.width(1.dp).height(60.dp).background(c.borderSubtle))
-                Column(Modifier.weight(1f).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                    Text("Looking in", style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
-                    Text(seeker.lookingIn.ifBlank { seeker.city }.ifBlank { "Open to areas" }, style = HqType.rowTitle, color = c.textPrimary)
+            // Only facts the person gave; nothing is shown in place of a missing one.
+            val facts = listOfNotNull(
+                seeker.budget.takeIf { it > 0 }?.let { "Budget" to "Up to ${formatInr(it)}" },
+                seeker.lookingIn.ifBlank { seeker.city }.takeIf { it.isNotBlank() }?.let { "Looking in" to it },
+            )
+            if (facts.isNotEmpty()) {
+                val factShape = HqShapes.card
+                Row(Modifier.fillMaxWidth().padding(top = HqSpacing.sm).height(IntrinsicSize.Min).clip(factShape).border(1.dp, c.borderSubtle, factShape)) {
+                    facts.forEachIndexed { i, (label, value) ->
+                        if (i > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(c.borderSubtle))
+                        Column(Modifier.weight(1f).padding(HqSpacing.md), verticalArrangement = Arrangement.spacedBy(HqSpacing.xs)) {
+                            Text(label, style = HqType.labelMedium, color = c.textSecondary, fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold)
+                            Text(value, style = HqType.rowTitle, color = c.textPrimary)
+                        }
+                    }
                 }
             }
             if (seeker.bio.isNotBlank()) {
@@ -245,17 +245,12 @@ fun FlatmateProfileScreen(
                 habitiq.app.ui.components.HqTagFlow(seeker.lifestyleTags.split(",").map { it.trim() }.filter { it.isNotEmpty() })
             }
             CompatibilityBlock("Compatibility with your search", signals)
-            Text(
-                "Company, college and hometown are not shown — those fields are not on this profile yet.",
-                style = HqType.caption,
-                color = c.textMuted
-            )
             Row(
-                Modifier.fillMaxWidth().clip(androidx.compose.foundation.shape.RoundedCornerShape(16.dp)).background(c.statusWarningBg).padding(14.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                Modifier.fillMaxWidth().clip(HqShapes.control).background(c.statusWarningBg).padding(HqSpacing.md),
+                horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
             ) {
                 Icon(habitiq.app.ui.components.HqIcons.Shield, null, tint = c.statusWarningFg, modifier = Modifier.size(HqIconSize.sm))
-                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.xs / 2)) {
                     Text("Stay safe", style = HqType.labelMedium, color = c.textPrimary, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                     Text("Personal contact details stay private until you choose to share them.", style = HqType.bodyMedium, color = c.textPrimary)
                 }
@@ -274,10 +269,6 @@ fun FlatmateProfileScreen(
                     onAccept = onAccept,
                     onDecline = onDecline
                 )
-                Row {
-                    HqTextButton(text = "Report", onClick = onReport)
-                    HqTextButton(text = "Block", onClick = onBlock)
-                }
             }
         }
     }

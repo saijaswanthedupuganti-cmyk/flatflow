@@ -5,8 +5,6 @@ import habitiq.app.ui.components.HqListHeading
 import habitiq.app.ui.components.HqTileTone
 import habitiq.app.ui.components.HqIcons
 import habitiq.app.ui.components.HqCalloutCard
-import androidx.compose.ui.unit.sp
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -85,34 +83,32 @@ fun TasksContent(
     onCompleteTask: (String) -> Unit,
     onCreateTask: () -> Unit,
     modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    loadFailed: Boolean = false,
+    onRetry: () -> Unit = {},
     header: @Composable () -> Unit = {},
 ) {
-    val c = LocalHqColors.current
     Column(
         modifier.fillMaxSize().verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal)
-            .padding(top = HqSpacing.sm, bottom = HqSpacing.screenEnd),
+            .padding(top = HqSpacing.sm, bottom = HqSpacing.fabClearance),
     ) {
         header()
 
-        val toDo = if (model.scope == TaskScope.Mine) model.mineCount else model.allCount
-        Row(Modifier.fillMaxWidth().padding(start = 2.dp, end = 2.dp, top = 6.dp, bottom = 23.dp), verticalAlignment = Alignment.Bottom) {
-            Column(Modifier.weight(1f)) {
-                Text(if (model.scope == TaskScope.Mine) "Your tasks" else "All tasks", style = HqType.labelMedium, color = c.textSecondary, fontWeight = FontWeight.SemiBold)
-                Text(if (toDo == 0) "All clear" else "$toDo to do", style = HqType.display.copy(fontSize = 29.sp), color = c.textPrimary)
-            }
-            if (model.overdueCount > 0 || model.overdueOnly) {
-                HqChip(label = "${model.overdueCount} overdue", selected = model.overdueOnly, onClick = onToggleOverdue)
-            }
-        }
-
+        // The tabs carry the counts, so no separate "Your tasks / All tasks" heading above them.
         HqScopeTabs(
             options = listOf("My tasks" to model.mineCount, "All tasks" to model.allCount),
             selectedIndex = if (model.scope == TaskScope.Mine) 0 else 1,
             onSelect = { onScope(if (it == 0) TaskScope.Mine else TaskScope.All) },
+            modifier = Modifier.padding(top = HqSpacing.xs),
         )
+        if (model.overdueCount > 0 || model.overdueOnly) {
+            Row(Modifier.padding(top = HqSpacing.md)) {
+                HqChip(label = "${model.overdueCount} overdue", selected = model.overdueOnly, onClick = onToggleOverdue)
+            }
+        }
 
-        Column(Modifier.padding(top = HqSpacing.md), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Column(Modifier.padding(top = HqSpacing.md), verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
             // While away, the status leads; otherwise "I'm away" is a quiet action at the end of the list.
             if (model.away) {
                 HqCalloutCard(
@@ -134,13 +130,16 @@ fun TasksContent(
             }
         }
 
-        if (model.sections.isEmpty()) {
+        val unknown = model.sections.isEmpty() && (loading || loadFailed)
+        if (unknown) {
+            ManageLoadPlaceholder(failed = loadFailed && !loading, onRetry = onRetry)
+        } else if (model.sections.isEmpty()) {
             EmptyTasks(model, onCreateTask)
         }
 
         model.sections.forEach { section ->
             HqListHeading(section.title, right = "${section.items.size}")
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(HqSpacing.md)) {
                 section.items.forEach { task ->
                     HqLargeTaskCard(
                         title = task.name,
@@ -167,7 +166,9 @@ fun TasksContent(
             }
         }
 
-        if (!model.away) {
+        // Not under an empty flat (or while loading): there are no turns to pause yet.
+        val flatHasNoTasks = model.sections.isEmpty() && model.allCount == 0
+        if (!model.away && !unknown && !flatHasNoTasks) {
             Spacer(Modifier.height(HqSpacing.xl))
             HqCalloutCard(
                 title = "Mark me as away",

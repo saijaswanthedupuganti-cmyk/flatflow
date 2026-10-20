@@ -33,6 +33,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqIconSize
+import habitiq.app.ui.theme.HqShapes
 import habitiq.app.ui.theme.HqSize
 import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
@@ -65,7 +66,7 @@ fun HqPill(label: String, modifier: Modifier = Modifier) {
         style = HqType.labelSmall,
         fontWeight = FontWeight.ExtraBold,
         color = c.selectedFg,
-        modifier = modifier.clip(RoundedCornerShape(6.dp)).background(c.selectedBg).padding(horizontal = 7.dp, vertical = 5.dp),
+        modifier = modifier.clip(HqShapes.small).background(c.selectedBg).padding(horizontal = 7.dp, vertical = 5.dp),
     )
 }
 
@@ -87,7 +88,7 @@ fun HqTaskCard(
     onComplete: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = HqShapes.card
     Row(
         modifier.fillMaxWidth()
             .shadow(2.dp, shape, ambientColor = c.textPrimary.copy(alpha = .06f), spotColor = c.textPrimary.copy(alpha = .06f))
@@ -106,9 +107,9 @@ fun HqTaskCard(
                     CircularProgressIndicator(Modifier.size(22.dp), strokeWidth = 2.dp, color = c.textBrand)
                 } else {
                     Box(
-                        Modifier.size(25.dp).clip(RoundedCornerShape(8.dp))
+                        Modifier.size(25.dp).clip(HqShapes.small)
                             .background(if (done) c.brandTeal else c.surfaceBase)
-                            .border(1.5.dp, if (done) c.brandTeal else c.borderControl, RoundedCornerShape(8.dp)),
+                            .border(1.5.dp, if (done) c.brandTeal else c.borderControl, HqShapes.small),
                         contentAlignment = Alignment.Center,
                     ) { if (done) Icon(HqIcons.Check, null, tint = c.actionPrimaryFg, modifier = Modifier.size(HqIconSize.xs)) }
                 }
@@ -148,7 +149,7 @@ fun HqCalloutCard(
     onClick: () -> Unit,
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(18.dp)
+    val shape = HqShapes.card
     val (bg, border) = if (tone == HqTileTone.Coral) c.surfaceBase to c.statusDangerFg.copy(alpha = .24f) else c.surfaceBase to c.borderSubtle
     Row(
         modifier.fillMaxWidth().clip(shape).background(bg).border(1.dp, border, shape)

@@ -295,7 +295,7 @@ internal fun NoFlatContent(
             .fillMaxSize()
             .verticalScroll(rememberScrollState())
             .padding(horizontal = HqSpacing.screenHorizontal)
-            .padding(top = HqSpacing.xl, bottom = HqSpacing.screenEnd),
+            .padding(top = HqSpacing.xl, bottom = HqSpacing.fabClearance),
     ) {
         HqWordmark(height = 28.dp)
         Text(

@@ -27,40 +27,45 @@ object HqSpacing {
     val group: Dp = xxl
     val section: Dp = xxxl
     val screenEnd: Dp = xxl
+    /**
+     * Bottom padding for a scrolling screen that sits under the shell's floating +
+     * (56dp button + 14dp inset + 16dp gap), so the last row is never covered.
+     */
+    val fabClearance: Dp = 86.dp
 }
 
 /**
  * The one radius scale (design doc section 7.3). Every component reads a functional name; nothing
- * hard-codes a corner. Nested corners are concentric: inner = outer - inset (the 16dp segmented
- * track with a 4dp inset holds a 12dp indicator).
+ * hard-codes a corner. Nested corners are concentric: inner = outer - inset (the 12dp segmented
+ * track with a 4dp inset holds an 8dp indicator). Brief (Oct 2026): small controls 8-12, buttons and
+ * inputs 10-14, cards 14-18, sheets 20-24, pill only for chips, the nav pill and avatars.
  *
- * | Step | dp   | Name(s)           | Used by                                              |
- * |------|------|-------------------|------------------------------------------------------|
- * | xs   | 8    | small             | badges, tags, skeleton blocks, inset elements        |
- * | sm   | 12   | control           | segmented indicator, snackbar, inset option rows     |
- * | md   | 16   | button, field     | every button size, every text field, segmented track |
- * | lg   | 20   | card              | cards, groups, illustrated panels                    |
- * | xl   | 28   | sheet             | sheet top corners, dialogs                           |
- * | pill | full | pill              | chips, switch track and thumb, avatars               |
+ * | Step | dp   | Name(s)                 | Used by                                              |
+ * |------|------|-------------------------|------------------------------------------------------|
+ * | xs   | 8    | small                   | badges, tags, skeleton blocks, segmented indicator   |
+ * | sm   | 12   | control, button, field  | every button, every text field, segmented track, snackbar |
+ * | md   | 16   | card                    | cards, groups, illustrated panels                    |
+ * | lg   | 24   | sheet                   | sheet top corners, dialogs                           |
+ * | pill | full | pill                    | chips, switch track and thumb, avatars               |
  *
  * `sm`..`xl` at the bottom are v1.x aliases kept only so older screens compile; new code uses the
  * functional names above.
  */
 object HqRadius {
-    /** xs (8): small status badges, inset elements. */
+    /** xs (8): small status badges, inset elements, segmented indicator. */
     val small: Dp = 8.dp
-    /** sm (12): segmented indicator, snackbar, inset option rows. */
+    /** sm (12): segmented track, snackbar, inset option rows. */
     val control: Dp = 12.dp
     /** Floating bottom navigation pill (Figma radius 22). */
     val navPill: Dp = 22.dp
-    /** md (16): every button, at every size -- one corner for every button in the app. */
-    val button: Dp = 16.dp
-    /** lg (20): main cards, intent cards, contextual summaries. */
-    val card: Dp = 20.dp
-    /** xl (28): top corners of Android sheets and the dialog surface. */
-    val sheet: Dp = 28.dp
-    /** md (16): text fields -- deliberately identical to [button] so a field and its submit button match. */
-    val field: Dp = 16.dp
+    /** sm (12): every button, at every size -- one corner for every button in the app. */
+    val button: Dp = 12.dp
+    /** md (16): main cards, intent cards, contextual summaries. */
+    val card: Dp = 16.dp
+    /** lg (24): top corners of Android sheets and the dialog surface. */
+    val sheet: Dp = 24.dp
+    /** sm (12): text fields -- deliberately identical to [button] so a field and its submit button match. */
+    val field: Dp = 12.dp
     /** Avatar circles, chips, switch, segmented indicators. */
     val pill: Dp = 9999.dp
 

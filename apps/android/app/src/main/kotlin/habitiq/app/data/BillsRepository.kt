@@ -58,6 +58,8 @@ class BillsRepository(
         memberUids: List<String>
     ): Result<Unit> = runCatching {
         val month = currentMonthKey()
+        // Already started this month: a second start would add a duplicate instance and move the rotation twice.
+        if (bill.lastGeneratedMonth == month) return@runCatching
         val participants = bill.participants?.takeIf { it.isNotEmpty() } ?: bill.rotationQueue.ifEmpty { memberUids }
         val payer = bill.rotationQueue.getOrElse(bill.currentPayerIndex % bill.rotationQueue.size.coerceAtLeast(1)) { adminUid }
         val finalAmount = if (bill.isVariable) amount else bill.amount

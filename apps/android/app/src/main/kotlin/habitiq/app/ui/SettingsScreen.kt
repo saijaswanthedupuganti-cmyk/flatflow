@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -50,6 +49,7 @@ fun SettingsScreen(
     onAccountDeleted: () -> Unit
 ) {
     var showConfirmDialog by remember { mutableStateOf(false) }
+    var showSignOutConfirm by remember { mutableStateOf(false) }
     val deleteState by viewModel.deleteState.collectAsStateWithLifecycleCompat()
     val context = LocalContext.current
     val prefs = remember { AppPreferences(context) }
@@ -71,7 +71,7 @@ fun SettingsScreen(
             modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
         )
         Column(Modifier.verticalScroll(rememberScrollState()).padding(horizontal = HqSpacing.screenHorizontal)) {
-            Text(user?.email ?: "unknown", style = HqType.bodyMedium, color = c.textSecondary)
+            user?.email?.takeIf { it.isNotBlank() }?.let { Text(it, style = HqType.bodyMedium, color = c.textSecondary) }
             Spacer(Modifier.height(HqSpacing.lg))
             habitiq.app.ui.components.HqSettingRow(
                 title = "Biometric lock",
@@ -112,7 +112,7 @@ fun SettingsScreen(
                 )
             }
             Spacer(Modifier.height(HqSpacing.xl))
-            habitiq.app.ui.components.HqDangerSoftButton("Log out", onSignOut)
+            habitiq.app.ui.components.HqDangerSoftButton("Log out", { showSignOutConfirm = true })
             when (val current = deleteState) {
                 is DeleteAccountState.Deleting -> {
                     Spacer(Modifier.height(HqSpacing.md))
@@ -134,6 +134,18 @@ fun SettingsScreen(
             confirmLabel = "Delete account",
             onConfirm = { showConfirmDialog = false; viewModel.deleteAccount() },
             onDismiss = { showConfirmDialog = false },
+        )
+    }
+    if (showSignOutConfirm) {
+        HqConfirmDialog(
+            title = "Log out of Oddroof?",
+            message = "You'll need to log in again to use Oddroof.",
+            confirmLabel = "Log out",
+            onConfirm = {
+                showSignOutConfirm = false
+                onSignOut()
+            },
+            onDismiss = { showSignOutConfirm = false },
         )
     }
 }

@@ -18,7 +18,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -27,21 +26,26 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import habitiq.app.ui.theme.HqIconSize
+import habitiq.app.ui.theme.HqShadow
+import habitiq.app.ui.theme.HqShapes
+import habitiq.app.ui.theme.HqSize
+import habitiq.app.ui.theme.HqSpacing
 import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
+import habitiq.app.ui.theme.hqShadow
 
 /**
- * Figma search row: a 44dp bordered search field and a Filters button. The field is a real text input here
- * (Discover filters by typed area), and the button carries a count badge when filters are active.
+ * Figma search row: a 48dp bordered search field and a Filters button. The field is a real text input here
+ * (Discover filters by typed area), and the button carries a count badge when filters are active. Below
+ * 360dp, or at large font sizes, the button drops its label and keeps the icon, badge and spoken name.
  */
 @Composable
 fun HqSearchBar(
@@ -53,13 +57,16 @@ fun HqSearchBar(
     modifier: Modifier = Modifier,
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(13.dp)
+    val shape = HqShapes.control
     val searchFocus = androidx.compose.ui.platform.LocalFocusManager.current
-    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    val compact = androidx.compose.ui.platform.LocalConfiguration.current.screenWidthDp < 360 ||
+        androidx.compose.ui.platform.LocalDensity.current.fontScale >= 1.5f
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
         Row(
-            Modifier.weight(1f).heightIn(min = 48.dp).clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape).padding(horizontal = 12.dp, vertical = 10.dp),
+            Modifier.weight(1f).heightIn(min = HqSize.target).clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
+                .padding(horizontal = HqSpacing.md, vertical = HqSpacing.sm),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm),
         ) {
             Icon(HqIcons.Search, null, tint = c.textMuted, modifier = Modifier.size(HqIconSize.sm))
             Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
@@ -75,18 +82,23 @@ fun HqSearchBar(
         }
         Box {
             Row(
-                Modifier.heightIn(min = 48.dp).clip(shape).background(if (activeFilters > 0) c.selectedBg else c.surfaceBase)
+                Modifier.heightIn(min = HqSize.target).defaultMinSize(minWidth = HqSize.target).clip(shape)
+                    .background(if (activeFilters > 0) c.selectedBg else c.surfaceBase)
                     .border(1.dp, if (activeFilters > 0) c.selectedBorder else c.borderSubtle, shape)
-                    .clickable(role = Role.Button, onClick = onFilters).padding(horizontal = 12.dp),
+                    .clickable(role = Role.Button, onClick = onFilters)
+                    .semantics { contentDescription = if (activeFilters > 0) "Filters, $activeFilters on" else "Filters" }
+                    .padding(horizontal = HqSpacing.md),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(HqSpacing.xs, Alignment.CenterHorizontally),
             ) {
                 Icon(HqIcons.Filter, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.sm))
-                Text("Filters", style = HqType.labelMedium, color = c.textPrimary, fontWeight = FontWeight.Bold)
+                if (!compact) {
+                    Text("Filters", style = HqType.labelMedium, color = c.textPrimary, fontWeight = FontWeight.Bold, modifier = Modifier.clearAndSetSemantics { })
+                }
             }
             if (activeFilters > 0) {
                 Box(
-                    Modifier.align(Alignment.TopEnd).padding(top = 0.dp).size(18.dp).clip(CircleShape).background(c.actionPrimaryBg),
+                    Modifier.align(Alignment.TopEnd).size(18.dp).clip(CircleShape).background(c.actionPrimaryBg).clearAndSetSemantics { },
                     contentAlignment = Alignment.Center,
                 ) { Text("$activeFilters", style = HqType.labelSmall, color = c.actionPrimaryFg, fontWeight = FontWeight.Bold) }
             }
@@ -97,24 +109,24 @@ fun HqSearchBar(
 /** One horizontally scrolling row of chips, as in the Figma Discover quick filters. */
 @Composable
 fun HqChipRow(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm), verticalAlignment = Alignment.CenterVertically) {
         content()
     }
 }
 
-/** Figma inbox button: a rounded square with a message glyph and an optional coral count. */
+/** Figma inbox button: a rounded square with a message glyph and an optional count in the alert colour. */
 @Composable
 fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(14.dp)
+    val shape = HqShapes.control
     // The ripple is clipped to the visible rounded tile, never a bare grey square.
     Box(modifier.size(48.dp).semantics { contentDescription = if (count > 0) "Connections, $count new" else "Connections" }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape).hqPressable(onClick = onClick), contentAlignment = Alignment.Center) {
             Icon(HqIcons.Message, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md))
         }
         if (count > 0) {
-            Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 0.dp).size(18.dp).clip(CircleShape).background(c.brandCoral), contentAlignment = Alignment.Center) {
-                Text("$count", style = HqType.labelSmall, color = Color.White, fontWeight = FontWeight.Bold)
+            Box(Modifier.align(Alignment.TopEnd).padding(top = HqSpacing.xs / 2).size(18.dp).clip(CircleShape).background(c.actionDangerBg), contentAlignment = Alignment.Center) {
+                Text("$count", style = HqType.labelSmall, color = c.actionDangerFg, fontWeight = FontWeight.Bold)
             }
         }
     }
@@ -124,8 +136,8 @@ fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier
 @Composable
 fun HqHeaderIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, contentDescription: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(14.dp)
-    Box(modifier.size(48.dp), contentAlignment = Alignment.Center) {
+    val shape = HqShapes.control
+    Box(modifier.size(HqSize.target), contentAlignment = Alignment.Center) {
         Box(
             Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape)
                 .hqPressable(onClick = onClick)
@@ -136,8 +148,8 @@ fun HqHeaderIconButton(icon: androidx.compose.ui.graphics.vector.ImageVector, co
 }
 
 /**
- * Figma `.listing-card` frame: a rounded 22dp card with a photo slot on top and a padded body below.
- * [photo] fills the slot; [badges] sits over the photo (photo count, "Listed today").
+ * Figma `.listing-card` frame: a card-radius card with a photo slot on top and a padded body below.
+ * [photo] fills the slot and can layer controls over it (the saved heart, a photo count).
  */
 @Composable
 fun HqListingFrame(
@@ -148,15 +160,15 @@ fun HqListingFrame(
     body: @Composable () -> Unit,
 ) {
     val c = LocalHqColors.current
-    val shape = RoundedCornerShape(22.dp)
+    val shape = HqShapes.card
     Column(
         modifier.fillMaxWidth()
-            .shadow(4.dp, shape, ambientColor = c.textPrimary.copy(alpha = .07f), spotColor = c.textPrimary.copy(alpha = .07f))
+            .hqShadow(HqShadow.Floating, shape)
             .clip(shape).background(c.surfaceBase).border(1.dp, c.borderSubtle, shape)
             .hqPressable(onClick = onClick),
     ) {
         Box(Modifier.fillMaxWidth().height(photoHeight.dp).background(c.selectedBg)) { photo() }
-        Column(Modifier.padding(15.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) { body() }
+        Column(Modifier.padding(HqSpacing.lg), verticalArrangement = Arrangement.spacedBy(HqSpacing.sm)) { body() }
     }
 }
 

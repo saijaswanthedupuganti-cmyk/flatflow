@@ -64,6 +64,8 @@ fun TasksScreen(
     val isAdmin by viewModel.isAdmin.collectAsStateWithLifecycleCompat()
     val currentMember by viewModel.currentMember.collectAsStateWithLifecycleCompat()
     val triggerAdd by viewModel.showAddTaskTrigger.collectAsStateWithLifecycleCompat()
+    val loading by viewModel.loading.collectAsStateWithLifecycleCompat()
+    val loadError by viewModel.loadError.collectAsStateWithLifecycleCompat()
     val haptics = LocalHapticFeedback.current
 
     var scope by remember(isAdmin) { mutableStateOf(if (isAdmin) TaskScope.All else TaskScope.Mine) }
@@ -97,6 +99,9 @@ fun TasksScreen(
                     }
                 },
                 onCreateTask = onOpenCreateTask,
+                loading = loading,
+                loadFailed = loadError,
+                onRetry = { viewModel.refresh() },
                 header = header ?: {},
             )
         }

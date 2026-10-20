@@ -60,7 +60,7 @@ import habitiq.app.ui.theme.hqColorSpec
  * The one text input (design doc section 21).
  *
  * - A real label sits above the field (never a floating or placeholder-only label).
- * - 56dp minimum, 16dp radius (same as buttons), visible 1dp control border (3:1) at rest.
+ * - 56dp minimum, 12dp radius (same as buttons), visible 1dp control border (3:1) at rest.
  * - Focus: the border animates to 2dp in the focus colour on the fast colour tween.
  * - Error: red border + an inline row with an error icon and the message under the field; the
  *   message is announced politely and attached to the field for TalkBack.

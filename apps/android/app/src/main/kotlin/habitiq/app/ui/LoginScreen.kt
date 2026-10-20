@@ -43,7 +43,7 @@ import habitiq.app.ui.components.HqBottomSheet
 import habitiq.app.auth.launchGoogleSignIn
 import habitiq.app.auth.mapAuthError
 import habitiq.app.ui.components.HqButton
-import habitiq.app.ui.components.HqButtonVariant
+
 import habitiq.app.ui.components.HqInlineError
 import habitiq.app.ui.components.HqInlineInfo
 import habitiq.app.ui.components.HqInlineLoading
@@ -91,7 +91,7 @@ fun LoginScreen(
             Spacer(Modifier.height(HqSpacing.lg))
             Text("Welcome back", style = HqType.headlineLarge, color = c.textPrimary)
             Text(
-                "Log in to see your flat.",
+                "Log in to see your flat. $OddroofValueSentence",
                 style = HqType.bodyMedium,
                 color = c.textSecondary,
                 modifier = Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.xxxl)
@@ -114,7 +114,6 @@ fun LoginScreen(
                         }
                     }
                 },
-                variant = HqButtonVariant.Secondary,
                 enabled = state !is AuthUiState.Loading,
             )
             Spacer(Modifier.height(HqSpacing.lg))

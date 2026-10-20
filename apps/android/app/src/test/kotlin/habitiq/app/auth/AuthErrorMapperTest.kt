@@ -34,7 +34,7 @@ class AuthErrorMapperTest {
     @Test
     fun `weak password maps to plain weak password message`() {
         val exception = FirebaseAuthWeakPasswordException("ERROR_WEAK_PASSWORD", "weak", "PASSWORD_DOES_NOT_MEET_REQUIREMENTS")
-        assertEquals("Password is too weak — use at least 6 characters.", mapAuthError(exception))
+        assertEquals("Password is too weak. Use at least 8 characters with a letter, a number and a special character.", mapAuthError(exception))
     }
 
     @Test

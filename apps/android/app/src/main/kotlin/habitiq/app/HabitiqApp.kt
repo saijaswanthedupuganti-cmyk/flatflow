@@ -579,7 +579,7 @@ fun HabitiqApp() {
                                             tasksOverlay = null
                                             selectedTab = AppTab.TASKS
                                             manageAreaName = ManageFlatArea.TASKS.name
-                                            snackbarController.show("Task added")
+                                            snackbarController.show("Task added", actionLabel = "Undo") { flatViewModel.undoLastAddedTask() }
                                         }
                                     )
                                     else -> if (k.taskId != null) {
@@ -608,24 +608,27 @@ fun HabitiqApp() {
                                         }
                                     } else {
                                         val manageArea = runCatching { ManageFlatArea.valueOf(manageAreaName) }.getOrDefault(ManageFlatArea.HUB)
-                                        // Figma: one global "Quick add" behind the raised plus on every tab. Flat
-                                        // actions appear only when the person is in a flat; tasks only for admins.
+                                        // The plus adds flat things everywhere except Discover, where it posts to
+                                        // Discover; mixing both in one menu confused testers (18 Oct). Flat actions
+                                        // appear only in a flat; tasks and bills only for admins. The menu reads
+                                        // bottom-up from the button, so the most used action (expense) goes last.
                                         val inFlat = flatInfo != null
+                                        val onDiscover = selectedTab == AppTab.DISCOVER
                                         val createOptions = buildList {
-                                            if (inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "add_task" })
-                                            if (inFlat) add(CreateOption("Add expense") {
+                                            if (!onDiscover && inFlat && shellIsAdmin) add(CreateOption("Add bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
+                                            if (!onDiscover && inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "add_task" })
+                                            if (!onDiscover && inFlat) add(CreateOption("Add expense") {
                                                 selectedTab = AppTab.TASKS
                                                 manageAreaName = ManageFlatArea.EXPENSES.name
                                                 flatViewModel.expenseScopeMonthly.value = false
                                                 flatViewModel.showAddExpenseTrigger.value = true
                                             })
-                                            if (inFlat && shellIsAdmin) add(CreateOption("Add bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
                                             // Any member can post a vacancy; a member's post waits for admin approval.
-                                            if (inFlat) add(CreateOption("List a room") {
+                                            if (onDiscover && inFlat) add(CreateOption("List a room") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "VACANCY"; discoverOpenCreate = true
                                             })
-                                            if (DiscoverFlags.LOOKING_POSTS) add(CreateOption("I'm looking for a room") {
+                                            if (onDiscover && DiscoverFlags.LOOKING_POSTS) add(CreateOption("I'm looking for a room") {
                                                 selectedTab = AppTab.DISCOVER
                                                 discoverCreateType = "LOOKING"; discoverOpenCreate = true
                                             })

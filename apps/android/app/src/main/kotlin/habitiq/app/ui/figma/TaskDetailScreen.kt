@@ -211,7 +211,7 @@ fun TaskDetailScreen(
     if (swapOpen) {
         val candidates = members.filter { it.uid != currentUid && it.status != "out_of_station" }
         var picked by remember { mutableStateOf(candidates.firstOrNull()?.uid) }
-        HqBottomSheet(onDismiss = { swapOpen = false }, title = "Request a swap") {
+        HqBottomSheet(onDismiss = { swapOpen = false }, title = "Swap turn") {
             Text("Choose someone available for this turn.", style = HqType.bodyMedium, color = c.textSecondary, modifier = Modifier.padding(bottom = HqSpacing.md))
             candidates.forEach { m ->
                 val selected = picked == m.uid
@@ -232,7 +232,7 @@ fun TaskDetailScreen(
                 Icon(HqIcons.Clock, null, tint = c.textSecondary, modifier = Modifier.size(HqIconSize.sm))
                 Text("The task stays yours until a flatmate accepts. Turns change only after that.", style = HqType.bodyMedium, color = c.textSecondary)
             }
-            HqButton(text = "Send swap request", enabled = picked != null, onClick = { picked?.let { onRequestSwap(it) }; swapOpen = false })
+            HqButton(text = "Swap turn", enabled = picked != null, onClick = { picked?.let { onRequestSwap(it) }; swapOpen = false })
             Spacer(Modifier.height(HqSpacing.xxl))
         }
     }

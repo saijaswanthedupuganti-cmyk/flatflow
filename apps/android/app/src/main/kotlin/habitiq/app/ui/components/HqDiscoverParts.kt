@@ -120,7 +120,7 @@ fun HqInboxButton(count: Int, onClick: () -> Unit, modifier: Modifier = Modifier
     val c = LocalHqColors.current
     val shape = HqShapes.control
     // The ripple is clipped to the visible rounded tile, never a bare grey square.
-    Box(modifier.size(48.dp).semantics { contentDescription = if (count > 0) "Connections, $count new" else "Connections" }, contentAlignment = Alignment.Center) {
+    Box(modifier.size(48.dp).semantics { contentDescription = if (count > 0) "Requests, $count new" else "Requests" }, contentAlignment = Alignment.Center) {
         Box(Modifier.size(42.dp).clip(shape).background(c.surfaceBase).border(BorderStroke(1.dp, c.borderSubtle), shape).hqPressable(onClick = onClick), contentAlignment = Alignment.Center) {
             Icon(HqIcons.Message, null, tint = c.textPrimary, modifier = Modifier.size(HqIconSize.md))
         }

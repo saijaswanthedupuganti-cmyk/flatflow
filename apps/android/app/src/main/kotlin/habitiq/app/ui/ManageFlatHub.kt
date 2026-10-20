@@ -86,7 +86,8 @@ fun ManageFlatHub(
         Column {
             HqPageHeader(title = "Your flat", subtitle = "Tasks, expenses and bills for everyone in your flat.")
             HqManageSwitch(
-                options = listOf("Tasks" to HqIcons.Check, "Expenses" to HqIcons.Receipt),
+                // "Money" so the word "Expenses" appears once, in the Expenses | Bills switch below it.
+                options = listOf("Tasks" to HqIcons.Check, "Money" to HqIcons.Receipt),
                 selectedIndex = if (onExpenses) 1 else 0,
                 onSelect = { onAreaChange(if (it == 1) ManageFlatArea.EXPENSES else ManageFlatArea.TASKS) },
                 modifier = Modifier.padding(bottom = HqSpacing.xxl),

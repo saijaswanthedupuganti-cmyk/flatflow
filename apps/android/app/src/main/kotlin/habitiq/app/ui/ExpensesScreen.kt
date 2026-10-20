@@ -127,12 +127,13 @@ fun ExpensesScreen(
                     splitType = if (d.customSplits == null) "equal" else "custom",
                     customSplits = d.customSplits,
                     paidBy = d.paidBy,
+                    date = d.date,
                     onDone = done,
                 )
             },
             onSaved = {
                 showAdd = false
-                snackbar?.show("Expense added")
+                snackbar?.show("Expense added", actionLabel = "Undo") { viewModel.undoLastAddedExpense() }
             }
         )
         return
@@ -252,6 +253,7 @@ data class ExpenseDraft(
     val category: String,
     val customSplits: Map<String, Double>?,
     val paidBy: String,
+    val date: java.time.LocalDate = java.time.LocalDate.now(),
 )
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -276,6 +278,7 @@ fun AddExpenseForm(
     var picked by rememberSaveable { mutableStateOf<Set<String>?>(null) }
     var customAmounts by rememberSaveable { mutableStateOf(mapOf<String, String>()) }
     var category by rememberSaveable { mutableStateOf("Other") }
+    var spentOn by rememberSaveable { mutableStateOf(java.time.LocalDate.now().toString()) }
     var amountError by remember { mutableStateOf<String?>(null) }
     var descError by remember { mutableStateOf<String?>(null) }
     var splitError by remember { mutableStateOf<String?>(null) }
@@ -320,7 +323,8 @@ fun AddExpenseForm(
         val custom = if (equalSplit) null else split.associateWith { (lenientPaise(customAmounts[it].orEmpty()) ?: 0L) / 100.0 }
         saving = true
         saveError = null
-        onSubmit(ExpenseDraft(desc.trim(), totalPaise / 100.0, split, category.lowercase(), custom, paidBy)) { ok ->
+        val day = runCatching { java.time.LocalDate.parse(spentOn) }.getOrDefault(java.time.LocalDate.now())
+        onSubmit(ExpenseDraft(desc.trim(), totalPaise / 100.0, split, category.lowercase(), custom, paidBy, day)) { ok ->
             saving = false
             if (ok) onSaved() else saveError = "Unable to add the expense. Check your connection and try again."
         }
@@ -348,6 +352,15 @@ fun AddExpenseForm(
                 errorText = descError,
                 imeAction = ImeAction.Done,
                 modifier = Modifier.focusRequester(descFocus),
+            )
+            habitiq.app.ui.components.HqDateField(
+                value = spentOn,
+                onValueChange = { spentOn = it },
+                label = "Date",
+                placeholder = "Today",
+                todayLabel = "Today",
+                allowPast = true,
+                clearable = false,
             )
             FormGroup("Paid by") {
                 HqChipFlow {

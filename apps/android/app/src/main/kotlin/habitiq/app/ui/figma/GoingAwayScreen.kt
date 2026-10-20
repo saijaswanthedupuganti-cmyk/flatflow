@@ -98,14 +98,14 @@ fun GoingAwayScreen(viewModel: FlatViewModel, onBack: () -> Unit, onSent: () -> 
                 .padding(HqSpacing.xl)
         ) {
             HqButton(
-                text = "Send Requests",
+                text = "Send requests",
                 enabled = allAssigned && availableMembers.isNotEmpty(),
                 onClick = {
                     viewModel.sendGoingAwayRequests(selections)
                     onSent()
                 }
             )
-            HqTextButton(text = "Cancel & Return", onClick = onBack, modifier = Modifier.fillMaxWidth())
+            HqTextButton(text = "Cancel", onClick = onBack, modifier = Modifier.fillMaxWidth())
         }
     }
 }

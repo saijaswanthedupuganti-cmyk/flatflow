@@ -457,7 +457,7 @@ private fun QuickAddCard(option: CreateOption, modifier: Modifier = Modifier, on
 private data class QuickAddLook(val icon: ImageVector, val tone: HqTileTone, val support: String?, val title: String? = null)
 
 private fun quickAddLook(label: String): QuickAddLook = when {
-    label.contains("task", ignoreCase = true) -> QuickAddLook(HqIcons.Check, HqTileTone.Teal, "A chore for you or your flatmates", "Add task")
+    label.contains("task", ignoreCase = true) -> QuickAddLook(HqIcons.Check, HqTileTone.Teal, "Something you or a flatmate needs to do", "Add task")
     label.contains("expense", ignoreCase = true) -> QuickAddLook(HqIcons.Receipt, HqTileTone.Sand, "Split something you paid for", "Add expense")
     label.contains("bill", ignoreCase = true) -> QuickAddLook(HqIcons.Clock, HqTileTone.Coral, "Rent, Wi-Fi or anything paid every month", "Add bill")
     label.contains("vacancy", ignoreCase = true) || label.contains("list a room", ignoreCase = true) ->

@@ -52,9 +52,9 @@ class TasksRepository(
         queueOrder: List<String>,
         dueDate: String,
         adminId: String,
-        notes: String = ""
+        notes: String = "",
+        taskId: String = "t-${UUID.randomUUID()}"
     ): Result<Unit> = runCatching {
-        val taskId = "t-${UUID.randomUUID()}"
         val assignee = queueOrder.firstOrNull() ?: adminId
         val task = FlatTask(
             taskId = taskId,

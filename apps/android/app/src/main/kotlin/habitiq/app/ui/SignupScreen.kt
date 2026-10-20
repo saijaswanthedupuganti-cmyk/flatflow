@@ -42,7 +42,7 @@ import habitiq.app.auth.SignupViewModel
 import habitiq.app.auth.launchGoogleSignIn
 import habitiq.app.auth.mapAuthError
 import habitiq.app.ui.components.HqButton
-import habitiq.app.ui.components.HqButtonVariant
+
 import habitiq.app.ui.components.HqInlineError
 import habitiq.app.ui.components.HqInlineLoading
 import habitiq.app.ui.components.HqTextButton
@@ -76,6 +76,15 @@ fun SignupScreen(
     val hasMinLength = password.length >= 8
     val hasLetterAndNumber = password.any(Char::isLetter) && password.any(Char::isDigit)
     val hasSpecial = password.any { !it.isLetterOrDigit() }
+    var formError by remember { mutableStateOf<String?>(null) }
+    fun submit() {
+        formError = when {
+            email.isBlank() -> "Enter your email address."
+            !(hasMinLength && hasLetterAndNumber && hasSpecial) -> "Your password needs everything in the list above."
+            else -> null
+        }
+        if (formError == null) viewModel.signUpWithEmail(email, password)
+    }
     Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -111,7 +120,6 @@ fun SignupScreen(
                         }
                     }
                 },
-                variant = HqButtonVariant.Secondary,
                 enabled = state !is AuthUiState.Loading,
             )
             Spacer(Modifier.height(HqSpacing.lg))
@@ -135,9 +143,7 @@ fun SignupScreen(
                 leadingIcon = Icons.Filled.Lock,
                 contentType = ContentType.NewPassword,
                 imeAction = ImeAction.Done,
-                onImeAction = if (state !is AuthUiState.Loading && email.isNotBlank() && hasMinLength && hasLetterAndNumber && hasSpecial) {
-                    { viewModel.signUpWithEmail(email, password) }
-                } else null,
+                onImeAction = { if (state !is AuthUiState.Loading) submit() },
             )
             Spacer(Modifier.height(HqSpacing.md))
             PasswordRequirement("At least 8 characters", hasMinLength)
@@ -147,8 +153,9 @@ fun SignupScreen(
 
             HqButton(
                 text = "Create account",
-                onClick = { viewModel.signUpWithEmail(email, password) },
-                enabled = state !is AuthUiState.Loading && email.isNotBlank() && hasMinLength && hasLetterAndNumber && hasSpecial,
+                onClick = { submit() },
+                // Never disabled for missing input: tapping says what's missing (WORDS.md).
+                enabled = state !is AuthUiState.Loading,
             )
             Spacer(Modifier.height(HqSpacing.md))
             HqTextButton(
@@ -157,6 +164,7 @@ fun SignupScreen(
                 modifier = Modifier.align(Alignment.CenterHorizontally),
             )
             Spacer(Modifier.height(HqSpacing.lg))
+            formError?.takeIf { state !is AuthUiState.Loading }?.let { HqInlineError(it) }
             when (val current = state) {
                 is AuthUiState.Loading -> HqInlineLoading(label = "Creating account…")
                 is AuthUiState.Error -> HqInlineError(current.message)

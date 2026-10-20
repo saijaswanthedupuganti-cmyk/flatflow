@@ -167,7 +167,7 @@ fun TrustConsentDialog(
 ) {
     HqConfirmDialog(
         title = "How Oddroof uses your activity",
-        message = "We can use chore completion, expense settlement and dispute history to show a qualitative Oddroof trust tag — never a percentage. You can stay Unrated.",
+        message = "We can use task completion, expense settlement and dispute history to show a qualitative Oddroof trust tag — never a percentage. You can stay Unrated.",
         confirmLabel = "Allow",
         onConfirm = onAllow,
         onDismiss = onNotNow,

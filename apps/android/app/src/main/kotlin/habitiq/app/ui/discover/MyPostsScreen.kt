@@ -65,7 +65,7 @@ fun MyPostsScreen(
     var tab by remember { mutableStateOf("active") }
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         habitiq.app.ui.components.HqPageHeader(
-            title = "My Posts",
+            title = "My posts",
             subtitle = "Manage what people see in Discover",
             onBack = onBack,
             modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),

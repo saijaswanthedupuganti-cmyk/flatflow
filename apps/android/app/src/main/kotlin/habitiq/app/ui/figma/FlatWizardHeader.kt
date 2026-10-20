@@ -61,10 +61,10 @@ private fun FlatWizardHeader(currentStep: Int, totalSteps: Int, onBack: () -> Un
         }
         Spacer(Modifier.width(HqSpacing.sm))
         Text(
-            "Step $currentStep of $totalSteps",
+            "Create a flat · Step $currentStep of $totalSteps",
             color = c.textSecondary,
             style = HqType.labelMedium,
-            modifier = Modifier.semantics { contentDescription = "Step $currentStep of $totalSteps" },
+            modifier = Modifier.semantics { contentDescription = "Create a flat, step $currentStep of $totalSteps" },
         )
     }
 }

@@ -184,7 +184,16 @@ fun HomeContent(
 
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
             Column(Modifier.padding(horizontal = HqSpacing.sm).padding(bottom = HqSpacing.fabClearance)) {
-                TodayPanel(model, completingTaskId, onOpenTasks, onOpenTask, onCompleteTask)
+                // A flat with only you in it does nothing useful yet: inviting comes first (18 Oct test).
+                if (model.memberCount <= 1 && model.canInvite) {
+                    HqCalloutCard(
+                        title = "Invite your flatmates",
+                        support = "Share your invite code so you can split expenses and take turns on tasks.",
+                        icon = HqIcons.Users, tone = HqTileTone.Teal, onClick = onInvite,
+                        modifier = Modifier.padding(horizontal = HqSpacing.md).padding(bottom = HqSpacing.lg),
+                    )
+                }
+                TodayPanel(model, completingTaskId, onOpenTasks, onOpenTask, onCompleteTask, onAddTask)
 
                 if (model.pending.isNotEmpty()) {
                     Column(Modifier.padding(horizontal = HqSpacing.md)) {
@@ -434,6 +443,7 @@ private fun SummaryCard(model: HomeUiModel, onOpenExpenses: () -> Unit) {
 private fun TodayPanel(
     model: HomeUiModel, completingTaskId: String?,
     onOpenTasks: () -> Unit, onOpenTask: (String) -> Unit, onCompleteTask: (String) -> Unit,
+    onAddTask: () -> Unit,
 ) {
     val c = LocalHqColors.current
     val shape = HqShapes.card
@@ -455,7 +465,7 @@ private fun TodayPanel(
             }
         }
         if (model.tasks.isEmpty()) {
-            HomeEmptyTasks()
+            HomeEmptyTasks(onAddTask = onAddTask.takeIf { model.isAdmin })
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 model.tasks.forEach { task ->
@@ -479,9 +489,9 @@ private fun TodayPanel(
     }
 }
 
-/** Nothing assigned: a calm note with the clipboard illustration, no call to action. */
+/** Nothing assigned: a calm note with the clipboard illustration; admins also get "Add task" as the next step. */
 @Composable
-private fun HomeEmptyTasks() {
+private fun HomeEmptyTasks(onAddTask: (() -> Unit)?) {
     val c = LocalHqColors.current
     val shape = HqShapes.card
     Column(
@@ -496,6 +506,12 @@ private fun HomeEmptyTasks() {
             textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             modifier = Modifier.padding(top = 6.dp),
         )
+        if (onAddTask != null) {
+            HqButton(
+                text = "Add task", onClick = onAddTask, variant = HqButtonVariant.Secondary,
+                modifier = Modifier.padding(top = HqSpacing.lg),
+            )
+        }
     }
 }
 

@@ -65,7 +65,7 @@ fun SettingsScreen(
 
     Column(Modifier.fillMaxSize().background(c.canvas)) {
         habitiq.app.ui.components.HqPageHeader(
-            title = "Privacy & Security",
+            title = "Privacy and security",
             subtitle = "App lock, policies and your account",
             onBack = onBack,
             modifier = Modifier.padding(horizontal = HqSpacing.screenHorizontal).padding(top = HqSpacing.sm),
@@ -130,7 +130,7 @@ fun SettingsScreen(
     if (showConfirmDialog) {
         HqConfirmDialog(
             title = "Delete your account?",
-            message = "This permanently deletes your account and removes you from every flat you're in. Your tasks pass to the next person in each rotation. It can't be undone.",
+            message = "This permanently deletes your account and removes you from every flat you're in. Your turns on tasks pass to the next person. It can't be undone.",
             confirmLabel = "Delete account",
             onConfirm = { showConfirmDialog = false; viewModel.deleteAccount() },
             onDismiss = { showConfirmDialog = false },

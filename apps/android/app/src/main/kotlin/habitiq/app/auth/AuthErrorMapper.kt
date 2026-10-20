@@ -18,7 +18,7 @@ fun mapAuthError(exception: Exception): String = when (exception) {
     is FirebaseAuthRecentLoginRequiredException -> "Please sign out and sign back in, then try deleting your account again."
     // FirebaseAuthWeakPasswordException is a subclass of FirebaseAuthInvalidCredentialsException
     // in the real SDK, so it must be checked first or it's caught by the parent branch below.
-    is FirebaseAuthWeakPasswordException -> "Password is too weak — use at least 6 characters."
+    is FirebaseAuthWeakPasswordException -> "Password is too weak. Use at least 8 characters with a letter, a number and a special character."
     is FirebaseAuthInvalidCredentialsException -> "Incorrect email or password."
     is FirebaseAuthInvalidUserException -> "No account found with this email."
     is FirebaseAuthUserCollisionException -> "An account already exists with this email."
@@ -36,7 +36,7 @@ fun mapAuthError(exception: Exception): String = when (exception) {
 
 /** Forgot-password failures. Sign-in wording ("Incorrect email or password") makes no sense here. */
 fun mapResetError(exception: Exception): String = when (exception) {
-    is FirebaseAuthInvalidUserException -> "No account uses that email. Check the spelling, or sign up instead."
+    is FirebaseAuthInvalidUserException -> "No account uses that email. Check the spelling, or create an account instead."
     is FirebaseAuthInvalidCredentialsException -> "That email address doesn't look right. Check it and try again."
     is FirebaseNetworkException, is IOException -> "No internet connection. Connect and try again."
     is FirebaseTooManyRequestsException -> "Too many reset requests. Wait a few minutes, then try again."

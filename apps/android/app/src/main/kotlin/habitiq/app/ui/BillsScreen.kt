@@ -116,7 +116,7 @@ fun BillsScreen(
             onSubmit = { d, done ->
                 viewModel.createRecurringBill(d.name, d.amount, d.billingDay, d.isVariable, members.map { it.uid }, onDone = done)
             },
-            onSaved = { showAddBill = false; snackbar?.show("Bill saved") },
+            onSaved = { showAddBill = false; snackbar?.show("Bill added") },
         )
         return
     }
@@ -631,7 +631,7 @@ fun AddBillForm(onBack: () -> Unit, onSubmit: (BillDraft, (Boolean) -> Unit) -> 
             verticalArrangement = Arrangement.spacedBy(HqSpacing.sm),
         ) {
             saveError?.let { HqInlineError(it) }
-            HqButton(text = "Save bill", loading = saving, onClick = { submit() })
+            HqButton(text = "Add bill", loading = saving, onClick = { submit() })
         }
     }
     if (confirmDiscard) {

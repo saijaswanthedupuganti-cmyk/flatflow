@@ -429,14 +429,35 @@ class FlatViewModel(
         val flat = _flatId.value ?: return onDone(false)
         val queue = if (participantUids.isNotEmpty()) participantUids else listOf(uid)
         val start = dueDate?.takeIf { it.isNotBlank() } ?: defaultDueDateIso(7)
+        val taskId = "t-${UUID.randomUUID()}"
         viewModelScope.launch {
             val result = tasksRepository.createTask(
                 flatId = flat, name = name, type = type, priority = priority,
-                frequency = frequency, queueOrder = queue, dueDate = start, adminId = uid, notes = notes
+                frequency = frequency, queueOrder = queue, dueDate = start, adminId = uid, notes = notes,
+                taskId = taskId
             )
             result.onFailure { _error.value = it.message ?: "Couldn't create the task." }
+            if (result.isSuccess) lastAddedTask = taskId to name.trim()
             onDone(result.isSuccess)
         }
+    }
+
+    /** The task and expense this person just added, so the "added" snackbar can offer Undo. */
+    private var lastAddedTask: Pair<String, String>? = null
+    private var lastAddedExpenseId: String? = null
+
+    fun undoLastAddedTask() {
+        val (taskId, name) = lastAddedTask ?: return
+        lastAddedTask = null
+        val uid = currentUser.value?.uid ?: return
+        val flat = _flatId.value ?: return
+        viewModelScope.launch { tasksRepository.deleteTask(flat, taskId, uid, name) }
+    }
+
+    fun undoLastAddedExpense() {
+        val expenseId = lastAddedExpenseId ?: return
+        lastAddedExpenseId = null
+        deleteExpense(expenseId)
     }
 
     fun deleteTask(task: FlatTask) {
@@ -454,6 +475,7 @@ class FlatViewModel(
         splitType: String = "equal",
         customSplits: Map<String, Double>? = null,
         paidBy: String? = null,
+        date: LocalDate = LocalDate.now(),
         onDone: (Boolean) -> Unit = {}
     ) {
         val uid = currentUser.value?.uid ?: return onDone(false)
@@ -474,11 +496,12 @@ class FlatViewModel(
             id = UUID.randomUUID().toString(), description = description.trim(), amount = amount,
             currency = currency, paidBy = payer, splitAmong = participants, splitType = splitType,
             splits = splits, category = category,
-            date = LocalDate.now().toString(), createdBy = uid
+            date = date.toString(), createdBy = uid
         )
         viewModelScope.launch {
             val result = expensesRepository.addExpense(flat, expense)
             result.onFailure { _error.value = it.message ?: "Couldn't add the expense." }
+            if (result.isSuccess) lastAddedExpenseId = expense.id
             onDone(result.isSuccess)
         }
     }

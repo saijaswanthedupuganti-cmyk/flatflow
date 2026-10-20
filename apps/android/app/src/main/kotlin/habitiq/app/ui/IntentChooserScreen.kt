@@ -127,7 +127,7 @@ fun WelcomeScreen(onNext: () -> Unit, onLogin: () -> Unit) {
             Row(Modifier.fillMaxWidth().defaultMinSize(minHeight = HqSize.target), verticalAlignment = Alignment.CenterVertically) {
                 HqWordmark(height = 26.dp, tint = c.onImage)
                 Spacer(Modifier.weight(1f))
-                HqTextButton(text = "Skip", onClick = onNext, color = c.onImage)
+                HqTextButton(text = "Skip", onClick = onLogin, color = c.onImage)
             }
             // The copy scrolls on its own if a very large font makes it taller than the space above the buttons.
             Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.BottomStart) {
@@ -257,13 +257,23 @@ fun IntentChooserScreen(
             Column(
                 Modifier.fillMaxSize().background(c.canvas).navigationBarsPadding()
                     .verticalScroll(rememberScrollState())
+                    .statusBarsPadding()
                     .padding(horizontal = HqSpacing.screenHorizontal, vertical = HqSpacing.xxl),
             ) {
+                HqWordmark()
+                Spacer(Modifier.height(HqSpacing.lg))
+                val firstName = userName.trim().substringBefore(' ')
+                Text(
+                    if (firstName.isNotEmpty()) "Hi $firstName, welcome to Oddroof" else "Welcome to Oddroof",
+                    style = HqType.headlineLarge, color = c.textPrimary,
+                    modifier = Modifier.semantics { heading() },
+                )
                 Text(
                     OddroofValueSentence, style = HqType.bodyMedium, color = c.textSecondary,
-                    modifier = Modifier.padding(bottom = HqSpacing.lg),
+                    modifier = Modifier.padding(top = HqSpacing.xs, bottom = HqSpacing.xxl),
                 )
                 StartChooser(
+
                     onFindFlat = { step = "findFlat" },
                     onFindPerson = { step = "findPerson" },
                     onCreateFlat = { onChoose(OnboardingIntent.MANAGE_FLAT) },

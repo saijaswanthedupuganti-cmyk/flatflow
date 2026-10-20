@@ -64,7 +64,7 @@ fun IntentChoices(
         IntentRow(HqIcons.Home, HqTileTone.Teal, "Create a flat", "Invite your flatmates to share tasks and expenses", onCreateFlat)
         IntentRow(HqIcons.Users, HqTileTone.Sand, "Join a flat", "Use the invite code from your flatmate", onJoinFlat)
         IntentRow(HqIcons.Search, HqTileTone.Coral, "Find a flat", "Browse rooms near you", onFindFlat)
-        IntentRow(HqIcons.Discover, HqTileTone.Neutral, "Find a flatmate", "List a room in your flat", onFindPerson)
+        IntentRow(HqIcons.Discover, HqTileTone.Neutral, "Find a flatmate", "See people looking for a room", onFindPerson)
     }
 }
 

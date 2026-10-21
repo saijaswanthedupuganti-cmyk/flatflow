@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
+import { useInviteCode } from '@/hooks/useInviteCode'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,6 +58,7 @@ export default function ProfilePage() {
   const router = useRouter()
   const { user, allFlats, flatId: authFlatId, switchFlat, logout } = useAuthStore()
   const { members, name: currentFlatName, flatId, resetFlatData, initFirestoreListeners, leaveFlat, transferAdmin, deleteFlat } = useFlatStore()
+  const inviteCode = useInviteCode(flatId)
 
   const { canInstall, isInstalled, isIOS, triggerInstall } = usePWA()
 
@@ -120,8 +122,8 @@ export default function ProfilePage() {
   }
 
   const handleCopyCode = () => {
-    if (!flatId) return
-    navigator.clipboard.writeText(flatId).then(() => {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
@@ -407,7 +409,7 @@ export default function ProfilePage() {
                 <div className="pt-2 border-t border-border space-y-2">
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Invite Code</p>
                   <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-3">
-                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1">{flatId || '—'}</code>
+                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1">{inviteCode || '—'}</code>
                     <button onClick={handleCopyCode}
                       className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground transition-colors shrink-0 cursor-pointer">
                       {copied ? <><Check size={13} className="text-green-500" /> Copied</> : <><Copy size={13} /> Copy</>}

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useFlatStore, Member } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useInviteCode } from '@/hooks/useInviteCode'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -57,6 +58,7 @@ export default function MembersPage() {
     name: flatName, flatId, joinMode, renameFlatAction, setJoinMode,
   } = useFlatStore()
   const { user } = useAuthStore()
+  const inviteCode = useInviteCode(flatId)
 
   const currentUserId   = user?.uid || 'u1'
   const currentMember   = members.find(m => m.uid === currentUserId)
@@ -98,11 +100,12 @@ export default function MembersPage() {
   }
 
   const handleCopyCode = () => {
-    if (!flatId) return
-    navigator.clipboard.writeText(flatId).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000) })
   }
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/onboarding?mode=join&code=${flatId}`
+    if (!inviteCode) return
+    const link = `${window.location.origin}/onboarding?mode=join&code=${inviteCode}`
     navigator.clipboard.writeText(link).then(() => { setCopiedLink(true); setTimeout(() => setCopiedLink(false), 2000) })
   }
   const handleSaveName = async () => {
@@ -367,7 +370,7 @@ export default function MembersPage() {
                 </CardHeader>
                 <CardContent className="space-y-2">
                   <div className="flex items-center gap-2 bg-secondary/50 border border-border rounded-xl px-3 py-2.5">
-                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1 min-w-0 truncate">{flatId || '—'}</code>
+                    <code className="text-lg font-mono font-bold text-primary tracking-widest flex-1 min-w-0 truncate">{inviteCode || '—'}</code>
                     <button onClick={handleCopyCode} className="text-muted-foreground hover:text-foreground transition-colors shrink-0" title="Copy code">
                       {copied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
                     </button>

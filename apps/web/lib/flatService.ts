@@ -183,6 +183,30 @@ export async function resolveInviteInput(raw: string): Promise<
   return flatId ? { kind: 'code', flatId, inviteCode: code } : { kind: 'not_found' }
 }
 
+/**
+ * The flat's invite code, created on first use. Mirrors Android FlatsRepository.inviteCodeFor: the code
+ * lives at flats/{id}/private/invite (members only) and inviteCodes/{code}; never on the flat doc.
+ */
+export async function getInviteCode(flatId: string, uid: string): Promise<string | null> {
+  if (!hasKeys || !db) return null
+  const privateRef = doc(db, `flats/${flatId}/private/invite`)
+  const existing = await getDoc(privateRef)
+  if (existing.exists() && typeof existing.data().code === 'string') return existing.data().code as string
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  const makeCode = () => {
+    const bytes = new Uint8Array(6)
+    crypto.getRandomValues(bytes)
+    return Array.from(bytes, (b) => chars[b % chars.length]).join('')
+  }
+  let code = makeCode()
+  for (let i = 0; i < 5 && (await getDoc(doc(db, `inviteCodes/${code}`))).exists(); i++) code = makeCode()
+  const batch = writeBatch(db)
+  batch.set(doc(db, `inviteCodes/${code}`), { flatId, createdBy: uid, createdAt: serverTimestamp() })
+  batch.set(privateRef, { code })
+  await batch.commit()
+  return code
+}
+
 /** Returns the join mode for a flat ('auto' or 'approval'). */
 export async function getFlatJoinMode(flatId: string): Promise<'auto' | 'approval'> {
   if (!hasKeys || !db) return 'auto'

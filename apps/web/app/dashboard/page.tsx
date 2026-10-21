@@ -3,6 +3,7 @@ import { useEffect, useState, useMemo, useRef } from 'react'
 import Link from 'next/link'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useInviteCode } from '@/hooks/useInviteCode'
 import { getPriorityWeight, getTaskUrgency, getTaskDateInfo, timeAgo } from '@/lib/rotationEngine'
 import { computeBalances, formatAmount } from '@/lib/expenseUtils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -71,6 +72,7 @@ export default function DashboardPage() {
     } catch { return new Set<string>() }
   })
   const { flatId } = useFlatStore()
+  const inviteCode = useInviteCode(flatId)
 
   useEffect(() => {
     checkOverdueTasks()
@@ -150,8 +152,8 @@ export default function DashboardPage() {
   }
 
   const handleCopyInvite = () => {
-    if (!flatId) return
-    navigator.clipboard.writeText(flatId).then(() => {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode).then(() => {
       setInviteCopied(true)
       setTimeout(() => setInviteCopied(false), 2000)
     })
@@ -280,7 +282,7 @@ export default function DashboardPage() {
             </div>
             <div className="flex items-center gap-3 bg-card border border-border rounded-xl px-4 py-2.5 shadow-sm">
               <code className="text-xl font-mono font-bold text-primary tracking-widest">
-                {flatId || 'FLAT-1234'}
+                {inviteCode || '······'}
               </code>
               <Button size="sm" variant="outline" onClick={handleCopyInvite} className="gap-1.5 shrink-0">
                 {inviteCopied ? <><Check size={14} className="text-green-500" /> Copied!</> : <><Copy size={14} /> Copy</>}

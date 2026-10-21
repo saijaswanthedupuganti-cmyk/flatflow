@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import { useFlatStore } from '@/store/useFlatStore'
 import { useAuthStore } from '@/store/useAuthStore'
+import { useInviteCode } from '@/hooks/useInviteCode'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import {
@@ -15,6 +16,7 @@ export default function ManageFlatPage() {
   const router = useRouter()
   const { flatId, name, joinMode, members, renameFlatAction, setJoinMode } = useFlatStore()
   const { user } = useAuthStore()
+  const inviteCode = useInviteCode(flatId)
 
   const currentMember = members.find(m => m.uid === user?.uid)
   const isAdmin = currentMember?.role === 'admin'
@@ -51,15 +53,16 @@ export default function ManageFlatPage() {
   const activeMembers = members.filter(m => m.status !== 'inactive')
 
   const handleCopyCode = () => {
-    if (!flatId) return
-    navigator.clipboard.writeText(flatId).then(() => {
+    if (!inviteCode) return
+    navigator.clipboard.writeText(inviteCode).then(() => {
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     })
   }
 
   const handleCopyLink = () => {
-    const link = `${window.location.origin}/onboarding?mode=join&code=${flatId}`
+    if (!inviteCode) return
+    const link = `${window.location.origin}/onboarding?mode=join&code=${inviteCode}`
     navigator.clipboard.writeText(link).then(() => {
       setCopiedLink(true)
       setTimeout(() => setCopiedLink(false), 2000)
@@ -179,7 +182,7 @@ export default function ManageFlatPage() {
           {/* Invite code */}
           <div className="flex items-center gap-3 bg-secondary/50 border border-border rounded-xl px-4 py-3">
             <code className="text-xl font-mono font-bold text-primary tracking-widest flex-1">
-              {flatId || 'FLAT-1234'}
+              {inviteCode || '······'}
             </code>
             <Button size="sm" variant="outline" onClick={handleCopyCode} className="shrink-0 gap-2">
               {copied ? <><Check size={14} className="text-green-500" /> Copied!</> : <><Copy size={14} /> Code</>}

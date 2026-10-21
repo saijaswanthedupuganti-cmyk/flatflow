@@ -31,6 +31,10 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.foundation.layout.defaultMinSize
 import habitiq.app.ui.theme.HqSize
 import androidx.compose.ui.unit.dp
@@ -45,30 +49,39 @@ import habitiq.app.ui.theme.LocalHqColors
 /** WORDS.md: the one sentence that says what Oddroof is. Shown on Welcome, Create account and the first choice. */
 const val OddroofValueSentence = "Oddroof keeps your flat in order. Split expenses, share chores and bills, and find a flat or a flatmate."
 
-const val StartChoicesTitle = "What do you want to do first?"
+const val StartChoicesTitle = "What brings you here?"
 const val StartChoicesSubtitle = "You can do the rest anytime."
 
 /**
- * The four ways to start, used by the first-choice screen and by Home when the person has no flat, so both
- * read exactly the same. Plain rows: icon tile, title, one-line helper, arrow. The whole row is the target.
+ * Three situations instead of four features (user test 18 Oct: four options read as a menu, not a question).
+ * "I live in a shared flat" opens its two answers in place: Join (most people are invited) and Create.
+ * Used by the first-choice screen and by Home when the person has no flat, so both read exactly the same.
+ * [onFindPerson] stays for callers; browsing people now lives in Discover.
  */
 @Composable
 fun IntentChoices(
     onFindFlat: () -> Unit,
-    onFindPerson: () -> Unit,
+    @Suppress("UNUSED_PARAMETER") onFindPerson: () -> Unit,
     onCreateFlat: () -> Unit,
     onJoinFlat: () -> Unit,
     modifier: Modifier = Modifier,
+    onListRoom: () -> Unit = onCreateFlat,
 ) {
+    var livesInFlat by androidx.compose.runtime.saveable.rememberSaveable { androidx.compose.runtime.mutableStateOf(false) }
     Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(HqSpacing.related)) {
-        IntentRow(HqIcons.Home, HqTileTone.Teal, "Create a flat", "Invite your flatmates to share tasks and expenses", onCreateFlat)
-        IntentRow(HqIcons.Users, HqTileTone.Sand, "Join a flat", "Use the invite code from your flatmate", onJoinFlat)
-        IntentRow(HqIcons.Search, HqTileTone.Coral, "Find a flat", "Browse rooms near you", onFindFlat)
-        IntentRow(HqIcons.Discover, HqTileTone.Neutral, "Find a flatmate", "See people looking for a room", onFindPerson)
+        IntentRow(HqIcons.Home, HqTileTone.Teal, "I live in a shared flat", "Split expenses and share tasks with your flatmates", { livesInFlat = !livesInFlat }, expanded = livesInFlat)
+        if (livesInFlat) {
+            Column(Modifier.padding(start = HqSpacing.xxl), verticalArrangement = Arrangement.spacedBy(HqSpacing.related)) {
+                IntentRow(HqIcons.Users, HqTileTone.Sand, "Join with an invite code", "Your flatmate already set up the flat", onJoinFlat)
+                IntentRow(HqIcons.Plus, HqTileTone.Teal, "Create a new flat", "You're the first one here; invite the rest", onCreateFlat)
+            }
+        }
+        IntentRow(HqIcons.Search, HqTileTone.Coral, "I'm looking for a room", "Browse flats near work or college", onFindFlat)
+        IntentRow(HqIcons.Discover, HqTileTone.Neutral, "I have a room to fill", "Set up your flat, then list the room", onListRoom)
     }
 }
 
-/** Title, subtitle and the four choices as one block, so every place that offers them uses one copy set. */
+/** Title, subtitle and the three choices as one block, so every place that offers them uses one copy set. */
 @Composable
 fun StartChooser(
     onFindFlat: () -> Unit,
@@ -76,6 +89,7 @@ fun StartChooser(
     onCreateFlat: () -> Unit,
     onJoinFlat: () -> Unit,
     modifier: Modifier = Modifier,
+    onListRoom: () -> Unit = onCreateFlat,
 ) {
     val c = LocalHqColors.current
     Column(modifier.fillMaxWidth()) {
@@ -84,7 +98,7 @@ fun StartChooser(
             StartChoicesSubtitle, style = HqType.bodyMedium, color = c.textSecondary,
             modifier = Modifier.padding(top = HqSpacing.sm, bottom = HqSpacing.xl),
         )
-        IntentChoices(onFindFlat = onFindFlat, onFindPerson = onFindPerson, onCreateFlat = onCreateFlat, onJoinFlat = onJoinFlat)
+        IntentChoices(onFindFlat = onFindFlat, onFindPerson = onFindPerson, onCreateFlat = onCreateFlat, onJoinFlat = onJoinFlat, onListRoom = onListRoom)
     }
 }
 
@@ -115,10 +129,14 @@ internal fun IntentTile(title: String, support: String, art: HqArt, onClick: () 
 }
 
 @Composable
-private fun IntentRow(icon: androidx.compose.ui.graphics.vector.ImageVector, tone: HqTileTone, title: String, support: String, onClick: () -> Unit) {
+private fun IntentRow(
+    icon: androidx.compose.ui.graphics.vector.ImageVector, tone: HqTileTone, title: String, support: String,
+    onClick: () -> Unit, expanded: Boolean? = null,
+) {
     val c = LocalHqColors.current
     Row(
         Modifier.fillMaxWidth().defaultMinSize(minHeight = HqSize.target).then(surfaceModifier(onClick))
+            .then(if (expanded != null) Modifier.semantics { stateDescription = if (expanded) "Expanded" else "Collapsed" } else Modifier)
             .padding(horizontal = HqSpacing.component, vertical = HqSpacing.md),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(HqSpacing.md),
@@ -128,6 +146,9 @@ private fun IntentRow(icon: androidx.compose.ui.graphics.vector.ImageVector, ton
             Text(title, style = HqType.rowTitle, color = c.textPrimary, fontWeight = FontWeight.SemiBold)
             Text(support, style = HqType.bodyMedium, color = c.textSecondary)
         }
-        Icon(HqIcons.Arrow, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.md))
+        Icon(
+            HqIcons.Arrow, null, tint = c.iconDefault,
+            modifier = Modifier.size(HqIconSize.md).graphicsLayer { rotationZ = if (expanded == true) 90f else 0f },
+        )
     }
 }

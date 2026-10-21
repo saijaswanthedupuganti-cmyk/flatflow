@@ -57,6 +57,22 @@ class FlatViewModel(
     private val _flatInfo = MutableStateFlow<FlatInfo?>(null)
     val flatInfo: StateFlow<FlatInfo?> = _flatInfo.asStateFlow()
 
+    /** This flat's invite code (not its id; see InviteCodes.kt). Null until loaded or if it can't be read. */
+    private val _inviteCode = MutableStateFlow<String?>(null)
+    val inviteCode: StateFlow<String?> = _inviteCode.asStateFlow()
+
+    /** Hands [onCode] the invite code, fetching (or creating) it first if it hasn't loaded yet. */
+    fun withInviteCode(onCode: (String) -> Unit) {
+        _inviteCode.value?.let { onCode(it); return }
+        val flatId = _flatId.value ?: return
+        val me = currentUser.value?.uid ?: return
+        viewModelScope.launch {
+            flatsRepository.inviteCodeFor(flatId, me)
+                .onSuccess { code -> if (_flatId.value == flatId) _inviteCode.value = code; onCode(code) }
+                .onFailure { _error.value = "Couldn't get your invite code. Try again." }
+        }
+    }
+
     private val _userProfile = MutableStateFlow<UserProfileData?>(null)
     val userProfile: StateFlow<UserProfileData?> = _userProfile.asStateFlow()
 
@@ -355,6 +371,12 @@ class FlatViewModel(
                         _loading.value = false
                     }
                 }
+            currentUser.value?.uid?.let { me ->
+                launch {
+                    flatsRepository.inviteCodeFor(flatId, me)
+                        .onSuccess { if (generation == flatGeneration && _flatId.value == flatId) _inviteCode.value = it }
+                }
+            }
             fun <T> watch(label: String, flow: Flow<T>, assign: (T) -> Unit) {
                 launch {
                     flow.catch {
@@ -390,6 +412,7 @@ class FlatViewModel(
 
     private fun clearFlatState() {
         _flatInfo.value = null
+        _inviteCode.value = null
         _vacancyRequests.value = emptyList()
         _myVacancyRequest.value = null
         _members.value = emptyList()

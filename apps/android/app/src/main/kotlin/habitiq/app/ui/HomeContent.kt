@@ -50,6 +50,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -106,6 +107,11 @@ data class HomePendingItem(val kind: Kind, val title: String, val body: String) 
 
 data class HomeActivityItem(val text: String, val time: String)
 
+/** One step of the Home "Get started" checklist; [done] comes from real flat data, never from a tap. */
+data class HomeGetStartedStep(val kind: Kind, val title: String, val support: String, val done: Boolean) {
+    enum class Kind { Invite, Expense, Task }
+}
+
 /** Money position in rupees. Both directions are kept so neither is hidden behind a net figure. */
 data class HomeBalance(val owe: Double, val owed: Double, val oweCount: Int, val owedCount: Int)
 
@@ -127,6 +133,8 @@ data class HomeUiModel(
     /** Member display names, the person first, for the flat card's avatar stack. */
     val memberNames: List<String> = emptyList(),
     val isAdmin: Boolean = false,
+    /** First steps in a new flat; empty once every step is done (or the person hid it). */
+    val getStarted: List<HomeGetStartedStep> = emptyList(),
 )
 
 /**
@@ -163,6 +171,7 @@ fun HomeContent(
     onAddExpense: () -> Unit = onOpenExpenses,
     onAddBill: () -> Unit = onOpenExpenses,
     onOpenProfile: () -> Unit = {},
+    onHideGetStarted: () -> Unit = {},
 ) {
     val c = LocalHqColors.current
     val page = c.canvas
@@ -184,12 +193,18 @@ fun HomeContent(
 
         habitiq.app.ui.theme.HqFadeUp(index = 2) {
             Column(Modifier.padding(horizontal = HqSpacing.sm).padding(bottom = HqSpacing.fabClearance)) {
-                // A flat with only you in it does nothing useful yet: inviting comes first (18 Oct test).
-                if (model.memberCount <= 1 && model.canInvite) {
-                    HqCalloutCard(
-                        title = "Invite your flatmates",
-                        support = "Share your invite code so you can split expenses and take turns on tasks.",
-                        icon = HqIcons.Users, tone = HqTileTone.Teal, onClick = onInvite,
+                // A new flat does nothing useful yet: the first steps come before anything else (18 Oct test).
+                if (model.getStarted.isNotEmpty()) {
+                    GetStartedCard(
+                        steps = model.getStarted,
+                        onStep = { kind ->
+                            when (kind) {
+                                HomeGetStartedStep.Kind.Invite -> onInvite()
+                                HomeGetStartedStep.Kind.Expense -> onAddExpense()
+                                HomeGetStartedStep.Kind.Task -> onAddTask()
+                            }
+                        },
+                        onHide = onHideGetStarted,
                         modifier = Modifier.padding(horizontal = HqSpacing.md).padding(bottom = HqSpacing.lg),
                     )
                 }
@@ -483,6 +498,58 @@ private fun TodayPanel(
                             )
                         },
                     )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * "Get started" for a new flat: up to three real first steps with progress. Done steps stay visible, ticked and
+ * not tappable, so the person sees what they already did; the card leaves Home when every step is done.
+ */
+@Composable
+private fun GetStartedCard(
+    steps: List<HomeGetStartedStep>,
+    onStep: (HomeGetStartedStep.Kind) -> Unit,
+    onHide: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val c = LocalHqColors.current
+    val doneCount = steps.count { it.done }
+    Column(modifier) {
+        HqSectionTitle("Get started", action = "Hide", onAction = onHide)
+        Text(
+            "$doneCount of ${steps.size} done",
+            style = HqType.bodyMedium, color = c.textSecondary,
+            modifier = Modifier.padding(bottom = HqSpacing.md),
+        )
+        habitiq.app.ui.components.HqGroup {
+            steps.forEachIndexed { i, step ->
+                if (i > 0) habitiq.app.ui.components.HqRowDivider(startInset = HqSpacing.component + HqIconSize.md + HqSpacing.related)
+                Row(
+                    Modifier.fillMaxWidth().defaultMinSize(minHeight = HqSize.target)
+                        .then(
+                            if (step.done) Modifier.semantics { stateDescription = "Done" }
+                            else Modifier.clickable(role = Role.Button, onClick = { onStep(step.kind) })
+                        )
+                        .padding(horizontal = HqSpacing.component, vertical = HqSpacing.md),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(HqSpacing.related),
+                ) {
+                    if (step.done) {
+                        Icon(
+                            androidx.compose.material.icons.Icons.Rounded.CheckCircle, null,
+                            tint = c.statusSuccessFg, modifier = Modifier.size(HqIconSize.md),
+                        )
+                    } else {
+                        Box(Modifier.size(HqIconSize.md).border(2.dp, c.borderControl, CircleShape))
+                    }
+                    Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        Text(step.title, style = HqType.rowTitle, color = if (step.done) c.textSecondary else c.textPrimary)
+                        if (!step.done) Text(step.support, style = HqType.bodyMedium, color = c.textSecondary)
+                    }
+                    if (!step.done) Icon(HqIcons.Chevron, null, tint = c.iconDefault, modifier = Modifier.size(HqIconSize.sm))
                 }
             }
         }

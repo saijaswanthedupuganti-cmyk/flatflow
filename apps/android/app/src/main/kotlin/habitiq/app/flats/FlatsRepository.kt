@@ -69,19 +69,52 @@ class FlatsRepository(
             SetOptions.merge()
         ).await()
 
+        // Best effort: the flat exists either way, and inviteCodeFor creates the code later if this fails.
+        inviteCodeFor(flatId, uid)
+
         flatId
+    }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
+
+    private fun privateInviteDoc(flatId: String) =
+        firestore.collection("flats").document(flatId).collection("private").document("invite")
+
+    /**
+     * The flat's invite code, created on first use. Kept at `flats/{id}/private/invite` (members only) and
+     * `inviteCodes/{code}` (one-code lookup for joiners); never on the flat doc, which non-members can read.
+     */
+    suspend fun inviteCodeFor(flatId: String, uid: String): Result<String> = runCatching {
+        privateInviteDoc(flatId).get().await().getString("code")?.let { return@runCatching it }
+        var code = generateInviteCode()
+        var attempts = 0
+        while (firestore.collection("inviteCodes").document(code).get().await().exists() && attempts < MAX_ID_GENERATION_ATTEMPTS) {
+            code = generateInviteCode()
+            attempts++
+        }
+        firestore.batch()
+            .set(firestore.collection("inviteCodes").document(code), mapOf("flatId" to flatId, "createdBy" to uid, "createdAt" to FieldValue.serverTimestamp()))
+            .set(privateInviteDoc(flatId), mapOf("code" to code))
+            .commit().await()
+        code
+    }
+
+    /** The flat an invite code belongs to; [FlatNotFoundException] when no such code exists. */
+    suspend fun resolveInviteCode(code: String): Result<String> = runCatching {
+        val snap = firestore.collection("inviteCodes").document(code).get().await()
+        snap.getString("flatId")?.takeIf { snap.exists() } ?: throw FlatNotFoundException()
     }.recoverCatching { throw IllegalStateException(mapFlatError(reported(it)), it) }
 
     /**
      * [linkUserProfile] = false when an admin adds an approved requester: rules don't let anyone
      * write another user's profile, so functions/linkMemberToUser points it at the flat instead.
+     * [inviteCode] is required by firestore.rules when someone joins by themselves (not via approval).
      */
     suspend fun joinFlat(
         flatId: String,
         uid: String,
         nickname: String,
         email: String,
-        linkUserProfile: Boolean = true
+        linkUserProfile: Boolean = true,
+        inviteCode: String? = null
     ): Result<Unit> = runCatching {
         if (!flatExists(flatId)) throw FlatNotFoundException()
 
@@ -97,7 +130,7 @@ class FlatsRepository(
             if (memberCount >= MAX_MEMBERS) throw FlatFullException()
             if (memberSnap.exists()) throw AlreadyMemberException()
 
-            val memberData = hashMapOf(
+            val memberData = hashMapOf<String, Any>(
                 "uid" to uid,
                 "nickname" to nickname,
                 "email" to email,
@@ -106,6 +139,7 @@ class FlatsRepository(
                 "reliabilityScore" to 100,
                 "joinedAt" to Instant.now().toString()
             )
+            inviteCode?.let { memberData["inviteCode"] = it }
             transaction.set(memberRef, memberData)
             transaction.update(flatRef, "memberCount", FieldValue.increment(1))
 

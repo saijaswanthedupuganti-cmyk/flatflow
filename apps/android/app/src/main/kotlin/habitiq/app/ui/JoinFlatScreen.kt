@@ -88,7 +88,7 @@ fun JoinFlatScreen(
                     if (preview != null) viewModel.clearPreview()
                 },
                 label = "Invite code",
-                placeholder = "FLAT-A3B9",
+                placeholder = "K7QM2P",
                 leadingIcon = Icons.Filled.VpnKey,
                 keyboardType = KeyboardType.Ascii,
                 capitalization = KeyboardCapitalization.Characters,

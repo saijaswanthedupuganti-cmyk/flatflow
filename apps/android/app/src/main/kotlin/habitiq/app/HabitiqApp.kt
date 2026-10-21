@@ -396,7 +396,7 @@ fun HabitiqApp() {
                         // Do not steal it into a full-screen overlay (that hid Manage Flat).
                         // Monthly bills is a scope inside Manage > Expenses, not a separate screen.
                         fun openMonthlyBills() {
-                            selectedTab = AppTab.TASKS
+                            selectedTab = AppTab.MONEY
                             manageAreaName = ManageFlatArea.EXPENSES.name
                             flatViewModel.expenseScopeMonthly.value = true
                         }
@@ -466,13 +466,13 @@ fun HabitiqApp() {
                             agentOpen = false
                             when (link) {
                                 habitiq.app.agent.AgentLink.BALANCES -> {
-                                    selectedTab = AppTab.TASKS
+                                    selectedTab = AppTab.MONEY
                                     manageAreaName = ManageFlatArea.EXPENSES.name
                                     flatViewModel.expenseScopeMonthly.value = false
                                     flatViewModel.showBalancesTrigger.value = true
                                 }
                                 habitiq.app.agent.AgentLink.EXPENSES -> {
-                                    selectedTab = AppTab.TASKS
+                                    selectedTab = AppTab.MONEY
                                     manageAreaName = ManageFlatArea.EXPENSES.name
                                     flatViewModel.expenseScopeMonthly.value = false
                                 }
@@ -607,7 +607,6 @@ fun HabitiqApp() {
                                             selectedTaskId = null
                                         }
                                     } else {
-                                        val manageArea = runCatching { ManageFlatArea.valueOf(manageAreaName) }.getOrDefault(ManageFlatArea.HUB)
                                         // The plus adds flat things everywhere except Discover, where it posts to
                                         // Discover; mixing both in one menu confused testers (18 Oct). Flat actions
                                         // appear only in a flat; tasks and bills only for admins. The menu reads
@@ -618,7 +617,7 @@ fun HabitiqApp() {
                                             if (!onDiscover && inFlat && shellIsAdmin) add(CreateOption("Add bill") { openMonthlyBills(); flatViewModel.showAddBillTrigger.value = true })
                                             if (!onDiscover && inFlat && shellIsAdmin) add(CreateOption("Add task") { tasksOverlay = "add_task" })
                                             if (!onDiscover && inFlat) add(CreateOption("Add expense") {
-                                                selectedTab = AppTab.TASKS
+                                                selectedTab = AppTab.MONEY
                                                 manageAreaName = ManageFlatArea.EXPENSES.name
                                                 flatViewModel.expenseScopeMonthly.value = false
                                                 flatViewModel.showAddExpenseTrigger.value = true
@@ -703,7 +702,7 @@ fun HabitiqApp() {
                                                     },
                                                     onOpenTaskDetail = { selectedTaskId = it },
                                                     onOpenExpenses = {
-                                                        selectedTab = AppTab.TASKS
+                                                        selectedTab = AppTab.MONEY
                                                         manageAreaName = ManageFlatArea.EXPENSES.name
                                                     },
                                                     onReviewJoinRequests = { profileOverlay = "members" },
@@ -718,7 +717,7 @@ fun HabitiqApp() {
                                                     onOpenActivity = { profileOverlay = "activity" },
                                                     onAddTask = { tasksOverlay = "add_task" },
                                                     onAddExpense = {
-                                                        selectedTab = AppTab.TASKS
+                                                        selectedTab = AppTab.MONEY
                                                         manageAreaName = ManageFlatArea.EXPENSES.name
                                                         flatViewModel.expenseScopeMonthly.value = false
                                                         flatViewModel.showAddExpenseTrigger.value = true
@@ -740,11 +739,13 @@ fun HabitiqApp() {
                                                     onMyPostsConsumed = { discoverOpenPosts = false },
                                                     onImmersiveChange = { discoverImmersive = it }
                                                 )
-                                                AppTab.TASKS -> ManageFlatHub(
+                                                AppTab.TASKS, AppTab.MONEY -> ManageFlatHub(
                                                     viewModel = flatViewModel,
-                                                    area = runCatching { ManageFlatArea.valueOf(manageAreaName) }
-                                                        .getOrDefault(ManageFlatArea.HUB),
-                                                    onAreaChange = { manageAreaName = it.name },
+                                                    area = if (selectedTab == AppTab.MONEY) ManageFlatArea.EXPENSES else ManageFlatArea.TASKS,
+                                                    onAreaChange = {
+                                                        manageAreaName = it.name
+                                                        selectedTab = if (it == ManageFlatArea.EXPENSES) AppTab.MONEY else AppTab.TASKS
+                                                    },
                                                     onOpenGoingAway = { tasksOverlay = "going_away" },
                                                     onOpenTaskDetail = { selectedTaskId = it },
                                                     onOpenCreateTask = { tasksOverlay = "add_task" },

@@ -33,6 +33,14 @@ class CreateFlatViewModel(
     private val _createdFlatId = MutableStateFlow<String?>(null)
     val createdFlatId: StateFlow<String?> = _createdFlatId.asStateFlow()
 
+    /** The new flat's invite code for the success screen; its id is not a code (see InviteCodes.kt). */
+    private val _createdInviteCode = MutableStateFlow<String?>(null)
+    val createdInviteCode: StateFlow<String?> = _createdInviteCode.asStateFlow()
+
+    private fun loadInviteCode(flatId: String, uid: String) {
+        viewModelScope.launch { flatsRepository.inviteCodeFor(flatId, uid).onSuccess { _createdInviteCode.value = it } }
+    }
+
     private val _form = MutableStateFlow(CreateFlatForm())
     val form: StateFlow<CreateFlatForm> = _form.asStateFlow()
 
@@ -60,6 +68,7 @@ class CreateFlatViewModel(
             val existing = usersRepository.getActiveFlatId(user.uid).getOrNull()
             if (!existing.isNullOrBlank()) {
                 _createdFlatId.value = existing
+                loadInviteCode(existing, user.uid)
                 _state.value = FlatUiState.Success
                 return@launch
             }
@@ -79,6 +88,7 @@ class CreateFlatViewModel(
             result.onSuccess { flatId ->
                 analytics.logFlatCreated()
                 _createdFlatId.value = flatId
+                loadInviteCode(flatId, user.uid)
                 _state.value = FlatUiState.Success
             }.onFailure { error ->
                 _state.value = FlatUiState.Error(error.message ?: "Something went wrong. Please try again.")

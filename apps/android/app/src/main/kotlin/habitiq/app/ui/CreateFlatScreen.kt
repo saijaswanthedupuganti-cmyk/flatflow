@@ -50,6 +50,7 @@ fun CreateFlatScreen(
     val form by viewModel.form.collectAsStateWithLifecycleCompat()
     val state by viewModel.state.collectAsStateWithLifecycleCompat()
     val createdFlatId by viewModel.createdFlatId.collectAsStateWithLifecycleCompat()
+    val createdInviteCode by viewModel.createdInviteCode.collectAsStateWithLifecycleCompat()
     val context = LocalContext.current
     var step by rememberSaveable { mutableStateOf(CreateFlatWizardStep.BASICS.name) }
     val wizardStep = CreateFlatWizardStep.valueOf(step)
@@ -101,7 +102,7 @@ fun CreateFlatScreen(
                     HqCard(modifier = Modifier.fillMaxWidth()) {
                         Text("Invite code", color = c.textSecondary, style = HqType.labelMedium)
                         Text(
-                            createdFlatId.orEmpty(), color = c.textPrimary, style = HqType.code,
+                            createdInviteCode ?: "…", color = c.textPrimary, style = HqType.code,
                             modifier = Modifier.padding(top = HqSpacing.xs)
                         )
                     }
@@ -112,7 +113,8 @@ fun CreateFlatScreen(
                 ) {
                     HqButton(
                         text = "Share invite code",
-                        onClick = { createdFlatId?.let { launchShareInviteCode(context, form.name, it) } }
+                        onClick = { createdInviteCode?.let { launchShareInviteCode(context, form.name, it) } },
+                        enabled = createdInviteCode != null
                     )
                     HqButton(
                         text = "Go to my flat",

@@ -4,7 +4,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import Image from 'next/image'
 import { useAuthStore } from '@/store/useAuthStore'
 import { useFlatStore } from '@/store/useFlatStore'
-import { createFlat, joinFlat, getFlatJoinMode, requestToJoinFlat } from '@/lib/flatService'
+import { createFlat, joinFlat, getFlatJoinMode, requestToJoinFlat, resolveInviteInput } from '@/lib/flatService'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Home, LogIn, Sparkles, ArrowLeft, Loader2, X, Clock, AlertTriangle } from 'lucide-react'
@@ -100,8 +100,7 @@ function OnboardingContent() {
   }
 
   const handleJoinFlat = async () => {
-    const code = inviteCode.trim().toUpperCase()
-    if (!code || !nickname.trim()) return
+    if (!inviteCode.trim() || !nickname.trim()) return
     if (isAddingFlat) {
       if (allFlatIds.length >= maxFlats) {
         if (isActive) {
@@ -115,8 +114,12 @@ function OnboardingContent() {
     setLoading(true)
     setError('')
     try {
-      // Check if this flat requires approval before joining
-      const joinMode = await getFlatJoinMode(code)
+      const resolved = await resolveInviteInput(inviteCode)
+      if (resolved.kind === 'invalid') { setError("That doesn't look like an invite code. It's 6 letters and numbers, like K7QM2P."); setLoading(false); return }
+      if (resolved.kind === 'not_found') { setError('Flat not found. Check the invite code and try again.'); setLoading(false); return }
+      const code = resolved.flatId
+      // Old FLAT- codes are flat ids, which aren't secret: they only ever send a request to the admin.
+      const joinMode = resolved.kind === 'legacy' ? 'approval' : await getFlatJoinMode(code)
       if (joinMode === 'approval') {
         const req = await requestToJoinFlat({ uid: user.uid, nickname: nickname.trim(), email: user.email, flatId: code })
         if (!req.success) { setError(req.error || 'Failed to send request.'); setLoading(false); return }
@@ -130,6 +133,7 @@ function OnboardingContent() {
         nickname: nickname.trim(),
         email: user.email,
         flatId: code,
+        inviteCode: resolved.kind === 'code' ? resolved.inviteCode : undefined,
       })
       if (!result.success) {
         setError(result.error || 'Failed to join flat.')

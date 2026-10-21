@@ -1,7 +1,6 @@
 package habitiq.app.ui
 
 import habitiq.app.ui.components.HqIcons
-import habitiq.app.ui.components.HqManageSwitch
 import habitiq.app.ui.components.HqPageHeader
 import habitiq.app.lib.formatTimeAgo
 import androidx.compose.foundation.layout.Box
@@ -79,19 +78,13 @@ fun ManageFlatHub(
     onOpenBills: () -> Unit,
     onOpenActivity: () -> Unit
 ) {
-    // Figma Manage: one screen with a Tasks / Expenses switch under the page header. HUB is the legacy
-    // landing value and now simply means Tasks, so existing callers and saved state keep working.
+    // Tasks and Money are separate bottom tabs (plan B, 20 Oct), so this screen shows one area with its own
+    // header and no switch. HUB is the legacy landing value and simply means Tasks.
     val onExpenses = area == ManageFlatArea.EXPENSES
     val header: @Composable () -> Unit = {
-        Column {
-            HqPageHeader(title = "Your flat", subtitle = "Tasks, expenses and bills for everyone in your flat.")
-            HqManageSwitch(
-                // "Money" so the word "Expenses" appears once, in the Expenses | Bills switch below it.
-                options = listOf("Tasks" to HqIcons.Check, "Money" to HqIcons.Receipt),
-                selectedIndex = if (onExpenses) 1 else 0,
-                onSelect = { onAreaChange(if (it == 1) ManageFlatArea.EXPENSES else ManageFlatArea.TASKS) },
-                modifier = Modifier.padding(bottom = HqSpacing.xxl),
-            )
+        Column(Modifier.padding(bottom = HqSpacing.lg)) {
+            if (onExpenses) HqPageHeader(title = "Money", subtitle = "Shared expenses and monthly bills, and who owes whom.")
+            else HqPageHeader(title = "Tasks", subtitle = "Who does what in your flat, and whose turn is next.")
         }
     }
     if (onExpenses) {

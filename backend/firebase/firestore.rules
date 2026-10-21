@@ -133,9 +133,38 @@ service cloud.firestore {
       allow create, delete: if false;
     }
 
+    // ── Invite codes ──────────────────────────────────────────────────────────
+    // A flat's invite code is NOT its id: flat ids are visible in Discover listings. Joining directly
+    // needs a code that maps to the flat (see members create below).
+    match /inviteCodes/{code} {
+      // get only: checking the one code someone typed. list would hand every code to every user.
+      allow get: if request.auth != null;
+      // Any member may create their flat's code (members can invite), written with flats/{id}/private/invite.
+      allow create: if request.auth != null
+        && isMember(request.resource.data.flatId)
+        && request.resource.data.createdBy == request.auth.uid
+        && request.resource.data.keys().hasOnly(['flatId', 'createdBy', 'createdAt']);
+      // The admin may retire a code (e.g. after it leaked); codes never change flats.
+      allow delete: if request.auth != null && isAdmin(resource.data.flatId);
+      allow update: if false;
+    }
+
     // ── Flats ─────────────────────────────────────────────────────────────────
     match /flats/{flatId} {
-      // Single-doc reads validate an invite code (the doc ID is the code).
+      // The flat's current invite code. Members only: the flat doc itself is readable by any signed-in user.
+      match /private/invite {
+        allow read: if isMember(flatId);
+        // Created once, in the same batch as inviteCodes/{code}, and must point at that code.
+        allow create: if isMember(flatId)
+          && request.resource.data.keys().hasOnly(['code'])
+          && getAfter(/databases/$(database)/documents/inviteCodes/$(request.resource.data.code)).data.flatId == flatId;
+        allow update: if isAdmin(flatId)
+          && request.resource.data.keys().hasOnly(['code'])
+          && getAfter(/databases/$(database)/documents/inviteCodes/$(request.resource.data.code)).data.flatId == flatId;
+        allow delete: if isAdmin(flatId);
+      }
+
+      // Single-doc reads: Join previews a flat after its invite code resolves; Discover opens a listing.
       allow get: if request.auth != null;
       // Queries only ever return advertised vacancies — never the whole collection, which
       // would hand every flat's invite code to every user.
@@ -155,7 +184,7 @@ service cloud.firestore {
           // Self-join: only alongside creating their own member doc, and not in approval mode.
           request.auth != null
           && resource.data.get('joinMode', 'auto') != 'approval'
-          // A listed flat's id (= invite code) is visible to everyone in Discover: approval only while listed.
+          // A listed flat is open to requests from Discover, so while listed it is approval only.
           && resource.data.get('vacancy', {}).get('active', false) != true
           // Only a real join (member doc created in this same write) — an existing member can't pump the count.
           && !exists(/databases/$(database)/documents/flats/$(flatId)/members/$(request.auth.uid))
@@ -201,6 +230,9 @@ service cloud.firestore {
             || (
               request.auth.uid == memberId
               && request.resource.data.role == 'member'
+              // Knowing the flat id is not enough: the joiner must hold an invite code for this flat.
+              && 'inviteCode' in request.resource.data
+              && get(/databases/$(database)/documents/inviteCodes/$(request.resource.data.inviteCode)).data.flatId == flatId
               && get(/databases/$(database)/documents/flats/$(flatId)).data.get('joinMode', 'auto') != 'approval'
               && get(/databases/$(database)/documents/flats/$(flatId)).data.get('vacancy', {}).get('active', false) != true
             )

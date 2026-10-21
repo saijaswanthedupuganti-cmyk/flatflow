@@ -27,8 +27,8 @@ class ShellScreenshotTest : ScreenshotHarness() {
             listOf(
                 Triple("Home", AppTab.HOME, ShellCreate.None),
                 Triple("Discover", AppTab.DISCOVER, ShellCreate.Direct("List a room") {}),
-                Triple("Manage", AppTab.TASKS, ShellCreate.Direct("Add task") {}),
-                Triple("Profile", AppTab.PROFILE, ShellCreate.None),
+                Triple("Tasks", AppTab.TASKS, ShellCreate.Direct("Add task") {}),
+                Triple("Money", AppTab.MONEY, ShellCreate.Direct("Add expense") {}),
                 Triple("Home + mic", AppTab.HOME, ShellCreate.Menu(listOf(habitiq.app.ui.CreateOption("Add expense") {}))),
             ).forEach { (label, tab, create) ->
                 Text(label, style = HqType.labelSmall, color = c.textSecondary, modifier = Modifier.padding(horizontal = 20.dp))

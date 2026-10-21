@@ -76,10 +76,15 @@ import habitiq.app.ui.theme.HqType
 import habitiq.app.ui.theme.LocalHqColors
 import habitiq.app.ui.theme.hqShadow
 
+/**
+ * Bottom nav (user test 18 Oct, plan B): Home · Tasks · mic · Money · Discover. Profile is still a destination
+ * but has no tab; it opens from the avatar on Home.
+ */
 enum class AppTab(val label: String, val icon: ImageVector) {
     HOME("Home", HqIcons.Home),
     DISCOVER("Discover", HqIcons.Discover),
-    TASKS("Manage", HqIcons.Manage),
+    TASKS("Tasks", HqIcons.Check),
+    MONEY("Money", HqIcons.Receipt),
     PROFILE("Profile", HqIcons.Profile)
 }
 
@@ -237,8 +242,8 @@ private fun ShellBar(selectedTab: AppTab, onTabSelected: (AppTab) -> Unit, creat
                     else -> Unit
                 }
             }
+            BottomNavItem(AppTab.MONEY, selectedTab == AppTab.MONEY, Modifier.weight(1f)) { onTabSelected(AppTab.MONEY) }
             BottomNavItem(AppTab.DISCOVER, selectedTab == AppTab.DISCOVER, Modifier.weight(1f)) { onTabSelected(AppTab.DISCOVER) }
-            BottomNavItem(AppTab.PROFILE, selectedTab == AppTab.PROFILE, Modifier.weight(1f)) { onTabSelected(AppTab.PROFILE) }
         }
       }
     }

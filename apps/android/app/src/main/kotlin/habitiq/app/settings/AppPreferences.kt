@@ -61,6 +61,18 @@ class AppPreferences(private val context: Context) {
         }
     }
 
+    /** Flats where this person hid the Home "Get started" checklist. Kept on the device, per account. */
+    fun hiddenGetStarted(uid: String): Flow<Set<String>> = context.dataStore.data
+        .map { prefs -> prefs[stringSetPreferencesKey("get_started_hidden_$uid")] ?: emptySet() }
+
+    suspend fun hideGetStarted(uid: String, flatId: String) {
+        if (uid.isBlank()) return
+        context.dataStore.edit { prefs ->
+            val key = stringSetPreferencesKey("get_started_hidden_$uid")
+            prefs[key] = (prefs[key] ?: emptySet()) + flatId
+        }
+    }
+
     /**
      * Which activity entries this person has seen: everything at or before [ActivitySeen.seenUpToMillis], plus
      * single entries opened since. Kept on the device per account; there is no server-side unread state.

@@ -10,7 +10,7 @@ data class FlatInfo(
 )
 
 /**
- * A flat listed in Discover shows its id (which is also its invite code) to every signed-in user,
+ * A flat listed in Discover shows its id to every signed-in user (old FLAT- invites used it as the code),
  * so while the listing is live nobody joins it directly: they send a request the admin approves.
  * firestore.rules enforces the same thing; this keeps the app on the path the rules allow.
  */

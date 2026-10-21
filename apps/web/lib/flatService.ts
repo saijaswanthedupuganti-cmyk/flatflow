@@ -163,6 +163,26 @@ export async function createFlat(params: {
  * Uses a transaction so the member-count check, member creation, and
  * counter increment are all atomic — prevents race conditions around the 8-member cap.
  */
+/**
+ * What someone typed into "join a flat". New invite codes are 6 characters (inviteCodes/{code} → flatId);
+ * an old "FLAT-XXXX" code is the flat id, which Discover listings show to everyone, so it can only send a
+ * join request. firestore.rules requires a real invite code to join directly. Mirrors Android InviteCodes.kt.
+ */
+export async function resolveInviteInput(raw: string): Promise<
+  { kind: 'code'; flatId: string; inviteCode: string } | { kind: 'legacy'; flatId: string } | { kind: 'invalid' } | { kind: 'not_found' }
+> {
+  const upper = raw.trim().toUpperCase()
+  if (/^FLAT-[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{4}([ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{2})?$/.test(upper)) {
+    return { kind: 'legacy', flatId: upper }
+  }
+  const code = upper.replace(/[\s-]/g, '')
+  if (!/^[ABCDEFGHJKLMNPQRSTUVWXYZ23456789]{6}$/.test(code)) return { kind: 'invalid' }
+  if (!hasKeys || !db) return { kind: 'code', flatId: code, inviteCode: code }
+  const snap = await getDoc(doc(db, `inviteCodes/${code}`))
+  const flatId = snap.exists() ? (snap.data().flatId as string | undefined) : undefined
+  return flatId ? { kind: 'code', flatId, inviteCode: code } : { kind: 'not_found' }
+}
+
 /** Returns the join mode for a flat ('auto' or 'approval'). */
 export async function getFlatJoinMode(flatId: string): Promise<'auto' | 'approval'> {
   if (!hasKeys || !db) return 'auto'
@@ -235,8 +255,10 @@ export async function joinFlat(params: {
   nickname: string
   email: string
   flatId: string
+  /** Required by firestore.rules when joining by yourself; absent when an admin adds an approved requester. */
+  inviteCode?: string
 }): Promise<{ success: boolean; error?: string; flatName?: string }> {
-  const { uid, nickname, email, flatId } = params
+  const { uid, nickname, email, flatId, inviteCode } = params
 
   if (!hasKeys || !db) return { success: true }
 
@@ -278,6 +300,7 @@ export async function joinFlat(params: {
         status: 'available',
         reliabilityScore: 100,
         joinedAt: new Date().toISOString(),
+        ...(inviteCode ? { inviteCode } : {}),
       })
 
       // Atomically increment the counter on the flat document

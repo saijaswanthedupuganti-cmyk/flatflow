@@ -52,6 +52,7 @@ import habitiq.app.ui.components.HqErrorState
 import habitiq.app.ui.components.HqInlineLoading
 import habitiq.app.ui.theme.LocalHqColors
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 @Composable
@@ -160,14 +161,18 @@ private fun HomeDashboard(
     val prefs = remember { habitiq.app.settings.AppPreferences(context) }
     val seen by prefs.activitySeen(uid).collectAsState(initial = habitiq.app.settings.ActivitySeen(0L, emptySet()))
     val unread = habitiq.app.lib.unreadCount(data.activity, uid, seen)
+    val hiddenGetStarted by prefs.hiddenGetStarted(uid).collectAsState(initial = emptySet())
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
-    val model = remember(data, joinRequests, swapRequests, expenses, settlements, unread, vacancyRequests) {
+    val model = remember(data, joinRequests, swapRequests, expenses, settlements, unread, vacancyRequests, hiddenGetStarted) {
         buildHomeModel(
             data = data,
             pendingJoins = if (data.isAdmin) joinRequests.count { it.status == "pending" } else 0,
             pendingSwapsForMe = swapRequests.count { it.status == "pending" && it.toUserId == uid },
             balances = pairwisePersonalBalances(expenses, settlements, uid),
             pendingVacancies = if (data.isAdmin) vacancyRequests.size else 0,
+            hasExpense = expenses.isNotEmpty(),
+            getStartedHidden = data.flat.id in hiddenGetStarted,
         ).copy(unreadCount = unread)
     }
 
@@ -175,7 +180,7 @@ private fun HomeDashboard(
         model = model,
         completingTaskId = completingTaskId,
         onOpenFlatSwitcher = onOpenFlatSwitcher,
-        onInvite = { launchShareInviteCode(context, data.flat.name, data.flat.id) },
+        onInvite = { flatViewModel.withInviteCode { launchShareInviteCode(context, data.flat.name, it) } },
         onOpenTasks = onOpenTasks,
         onOpenTask = onOpenTaskDetail,
         onCompleteTask = { id ->
@@ -199,6 +204,7 @@ private fun HomeDashboard(
         onAddExpense = onAddExpense,
         onAddBill = onAddBill,
         onOpenProfile = onOpenProfile,
+        onHideGetStarted = { scope.launch { prefs.hideGetStarted(uid, data.flat.id) } },
     )
 }
 
@@ -208,6 +214,8 @@ internal fun buildHomeModel(
     pendingSwapsForMe: Int,
     balances: Map<String, Double>,
     pendingVacancies: Int = 0,
+    hasExpense: Boolean = false,
+    getStartedHidden: Boolean = false,
 ): HomeUiModel {
     val uid = data.currentUid
     val mine = data.activeTasks
@@ -229,6 +237,14 @@ internal fun buildHomeModel(
         if (pendingSwapsForMe > 0) add(HomePendingItem(HomePendingItem.Kind.SwapRequests, "Swap turn", "${plural(pendingSwapsForMe, "flatmate")} asked to swap a turn with you"))
         if (pendingVacancies > 0) add(HomePendingItem(HomePendingItem.Kind.VacancyRequests, "Room listing to review", "${plural(pendingVacancies, "flatmate")} listed a room in Discover"))
     }
+
+    // Adding tasks is admin-only, so members get the first two steps. Any task counts, done or not.
+    val steps = buildList {
+        add(HomeGetStartedStep(HomeGetStartedStep.Kind.Invite, "Invite your flatmates", "Share your invite code so they can join", data.memberCount > 1))
+        add(HomeGetStartedStep(HomeGetStartedStep.Kind.Expense, "Add your first expense", "Rent, groceries, Wi-Fi: anything you split", hasExpense || data.monthlySpent > 0))
+        if (data.isAdmin) add(HomeGetStartedStep(HomeGetStartedStep.Kind.Task, "Add a task", "Cleaning, trash, cooking: who does what", data.tasks.isNotEmpty()))
+    }
+    val getStarted = if (getStartedHidden || steps.all { it.done }) emptyList() else steps
 
     val owe = balances.filter { it.value < 0 }
     val owed = balances.filter { it.value > 0 }
@@ -267,7 +283,8 @@ internal fun buildHomeModel(
         balanceText = { formatInr(it) },
         memberNames = data.members.sortedByDescending { it.uid == uid }.map { it.nickname },
         isAdmin = data.isAdmin,
-        activity = data.activity.take(3).map { entry ->
+        getStarted = getStarted,
+        activity =data.activity.take(3).map { entry ->
             HomeActivityItem("${memberName(data.members, entry.userId, uid)} ${entry.details}", formatTimeAgo(entry.timestamp))
         },
     )

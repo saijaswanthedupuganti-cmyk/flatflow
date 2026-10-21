@@ -81,6 +81,7 @@ fun ProfileScreen(
 ) {
     val profile by flatViewModel.userProfile.collectAsStateWithLifecycleCompat()
     val flatInfo by flatViewModel.flatInfo.collectAsStateWithLifecycleCompat()
+    val inviteCode by flatViewModel.inviteCode.collectAsStateWithLifecycleCompat()
     val members by flatViewModel.members.collectAsStateWithLifecycleCompat()
     val isAdmin by flatViewModel.isAdmin.collectAsStateWithLifecycleCompat()
     val loading by flatViewModel.loading.collectAsStateWithLifecycleCompat()
@@ -130,7 +131,7 @@ fun ProfileScreen(
         pane == ProfilePane.FLAT && flatInfo == null -> ProfileSkeleton()
         pane == ProfilePane.FLAT -> MyFlatPane(
             flatName = flatInfo?.name.orEmpty(),
-            flatId = flatInfo?.id,
+            inviteCode = inviteCode,
             currentUserEmail = user?.email,
             isAdmin = isAdmin,
             members = members,
@@ -265,7 +266,7 @@ private fun EditAccountPane(
 @Composable
 private fun MyFlatPane(
     flatName: String,
-    flatId: String?,
+    inviteCode: String?,
     currentUserEmail: String?,
     isAdmin: Boolean,
     members: List<Member>,
@@ -313,16 +314,16 @@ private fun MyFlatPane(
                     }
                 }
             }
-            if (!flatId.isNullOrBlank()) {
+            if (!inviteCode.isNullOrBlank()) {
                 Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text("Invite code", style = HqType.labelMedium, color = c.textMuted)
-                    Text(flatId, style = HqType.code, color = c.textBrand)
+                    Text(inviteCode, style = HqType.code, color = c.textBrand)
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(HqSpacing.sm)) {
-                    HqButton(text = "Share invite", onClick = { launchShareInviteCode(context, flatName, flatId) }, variant = HqButtonVariant.Secondary, fullWidth = false)
+                    HqButton(text = "Share invite", onClick = { launchShareInviteCode(context, flatName, inviteCode) }, variant = HqButtonVariant.Secondary, fullWidth = false)
                     HqTextButton(text = "Copy", onClick = {
                         val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                        cm.setPrimaryClip(ClipData.newPlainText("Oddroof invite", flatId))
+                        cm.setPrimaryClip(ClipData.newPlainText("Oddroof invite", inviteCode))
                     })
                 }
             }

@@ -5,8 +5,8 @@ import Section from '@/components/site/Section'
 import s from '@/components/site/site.module.css'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Delete your Oddroof account' },
-  description: 'How to delete your Oddroof account in the app or by email, and what is deleted or kept afterwards.',
+  title: { absolute: 'Delete your Habitiq account' },
+  description: 'How to delete your Habitiq account in the app or by email, and what is deleted or kept afterwards.',
   alternates: { canonical: '/delete-account' },
 }
 
@@ -16,13 +16,13 @@ const itemStyle = { marginBottom: 8 } as const
 export default function DeleteAccountPage() {
   return (
     <main>
-      <PageHero eyebrow="Your account" title="Delete your Oddroof account"
+      <PageHero eyebrow="Your account" title="Delete your Habitiq account"
         lede="You can delete your account yourself in the app, or ask us to do it by email." />
 
       <Section id="in-the-app" tone="white" title="Delete it in the app">
         <div className={s.prose} style={{ marginTop: 24 }}>
           <ol style={listStyle}>
-            <li style={itemStyle}>Open Oddroof and tap the <strong>Profile</strong> tab.</li>
+            <li style={itemStyle}>Open Habitiq and tap the <strong>Profile</strong> tab.</li>
             <li style={itemStyle}>Under Preferences, tap <strong>Privacy &amp; Security</strong>.</li>
             <li style={itemStyle}>Under Danger zone, tap <strong>Delete account</strong>.</li>
             <li style={itemStyle}>Read the confirmation and tap <strong>Delete account</strong> again.</li>
@@ -36,7 +36,7 @@ export default function DeleteAccountPage() {
           <p>
             If you can&apos;t use the app, email{' '}
             <a href="mailto:hello@habitiq.app?subject=Delete%20my%20account">hello@habitiq.app</a>{' '}
-            from the email address you use to sign in to Oddroof, with the subject &quot;Delete my account&quot;.
+            from the email address you use to sign in to Habitiq, with the subject &quot;Delete my account&quot;.
             We reply within 30 days.
           </p>
         </div>

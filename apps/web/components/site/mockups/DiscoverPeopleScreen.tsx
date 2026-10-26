@@ -41,7 +41,7 @@ export default function DiscoverPeopleScreen() {
             <div style={{ flex: 1 }}><div className={m.pName}>{p.name}</div><div className={m.muted}>{p.where}</div></div>
             <ChevronRight size="1em" aria-hidden style={{ flexShrink: 0 }} />
           </div>
-          <div className={m.newTag}><Info size="1.1em" aria-hidden />New to Oddroof <span className={m.link}>Why?</span></div>
+          <div className={m.newTag}><Info size="1.1em" aria-hidden />New to Habitiq <span className={m.link}>Why?</span></div>
           {p.bio && <div className={m.bio}>{p.bio}</div>}
           <div className={m.connect}>
             <span className={i === 0 && sent ? m.off : ''}>Connect</span>

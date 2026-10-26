@@ -25,7 +25,7 @@ function ResolvedCard() {
   )
 }
 
-/** The flat chat on one side, the same jobs sorted in Oddroof on the other. Readable at rest; messages arrive one by one. */
+/** The flat chat on one side, the same jobs sorted in Habitiq on the other. Readable at rest; messages arrive one by one. */
 export default function ChatBubbles() {
   const reduce = useCalm()
   const settleAt = BUBBLES.length * 0.12 + 0.15

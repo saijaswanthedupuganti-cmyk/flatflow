@@ -2,10 +2,10 @@ import { test, expect } from '@playwright/test'
 import version from '../public/downloads/version.json'
 
 test.describe('site shell', () => {
-  test('home renders the Oddroof site root', async ({ page }) => {
+  test('home renders the Habitiq site root', async ({ page }) => {
     await page.goto('/')
     await expect(page.locator('.or-site')).toBeVisible()
-    await expect(page).toHaveTitle(/Oddroof/)
+    await expect(page).toHaveTitle(/Habitiq/)
   })
 
   test('PWA install prompt never renders on site routes', async ({ page }) => {
@@ -189,7 +189,7 @@ test.describe('closing sections', () => {
 
   test('final CTA repeats the download', async ({ page }) => {
     await page.goto('/')
-    await expect(page.locator('#get-oddroof [data-download]')).toHaveAttribute('href', version.url)
+    await expect(page.locator('#get-habitiq [data-download]')).toHaveAttribute('href', version.url)
   })
 })
 
@@ -200,7 +200,7 @@ for (const width of WIDTHS) {
     await page.setViewportSize({ width, height: 900 })
     await page.goto('/')
     // Walk the page so scroll-linked layouts settle at every section.
-    for (const id of ['hero', 'problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-oddroof']) {
+    for (const id of ['hero', 'problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-habitiq']) {
       await page.locator(`#${id}`).scrollIntoViewIfNeeded()
       const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
       expect(overflow, `overflow in #${id}`).toBeLessThanOrEqual(0)
@@ -214,7 +214,7 @@ test.describe('reduced motion', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' })
     await page.goto('/')
     await page.waitForTimeout(500) // let hydration switch Reveal to its final state
-    for (const id of ['problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-oddroof']) {
+    for (const id of ['problem', 'how-it-works', 'voice', 'discover', 'trust', 'install', 'get-habitiq']) {
       const sec = page.locator(`#${id}`)
       await sec.scrollIntoViewIfNeeded()
       const heading = sec.getByRole('heading').first()

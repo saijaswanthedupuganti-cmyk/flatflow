@@ -49,8 +49,8 @@ export default function DiscoverFlatScreen() {
             <div className={m.muted}>Private room · Apartment · Any gender</div>
             <div className={m.tags}>{l.tags.map(t => <span key={t}>{t}</span>)}</div>
             <div className={m.host}>
-              <span>Hosted by an Oddroof member · {l.members} in flat</span>
-              <b><ShieldCheck size="1.1em" aria-hidden />Oddroof member</b>
+              <span>Hosted by an Habitiq member · {l.members} in flat</span>
+              <b><ShieldCheck size="1.1em" aria-hidden />Habitiq member</b>
             </div>
             {i === 0 && (
               <div className={m.connect}>

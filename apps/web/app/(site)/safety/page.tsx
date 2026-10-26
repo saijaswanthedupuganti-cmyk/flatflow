@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Safety tips',
-  description: 'How to find a room or flatmate safely on Oddroof Discover — scams to avoid, safe viewings, and how to report.',
+  description: 'How to find a room or flatmate safely on Habitiq Discover — scams to avoid, safe viewings, and how to report.',
   alternates: { canonical: '/safety' },
 }
 
@@ -15,7 +15,7 @@ export default function SafetyPage() {
         {/* Header */}
         <div className="mb-10">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-flex items-center min-h-11 -ml-2 px-2 rounded-lg">
-            ← Back to Oddroof
+            ← Back to Habitiq
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Safety Tips</h1>
           <p className="text-muted-foreground text-sm">
@@ -28,16 +28,16 @@ export default function SafetyPage() {
           {/* Intro */}
           <section>
             <p className="text-muted-foreground leading-relaxed">
-              Discover (in the Oddroof app) helps you find rooms and flatmates. Most people you meet are genuine — but
+              Discover (in the Habitiq app) helps you find rooms and flatmates. Most people you meet are genuine — but
               housing scams and unsafe situations are common in India, especially on WhatsApp and Facebook groups.
               These tips take two minutes to read and can save you money and stress.
             </p>
             <div className="mt-4 rounded-lg border border-border p-4">
               <p className="text-foreground font-medium">
-                Oddroof never collects rent, deposits, or booking fees.
+                Habitiq never collects rent, deposits, or booking fees.
               </p>
               <p className="text-muted-foreground mt-1">
-                Anyone asking you to pay &quot;through Oddroof&quot; or to &quot;block the room&quot; before you have
+                Anyone asking you to pay &quot;through Habitiq&quot; or to &quot;block the room&quot; before you have
                 seen it is not acting for us.
               </p>
             </div>
@@ -122,7 +122,7 @@ export default function SafetyPage() {
           {/* Emergency */}
           <section>
             <h2 className="text-lg font-semibold mb-3">7. If you are in danger or have lost money</h2>
-            <p className="text-muted-foreground mb-3">Oddroof is not an emergency service. In India, contact:</p>
+            <p className="text-muted-foreground mb-3">Habitiq is not an emergency service. In India, contact:</p>
             <table className="w-full text-sm text-muted-foreground border-collapse">
               <tbody className="divide-y divide-border">
                 <tr>
@@ -148,7 +148,7 @@ export default function SafetyPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Oddroof · habitiq.app · India ·{' '}
+            Habitiq · habitiq.app · India ·{' '}
             <Link href="/privacy" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Privacy Policy</Link> ·{' '}
             <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Terms of Service</Link>
           </p>

@@ -2,14 +2,14 @@ import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { ImageResponse } from 'next/og'
 
-export const alt = 'Oddroof — Your flat, sorted'
+export const alt = 'Habitiq — Your flat, sorted'
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
 
 import { BRAND } from '@/components/site/brand'
 
 export default async function OgImage() {
-  const mark = await readFile(join(process.cwd(), 'public', 'brand', 'oddroof-mark.png'))
+  const mark = await readFile(join(process.cwd(), 'public', 'brand', 'habitiq-mark.png'))
   const markSrc = `data:image/png;base64,${mark.toString('base64')}`
 
   return new ImageResponse(
@@ -42,10 +42,10 @@ export default async function OgImage() {
             }}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={markSrc} width={96} height={73} alt="" />
+            <img src={markSrc} width={74} height={96} alt="" />
           </div>
           <div style={{ fontSize: 112, fontWeight: 800, color: BRAND.onNavy, letterSpacing: '-4px', lineHeight: 1 }}>
-            Oddroof
+            Habitiq
           </div>
         </div>
 

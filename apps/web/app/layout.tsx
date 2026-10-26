@@ -14,13 +14,13 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://habitiq.app"),
-  title: "Oddroof — Your flat, sorted",
-  description: "Oddroof keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Android app, free.",
+  title: "Habitiq — Your flat, sorted",
+  description: "Habitiq keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Android app, free.",
   manifest: "/manifest.json",
   keywords: ["shared flat app", "flatmate app India", "chore rotation app", "split expenses with flatmates", "PG expense manager", "find a flatmate", "find a flat India"],
-  authors: [{ name: "Oddroof" }],
-  creator: "Oddroof",
-  publisher: "Oddroof",
+  authors: [{ name: "Habitiq" }],
+  creator: "Habitiq",
+  publisher: "Habitiq",
   robots: { index: true, follow: true, googleBot: { index: true, follow: true } },
   icons: {
     icon: [
@@ -30,16 +30,16 @@ export const metadata: Metadata = {
     apple: "/api/pwa-icon/180",
   },
   openGraph: {
-    title: "Oddroof — Your flat, sorted",
+    title: "Habitiq — Your flat, sorted",
     description: "Fair task rotation, shared expenses, bills, a voice assistant and safe flatmate discovery for shared flats in India.",
-    siteName: "Oddroof",
+    siteName: "Habitiq",
     type: "website",
     locale: "en_IN",
-    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Oddroof — Your flat, sorted" }],
+    images: [{ url: "/opengraph-image", width: 1200, height: 630, alt: "Habitiq — Your flat, sorted" }],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Oddroof — Your flat, sorted",
+    title: "Habitiq — Your flat, sorted",
     description: "Fair task rotation, shared expenses, bills, a voice assistant and safe flatmate discovery for shared flats in India.",
     images: ["/opengraph-image"],
   },
@@ -57,7 +57,7 @@ const jsonLd = [
     "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
-    name: "Oddroof",
+    name: "Habitiq",
     url: SITE_URL,
     logo: `${SITE_URL}/api/pwa-icon/512`,
     email: "hello@habitiq.app",
@@ -66,7 +66,7 @@ const jsonLd = [
   {
     "@context": "https://schema.org",
     "@type": "MobileApplication",
-    name: "Oddroof",
+    name: "Habitiq",
     url: SITE_URL,
     image: `${SITE_URL}/opengraph-image`,
     operatingSystem: "Android",
@@ -114,7 +114,7 @@ export default function RootLayout({
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-        <meta name="apple-mobile-web-app-title" content="Oddroof" />
+        <meta name="apple-mobile-web-app-title" content="Habitiq" />
         <link rel="apple-touch-icon" href="/api/pwa-icon/180" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">

@@ -6,13 +6,13 @@ import Trust from '@/components/site/home/Trust'
 import Section from '@/components/site/Section'
 import s from '@/components/site/site.module.css'
 
-export const metadata: Metadata = { title: 'Privacy & safety', description: 'How Oddroof protects your contact details, location and data.', alternates: { canonical: '/privacy-and-safety' } }
+export const metadata: Metadata = { title: 'Privacy & safety', description: 'How Habitiq protects your contact details, location and data.', alternates: { canonical: '/privacy-and-safety' } }
 
 export default function PrivacyHubPage() {
   return (
     <main>
       <PageHero eyebrow="Privacy & safety" title="How we protect you."
-        lede="Plain answers on what Oddroof shows, what it keeps private, and how to remove your data." />
+        lede="Plain answers on what Habitiq shows, what it keeps private, and how to remove your data." />
       <Trust />
       <Section id="policies" tone="white" eyebrow="The full detail" title="Policies and help">
         <ul className={s.linkList}>

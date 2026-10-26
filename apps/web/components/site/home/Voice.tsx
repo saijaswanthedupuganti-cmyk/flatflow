@@ -13,7 +13,7 @@ const POINTS = [
 export default function Voice() {
   return (
     <Section id="voice" tone="dark" eyebrow="Voice assistant" title="Just say it."
-      lede="Tap the orb and tell Oddroof what happened. It understands, shows you the result, and saves when you agree.">
+      lede="Tap the orb and tell Habitiq what happened. It understands, shows you the result, and saves when you agree.">
       <div className={h.voiceGrid}>
         <VoiceDemo />
         <div className={h.voicePoints}>

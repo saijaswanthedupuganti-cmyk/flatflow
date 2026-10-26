@@ -9,7 +9,7 @@ export default async function DownloadQr({ size = 132 }: { size?: number }) {
   return (
     <figure style={{ margin: 0, width: size }} data-download-qr={abs}>
       <div style={{ width: size, height: size, borderRadius: 16, overflow: 'hidden', background: 'var(--or-surface)' }}
-        role="img" aria-label="QR code to download Oddroof for Android"
+        role="img" aria-label="QR code to download Habitiq for Android"
         dangerouslySetInnerHTML={{ __html: svg }} />
       <figcaption style={{ fontSize: 12, marginTop: 8, opacity: .85 }}>Scan to download on your phone</figcaption>
     </figure>

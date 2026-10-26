@@ -37,7 +37,7 @@ const STEPS = [
   },
   {
     title: 'See who owes whom, then settle up', icon: HandCoins, Screen: ExpenseScreen,
-    body: 'Balances break down person by person. Record a settlement when you pay someone back. Oddroof keeps the record and never moves money.',
+    body: 'Balances break down person by person. Record a settlement when you pay someone back. Habitiq keeps the record and never moves money.',
     details: ['Record a settlement', 'Mark received'],
     label: 'Expenses: your balance and what each flatmate owes or is owed',
   },
@@ -54,7 +54,7 @@ export default function PinnedStory() {
     <Section id="how-it-works" tone="canvas" className={h.storySection} eyebrow="How it works"
       title="From move-in to month-end, one fair loop."
       lede="Six everyday jobs in the order your flat meets them. Each one is a real screen in the app, running below.">
-      <ol className={h.flow} aria-label="How Oddroof runs a flat">
+      <ol className={h.flow} aria-label="How Habitiq runs a flat">
         {STEPS.map((s, i) => {
           const Icon = s.icon
           return (

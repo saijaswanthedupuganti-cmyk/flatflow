@@ -56,7 +56,7 @@ export default function Navbar() {
   return (
     <div className={s.navWrap}>
       <Glass tier="canvas" as="nav" aria-label="Main" className={`${s.nav} ${s.navLight} ${scrolled ? s.navScrolled : ''}`}>
-        <Link href="/" className={s.logo} aria-label="Oddroof home"><Logo height={24} decorative /></Link>
+        <Link href="/" className={s.logo} aria-label="Habitiq home"><Logo height={24} decorative /></Link>
         <div className={s.navLinks}>
           <div ref={productsRef} style={{ position: 'relative' }}>
             <button className={s.navTrigger} aria-expanded={productsOpen} aria-controls="products-menu" onClick={() => setProductsOpen(o => !o)}>

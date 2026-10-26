@@ -64,7 +64,7 @@ export default function VoiceDemo() {
   const { ref, ...v } = useVoiceLoop()
   return (
     <div ref={ref} className={h.voiceStage} role="img"
-      aria-label={`Voice demo: you say "${PHRASE}", Oddroof shows a Groceries expense of ₹500 paid by you, split with everyone (4), and saves it when you tap Save.`}>
+      aria-label={`Voice demo: you say "${PHRASE}", Habitiq shows a Groceries expense of ₹500 paid by you, split with everyone (4), and saves it when you tap Save.`}>
       <div className={h.voiceGlow} aria-hidden />
       <div className={h.voiceOrbRow} aria-hidden><VoiceOrb size={120} listening={v.listening} ribbons /></div>
       <p className={h.transcript} aria-hidden>

@@ -5,7 +5,7 @@ export default function Problem() {
   return (
     <Section id="problem" tone="white" eyebrow="The problem"
       title="Your flat's WhatsApp group is doing too much."
-      lede="Chores, money and reminders get lost between memes and forwards. Oddroof gives each of them a proper home.">
+      lede="Chores, money and reminders get lost between memes and forwards. Habitiq gives each of them a proper home.">
       <ChatBubbles />
     </Section>
   )

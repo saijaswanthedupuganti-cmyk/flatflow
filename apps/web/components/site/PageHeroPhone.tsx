@@ -7,7 +7,7 @@ import VoiceScreen from './mockups/VoiceScreen'
 
 const PHONES: Record<string, { label: string; Screen: () => React.ReactElement }> = {
   '/discover': { label: 'Discover: flat listings in Hyderabad with rent per head and a connect button', Screen: DiscoverFlatScreen },
-  '/flat-manager': { label: "Oddroof home: your flat, tasks for you, what you owe and today's tasks", Screen: HomeScreen },
+  '/flat-manager': { label: "Habitiq home: your flat, tasks for you, what you owe and today's tasks", Screen: HomeScreen },
   '/voice': { label: 'Voice assistant: "I just spent 500 on groceries" becomes a ₹500 Groceries expense to save', Screen: VoiceScreen },
 }
 

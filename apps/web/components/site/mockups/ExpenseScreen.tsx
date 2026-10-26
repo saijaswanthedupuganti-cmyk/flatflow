@@ -46,7 +46,7 @@ export default function ExpenseScreen() {
           <div className={m.personActs}>{p.acts.map(a => <span key={a} className={m.linkTeal}>{a}</span>)}</div>
         </div>
       ))}
-      <div className={m.notice}><ShieldCheck size="1.3em" aria-hidden style={{ flexShrink: 0 }} />Oddroof records settlements but does not process payments.</div>
+      <div className={m.notice}><ShieldCheck size="1.3em" aria-hidden style={{ flexShrink: 0 }} />Habitiq records settlements but does not process payments.</div>
     </div>
   )
 }

@@ -15,8 +15,8 @@ import DownloadQr from '@/components/site/DownloadQr'
 import { FINAL_PHOTO } from '@/lib/site/photos'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Oddroof — Your flat, sorted' },
-  description: 'Oddroof keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Free Android app.',
+  title: { absolute: 'Habitiq — Your flat, sorted' },
+  description: 'Habitiq keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Free Android app.',
   alternates: { canonical: '/' },
 }
 

@@ -6,10 +6,10 @@ export default function HabitiqLoadingScreen() {
     <div className={styles.screen} role="status" aria-live="polite" aria-atomic="true">
       <div className={styles.content}>
         <div className={styles.mark} aria-hidden="true">
-          <Image src="/brand/oddroof-mark.png" width={72} height={55} alt="" priority />
+          <Image src="/brand/habitiq-mark.png" width={56} height={72} alt="" priority />
         </div>
         <div className={styles.copy}>
-          <p className={styles.name}>Oddroof</p>
+          <p className={styles.name}>Habitiq</p>
           <p className={styles.message}>Getting your flat ready…</p>
         </div>
         <div className={styles.track} aria-hidden="true">

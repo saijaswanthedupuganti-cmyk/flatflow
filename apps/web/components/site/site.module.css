@@ -71,8 +71,8 @@
   transition: background-color .25s var(--or-ease), box-shadow .25s var(--or-ease);
 }
 .navScrolled { background: rgba(255,255,255,.82) !important; color: var(--or-text) !important; box-shadow: 0 10px 40px rgba(15,23,42,.12) !important; }
-.wordmark { display: inline-block; flex-shrink: 0; background-color: currentColor;
-  -webkit-mask: url(/site/brand/oddroof-logo.png) center / contain no-repeat; mask: url(/site/brand/oddroof-logo.png) center / contain no-repeat; }
+.wordmark { display: inline-flex; align-items: center; gap: .32em; flex-shrink: 0; color: inherit; font-family: var(--or-font-display); font-weight: 800; letter-spacing: -.02em; line-height: 1; white-space: nowrap; }
+.wordmarkMark { height: 100%; width: auto; display: block; }
 .logo { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-family: var(--or-font-display); font-weight: 800; font-size: 20px; color: inherit; text-decoration: none; }
 .navLinks { display: none; align-items: center; gap: 4px; margin-left: auto; }
 .navLink, .navTrigger { padding: 10px 14px; border-radius: 999px; color: inherit; text-decoration: none; font-weight: 600; font-size: 15px; background: none; border: 0; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; min-height: 44px; }

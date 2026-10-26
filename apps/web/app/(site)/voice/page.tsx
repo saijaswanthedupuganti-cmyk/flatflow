@@ -4,7 +4,7 @@ import Voice from '@/components/site/home/Voice'
 import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 
-export const metadata: Metadata = { title: 'Voice assistant', description: 'Tell Oddroof what happened in your own words. It shows the result and saves when you agree.', alternates: { canonical: '/voice' } }
+export const metadata: Metadata = { title: 'Voice assistant', description: 'Tell Habitiq what happened in your own words. It shows the result and saves when you agree.', alternates: { canonical: '/voice' } }
 
 export default function VoicePage() {
   return (

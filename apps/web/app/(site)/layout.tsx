@@ -4,12 +4,13 @@ import '@/components/site/tokens.css'
 import SmoothScroll from '@/components/site/SmoothScroll'
 import Navbar from '@/components/site/Navbar'
 import Footer from '@/components/site/Footer'
+import StepsAiWidget from '@/components/site/StepsAiWidget'
 
 const jakarta = Plus_Jakarta_Sans({ subsets: ['latin'], weight: ['600', '700', '800'], variable: '--font-jakarta', display: 'swap' })
 
 export const metadata: Metadata = {
-  title: { default: 'Oddroof — Your flat, sorted', template: '%s · Oddroof' },
-  description: 'Oddroof keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery.',
+  title: { default: 'Habitiq — Your flat, sorted', template: '%s · Habitiq' },
+  description: 'Habitiq keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery.',
 }
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
@@ -19,6 +20,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
         <Navbar />
         {children}
         <Footer />
+        <StepsAiWidget />
       </SmoothScroll>
     </div>
   )

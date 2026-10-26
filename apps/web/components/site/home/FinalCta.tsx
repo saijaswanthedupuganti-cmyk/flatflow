@@ -7,7 +7,7 @@ import h from './home.module.css'
 
 export default function FinalCta({ hasPhoto, download }: { hasPhoto: boolean; download: React.ReactNode }) {
   return (
-    <section id="get-oddroof" className={`${h.final} or-golden`}>
+    <section id="get-habitiq" className={`${h.final} or-golden`}>
       {hasPhoto && <Image src={FINAL_PHOTO} alt="" fill sizes="100vw" style={{ objectFit: 'cover' }} />}
       <div className={h.heroScrim} style={{ background: 'rgba(11,18,32,.45)' }} />
       <Reveal className={h.finalInner}>

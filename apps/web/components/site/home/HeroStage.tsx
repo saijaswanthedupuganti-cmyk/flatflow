@@ -40,7 +40,7 @@ export default function HeroStage() {
   const tucked = { x: 0, y: 0, opacity: 0, scale: 0.94 }
 
   return (
-    <div className={h.stage} aria-label="Oddroof app: Home in front, Discover and Manage behind" role="group">
+    <div className={h.stage} aria-label="Habitiq app: Home in front, Discover and Manage behind" role="group">
       <div className={h.stageGlow} aria-hidden />
 
       {/* Discover, behind Home on the left */}
@@ -64,7 +64,7 @@ export default function HeroStage() {
       {/* Home, the hero phone */}
       <div className={`${h.slot} ${h.slotHome}`} data-hero-phone="home" style={{ zIndex: 3 }}>
         <motion.div animate={calm ? undefined : { y: [0, -6, 0] }} transition={FLOAT}>
-          <PhoneFrame label="Oddroof home: your flat, tasks for you, what you owe and today's tasks"><HomeScreen /></PhoneFrame>
+          <PhoneFrame label="Habitiq home: your flat, tasks for you, what you owe and today's tasks"><HomeScreen /></PhoneFrame>
         </motion.div>
         <motion.span className={`${h.contact} ${h.contactHome}`} aria-hidden animate={calm ? undefined : { scaleX: [1, 0.94, 1], opacity: [0.42, 0.32, 0.42] }} transition={FLOAT} />
       </div>

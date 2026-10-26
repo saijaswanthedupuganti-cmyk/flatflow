@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Privacy policy',
-  description: 'How Oddroof collects, uses, and protects your personal data, how long it is kept, and how to delete your account.',
+  description: 'How Habitiq collects, uses, and protects your personal data, how long it is kept, and how to delete your account.',
   alternates: { canonical: '/privacy' },
 }
 
@@ -15,7 +15,7 @@ export default function PrivacyPage() {
         {/* Header */}
         <div className="mb-10">
           <Link href="/" className="text-sm text-muted-foreground hover:text-foreground mb-4 inline-flex items-center min-h-11 -ml-2 px-2 rounded-lg">
-            ← Back to Oddroof
+            ← Back to Habitiq
           </Link>
           <h1 className="text-3xl font-bold tracking-tight mb-2">Privacy Policy</h1>
           <p className="text-muted-foreground text-sm">
@@ -28,9 +28,9 @@ export default function PrivacyPage() {
           {/* Intro */}
           <section>
             <p className="text-muted-foreground leading-relaxed">
-              Oddroof is a shared living platform built for flats, PGs, and co-living spaces in India. It covers
+              Habitiq is a shared living platform built for flats, PGs, and co-living spaces in India. It covers
               flat management (tasks, expenses, bills) and <strong className="text-foreground">Discover</strong>,
-              where people list rooms and find flatmates. This policy covers the Oddroof Android app, the website
+              where people list rooms and find flatmates. This policy covers the Habitiq Android app, the website
               (habitiq.app), and the web app.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
@@ -48,7 +48,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">1. Who We Are</h2>
             <p className="text-muted-foreground leading-relaxed">
-              Oddroof is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India.
+              Habitiq is operated by its founders, Venkata Sai Jaswanth E and Upputuri Bhanu Kalyan, based in India.
               We are the Data Fiduciary under the DPDP Act — the people responsible for how your data is handled.
             </p>
             <p className="text-muted-foreground leading-relaxed mt-2">
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
               <li>Recurring bill configurations and payment status</li>
             </ul>
             <p className="text-muted-foreground text-sm mt-2">
-              We do not process any actual payments. Oddroof records that a settlement happened (e.g., &quot;Rahul paid
+              We do not process any actual payments. Habitiq records that a settlement happened (e.g., &quot;Rahul paid
               ₹2,000 via UPI&quot;) but no money moves through our platform.
             </p>
 
@@ -237,7 +237,7 @@ export default function PrivacyPage() {
               </li>
               <li>
                 <strong className="text-foreground">Trust labels:</strong> any trust or verification label is based only
-                on activity on Oddroof. It is not a background check. Before we use your task or payment history for a
+                on activity on Habitiq. It is not a background check. Before we use your task or payment history for a
                 personal trust label, we will ask for your separate consent, and you can turn it off.
               </li>
               <li>
@@ -279,7 +279,7 @@ export default function PrivacyPage() {
                 </tr>
                 <tr>
                   <td className="py-2 pr-4">Gemini via Firebase AI Logic (Google Cloud Vertex AI)</td>
-                  <td className="py-2 pr-4">Understanding requests to the Oddroof assistant (Android)</td>
+                  <td className="py-2 pr-4">Understanding requests to the Habitiq assistant (Android)</td>
                   <td className="py-2">Your request, flatmates&apos; first names, open tasks, your balances, this month&apos;s bills, and public Discover listings</td>
                 </tr>
                 <tr>
@@ -305,7 +305,7 @@ export default function PrivacyPage() {
               </tbody>
             </table>
             <p className="text-muted-foreground text-sm mt-3">
-              <strong className="text-foreground">The Oddroof assistant.</strong> The mic is on only while the assistant
+              <strong className="text-foreground">The Habitiq assistant.</strong> The mic is on only while the assistant
               screen is open and you tap to talk, and it turns off when you leave the app. Before a request is sent to
               Gemini, flatmates and tasks are replaced with short codes: no emails, phone numbers, photos or account IDs
               are included. Nothing the assistant suggests is saved until you confirm it. If you prefer, you can type
@@ -341,7 +341,7 @@ export default function PrivacyPage() {
               </li>
             </ul>
             <p className="text-muted-foreground mt-3">
-              <Link href="/delete-account" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">How to delete your Oddroof account</Link>
+              <Link href="/delete-account" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">How to delete your Habitiq account</Link>
             </p>
           </section>
 
@@ -389,7 +389,7 @@ export default function PrivacyPage() {
           <section>
             <h2 className="text-lg font-semibold mb-3">9. Children</h2>
             <p className="text-muted-foreground">
-              Oddroof is not intended for use by anyone under 18. We do not knowingly collect data from minors.
+              Habitiq is not intended for use by anyone under 18. We do not knowingly collect data from minors.
               If you believe a minor has created an account, contact us and we will delete it.
             </p>
           </section>
@@ -426,7 +426,7 @@ export default function PrivacyPage() {
           <hr className="border-border" />
 
           <p className="text-xs text-muted-foreground">
-            Oddroof · habitiq.app · India · Document version 0.5.0 ·{' '}
+            Habitiq · habitiq.app · India · Document version 0.5.0 ·{' '}
             <Link href="/terms" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Terms of Service</Link> ·{' '}
             <Link href="/safety" className="text-blue-700 underline underline-offset-2 hover:text-blue-800">Safety Tips</Link>
           </p>

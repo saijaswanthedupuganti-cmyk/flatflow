@@ -80,7 +80,7 @@ const TILES: Tile[] = [
   },
   {
     key: 'chat', size: 'sm', side: 'discover', icon: MessageCircle, title: 'Connect, then chat',
-    body: 'Send a request. Once it is accepted, message each other inside Oddroof.',
+    body: 'Send a request. Once it is accepted, message each other inside Habitiq.',
     ui: (
       <div className={f.uiChat}>
         <span className={f.bubble}>Is the room still free?</span>
@@ -137,7 +137,7 @@ const TILES: Tile[] = [
   {
     key: 'safety', size: 'sm', side: 'discover', icon: ShieldAlert, title: 'Safety, report and block',
     body: 'Safety tips before viewings. Report a listing or person, or block them so they cannot contact you.',
-    ui: <div className={f.uiSafety}><p>Keep chats in Oddroof. Never pay before viewing.</p><div><span><Flag size={12} aria-hidden />Report</span><span><Ban size={12} aria-hidden />Block</span></div></div>,
+    ui: <div className={f.uiSafety}><p>Keep chats in Habitiq. Never pay before viewing.</p><div><span><Flag size={12} aria-hidden />Report</span><span><Ban size={12} aria-hidden />Block</span></div></div>,
   },
   {
     key: 'saved', size: 'sm', side: 'discover', icon: Bookmark, title: 'Saved flats',
@@ -174,7 +174,7 @@ const TILES: Tile[] = [
   },
   {
     key: 'lock', size: 'sm', side: 'app', icon: Fingerprint, title: 'Biometric lock',
-    body: 'Use your fingerprint or face to open Oddroof.',
+    body: 'Use your fingerprint or face to open Habitiq.',
     ui: <div className={f.uiLock}><Fingerprint size={34} strokeWidth={1.5} aria-hidden /><span className={f.scan} aria-hidden /></div>,
   },
 ]

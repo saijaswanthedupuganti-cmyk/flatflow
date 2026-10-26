@@ -14,7 +14,7 @@ const TILES = [
 export default function Trust() {
   return (
     <Section id="trust" tone="canvas" eyebrow="Privacy & trust" title="Built to be trusted in your home."
-      lede="Sharing a flat means sharing a lot. Oddroof keeps what is private, private.">
+      lede="Sharing a flat means sharing a lot. Habitiq keeps what is private, private.">
       <div className={h.trustGrid}>
         {TILES.map((t, i) => {
           const Icon = t.icon

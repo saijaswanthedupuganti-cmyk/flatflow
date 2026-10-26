@@ -11,7 +11,7 @@ export default function Footer() {
     <footer className={s.footer}>
       <div className={s.footerGrid}>
         <div>
-          <p className={s.logo} style={{ color: 'var(--or-on-navy)' }}>Oddroof</p>
+          <p className={s.logo} style={{ color: 'var(--or-on-navy)' }}>Habitiq</p>
           <p style={{ maxWidth: '36ch', marginTop: 12 }}>A calmer shared flat: fair tasks, clear money, and safe ways to find your next flatmate.</p>
         </div>
         <nav aria-labelledby="footer-products">
@@ -32,7 +32,7 @@ export default function Footer() {
           <div><a href="mailto:hello@habitiq.app">hello@habitiq.app</a></div>
         </nav>
       </div>
-      <p className={s.footerBottom}>© 2026 Oddroof. Made in India.</p>
+      <p className={s.footerBottom}>© 2026 Habitiq. Made in India.</p>
     </footer>
   )
 }

@@ -5,9 +5,10 @@ export default function robots(): MetadataRoute.Robots {
     rules: [
       {
         userAgent: '*',
-        allow: '/',
-        // Block authenticated / app routes and internal API from being indexed
-        disallow: ['/dashboard/', '/onboarding/', '/join/', '/api/'],
+        // Brand icons must be crawlable. App pages use X-Robots-Tag noindex;
+        // blocking their crawl would prevent crawlers from seeing that directive.
+        allow: ['/', '/api/pwa-icon/'],
+        disallow: ['/api/', '/__/'],
       },
     ],
     sitemap: 'https://habitiq.app/sitemap.xml',

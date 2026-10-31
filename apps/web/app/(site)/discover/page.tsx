@@ -1,3 +1,4 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import type { Metadata } from 'next'
 import PageHero from '@/components/site/PageHero'
 import Discover from '@/components/site/home/Discover'
@@ -5,7 +6,7 @@ import Trust from '@/components/site/home/Trust'
 import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 
-export const metadata: Metadata = { title: 'Discover flats and flatmates', description: 'Find a room or a flatmate in your city, with approximate locations and private contact details until you both accept.', alternates: { canonical: '/discover' } }
+export const metadata: Metadata = publicPageMetadata({ title: 'Discover flats and flatmates', description: 'Find a room or a flatmate in your city, with approximate locations and private contact details until you both accept.', alternates: { canonical: '/discover' } })
 
 export default function DiscoverPage() {
   return (

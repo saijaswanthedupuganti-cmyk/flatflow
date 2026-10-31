@@ -8,6 +8,7 @@ import Features from '@/components/site/home/Features'
 import Voice from '@/components/site/home/Voice'
 import Discover from '@/components/site/home/Discover'
 import Trust from '@/components/site/home/Trust'
+import Questions from '@/components/site/home/Questions'
 import Install from '@/components/site/home/Install'
 import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
@@ -15,8 +16,23 @@ import DownloadQr from '@/components/site/DownloadQr'
 import { FINAL_PHOTO } from '@/lib/site/photos'
 
 export const metadata: Metadata = {
-  title: { absolute: 'Habitiq — Your flat, sorted' },
-  description: 'Habitiq keeps a shared flat running: fair task rotation, shared expenses and bills, away mode, a voice assistant, and safe flat and flatmate discovery. Free Android app.',
+  title: { absolute: 'Habitiq — Find Rooms, Flatmates & Manage Your Flat' },
+  description: 'Find rooms and flatmates with Habitiq. Manage shared expenses, bills and rotating chores in one Android app for shared living in India.',
+  openGraph: {
+    title: 'Habitiq — Find Rooms, Flatmates & Manage Your Flat',
+    description: 'Find rooms and flatmates, split expenses, and manage household chores with Habitiq.',
+    url: 'https://habitiq.app',
+    siteName: 'Habitiq',
+    type: 'website',
+    locale: 'en_IN',
+    images: [{ url: '/opengraph-image', width: 1200, height: 630, alt: 'Habitiq — Your flat, sorted' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Habitiq — Find Rooms, Flatmates & Manage Your Flat',
+    description: 'Find rooms and flatmates, split expenses, and manage household chores with Habitiq.',
+    images: ['/opengraph-image'],
+  },
   alternates: { canonical: '/' },
 }
 
@@ -32,6 +48,7 @@ export default function HomePage() {
       <Features />
       <Voice />
       <Trust />
+      <Questions />
       <Install />
       <FinalCta hasPhoto={hasPhoto(FINAL_PHOTO)} download={<DownloadButton />} />
     </main>

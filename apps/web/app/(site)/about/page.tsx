@@ -1,3 +1,4 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import type { Metadata } from 'next'
 import PageHero from '@/components/site/PageHero'
 import Section from '@/components/site/Section'
@@ -5,7 +6,7 @@ import FinalCta from '@/components/site/home/FinalCta'
 import DownloadButton from '@/components/site/DownloadButton'
 import s from '@/components/site/site.module.css'
 
-export const metadata: Metadata = { title: 'About', description: 'Habitiq is built in India to make shared living calmer: finding the right flat and flatmates, then running the flat fairly.', alternates: { canonical: '/about' } }
+export const metadata: Metadata = publicPageMetadata({ title: 'About', description: 'Habitiq is built in India to make shared living calmer: finding the right flat and flatmates, then running the flat fairly.', alternates: { canonical: '/about' } })
 
 export default function AboutPage() {
   return (

@@ -1,11 +1,12 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: 'Privacy policy',
   description: 'How Habitiq collects, uses, and protects your personal data, how long it is kept, and how to delete your account.',
   alternates: { canonical: '/privacy' },
-}
+})
 
 export default function PrivacyPage() {
   return (
@@ -35,7 +36,7 @@ export default function PrivacyPage() {
             </p>
             <p className="text-muted-foreground leading-relaxed mt-3">
               This policy explains what personal data we collect, why, who can see it, and what rights you have
-              over it. We try to say this plainly — not in a way designed to confuse you. It complies with
+              over it. We aim to explain this plainly. Our privacy practices are informed by
               India&apos;s{' '}
               <strong className="text-foreground">Digital Personal Data Protection Act, 2023 (DPDP Act)</strong>{' '}
               and the DPDP Rules, 2025.

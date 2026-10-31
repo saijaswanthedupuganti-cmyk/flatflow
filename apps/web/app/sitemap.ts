@@ -16,10 +16,10 @@ const PAGES: { path: string; changeFrequency: 'weekly' | 'monthly'; priority: nu
 ]
 
 export default function sitemap(): MetadataRoute.Sitemap {
-  const lastModified = new Date()
+  // Omit lastModified until actual per-page content dates are maintained.
+  // A rebuild does not mean every public page changed.
   return PAGES.map(({ path, changeFrequency, priority }) => ({
     url: path === '/' ? BASE : `${BASE}${path}`,
-    lastModified,
     changeFrequency,
     priority,
   }))

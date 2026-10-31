@@ -1,0 +1,11 @@
+{
+  "checkedAt": "2026-10-31T21:16:20.079Z",
+  "deployment": "dpl_5eHk9NuEsBajz84tQWEgJcMtKorG",
+  "status": 200,
+  "previewNoindex": true,
+  "homepageTitle": true,
+  "websiteSchema": true,
+  "visibleAnswers": true,
+  "uniqueManifestAndTouchIcon": true,
+  "failedDeploymentPage": false
+}

@@ -26,6 +26,10 @@ const nextConfig: NextConfig = {
   },
   async headers() {
     return [
+      ...['/dashboard/:path*', '/onboarding/:path*', '/join/:path*', '/login/:path*'].map(source => ({
+        source,
+        headers: [{ key: 'X-Robots-Tag', value: 'noindex, nofollow' }],
+      })),
       {
         // Apply security headers to every route EXCEPT the Firebase auth proxy
         // routes (/__/auth/* and /__/firebase/*).

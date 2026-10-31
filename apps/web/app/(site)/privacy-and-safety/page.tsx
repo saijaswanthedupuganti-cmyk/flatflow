@@ -1,3 +1,4 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { ArrowRight } from 'lucide-react'
@@ -6,7 +7,7 @@ import Trust from '@/components/site/home/Trust'
 import Section from '@/components/site/Section'
 import s from '@/components/site/site.module.css'
 
-export const metadata: Metadata = { title: 'Privacy & safety', description: 'How Habitiq protects your contact details, location and data.', alternates: { canonical: '/privacy-and-safety' } }
+export const metadata: Metadata = publicPageMetadata({ title: 'Privacy & safety', description: 'How Habitiq protects your contact details, location and data.', alternates: { canonical: '/privacy-and-safety' } })
 
 export default function PrivacyHubPage() {
   return (

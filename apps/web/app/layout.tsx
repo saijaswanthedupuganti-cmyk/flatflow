@@ -55,6 +55,15 @@ const SITE_URL = "https://habitiq.app";
 const jsonLd = [
   {
     "@context": "https://schema.org",
+    "@type": "WebSite",
+    "@id": `${SITE_URL}/#website`,
+    name: "Habitiq",
+    alternateName: "Habitiq.app",
+    url: SITE_URL,
+    publisher: { "@id": `${SITE_URL}/#organization` },
+  },
+  {
+    "@context": "https://schema.org",
     "@type": "Organization",
     "@id": `${SITE_URL}/#organization`,
     name: "Habitiq",
@@ -106,7 +115,6 @@ export default function RootLayout({
             `,
           }}
         />
-        <link rel="manifest" href="/manifest.json" />
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
@@ -115,7 +123,6 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
         <meta name="apple-mobile-web-app-title" content="Habitiq" />
-        <link rel="apple-touch-icon" href="/api/pwa-icon/180" />
       </head>
       <body className="min-h-full flex flex-col bg-background text-foreground font-sans">
         <PWAProvider>

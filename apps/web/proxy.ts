@@ -11,13 +11,21 @@ export function proxy(request: NextRequest) {
     return NextResponse.next()
   }
 
+  // The exact preview deployment must be reviewable without becoming an
+  // indexable duplicate. Production aliases still redirect to the canonical host.
+  if (process.env.VERCEL_ENV === 'preview' && host === process.env.VERCEL_URL) {
+    const response = NextResponse.next()
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow')
+    return response
+  }
+
   // Netlify deploy previews / branch deploys (e.g. deploy-preview-12--flatsflow.netlify.app)
   // stay on their own host so the owner can review a change before it reaches habitiq.app.
   if (/--flatsflow\.netlify\.app$/.test(host)) {
     return NextResponse.next()
   }
 
-  // Redirect every non-canonical domain (Vercel preview URLs, old Netlify
+  // Redirect every other non-canonical domain (production aliases, old Netlify
   // domain, any alias) to habitiq.app with a permanent 301.
   if (host !== CANONICAL_HOST) {
     const url = new URL(request.url)

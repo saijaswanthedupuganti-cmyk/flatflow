@@ -1,0 +1,10 @@
+.answers { max-width: 800px; margin-top: 32px; }
+.answers h3 {
+  margin: 28px 0 10px;
+  color: var(--or-text);
+  font-size: clamp(20px, 2vw, 24px);
+  line-height: 1.4;
+  font-weight: 700;
+}
+.answers h3:first-child { margin-top: 0; }
+.answers p { line-height: 1.7; }

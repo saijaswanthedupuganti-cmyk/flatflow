@@ -27,7 +27,7 @@ import {
 
 // ── Config ───────────────────────────────────────────────────────────────────
 
-export const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string; color: string }> = {
+const CATEGORY_CONFIG: Record<ExpenseCategory, { label: string; emoji: string; color: string }> = {
   rent:        { label: 'Rent',               emoji: '🏠', color: 'bg-violet-100 dark:bg-violet-900/30' },
   electricity: { label: 'Electricity',        emoji: '⚡', color: 'bg-yellow-100 dark:bg-yellow-900/30' },
   water:       { label: 'Water',              emoji: '💧', color: 'bg-sky-100 dark:bg-sky-900/30' },

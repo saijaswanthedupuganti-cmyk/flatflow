@@ -20,7 +20,7 @@ export default function Hero({ download, qr }: { download: React.ReactNode; qr: 
             <span className={h.accent} data-accent="">Run it together.</span>
           </h1>
           <p className={`${h.sub} ${h.enter}`} style={{ animationDelay: '80ms' }}>
-            Discover rooms and flatmates you can trust, then share chores, bills and money without the WhatsApp chaos.
+            Find rooms and flatmates with Habitiq, then manage shared chores, bills and expenses in one Android app.
           </p>
           <div className={`${h.ctaRow} ${h.enter}`} style={{ animationDelay: '160ms' }}>
             {download}

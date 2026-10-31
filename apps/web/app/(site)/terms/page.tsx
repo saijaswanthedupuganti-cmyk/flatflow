@@ -1,11 +1,12 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: 'Terms of service',
   description: 'The rules for using Habitiq — what you can expect from us and what we expect from you.',
   alternates: { canonical: '/terms' },
-}
+})
 
 export default function TermsPage() {
   return (

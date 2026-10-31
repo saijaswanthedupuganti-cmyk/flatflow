@@ -1,11 +1,12 @@
+import { publicPageMetadata } from '@/lib/site/metadata'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = {
+export const metadata: Metadata = publicPageMetadata({
   title: 'Safety tips',
   description: 'How to find a room or flatmate safely on Habitiq Discover — scams to avoid, safe viewings, and how to report.',
   alternates: { canonical: '/safety' },
-}
+})
 
 export default function SafetyPage() {
   return (
